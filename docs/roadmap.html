@@ -320,6 +320,10 @@ const roadmap = {
       { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'], deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
       { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'rip-player', title: 'Rip DVD Player Pane', desc: 'InlineVideoPlayer at 40% width for disc preview after scan; title nav dropdown + VOB concat URL; "Play with Menus" button launches VLC or mpv for full libdvdnav interactive menu navigation', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/launch.go'], deps: ['dvdvideo', 'inline-player'], docs: [] },
+      { id: 'menu-bleed', title: 'Menu VOB Bleed Fix', desc: 'CollectVOBSets excludes VTS_XX_0.VOB (menu VOB) from content title sets. Fixes menu frames glitching into output video and shifted chapter timestamps caused by menu VOB prepended to concat list.', status: 'shipped', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go'], deps: ['rip-player'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
+      { id: 'chapter-diag', title: 'Chapter Diagnosis', desc: 'Verbose logging in executor: chapter count, first/last timestamps, embed/no-embed decision. Makes chapter issues debuggable from rip log.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go'], deps: ['ifo-scan'], docs: [] },
+      { id: 'menu-preserve', title: 'Menu Preservation Option', desc: 'New IncludeMenus config + "Preserve menus" checkbox. Menu VOBs (VIDEO_TS.VOB + VTS_XX_0.VOB) exported as separate files alongside main rip.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go', 'internal/app/modules/rip/types.go', 'internal/app/modules/rip/view.go', 'internal/app/modulecfg/rip.go', 'rip_module.go'], deps: ['menu-bleed'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
+      { id: 'main-extra', title: 'Main/Extra Title Naming', desc: 'Longest title (main feature) uses main output path; shorter titles use _Extra_Title_NN suffix. Title selection UI marks main feature with star indicator.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/view.go'], deps: ['title-select'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
       { id: 'css-bypass', title: 'CSS Decryption Wiring', desc: 'Full CSS decryptor package exists (DecryptSector, DecryptVOB, DecryptReader) — needs wiring into the VOB concat and dvdvideo rip pipeline to unblock commercial encrypted disc ripping', status: 'planned', cycle: 'dev49', files: ['internal/dvd/css/css.go', 'internal/dvd/css/detect.go', 'internal/app/modules/rip/executor.go'], deps: ['css-detect'], docs: [] },
       { id: 'm2ts-support', title: '.m2ts File Support', desc: 'Handle .m2ts files in CollectVOBSets (currently only .vob is matched)', status: 'future', cycle: 'future', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'future', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
@@ -755,6 +759,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev49', date: 'May 2026', tag: 'current', sections: [
+    { title: 'Rip Module — Menu Bleed, Chapters & Multi-Title', items: [
+      'Menu VOB bleed: CollectVOBSets excludes VTS_XX_0.VOB from content title sets — fixes menu frames glitching into video and shifted chapter timestamps',
+      'Chapter diagnostics: verbose logging of chapter count, first/last timestamps, embed/no-embed decision',
+      'Menu preservation: new IncludeMenus config + checkbox; menu VOBs exported as separate files alongside main rip',
+      'Main/extra title naming: longest title uses main output path; extras get _Extra_Title_NN suffix; star indicator in UI',
+    ]},
     { title: 'VT Media Engine Refactoring', items: [
       'engine.go subsystem split: break 3245-line monolith into focused files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go)',
       'view.go component split: break 1438-line VideoPlayer widget into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go',
@@ -1200,6 +1210,10 @@ const checklistData = [
     '-f dvdvideo demuxer handles seamless branching discs correctly',
     'Rip DVD player pane shows preview after scan',
     'Title selection UI queues multiple titles correctly',
+    'Menu VOBs excluded from content sets — no menu bleed in output video',
+    'Chapters appear in output file with correct timestamps',
+    'Menu preservation checkbox exports menu VOBs as separate files',
+    'Main feature (longest title) uses main output path; extras get _Extra suffix',
   ]},
   { title: 'Player Module', items: [
     'CGo/FFmpeg engine plays video with A/V sync',

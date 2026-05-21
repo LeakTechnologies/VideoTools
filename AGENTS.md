@@ -4,8 +4,9 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring**. Priorities below.
+- Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring + Rip module fixes**. Priorities below.
 - Public/stable baseline: `v0.1.1`.
+- `dev49` active: engine.go subsystem split (errors.go, hwdecode.go extracted). Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Design doc at docs/RIP_MODULE_REDESIGN.md.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
@@ -18,6 +19,16 @@ These rules apply to any automation or agent working in this repo.
 - **Player debug log:** `docs/PLAYER_DEBUG.md` — keep this up to date as issues are found and fixed. Update it before closing any player-related issue.
 
 ## Immediate Handoff Priorities
+
+### Rip Module Fixes
+All items in `internal/app/modules/rip/`.
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| Menu VOB bleed (VTS_XX_0.VOB excluded from content sets) | `executor.go` | **SHIPPED** |
+| Chapter embedding diagnostics | `executor.go` | **SHIPPED** |
+| Menu preservation option (separate file export) | `executor.go`, `types.go`, `view.go`, `modulecfg/rip.go`, `rip_module.go` | **SHIPPED** |
+| Main/extra title naming (main path + _Extra suffix) | `view.go` | **SHIPPED** |
 
 ### VT Media Engine Refactoring (HIGH — start here)
 
@@ -494,3 +505,4 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 3. Extract Player interface from InlineVideoPlayer for mock testing.
 4. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
 5. Push staged commits to origin when satisfied.
+6. Test rip module fixes with real disc: verify menu bleed is gone, chapters appear in output, menu preservation exports separate files, main/extra naming works correctly.
