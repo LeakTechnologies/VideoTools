@@ -239,7 +239,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	vs.logEntry = logEntry
 	logScroll := container.NewVScroll(logEntry)
-	logScroll.SetMinSize(fyne.NewSize(0, 160))
+	logScroll.SetMinSize(fyne.NewSize(0, 40))
 	vs.logScroll = logScroll
 	if opts.SetRipLogEntry != nil {
 		opts.SetRipLogEntry(logEntry)
@@ -872,10 +872,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 	if opts.OnModuleFooter != nil {
 		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), opts.OnGetStatsBar())
 	}
+
+	logVSplit := container.NewVSplit(mainSplit, logSection)
+	logVSplit.SetOffset(0.75)
 	return container.NewBorder(topBar, bottomBar, nil, nil,
-		container.NewBorder(nil, logSection, nil, nil,
-			mainSplit,
-		))
+		logVSplit,
+	)
 }
 
 // buildTitleNavLabel builds the display label for a disc title in the nav dropdown.
