@@ -798,6 +798,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 				isISO := strings.HasSuffix(strings.ToLower(path), ".iso")
 				if isISO {
+					// Load the ISO directly into the player immediately — FFmpeg
+					// handles ISO 9660 / UDF natively via avformat.
+					go func() { _ = dvdPlayer.Load(path) }()
 					go func() {
 						fi, err := os.Stat(path)
 						if err != nil {
