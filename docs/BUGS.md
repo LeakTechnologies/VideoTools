@@ -29,7 +29,7 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
   - `main.go:8851-8883` - `updateQualityVisibility()` function
   - `main.go:8440-8532` - `updateEncodingControls()` function
   - `main.go:7875-7888` - Bitrate mode selection callback
-- **Assigned To**: opencode (handoff from Claude)
+- **Assigned To**: Unassigned
 - **Verified**: No (not fixed yet)
 
 ### BUG-006: Windows app crashes mid-conversion with no logs
@@ -74,7 +74,7 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
   - `main.go:2216-2246` - setContent() with panic recovery
   - `thumbnail_module.go:109-127` - showThumbnailView() with debug logging
   - Log output for crash details
-- **Assigned To**: opencode
+- **Assigned To**: Unassigned
 - **Verified**: No (investigating)
 
 ---
@@ -95,7 +95,7 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
 - **Root Cause**: FFmpeg progress parsing relied on stderr time updates; piped output used CR-only updates.
 - **Files to Check**:
   - `main.go:executeUpscaleJob` (progress pipe parsing)
-- **Fixed By**: Codex
+- **Fixed By**: dev team
 - **Verified**: No
 
 ---
@@ -147,7 +147,7 @@ None currently open.
   - Removed explicit `.Hide()` call on quality section initialization
   - Added `updateQualityVisibility()` call after section creation
 - **Files Changed**: `main.go:8522-8537, 8850, 8875, 8924-8928`
-- **Fixed By**: Claude
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-002: Target File Size showing when not in Target Size mode
@@ -159,7 +159,7 @@ None currently open.
 - **Root Cause**: `updateRemuxVisibility()` was unconditionally showing all encoding containers when not in remux mode
 - **Fix**: Changed `updateRemuxVisibility()` to call `updateEncodingControls()` which properly shows/hides based on bitrate mode
 - **Files Changed**: `main.go:8924-8928`
-- **Fixed By**: Claude
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-003: AAC and OPUS audio codec colors too similar
@@ -170,7 +170,7 @@ None currently open.
 - **Impact**: Usability issue - hard to tell which codec is selected
 - **Fix**: Changed AAC color from #7C3AED (purple-blue) to #06B6D4 (bright cyan) for much better contrast
 - **Files Changed**: `internal/ui/colors.go:47`
-- **Fixed By**: Claude
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-004: Audio module missing drag & drop support
@@ -184,7 +184,7 @@ None currently open.
   - Modified `handleModuleDrop()` to accept audio files when dropping on audio module
   - Added audio module handler in `handleModuleDrop()` to load files and show audio view
 - **Files Changed**: `main.go:2978, 3158-3180, 3186-3195`
-- **Fixed By**: Claude
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-007: Copy Error button lacked actionable details
@@ -194,7 +194,7 @@ None currently open.
 - **Description**: Copy Error only included a truncated error string with no context
 - **Fix**: Copy now includes job title, module, input/output, full error text, log path, and log tail
 - **Files Changed**: `main.go`
-- **Fixed By**: Codex
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-008: About page "Logs Folder" not opening on Windows
@@ -204,7 +204,7 @@ None currently open.
 - **Description**: Clicking Logs Folder did nothing on Windows
 - **Fix**: Use `explorer` with normalized path, ensure folder exists
 - **Files Changed**: `main.go`
-- **Fixed By**: Codex
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ### BUG-009: Contact sheet output saved inside thumbnails folder
@@ -214,7 +214,7 @@ None currently open.
 - **Description**: Contact sheet was stored inside `_thumbnails` folder, adding extra navigation
 - **Fix**: Contact sheet now saves alongside source video; individual thumbs still use folder
 - **Files Changed**: `thumb_module.go`
-- **Fixed By**: Codex
+- **Fixed By**: dev team
 - **Verified**: Yes, build passes
 
 ---
@@ -232,7 +232,7 @@ None currently open.
 - **Plan**: Complete in future dev cycle
 
 ### ISSUE-002: Widget Deduplication - Incomplete
-- **Status**: 🔄 IN PROGRESS (opencode)
+- **Status**: 🔄 IN PROGRESS
 - **Module**: Convert UI
 - **Description**: 4 widget pairs still need deduplication
 - **Details**:
@@ -242,14 +242,14 @@ None currently open.
     - targetAspectSelect & targetAspectSelectSimple
     - encoderPresetSelect & simplePresetSelect
     - bitratePresetSelect & simpleBitrateSelect
-- **Plan**: Handed off to opencode agent
+- **Plan**: Handed off
 
 ### ISSUE-003: ColoredSelect Expansion - Incomplete
-- **Status**: 🔄 IN PROGRESS (opencode)
+- **Status**: 🔄 IN PROGRESS
 - **Module**: Convert UI
 - **Description**: 32 widgets still need ColoredSelect conversion
 - **Details**: Resolution, aspect, preset, bitrate, frame rate selectors need semantic color coding
-- **Plan**: Handed off to opencode agent
+- **Plan**: Handed off
 
 ---
 
@@ -271,7 +271,7 @@ When you find a bug, add it here with:
 - **Root Cause**: (fill in when investigating)
 - **Fix**: (fill in when fixed)
 - **Files Changed**: (list files)
-- **Assigned To**: (agent name)
+- **Assigned To**: (assignee)
 - **Verified**: Yes/No
 ```
 
@@ -305,9 +305,9 @@ When you find a bug, add it here with:
 
 ## 🎯 Next Steps
 
-1. **BUG-005** (Critical): Fix CRF quality settings visibility - Assigned to opencode
-2. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Assigned to opencode
-3. **ISSUE-003**: Complete ColoredSelect expansion (32 widgets) - Assigned to opencode
+1. **BUG-005** (Critical): Fix CRF quality settings visibility - Unassigned
+2. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Unassigned
+3. **ISSUE-003**: Complete ColoredSelect expansion (32 widgets) - Unassigned
 
 ---
 

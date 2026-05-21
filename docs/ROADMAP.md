@@ -13,8 +13,8 @@ timeline
     v0.1.1-dev48 (Shipped) : Startup crash diagnostics : i18n script persistence : Windows signing wired : Roadmap visual polish
     v0.1.1-dev48 (Shipped) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Button straggler clean-up
     v0.1.1-dev49 (Current) : Rip module menu bleed fix : Chapter diagnostics : Menu preservation option : Main/extra title naming
-    v0.1.1-dev49 (Current) : VT Media Engine refactor : VT ISO Engine refactor : engine.go subsystem split : UDF reader robustness
-    v0.1.1-dev49 (Current) : HW decode default-on eval : Thread safety formalisation : View.go component extraction : Player interface extraction
+    v0.1.1-dev49 (Current) : Inuktitut transliteration package : Auto-fill i18n script variants : VT Media Engine refactor : VT ISO Engine refactor
+    v0.1.1-dev49 (Current) : engine.go subsystem split : UDF reader robustness : HW decode default-on eval : Thread safety formalisation
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -43,7 +43,7 @@ timeline
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
 - Theme system, PillButton/PillIconButton, text primitives, VTTheme — all button+slider migrations shipped in dev48.
 - STATUS_STACK_OVERFLOW recovery, dual before/after player sync shipped in dev48.
-- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness + Rip module fixes** — breaking monoliths into subsystem files, fixing menu VOB bleed and chapter embedding, adding menu preservation and main/extra title naming.
+- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness + Rip module fixes + Inuktitut transliteration** — breaking monoliths into subsystem files, fixing menu VOB bleed and chapter embedding, adding menu preservation and main/extra title naming, auto-filling empty i18n script variants via iutools transliteration.
 - PAL/NTSC full-disc conversion with IFO regeneration.
 - Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
@@ -54,6 +54,7 @@ timeline
 - **Rip chapter diagnostics** — Verbose logging of chapter count, timestamps, and embedding decisions.
 - **Rip menu preservation** — New `IncludeMenus` config + checkbox; menu VOBs export as separate files.
 - **Rip main/extra naming** — Main feature (longest title) gets main output path; extras get `_Extra_Title_NN` suffix.
+- **Inuktitut transliteration** — `internal/i18n/translit/` package with iutools algorithm for syllabics↔roman conversion; auto-fills empty i18n fields via `translitFill()` in `SetLanguageWithScript`.
 - **VT Media Engine engine.go split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
 - **VT ISO Engine UDF reader robustness** — Fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge.
 - **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.

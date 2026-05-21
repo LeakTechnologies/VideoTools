@@ -6,7 +6,7 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring + Rip module fixes**. Priorities below.
 - Public/stable baseline: `v0.1.1`.
-- `dev49` active: engine.go subsystem split (errors.go, hwdecode.go extracted). Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Design doc at docs/RIP_MODULE_REDESIGN.md.
+- `dev49` active: engine.go subsystem split (errors.go, hwdecode.go extracted). Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Inuktitut transliteration package (`internal/i18n/translit/`) — syllabics↔roman via iutools algorithm, auto-fills empty i18n fields. Design doc at docs/RIP_MODULE_REDESIGN.md.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
@@ -64,6 +64,7 @@ All major module migrations are done. Most stragglers are now converted. The rem
 
 ### Dev49 Handoff (carry forward)
 
+- **GitHub mirror setup** — Push mirror via Forgejo built-in; issue migration script at `scripts/github-mirror/migrate-issues.ps1`. See `scripts/github-mirror/README.md`.
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.

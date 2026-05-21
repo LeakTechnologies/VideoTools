@@ -13,6 +13,14 @@
 - **errors.go extracted** — PlaybackError type, ErrCode constants, error/degradation methods moved from engine.go to errors.go. C preamble duplicated for `av_buffer_unref` calls.
 - **hwdecode.go extracted** — HWDeviceType, device detection, SetHWDevice/GetHWDevice, codecCanUseHWDevice, initHWDecode, getHWPixelFormat, retrieveHWFrame, C helper functions vt_get_hw_format/vt_set_get_format moved from engine.go to hwdecode.go. engine.go C preamble cleaned up to subtitle helpers only.
 
+### Inuktitut Transliteration — Auto-Fill i18n Script Variants
+- **`internal/i18n/translit/` package**: Pure-Go reimplementation of the iutools syllabics↔roman transliteration algorithm (MIT-licensed, National Research Council Canada). 270-entry mapping tables cover all 15 consonant series (p, t, k, g, m, n, s, l, j, v, r, q, ng, nng, ł) plus short/long vowels, finals, and `lh` ASCII fallback for `ł`.
+- **Syllabics→Roman direction**: Handles compound sequences where r/q finals combine with k-series consonants (→ rq/qq+vowel) and ng/nng finals combine with g-series consonants (→ ng/nng+vowel).
+- **Roman→Syllabics direction**: Greedy longest-prefix matching using a single `map[string]string` hash table. Tries 5-char keys (e.g. `nngaa`) before 3-char (`nng`) or 2-char (`ng`) — no state machine needed. Format verbs (`%s`, `%d`, etc.) escaped before lookup so the `s` in `%s` is not mapped to ᔅ.
+- **Script detection**: `IsSyllabics(s)`, `SyllabicRatio(s)` for identifying script type; `RomanOnly(v)` mode toggle to skip roman→syllabics on translatable strings.
+- **i18n integration**: `translitFill()` in `i18n.go` uses reflection to iterate `Strings` struct fields. Empty `iu` fields auto-filled from `iu-latn` (and vice versa) via transliteration during `SetLanguageWithScript`. Manually-entered strings in `iu.go` take precedence as overrides — never overwritten.
+- **Test coverage**: 15 translit unit tests with 276 round-trip assertions; 3 integration tests for the `i18n.SetLanguageWithScript` ↔ translit bridge. All passing.
+
 ### VT ISO Engine — Roadmap
 - **Roadmap columns** — VT Media Engine and VT ISO Engine added as dedicated columns on the interactive roadmap with individual status cards for each refactoring task (engine.go split, view.go split, Player interface, HW decode, thread safety, UDF reader, UDF thread safety).
 
@@ -354,7 +362,7 @@
 - [x] **PCI button table (M3)** - `PCIButton` struct added to `internal/dvd/vob/nav.go`; `WriteNAV_PCK` serializes up to 36 button entries with libdvdread-compatible coordinate packing at offset 98 within PCI payload; BTN_SL_NS/BTN_NS written at correct offsets 94/95
 - [x] **VMGM_VOBS_Sector (M4)** - `vmgMat.VMGM_VOBS_Sector` set from `vtsSector("VIDEO_TS.VOB")` in ISO layout pass so dvdnav can locate the menu VOB on disc
 - [x] **Menu PGC sector patching (M5)** - Each menu PGC `CellPlayback[0]` First/LastSector fields patched with actual disc sector range computed from per-MPG file sizes and the VIDEO_TS.VOB disc start sector; folder-mode equivalent added (cumulative file-size-based offsets, VMGM_VOBS_Sector set to VMG_Last_Sector+1 to ensure libdvdread opens VIDEO_TS.VOB)
-- [x] **VOB sector counter fix** - `WriteVideo` restored to mutual-exclusive increment: `currentSector++` only in `else` branch when no padding; `WritePadding` handles it when padding is written. Fixes double-increment bug (introduced by opencode) that corrupted `nv_pck_lbn` in menu VOB NAV_PCKs → VLC/dvdnav crash
+- [x] **VOB sector counter fix** - `WriteVideo` restored to mutual-exclusive increment: `currentSector++` only in `else` branch when no padding; `WritePadding` handles it when padding is written. Fixes double-increment bug (introduced in refactoring) that corrupted `nv_pck_lbn` in menu VOB NAV_PCKs → VLC/dvdnav crash
 - [x] **ExtrasMpg wiring (M6)** - `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and tracked in `menuMpgPaths` slice alongside main/chapters PGCs
 - [x] **JumpVMGM_PGCN command (M7)** - `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` translates `"jump menu N;"` / `"jump menu pgc N;"` to inter-menu PGC jump instructions
 
