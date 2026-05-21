@@ -1,12 +1,13 @@
 package settings
 
 import (
+	"image/color"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"image/color"
+	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
@@ -29,7 +30,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
 	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleSettings), ui.BorderDim, opts.OnBack)
-
 	settingsColor := utils.MustHex(ModuleColor)
 	topBar := ui.TintedBar(settingsColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
@@ -40,14 +40,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bottomBar = container.NewHBox(layout.NewSpacer())
 	}
 
-	tabs := container.NewAppTabs(
-		container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(opts.BuildPreferencesTab()))),
-		container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(opts.BuildDependenciesTab()))),
-		container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(opts.BuildBenchmarkTab()))),
+	page := container.NewVBox(
+		opts.BuildPreferencesTab(),
+		widget.NewSeparator(),
+		opts.BuildDependenciesTab(),
+		widget.NewSeparator(),
+		opts.BuildBenchmarkTab(),
 	)
-	tabs.SetTabLocation(container.TabLocationTop)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
+	return container.NewBorder(topBar, bottomBar, nil, nil,
+		ui.NewFastVScroll(container.NewPadded(page)))
 }
 
 func ModuleColorValue() color.Color {
