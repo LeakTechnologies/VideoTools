@@ -25,11 +25,11 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
-// settingsRow places a label on the left and a control on the right at its
-// natural (MinSize) width. Prevents Select widgets from stretching to panel width.
+// settingsRow places a label immediately before a control with no spacer between
+// them. The control renders at its natural (MinSize) width. The centeredPanel in
+// view.go constrains total width so labels and controls stay close together.
 func settingsRow(label string, control fyne.CanvasObject) fyne.CanvasObject {
-	lbl := widget.NewLabel(label)
-	return container.NewHBox(lbl, layout.NewSpacer(), control)
+	return container.NewHBox(widget.NewLabel(label), control)
 }
 
 // settingsCard wraps a group of controls in a titled dark-background section card.
