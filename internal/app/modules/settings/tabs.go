@@ -466,12 +466,14 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		} else {
 			label = t.SettingsHWDecodeNotCompatible
 		}
-		hwDecodeStatus.SetText(label)
-		if prefs.HWDecodeEnabled && available {
-			cb.SetHWDecodeEnabled(true)
-		}
-		hwDecodeAutoCheck.Checked = prefs.HWDecodeEnabled && available
-		hwDecodeAutoCheck.Disable()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			hwDecodeStatus.SetText(label)
+			if prefs.HWDecodeEnabled && available {
+				cb.SetHWDecodeEnabled(true)
+			}
+			hwDecodeAutoCheck.Checked = prefs.HWDecodeEnabled && available
+			hwDecodeAutoCheck.Disable()
+		}, false)
 	}()
 
 	content.Add(hwDecodeAutoCheck)
@@ -509,9 +511,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	fontHint.Wrapping = fyne.TextWrapWord
 	content.Add(fontHint)
 
-	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, func() {
-		cb.ShowPlayer()
-	})
+	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, cb.ShowPlayer())
 	content.Add(testPatternBtn)
 
 	testPatternHint := widget.NewLabel(t.SettingsTestPatternHint)
