@@ -15,7 +15,8 @@ func NewInlineVideoPlayer() *InlineVideoPlayer { return &InlineVideoPlayer{} }
 
 func (v *InlineVideoPlayer) Widget() fyne.CanvasObject { return nil }
 
-func (v *InlineVideoPlayer) Load(path string) error { return nil }
+func (v *InlineVideoPlayer) Load(path string) error                     { return nil }
+func (v *InlineVideoPlayer) LoadDVD(path string, title int) error        { return nil }
 
 func (v *InlineVideoPlayer) Play()                                {}
 func (v *InlineVideoPlayer) Pause()                               {}

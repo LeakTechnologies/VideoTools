@@ -287,14 +287,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var prevTitleBtn, nextTitleBtn *ui.PillButton
 
 	prevTitleBtn = ui.MakePillButton("◀", ui.BorderDim, func() {
-		if vs.scanResult == nil || titleIdx <= 0 || vs.videoTSPath == "" {
+		if vs.scanResult == nil || titleIdx <= 0 {
 			return
 		}
 		titleIdx--
 		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
 	})
 	nextTitleBtn = ui.MakePillButton("▶", ui.BorderDim, func() {
-		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 || vs.videoTSPath == "" {
+		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 {
 			return
 		}
 		titleIdx++
@@ -302,15 +302,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	titleNavSelect = widget.NewSelect(nil, func(s string) {
-		if vs.scanResult == nil || vs.videoTSPath == "" {
+		if vs.scanResult == nil {
 			return
 		}
 		for i, dt := range vs.scanResult.Titles {
 			if buildTitleNavLabel(dt) == s {
 				titleIdx = i
-				if url := buildDiscConcatURL(vs.videoTSPath, dt.VTSNumber); url != "" {
-					go func() { _ = dvdPlayer.Load(url) }()
-				}
+				discRoot := resolveDVDRoot(vs.sourcePath)
+				go func() { _ = dvdPlayer.LoadDVD(discRoot, dt.Number) }()
 				return
 			}
 		}
@@ -334,7 +333,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	playerPane := container.NewBorder(nil, playerBottomRow, nil, nil, playerCanvas)
 
 	rebuildTitleNav = func() {
-		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 || vs.videoTSPath == "" {
+		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 {
 			titleNavRow.Hide()
 			return
 		}
@@ -808,7 +807,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 								for _, dt := range result.Titles {
 									vs.selectedTitles[dt.Number] = true
 								}
+								go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
 							}
+							rebuildTitleNav()
 							rebuildEnrich()
 						}, false)
 					}()
@@ -835,9 +836,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 									vs.selectedTitles[dt.Number] = true
 								}
 								if len(result.Titles) > 0 {
-									if url := buildDiscConcatURL(vtsp, result.Titles[0].VTSNumber); url != "" {
-										go func() { _ = dvdPlayer.Load(url) }()
-									}
+									discRoot := resolveDVDRoot(vs.sourcePath)
+									titleNum := result.Titles[0].Number
+									go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
 								}
 								rebuildTitleNav()
 							}
