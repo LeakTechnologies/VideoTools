@@ -384,7 +384,12 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	}
 
 	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleTrim), ui.BorderDim, opts.OnShowMainMenu)
-	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, func() {
+		if opts.OnShowQueue != nil {
+			opts.OnShowQueue()
+		}
+	})
+	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Footer: tinted action bar matching other modules' moduleFooter pattern.
 	footerBg := canvas.NewRectangle(trimColor)

@@ -101,7 +101,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.OnShowMainMenu()
 		}
 	})
-	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, func() {
+		if opts.OnShowQueue != nil {
+			opts.OnShowQueue()
+		}
+	})
+	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Video preview pane
 	var videoContainer fyne.CanvasObject
