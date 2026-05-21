@@ -118,6 +118,8 @@ Aboriginal Sans is embedded for proper rendering of Unified Canadian Aboriginal 
 
 > Coverage is measured against the en-CA field count. The `iu` translation is an ongoing community effort; untranslated strings fall back to English automatically.
 
+> The Inuktitut syllabics↔roman transliteration algorithm is derived from the [iutools](https://github.com/NationalResearchCouncilCanada/iutools) project by the National Research Council Canada (MIT license). Empty script variants are auto-filled via transliteration; manually-entered strings take precedence.
+
 ## Requirements
 
 **Runtime:**
@@ -189,3 +191,23 @@ VIDEOTOOLS_DEBUG=1 ./VideoTools
 3. **docs/ROADMAP.md** — planned work
 4. **docs/CHANGELOG.md** — release history
 5. **Issue tracker:** https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues
+
+## Credits
+
+VideoTools directly depends on and gratefully acknowledges these projects:
+
+| Project | Used for | License |
+|---|---|---|
+| [FFmpeg](https://ffmpeg.org) | All media encode/decode/filter/mux operations | LGPL/GPL |
+| [Fyne](https://fyne.io) | Cross-platform GUI toolkit | BSD-3 |
+| [oto](https://github.com/hajimehoshi/oto) | Audio playback engine | Apache-2.0 |
+| [x264](https://www.videolan.org/developers/x264.html) | H.264 encoding (static build, from source) | GPL-2 |
+| [x265](https://www.videolan.org/developers/x265.html) | H.265/HEVC encoding (static build, from source) | GPL-2 |
+| [iutools](https://github.com/NationalResearchCouncilCanada/iutools) | Inuktitut syllabics↔roman transliteration algorithm | MIT |
+| [Aboriginal Sans](http://www.languagegeek.com/fonts.html) | Inuktitut syllabics font rendering | OFL |
+| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) / [ncnn](https://github.com/nihui/real-esrgan-ncnn-vulkan) | AI upscaling engine | BSD-3 |
+| [RIFE](https://github.com/nihui/rife-ncnn-vulkan) | Frame interpolation (ncnn port) | MIT |
+| [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Anime upscaling (ncnn port) | MIT |
+| [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) | Windows shared DLL CI bundle | LGPL/GPL |
+| [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) + [AppImageKit](https://github.com/AppImage/AppImageKit) | Linux AppImage packaging | GPL-2 / MIT |
+| [SignPath](https://about.signpath.io) / [SignPath.io](https://signpath.io) | Windows code signing | — |

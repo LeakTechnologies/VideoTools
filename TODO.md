@@ -29,6 +29,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Main/extra title naming** — Main feature (longest title) uses main output path; extras get `_Extra_Title_NN` suffix. Star indicator in title selection UI.
 - [x] **Design doc** — `docs/RIP_MODULE_REDESIGN.md` documents the redesign.
 
+### Inuktitut Transliteration — Auto-Fill i18n Script Variants
+- [x] **translit package** — `internal/i18n/translit/` with 270-entry mapping tables, greedy longest-prefix roman→syllabics, compound sequence handling for syllabics→roman, format verb escaping, script detection helpers.
+- [x] **i18n integration** — `translitFill()` auto-fills empty Inuktitut fields from the other script variant; manual overrides take precedence.
+
 ### VT Media Engine Refactoring (HIGH — monolith breakup)
 
 - [ ] **engine.go subsystem split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go
@@ -423,13 +427,6 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 ### Race Conditions
 - [x] **Queue notifyChange goroutine** — `internal/queue/queue.go:100-104` spawns goroutine accessing queue state without locking (fixed dev45)
 
-## Agent Work Tracking
-
-| Agent    | Current Task                                              | Status      |
-|----------|-----------------------------------------------------------|-------------|
-| opencode | Settings restructure + back button normalisation (dev34)  | In progress |
-| opencode | `queue_module.go` extraction (issue #22)                  | Queued      |
-| gemini   | Native disc authoring / DVD conversion (issue #21)        | In progress |
 
 ## Future: Canadian Aboriginal Languages
 
@@ -492,8 +489,8 @@ Approach:
 - [x] **Author/Rip hidden on Windows** — Disc modules hidden from main menu on Windows until cross-platform disc authoring is implemented.
 - [x] **Convert player layout** — Video fills centre of player pane; transport bar pinned to bottom; VSplit gap removed.
 - [x] **Convert active state** — `s.active = "convert"` now set correctly; drop handling and keyboard shortcuts work inside the module.
-- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (opencode investigating).
-- [x] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
+- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered .
+- [x] **Phase 3 modularisation — Inspect, Settings, Queue**
 
 ## Dev31 Scope
 
@@ -503,7 +500,7 @@ Approach:
   - setContent now pins window size after SetContent to prevent layout-driven resize on module switch.
 - [x] **Convert UI cleanup** (issue #5)
   - Layout consistency, label clarity, and control organization pass for external developer testing readiness. Completed in dev33 alignment pass.
-- [x] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
+- [x] **Phase 3 modularisation — Inspect, Settings, Queue**
    - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
    - Inspect, queue, subtitles, and upscale modules now in `internal/app/modules/`.
    - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
@@ -548,15 +545,6 @@ It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`
     - [x] Remove `internal/player/gstreamer*` (done dev42).
     - [x] Remove GStreamer from build scripts and CI (done dev42).
 
-## Agent Work Tracking
-
-Items currently being worked on by other agents — update when assignments change.
-
-| Agent    | Current Task                                              | Status      |
-|----------|-----------------------------------------------------------|-------------|
-| opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
-| opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
-| Claude | PAL→NTSC pipeline quality pass — all-audio mapping, per-VOB progress, AC-3 IFO attrs, subtitle PTS fix | Done |
 
 ## Road to v0.1.2 — First Public Stable Release
 
@@ -587,10 +575,10 @@ Remaining root files to extract — largest first (each becomes a dev cycle task
 |----------|-------------|-------|--------|
 | 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` |
 | 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
-| 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` — opencode in progress |
+| 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` — in progress |
 | 4 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |
 | 5 | `rip_module.go` | 704 | `internal/app/modules/rip/` — pair with author extraction |
-| 6 | `queue_module.go` | 355 | `internal/app/modules/queue/` — opencode in progress |
+| 6 | `queue_module.go` | 355 | `internal/app/modules/queue/` — in progress |
 | — | `thumbnail_config.go` | 45 | `internal/thumbnail/` |
 | — | `naming_helpers.go` | 62 | `internal/utils/` |
 | — | `merge_config.go` | 47 | `internal/app/` or `internal/convert/` |

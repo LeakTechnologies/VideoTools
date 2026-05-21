@@ -8,6 +8,14 @@
 - **Menu preservation option**: New `IncludeMenus` config option + "Preserve menus" checkbox in rip view. When enabled, menu VOBs (`VIDEO_TS.VOB` + all `VTS_XX_0.VOB`) are exported as separate files alongside the main rip. Output naming `{base}_Menu_{VTS_Name}.{ext}`.
 - **Main/extra title naming**: The longest title (main feature) uses the main output path; shorter titles use `_Extra_Title_NN` suffix instead of the previous `_Title_NN` for all titles. Title selection UI marks the main feature with a star indicator.
 
+### Inuktitut Transliteration — Auto-Fill Missing Script Variants
+- **New `internal/i18n/translit/` package**: Pure-Go implementation of the iutools syllabics↔roman transliteration algorithm (MIT-licensed, National Research Council Canada). 270-entry mapping tables across all 15 Inuktitut consonant series plus short/long vowels, finals, and `lh` ASCII fallback for `ł`.
+- **Syllabics→Roman**: Handles compound sequences (r/q finals + k-series → rq/qq+vowel; ng/nng finals + g-series → ng/nng+vowel).
+- **Roman→Syllabics**: Greedy longest-prefix hash-table matching; `%`-verb escaping preserves printf format specifiers through translation.
+- **Script detection helpers**: `IsSyllabics(s)`, `SyllabicRatio(s)` for identifying script type; `RomanOnly(v)` mode toggle.
+- **i18n integration**: `translitFill()` wired into `SetLanguageWithScript`. Empty Inuktitut fields auto-filled from the other script variant via transliteration. Manually-entered strings take precedence as overrides.
+- **Test coverage**: 15 unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge — all passing.
+
 ### VT Media Engine — Subsystem Split
 - **engine.go (3245 lines)**: Breaking into focused subsystem files — hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
 - **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
@@ -803,14 +811,14 @@
 ### 📝 Coordination & Planning
 
 #### Agent Coordination
-- **Updated WORKING_ON.md** with coordination request for opencode
+- **Updated WORKING_ON.md** with coordination request for agent handoff
 - **Analyzed uncommitted job editing feature** (edit.go, command_editor.go)
 - **Documented integration gaps** and presented 3 options for dev23
 - **Removed Gemini from active agent rotation**
 
 ### 🚧 Work in Progress (Deferred to Dev23)
 
-#### Job Editing Feature (opencode)
+#### Job Editing Feature
 - **Core logic complete** - edit.go (363 lines), command_editor.go (352 lines)
 - **Compiles successfully** but missing integration
 - **Needs**: main.go hookups, UI buttons, end-to-end testing
