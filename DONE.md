@@ -1,6 +1,22 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev48 (in progress)
+## Version 0.1.1-dev49 (in progress)
+
+### Rip Module — Menu Bleed, Chapters & Multi-Title Export
+- **Menu VOB bleed fixed**: `CollectVOBSets` now excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Previously the menu VOB was concatenated at the rip start, causing menu frames to glitch into the video and shifting chapter timestamps.
+- **Chapter diagnostics**: Added verbose logging of chapter count, first/last timestamp, and embed/no-embed decision to rip log for easier debugging.
+- **Menu preservation option**: `IncludeMenus` config option + checkbox in rip view. Menu VOBs (`VIDEO_TS.VOB` + `VTS_XX_0.VOB`) exported as separate files alongside the main rip. Uses same format as the rip encoder.
+- **Main/extra title naming**: The longest title (main feature) now gets the main output path; shorter titles use `_Extra_Title_NN` suffix. Title selection UI marks the main feature with a star (★) indicator.
+- **Design doc**: `docs/RIP_MODULE_REDESIGN.md` documents the redesign and root cause analysis.
+
+### VT Media Engine — Subsystem Split (engine.go)
+- **errors.go extracted** — PlaybackError type, ErrCode constants, error/degradation methods moved from engine.go to errors.go. C preamble duplicated for `av_buffer_unref` calls.
+- **hwdecode.go extracted** — HWDeviceType, device detection, SetHWDevice/GetHWDevice, codecCanUseHWDevice, initHWDecode, getHWPixelFormat, retrieveHWFrame, C helper functions vt_get_hw_format/vt_set_get_format moved from engine.go to hwdecode.go. engine.go C preamble cleaned up to subtitle helpers only.
+
+### VT ISO Engine — Roadmap
+- **Roadmap columns** — VT Media Engine and VT ISO Engine added as dedicated columns on the interactive roadmap with individual status cards for each refactoring task (engine.go split, view.go split, Player interface, HW decode, thread safety, UDF reader, UDF thread safety).
+
+## Version 0.1.1-dev48 (shipped)
 
 ### Theme System — internal/theme/ Package
 - **VT_Navy colour palette** — `internal/theme/palette.go` defines BgBase/BgDark/BgLight/BgCard, Border/BorderDim, Text/TextMuted, InputBg, and all status colours (Green, Teal, Yellow, Blue, Orange, Purple, Magenta).

@@ -22,6 +22,13 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev49 Scope (current)
 
+### Rip Module Fixes & Enhancements
+- [x] **Menu VOB bleed** — `CollectVOBSets` excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Fixes menu frames glitching into output video and shifted chapter timestamps.
+- [x] **Chapter embedding diagnostics** — Verbose logging of chapter count, timestamps, and embed decision to rip log.
+- [x] **Menu preservation option** — New `IncludeMenus` config + "Preserve menus" checkbox. Menu VOBs exported as separate files: `{base}_Menu_{VTS_Name}.{ext}`.
+- [x] **Main/extra title naming** — Main feature (longest title) uses main output path; extras get `_Extra_Title_NN` suffix. Star indicator in title selection UI.
+- [x] **Design doc** — `docs/RIP_MODULE_REDESIGN.md` documents the redesign.
+
 ### VT Media Engine Refactoring (HIGH — monolith breakup)
 
 - [ ] **engine.go subsystem split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go

@@ -2,6 +2,12 @@
 
 ## v0.1.1-dev49 (May 2026)
 
+### Rip Module — Menu Bleed, Chapters & Multi-Title Export
+- **Menu VOB bleed fixed**: `CollectVOBSets` now excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Previously the menu VOB was concatenated at the start of every rip, causing menu frames to glitch into the output video and shifting all chapter timestamps by the menu duration.
+- **Chapter embedding diagnostics**: Added verbose logging of chapter count, first/last timestamp, and embed decision to rip log for easier debugging.
+- **Menu preservation option**: New `IncludeMenus` config option + "Preserve menus" checkbox in rip view. When enabled, menu VOBs (`VIDEO_TS.VOB` + all `VTS_XX_0.VOB`) are exported as separate files alongside the main rip. Output naming `{base}_Menu_{VTS_Name}.{ext}`.
+- **Main/extra title naming**: The longest title (main feature) uses the main output path; shorter titles use `_Extra_Title_NN` suffix instead of the previous `_Title_NN` for all titles. Title selection UI marks the main feature with a star indicator.
+
 ### VT Media Engine — Subsystem Split
 - **engine.go (3245 lines)**: Breaking into focused subsystem files — hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
 - **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
