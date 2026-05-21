@@ -176,6 +176,34 @@ func TestEnglishLetters(t *testing.T) {
 	}
 }
 
+func TestFormatVerbs(t *testing.T) {
+	tests := []struct{ roman, syll string }{
+		{"%s", "%s"},
+		{"%d", "%d"},
+		{"%v", "%v"},
+		{"%%", "%%"},
+		// Format verbs pass through; surrounding text still transliterates.
+		{"hello %s", "ᕼeᓪᓪo %s"},
+		{"%s world", "%s woᕐᓪd"},
+		// %% passes through as two chars, following text still transliterates.
+		{"%%t", "%%ᑦ"},
+	}
+	for _, tc := range tests {
+		got := RomanToSyllabics(tc.roman)
+		if got != tc.syll {
+			t.Errorf("RomanToSyllabics(%q) = %q; want %q", tc.roman, got, tc.syll)
+		}
+	}
+}
+
+func TestFormatVerbsS2R(t *testing.T) {
+	// SyllabicsToRoman should pass % through unchanged
+	got := SyllabicsToRoman("%s %d")
+	if got != "%s %d" {
+		t.Errorf("SyllabicsToRoman: got %q; want %q", got, "%s %d")
+	}
+}
+
 func TestEmpty(t *testing.T) {
 	if got := RomanToSyllabics(""); got != "" {
 		t.Errorf("empty: got %q", got)

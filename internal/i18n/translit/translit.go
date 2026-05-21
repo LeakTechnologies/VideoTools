@@ -13,7 +13,6 @@ var (
 
 // RomanOnly restricts the package to roman-orthography-only mode.
 // When true, RomanToSyllabics returns its input unchanged.
-// This is useful when the Aboriginal Sans font is unavailable.
 func RomanOnly(v bool) { romanOnly = v }
 
 func init() {
@@ -24,7 +23,8 @@ func init() {
 
 // RomanToSyllabics converts a roman-orthography Inuktitut string to Unified
 // Canadian Aboriginal Syllabics using ICI convention (no diphthong characters).
-// Unknown characters are passed through unchanged.
+// Go printf format verbs (%s, %d, %v, %%, etc.) are passed through unchanged.
+// Unknown characters are also passed through unchanged.
 func RomanToSyllabics(s string) string {
 	if romanOnly || s == "" {
 		return s
@@ -36,6 +36,14 @@ func RomanToSyllabics(s string) string {
 
 	i := 0
 	for i < len(s) {
+		// Pass through printf format verbs unchanged.
+		if s[i] == '%' && i+1 < len(s) {
+			out.WriteByte('%')
+			out.WriteByte(s[i+1])
+			i += 2
+			continue
+		}
+
 		max := r2sMaxKey
 		if remaining := len(s) - i; remaining < max {
 			max = remaining
