@@ -54,21 +54,30 @@ func hint(text string) *widget.Label {
 
 func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
 	t := i18n.T()
+	content := container.NewVBox()
+
+	header := widget.NewLabel(t.BenchmarkTitle)
+	header.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(header)
+
+	desc := widget.NewLabel(t.BenchmarkDesc)
+	desc.Wrapping = fyne.TextWrapWord
+	content.Add(desc)
+
+	content.Add(widget.NewSeparator())
 
 	runBtn := ui.MakePillButton(t.BenchmarkRunButton, utils.MustHex(ModuleColor), func() {
 		cb.ShowBenchmark()
 	})
-
-	items := []fyne.CanvasObject{
-		hint(t.BenchmarkDesc),
-		container.NewCenter(runBtn),
-	}
+	content.Add(container.NewCenter(runBtn))
 
 	cfg, err := appcfg.LoadBenchmarkConfig()
 	if err == nil && len(cfg.History) > 0 {
+		content.Add(widget.NewSeparator())
+
 		recentHeader := widget.NewLabel(t.BenchmarkRecent)
 		recentHeader.TextStyle = fyne.TextStyle{Bold: true}
-		items = append(items, widget.NewSeparator(), recentHeader)
+		content.Add(recentHeader)
 
 		limit := 3
 		if len(cfg.History) < limit {
@@ -79,11 +88,11 @@ func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
 			ts := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
 			lbl := widget.NewLabel(fmt.Sprintf("%s — Recommended: %s", ts, benchmark.HWAccelLabel(run.RecommendedHWAccel)))
 			lbl.TextStyle = fyne.TextStyle{Italic: true}
-			items = append(items, lbl)
+			content.Add(lbl)
 		}
 	}
 
-	return settingsCard(t.BenchmarkTitle, items...)
+	return content
 }
 
 func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
