@@ -1,7 +1,6 @@
 package rip
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"image/color"
@@ -18,8 +17,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modulecfg"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
@@ -798,43 +795,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 				isISO := strings.HasSuffix(strings.ToLower(path), ".iso")
 				if isISO {
-					// Load the ISO directly into the player immediately — FFmpeg
-					// handles ISO 9660 / UDF natively via avformat.
-					go func() { _ = dvdPlayer.Load(path) }()
 					go func() {
-						fi, err := os.Stat(path)
-						if err != nil {
-							logging.Warning(logging.CatDVD, "ISO stat failed: %v", err)
+						result, scanErr := scanISOViaUDF(path)
+						if scanErr != nil {
+							logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
 							return
-						}
-						discType := classifyDiscType(fi.Size())
-						udfType, _ := udf.IdentifyDiscFormat(path)
-						if udfType == udf.DiscTypeBluRay {
-							discType = "BD"
-						}
-
-						// Try to read region from VIDEO_TS.IFO within the ISO
-						region := ""
-						f, openErr := os.Open(path)
-						if openErr == nil {
-							udfReader := udf.NewReader(f)
-							ifoData, readErr := udfReader.ReadFileData("VIDEO_TS/VIDEO_TS.IFO")
-							if readErr == nil {
-								if mat, matErr := ifo.ReadVMGI(bytes.NewReader(ifoData)); matErr == nil {
-									region = classifyDiscRegion(mat.VMG_Category)
-								}
-							}
-							f.Close()
-						}
-
-						result := &DiscScanResult{
-							DiscType:  discType,
-							Region:    region,
-							TotalSize: fi.Size(),
 						}
 						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 							vs.scanResult = result
-							vs.selectedTitles = nil
+							if len(result.Titles) > 0 {
+								vs.selectedTitles = make(map[int]bool)
+								for _, dt := range result.Titles {
+									vs.selectedTitles[dt.Number] = true
+								}
+							}
 							rebuildEnrich()
 						}, false)
 					}()

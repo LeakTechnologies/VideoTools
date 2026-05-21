@@ -1,12 +1,14 @@
 package rip
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
@@ -161,6 +163,92 @@ func FormatDuration(seconds float64) string {
 		return fmt.Sprintf("%dh %02dm", h, m)
 	}
 	return fmt.Sprintf("%dm %02ds", m, s)
+}
+
+// scanISOViaUDF extracts IFO files from a DVD ISO image using the UDF reader,
+// runs ScanDisc on the extracted data, and returns a full DiscScanResult.
+// Disc size and type are taken from the ISO file itself (not from the temp dir).
+func scanISOViaUDF(isoPath string) (*DiscScanResult, error) {
+	fi, err := os.Stat(isoPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat ISO: %w", err)
+	}
+	isoSize := fi.Size()
+	discType := classifyDiscType(isoSize)
+
+	udfType, _ := udf.IdentifyDiscFormat(isoPath)
+	if udfType == udf.DiscTypeBluRay {
+		discType = "BD"
+	}
+
+	f, err := os.Open(isoPath)
+	if err != nil {
+		return nil, fmt.Errorf("open ISO: %w", err)
+	}
+	defer f.Close()
+
+	udfReader := udf.NewReader(f)
+
+	vmgData, err := udfReader.ReadFileData("VIDEO_TS/VIDEO_TS.IFO")
+	if err != nil {
+		return nil, fmt.Errorf("read VMG IFO from ISO: %w", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "vt_isoscan_*")
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	vtsTempDir := filepath.Join(tmpDir, "VIDEO_TS")
+	if err := os.MkdirAll(vtsTempDir, 0755); err != nil {
+		return nil, fmt.Errorf("create temp VIDEO_TS dir: %w", err)
+	}
+
+	vmgTmpPath := filepath.Join(vtsTempDir, "VIDEO_TS.IFO")
+	if err := os.WriteFile(vmgTmpPath, vmgData, 0644); err != nil {
+		return nil, fmt.Errorf("write temp VMG IFO: %w", err)
+	}
+
+	tsps, err := ifo.ReadTitleList(vmgTmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("read title list: %w", err)
+	}
+
+	vtsSet := map[int]bool{}
+	for _, t := range tsps {
+		vtsSet[int(t.VTSNumber)] = true
+	}
+
+	for vtsNum := range vtsSet {
+		ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
+		ifoData, readErr := udfReader.ReadFileData("VIDEO_TS/" + ifoName)
+		if readErr != nil {
+			logging.Warning(logging.CatDVD, "scanISOViaUDF: failed to read %s: %v", ifoName, readErr)
+			continue
+		}
+		if writeErr := os.WriteFile(filepath.Join(vtsTempDir, ifoName), ifoData, 0644); writeErr != nil {
+			logging.Warning(logging.CatDVD, "scanISOViaUDF: failed to write %s: %v", ifoName, writeErr)
+		}
+	}
+
+	result, scanErr := ScanDisc(vtsTempDir)
+	if scanErr != nil {
+		logging.Warning(logging.CatDVD, "scanISOViaUDF: ScanDisc failed: %v", scanErr)
+		var region string
+		if mat, matErr := ifo.ReadVMGI(bytes.NewReader(vmgData)); matErr == nil {
+			region = classifyDiscRegion(mat.VMG_Category)
+		}
+		return &DiscScanResult{
+			DiscType:  discType,
+			TotalSize: isoSize,
+			Region:    region,
+		}, nil
+	}
+
+	result.DiscType = discType
+	result.TotalSize = isoSize
+	return result, nil
 }
 
 // langList returns a comma-separated list of unique uppercase language codes.
