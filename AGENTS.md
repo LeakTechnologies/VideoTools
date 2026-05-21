@@ -64,7 +64,7 @@ All major module migrations are done. Most stragglers are now converted. The rem
 
 ### Dev49 Handoff (carry forward)
 
-- **GitHub mirror setup** — Push mirror via Forgejo built-in; issue migration script at `scripts/github-mirror/migrate-issues.ps1`. See `scripts/github-mirror/README.md`.
+- **GitHub mirror setup** — Push mirror via Forgejo built-in; issue migration script at `scripts/github-mirror/migrate-issues.ps1`. GitHub Actions release workflow at `.github/workflows/release.yml` (Windows ZIP + DLLs, Linux tarball, auto-release on `v*` tags). See `scripts/github-mirror/README.md`.
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
