@@ -772,7 +772,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
+		container.NewBorder(nil, nil, nil, clearISOBtn, ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 			path := ""
 			if opts.OnDropFirstLocal != nil {
 				path = opts.OnDropFirstLocal(items)
@@ -873,7 +873,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}
 			}
 		}),
-		clearISOBtn,
+		),
 		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		discInfoLabel,
