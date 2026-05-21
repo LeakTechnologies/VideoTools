@@ -143,7 +143,20 @@ func (v *InlineVideoPlayer) SetIdleText(text string) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
-	logging.Info(logging.CatPlayer, "Load: called for %s", path)
+	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.Open(path) })
+}
+
+// LoadDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) in the
+// player using FFmpeg's dvdvideo demuxer (libdvdnav/libdvdread). title=0
+// selects the longest title automatically; title>0 selects by DVD title number.
+func (v *InlineVideoPlayer) LoadDVD(devicePath string, title int) (err error) {
+	return v.loadViaOpen(devicePath, func(eng *media.Engine) error { return eng.OpenDVD(devicePath, title) })
+}
+
+// loadViaOpen is the shared implementation of Load and LoadDVD. openFn is
+// called after the engine is created and configured; it should open the source.
+func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.Engine) error) (err error) {
+	logging.Info(logging.CatPlayer, "Load: called for %s", displayPath)
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "Load panic: %v", r)
@@ -167,7 +180,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	// ones. Clearing under the lock prevents concurrent callers (seekLoop,
 	// Seek, playbackLoop) from using the old engine after we've released it.
 	v.playing = false
-	v.currentPath = path
+	v.currentPath = displayPath
 	oldScrubber := v.scrubber
 	oldEngine := v.engine
 	oldSeekCh := v.seekCh
@@ -216,9 +229,9 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		}())
 	}
 
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", path)
-	if err := eng.Open(path); err != nil {
-		logging.Error(logging.CatPlayer, "InlineVideoPlayer: failed to open %s: %v", path, err)
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", displayPath)
+	if err := openFn(eng); err != nil {
+		logging.Error(logging.CatPlayer, "InlineVideoPlayer: failed to open %s: %v", displayPath, err)
 		v.fireLoad(LoadEvent{Phase: LoadPhaseFailed, At: time.Now(), Err: err})
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetError(err.Error())

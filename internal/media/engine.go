@@ -149,6 +149,7 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1579,6 +1580,12 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to open input file: %s", path)
 	}
 
+	return e.openFinalize()
+}
+
+// openFinalize runs after avformat_open_input succeeds: probes streams, allocates
+// codec contexts, and sets up frame buffers. Called by both Open and OpenDVD.
+func (e *Engine) openFinalize() error {
 	// Cap probe depth so unusual files don't stall the engine indefinitely.
 	// probesize is in bytes; max_analyze_duration is in AV_TIME_BASE units (µs).
 	// 10 MB / 10 s is generous enough for any well-formed file, including those
@@ -1586,7 +1593,7 @@ func (e *Engine) Open(path string) error {
 	e.formatCtx.probesize = C.int64_t(10_000_000)
 	e.formatCtx.max_analyze_duration = C.int64_t(10_000_000)
 
-	ret = C.avformat_find_stream_info(e.formatCtx, nil)
+	ret := C.avformat_find_stream_info(e.formatCtx, nil)
 	if ret < 0 {
 		errBuf := make([]byte, 256)
 		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
@@ -1826,6 +1833,55 @@ func (e *Engine) Open(path string) error {
 		e.info.Width, e.info.Height, e.info.FrameRate, e.info.Duration, len(e.chapters))
 
 	return nil
+}
+
+// OpenDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) using
+// FFmpeg's dvdvideo demuxer backed by libdvdnav/libdvdread — the same
+// libraries used by VLC and mpv. title=0 auto-selects the longest title
+// (main feature); title>0 selects that title by DVD title number.
+func (e *Engine) OpenDVD(devicePath string, title int) error {
+	e.filePath = devicePath
+
+	cPath := C.CString(devicePath)
+	defer C.free(unsafe.Pointer(cPath))
+
+	cFmtName := C.CString("dvdvideo")
+	defer C.free(unsafe.Pointer(cFmtName))
+
+	dvdFmt := C.av_find_input_format(cFmtName)
+	if dvdFmt == nil {
+		return fmt.Errorf("dvdvideo demuxer not available in this FFmpeg build")
+	}
+
+	var opts *C.AVDictionary
+	defer func() {
+		if opts != nil {
+			C.av_dict_free(&opts)
+		}
+	}()
+	if title > 0 {
+		cKey := C.CString("title")
+		cVal := C.CString(strconv.Itoa(title))
+		C.av_dict_set(&opts, cKey, cVal, 0)
+		C.free(unsafe.Pointer(cKey))
+		C.free(unsafe.Pointer(cVal))
+	}
+
+	logging.Info(logging.CatPlayer, "OpenDVD: opening %s (title=%d)", devicePath, title)
+
+	ret := C.avformat_open_input(&e.formatCtx, cPath, dvdFmt, &opts)
+	if ret != 0 {
+		errBuf := make([]byte, 256)
+		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
+		errStr := C.GoString((*C.char)(unsafe.Pointer(&errBuf[0])))
+		if errStr == "" {
+			errStr = "unknown FFmpeg error"
+		}
+		logging.Error(logging.CatPlayer, "OpenDVD: avformat_open_input failed for %s: %s (code: %d)", devicePath, errStr, ret)
+		return fmt.Errorf("failed to open DVD %s: %s", devicePath, errStr)
+	}
+
+	return e.openFinalize()
 }
 
 // StartThumbnailExtraction opens an independent decoder (separate from the live
