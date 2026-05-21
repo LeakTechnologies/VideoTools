@@ -58,7 +58,8 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 
 	// Top navigation bar (matches Rip/Audio module pattern)
 	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleBurn), ui.BorderDim, s.showMainMenu)
-	topBar := ui.TintedBar(burnColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, s.showQueue)
+	topBar := ui.TintedBar(burnColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// ISO file entry + browse button
 	sourceEntry := widget.NewEntry()
