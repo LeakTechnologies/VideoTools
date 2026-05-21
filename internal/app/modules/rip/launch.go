@@ -25,9 +25,15 @@ func launchDVDPlayer(sourcePath string) error {
 
 	// VLC: full DVD-nav with CSS decryption (via libdvdcss if installed)
 	if vlcPath, ok := findVLC(); ok {
-		// VLC accepts dvd:// URI or a plain path; dvd:// triggers the DVD input.
-		// On all platforms: vlc dvd:///path  (triple slash = empty host + abs path)
-		cmd := utils.CreateCommandRaw(vlcPath, "dvd://"+dvdRoot)
+		// For ISO files, VLC requires --dvd-device to specify the file path;
+		// dvd://isoPath alone is rejected because dvd:// expects a device/directory.
+		// For directories, dvd://path works as before.
+		var cmd *exec.Cmd
+		if strings.EqualFold(filepath.Ext(dvdRoot), ".iso") {
+			cmd = utils.CreateCommandRaw(vlcPath, "dvd:///", "--dvd-device="+dvdRoot)
+		} else {
+			cmd = utils.CreateCommandRaw(vlcPath, "dvd://"+dvdRoot)
+		}
 		if err := cmd.Start(); err == nil {
 			go func() { _ = cmd.Wait() }()
 			return nil
