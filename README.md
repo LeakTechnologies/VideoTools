@@ -1,107 +1,109 @@
-# VideoTools - Video Processing Suite
+# VideoTools
 
-## What is VideoTools?
+Video processing suite with native DVD authoring, disc ripping, and a CGo/FFmpeg media engine.
 
-VideoTools is a desktop video processing application built on FFmpeg.
-It provides a graphical interface for converting, inspecting, and preparing video.
-
-It includes tools for video conversion, batch processing, media inspection, merging, filtering, audio extraction, thumbnail generation, ripping, DVD-compliant output, and upscaling where supported.
-
-## Project Status
-
-**This project is under active development, and many documented features are not yet implemented.**
-
-For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](docs/PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
-
-## Builds
-
-- **Daily (dev):** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
-- **Stable (public):** https://github.com/LeakTechnologies/VideoTools
-
+Built for **Linux and Windows** — macOS is not supported.
 
 ## Capabilities
 
-- Video conversion via FFmpeg
-- Queue-based batch processing
-- Media inspection and analysis
-- Merge, filters, and audio extraction
-- Thumbnail generation
-- Compare playback
-- DVD authoring, encoding, and ripping tools
-- Settings for language and hardware acceleration
-- Optional AI-assisted upscaling (where supported)
+- **Convert** — H.264/H.265/AV1/ProRes/VP9, lossless remux, DVD-compliant MPEG-2, deinterlace, normalize, crop, preset system
+- **Rip** — DVD/ISO extraction via FFmpeg dvdvideo demuxer or VOB concat; IFO-based title/chapter/audio/subtitle scanning; region detection; PAL↔NTSC full-disc conversion with IFO regeneration; menu preservation
+- **Author** — Native DVD-Video authoring: M1–M7 menu system, 4 menu resolutions (720→1920px), button highlights, multiple audio/subtitle streams, VOB muxer, UDF writer
+- **Burn** — Multi-drive disc burning via xorriso/isoburn
+- **Queue** — Batch job processing with progress tracking per module
+- **Filters** — Real-time video filter chain (crop, scale, deinterlace, denoise, color, etc.)
+- **Audio** — Track selection, language tagging, extraction
+- **Subtitles** — Bitmap subtitle support, pass-through
+- **Trim** — Frame-accurate cutting with preview
+- **Thumbnail** — Grid/3-way output with image inspector
+- **Compare** — Side-by-side before/after with independent engines
+- **Upscale** — AI-assisted upscaling (Real-ESRGAN, waifu2x, etc.)
+- **Inspect** — Codec, format, chapter, metadata analysis
+- **Settings** — Language (en-CA, fr-CA, Inuktitut), HW decode, theme
 
-## Codecs and Frame Rates
+## Platform Targets
 
-**Preset output formats:**
-- MP4: H.264, H.265, AV1
-- MOV: H.264, H.265, ProRes
-- MKV: Remux (copy), H.265, AV1
-- WebM: VP9, AV1
-- DVD: NTSC/PAL (MPEG-2)
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Linux x86_64 | Primary dev target | FFmpeg built from source with x264/x265 |
+| Windows x86_64 | Primary user target | BtbN FFmpeg DLL bundle, isoburn for burning |
+| macOS | Not supported | No darwin code paths in tree |
 
-**Frame rate targets:**
-- Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
-- Optional motion interpolation for frame-rate changes
-- DVD presets lock to NTSC (29.97) or PAL (25) frame rates
+## Project Status
+
+Under active development (`v0.1.1-dev49`). See **[Interactive Roadmap](docs/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail.
+
+- **Dev builds:** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
+- **Public releases:** https://github.com/LeakTechnologies/VideoTools
+
+## Output Formats
+
+| Format | Video | Audio | Container |
+|--------|-------|-------|-----------|
+| H.264 MKV | libx264 (CRF 18) | copy / aac | MKV |
+| H.264 MP4 | libx264 (CRF 18) | aac | MP4 |
+| H.265 MKV | libx265 | copy / aac | MKV |
+| AV1 MKV | libaom-av1 / SVT-AV1 | copy / aac | MKV |
+| ProRes MOV | prores_ks | pcm_s16le | MOV |
+| VP9 WebM | libvpx-vp9 | libopus | WebM |
+| Lossless MKV | stream copy | stream copy | MKV (remux) |
+| DVD-NTSC | mpeg2video (CBR 6 Mbps) | ac3 (192k) | MPG |
+| DVD-PAL | mpeg2video (CBR 6 Mbps) | ac3 (192k) | MPG |
 
 ## Quick Start
 
-### Installation (One Command)
+### Linux
 
 ```bash
 bash scripts/linux/install.sh
-```
-
-The installer will build, install, and set up shell aliases.
-
-**After installation:**
-```bash
-source ~/.bashrc    # (or ~/.zshrc, or ~/.config/fish/config.fish)
+source ~/.bashrc
 VideoTools
 ```
 
-### Alternative: Developer Setup
+### Windows (PowerShell)
 
-If you already have the repo cloned (dev workflow):
-
-```bash
-cd /path/to/VideoTools
-bash scripts/linux/build.sh
-bash scripts/linux/run.sh
+```powershell
+.\scripts\windows\install.ps1
 ```
 
-For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.
-For upcoming work and priorities, see **docs/ROADMAP.md**.
+For more detail: **docs/INSTALL_LINUX.md** · **docs/INSTALL_WINDOWS.md** · **docs/INSTALLATION.md**
 
-## DVD Workflow (Optional)
+## DVD Workflow
 
-1. **Start VideoTools** → `VideoTools`
-2. **Load a video** → Drag & drop into Convert module
-3. **Select format** → Choose "DVD-NTSC (MPEG-2)" or "DVD-PAL (MPEG-2)"
-4. **Choose aspect** → Select 4:3 or 16:9
-5. **Name output** → Enter filename (without .mpg)
-6. **Queue** → Click "Add to Queue"
-7. **Encode** → Click "View Queue" → "Start Queue"
-8. **Export** → Use the .mpg file in DVDStyler
+### Rip a Disc (Rip module)
+
+1. Insert a DVD or load an ISO → **Rip** tab
+2. Click **Start Scan** → IFO parsing shows titles, chapters, audio/subtitle tracks
+3. Select titles to rip (menus excluded by default)
+4. Choose output path → **Add to Queue**
+5. **Start Queue** → FFmpeg dvdvideo or VOB concat extracts each title
+6. Output: H.264 MKV per title (or MPEG-2 MPG)
+
+### Author a DVD (Author module)
+
+1. Encode source video as DVD-NTSC/PAL MPEG-2 in **Convert**
+2. Switch to **Author** tab → add the encoded stream
+3. Select menu template (M1–M7): choose backdrop, colours, layout
+4. Set audio/subtitle languages
+5. **Build** → creates VIDEO_TS structure with IFO/BUP/VOB
+6. **Burn** → write to disc via the Burn module
 
 ## Documentation
 
-**Getting Started:**
-- **PROJECT_STATUS.md** - Current implementation status
-- **INSTALLATION.md** - Comprehensive installation guide (read this first!)
-- **docs/README.md** - Documentation index
-- **Forgejo Wiki** - https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki
-
-**For Users:**
-- **BUILD_AND_RUN.md** - How to build and run VideoTools
-- **DVD_USER_GUIDE.md** - Complete guide to DVD encoding
-
-**For Developers:**
-- **DVD_IMPLEMENTATION_SUMMARY.md** - Technical specifications
-- **INTEGRATION_GUIDE.md** - System architecture and integration
-- **QUEUE_SYSTEM_GUIDE.md** - Queue system reference
-- **localization-policy.md** - Localization strategy and implementation guide
+| Document | What it covers |
+|----------|----------------|
+| **docs/roadmap.html** | Interactive roadmap with changelog, testing checklist, card-by-card status |
+| **docs/ROADMAP.md** | Mermaid timeline, current state, now/next |
+| **docs/INSTALLATION.md** | Comprehensive install guide (read first) |
+| **docs/INSTALL_LINUX.md** | Linux-specific setup |
+| **docs/INSTALL_WINDOWS.md** | Windows-specific setup |
+| **docs/NATIVE_PLAYER.md** | Native CGo/FFmpeg media engine architecture |
+| **docs/REFACTOR_DEV30_PLAN.md** | Long-term refactor plan (root → internal/) |
+| **docs/RIP_MODULE_REDESIGN.md** | Rip module design and fixes |
+| **docs/BURN_MODULE_DESIGN.md** | Burn module design |
+| **docs/CHANGELOG.md** | Per-release changelog |
+| **docs/localization-policy.md** | i18n strategy (en-CA, fr-CA, Inuktitut) |
+| **docs/PLAYER_DEBUG.md** | Player crash diagnostics log |
 
 ## Localization
 
@@ -118,63 +120,72 @@ Aboriginal Sans is embedded for proper rendering of Unified Canadian Aboriginal 
 
 ## Requirements
 
-- **Go 1.21+** (for building)
-- **FFmpeg** (for video encoding)
-- **X11 or Wayland display server** (for GUI)
+**Runtime:**
+- FFmpeg (auto-bundled on Windows via DLLs; Linux built from source in CI)
+- Linux: X11 or Wayland display server
+- Windows: Windows 10/11
+
+**Build:**
+- Go 1.21+
+- MinGW-w64 (Windows) or GCC (Linux) — required for native_media CGo code
+- pkg-config (Linux)
+- nasm, cmake, git (for FFmpeg/x264/x265 source builds)
+- Resource compiler (Windows): x86_64-w64-mingw32-windres
 
 ## System Architecture
 
-VideoTools has a modular architecture:
-- `internal/convert/` - DVD and video encoding
-- `internal/queue/` - Job queue system
-- `internal/ui/` - User interface components
-- `internal/player/` - Media playback
-- `scripts/` - Build and run automation
-
-## Commands
-
-### Build & Run
-```bash
-# One-time setup
-source scripts/alias.sh    # bash
-# source scripts/alias.zsh  # zsh
-# source scripts/alias.fish # fish
-
-# Run the application
-VideoTools
-
-# Force rebuild
-VideoToolsRebuild
-
-# Clean build artifacts
-VideoToolsClean
+```
+cmd/videotools/          → Executable entrypoint (future)
+internal/media/          → CGo/FFmpeg engine: demux, decode, audio (oto v3), HW accel
+internal/media/          → VideoPlayer Fyne widget: frame rendering, control overlay, thumbnails
+internal/ui/             → UI components, InlineVideoPlayer API layer
+internal/theme/          → VT_Navy palette, PillButton/PillIconButton, text primitives
+internal/i18n/           → Localization (en-CA, fr-CA, iu, iu-Latn)
+internal/dvd/            → IFO parsing, UDF reader, CSS decrypt, IFO regeneration
+internal/convert/        → Presets, FFmpeg pipeline config
+internal/queue/          → Batch job queue with progress
+internal/app/modules/    → All feature modules (convert, rip, author, burn, queue, etc.)
+internal/app/            → App wiring (module registry, settings, config)
+scripts/                 → Build/install automation (Linux + Windows)
 ```
 
-### Legacy (Direct commands)
+## Build & Run
+
 ```bash
-# Build
-go build -o VideoTools .
+# One-time setup (Linux)
+source scripts/alias.sh
 
 # Run
+VideoTools
+
+# Rebuild
+VideoToolsRebuild
+```
+
+**Windows:**
+```powershell
+.\scripts\windows\install.ps1
+```
+
+**Direct (any):**
+```bash
+go build -tags native_media -o VideoTools .
 ./VideoTools
-
-# Run with debug logging
 VIDEOTOOLS_DEBUG=1 ./VideoTools
-
-# View logs
-go run . logs
 ```
 
 ## Troubleshooting
 
-- See **BUILD_AND_RUN.md** for detailed troubleshooting
-- Check **videotools.log** for detailed error messages
-- Use `VIDEOTOOLS_DEBUG=1` for verbose logging
+- **BUILD_AND_RUN.md** — setup troubleshooting
+- **videotools.log** — error details
+- **VIDEOTOOLS_DEBUG=1** — verbose logging
+- **docs/PLAYER_DEBUG.md** — player crash diagnostics
+- **docs/INSTALL_LINUX.md** / **docs/INSTALL_WINDOWS.md** — platform-specific issues
 
 ## Getting Help
 
-1. Read **BUILD_AND_RUN.md** for setup issues
-2. Read **docs/README.md** for module and guide links
-3. Read **DVD_USER_GUIDE.md** for DVD-specific workflows
-4. Check **videotools.log** for error details
-5. Review documentation in project root
+1. **docs/roadmap.html** — feature status and testing checklist
+2. **docs/INSTALLATION.md** — setup guide
+3. **docs/ROADMAP.md** — planned work
+4. **docs/CHANGELOG.md** — release history
+5. **Issue tracker:** https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues
