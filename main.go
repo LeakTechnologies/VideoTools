@@ -14417,9 +14417,20 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
-	// If in player module, handle single video file
+	// If in player module, handle video files and DVD discs.
 	if s.active == "player" {
-		// Collect video files from dropped items
+		// Check for a DVD disc first (ISO or directory with VIDEO_TS).
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			if isDVDDisc(uri.Path()) {
+				s.showDVDDiscView(uri.Path())
+				return
+			}
+		}
+
+		// Collect regular video files.
 		var videoPaths []string
 		for _, uri := range items {
 			if uri.Scheme() != "file" {
@@ -14437,7 +14448,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// Load first video
+		// Load first video.
 		go func() {
 			src, err := probeVideo(videoPaths[0])
 			if err != nil {
@@ -14453,10 +14464,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.showPlayerView()
 				logging.Debug(logging.CatModule, "loaded video into player module")
 
-				// Also load into the player widget
-				player := GetConvertPlayer()
-				if player != nil {
-					_ = player.Load(src.Path)
+				p := GetConvertPlayer()
+				if p != nil {
+					_ = p.Load(src.Path)
 				}
 			}, false)
 		}()
