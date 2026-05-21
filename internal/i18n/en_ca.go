@@ -562,7 +562,7 @@ var enCA = Strings{
 	ConvertSectionVideoEncoding:   "Video Encoding",
 	ConvertSectionAudioEncoding:   "Audio Encoding",
 	ConvertSectionOutput:          "Output",
-	ConvertSectionResolutionFPS:   "Resolution & Frame Rate",
+	ConvertSectionResolutionFPS:   "Scale & Frame Rate",
 	ConvertSectionAspectRatio:     "Aspect Ratio",
 	ConvertSectionAutoCrop:        "Auto-Crop",
 	ConvertSectionTransformations: "Video Transformations",

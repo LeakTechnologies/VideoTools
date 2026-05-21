@@ -561,7 +561,7 @@ var frCA = Strings{
 	ConvertSectionVideoEncoding:   "Encodage vidéo",
 	ConvertSectionAudioEncoding:   "Encodage audio",
 	ConvertSectionOutput:          "Sortie",
-	ConvertSectionResolutionFPS:   "Résolution et fréquence d'images",
+	ConvertSectionResolutionFPS:   "Échelle et fréquence d'images",
 	ConvertSectionAspectRatio:     "Format d'image",
 	ConvertSectionAutoCrop:        "Recadrage automatique",
 	ConvertSectionTransformations: "Transformations vidéo",

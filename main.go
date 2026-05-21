@@ -8680,13 +8680,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			content,
+
+		// Colored section header bar — uses the module color so sections are
+		// visually distinct and consistent with the rest of the module's chrome.
+		headerBg := canvas.NewRectangle(convertColor)
+		headerBg.CornerRadius = 10
+		headerBg.SetMinSize(fyne.NewSize(0, 34))
+		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
+		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
+		headerTitle.TextSize = 12
+		header := container.NewMax(
+			headerBg,
+			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
 		)
+
+		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
 		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, body)
 		return container.NewMax(layers...)
 	}
 
