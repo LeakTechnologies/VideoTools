@@ -11,6 +11,8 @@ package i18n
 import (
 	"reflect"
 	"sync"
+
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n/translit"
 )
 
 // Language describes a supported language.
@@ -132,6 +134,12 @@ func SetLanguageWithScript(code string, script ScriptVariant) {
 			script = ScriptDefault
 		}
 	}
+
+	// Fill empty fields from the opposite-script variant via transliteration.
+	if code == "iu" {
+		strings = translitFill(strings, lookupCode)
+	}
+
 	merged := fallback(strings, enCA)
 
 	mu.Lock()
@@ -197,4 +205,32 @@ var registry = map[string]Strings{}
 
 func register(code string, s Strings) {
 	registry[code] = s
+}
+
+// translitFill fills empty string fields in dst by transliterating the
+// corresponding field from the opposite-script source (iu ↔ iu-Latn).
+// sourceCode is the registry key to use as the transliteration source.
+func translitFill(dst Strings, sourceCode string) Strings {
+	src, ok := registry[sourceCode]
+	if !ok {
+		return dst
+	}
+
+	var fn func(string) string
+	if sourceCode == "iu-Latn" {
+		fn = translit.RomanToSyllabics
+	} else {
+		fn = translit.SyllabicsToRoman
+	}
+
+	dv := reflect.ValueOf(&dst).Elem()
+	sv := reflect.ValueOf(src)
+	for i := 0; i < dv.NumField(); i++ {
+		if dv.Field(i).String() == "" {
+			if srcStr := sv.Field(i).String(); srcStr != "" {
+				dv.Field(i).SetString(fn(srcStr))
+			}
+		}
+	}
+	return dst
 }
