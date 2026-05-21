@@ -437,7 +437,7 @@ var iuLatn = Strings{
 	ConvertSectionVideoEncoding:   "Tarvijaksaq Nutaqqutigijauniq",                                                            // machine-generated, needs human review — Video Encoding
 	ConvertSectionAudioEncoding:   "Nipingit Nutaqqutigijauniq",                                                               // machine-generated, needs human review — Audio Encoding
 	ConvertSectionOutput:          "Upaktivik",                                                                                // machine-generated, needs human review — Output
-	ConvertSectionResolutionFPS:   "Piusilik Ammalu Tarvijaksait Naglingniqsaujait",                                           // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionResolutionFPS:   "Piusilik Ammalu Tarvijaksait Naglingniqsaujait",                                           // machine-generated, needs human review — Scale & Frame Rate
 	ConvertSectionAspectRatio:     "Piusilik Katimajinga",                                                                     // machine-generated, needs human review — Aspect Ratio
 	ConvertSectionAutoCrop:        "Aulappianniarniit Alianait Nanngiarlugu",                                                  // machine-generated, needs human review — Auto-Crop
 	ConvertSectionTransformations: "Tarvijaksaq Allatgutilik",                                                                 // machine-generated, needs human review — Video Transformations

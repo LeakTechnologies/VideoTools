@@ -545,7 +545,7 @@ type Strings struct {
 	ConvertSectionVideoEncoding   string // "Video Encoding"
 	ConvertSectionAudioEncoding   string // "Audio Encoding"
 	ConvertSectionOutput          string // "Output"
-	ConvertSectionResolutionFPS   string // "Resolution & Frame Rate"
+	ConvertSectionResolutionFPS   string // "Scale & Frame Rate"
 	ConvertSectionAspectRatio     string // "Aspect Ratio"
 	ConvertSectionAutoCrop        string // "Auto-Crop"
 	ConvertSectionTransformations string // "Video Transformations"

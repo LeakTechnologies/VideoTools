@@ -436,7 +436,7 @@ var iu = Strings{
 	ConvertSectionVideoEncoding:   "ᑕᕐᕆᔭᒐᒃᓴᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                              // machine-generated, needs human review — Video Encoding
 	ConvertSectionAudioEncoding:   "ᓂᐱᒋᔭᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                 // machine-generated, needs human review — Audio Encoding
 	ConvertSectionOutput:          "ᐅᐸᒃᑎᕕᒃ",                                                        // machine-generated, needs human review — Output
-	ConvertSectionResolutionFPS:   "ᐊᖏᕐᓂᖓ ᐊᒻᒪ ᑕᕐᕆᔭᒐᒃᓴᐃᑦ ᑭᑭᑕᐅᓂᖓᑦ",                                   // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionResolutionFPS:   "ᐊᖏᕐᓂᖓ ᐊᒻᒪ ᑕᕐᕆᔭᒐᒃᓴᐃᑦ ᑭᑭᑕᐅᓂᖓᑦ",                                   // machine-generated, needs human review — Scale & Frame Rate
 	ConvertSectionAspectRatio:     "ᐊᖏᕐᓂᖓᑕ ᐊᑭᖓ",                                                    // machine-generated, needs human review — Aspect Ratio
 	ConvertSectionAutoCrop:        "ᐊᖑᑎᒋᓗᒍ ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                       // machine-generated, needs human review — Auto-Crop
 	ConvertSectionTransformations: "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ",                                            // machine-generated, needs human review — Video Transformations
