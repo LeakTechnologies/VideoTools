@@ -25,32 +25,50 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
+// settingsRow places a label on the left and a control on the right at its
+// natural (MinSize) width. Prevents Select widgets from stretching to panel width.
+func settingsRow(label string, control fyne.CanvasObject) fyne.CanvasObject {
+	lbl := widget.NewLabel(label)
+	return container.NewHBox(lbl, layout.NewSpacer(), control)
+}
+
+// settingsCard wraps a group of controls in a titled dark-background section card.
+func settingsCard(title string, items ...fyne.CanvasObject) fyne.CanvasObject {
+	hdr := widget.NewLabel(title)
+	hdr.TextStyle = fyne.TextStyle{Bold: true}
+	bg := canvas.NewRectangle(utils.MustHex("#171C2A"))
+	bg.CornerRadius = 6
+	parts := make([]fyne.CanvasObject, 0, 2+len(items))
+	parts = append(parts, hdr, widget.NewSeparator())
+	parts = append(parts, items...)
+	return container.NewPadded(container.NewMax(bg, container.NewPadded(container.NewVBox(parts...))))
+}
+
+// hint returns a standard italic, word-wrapped hint label.
+func hint(text string) *widget.Label {
+	lbl := widget.NewLabel(text)
+	lbl.TextStyle = fyne.TextStyle{Italic: true}
+	lbl.Wrapping = fyne.TextWrapWord
+	return lbl
+}
+
 func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
-	content := container.NewVBox()
 	t := i18n.T()
-
-	header := widget.NewLabel(t.BenchmarkTitle)
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
-
-	desc := widget.NewLabel(t.BenchmarkDesc)
-	desc.Wrapping = fyne.TextWrapWord
-	content.Add(desc)
-
-	content.Add(widget.NewSeparator())
 
 	runBtn := ui.MakePillButton(t.BenchmarkRunButton, utils.MustHex(ModuleColor), func() {
 		cb.ShowBenchmark()
 	})
-	content.Add(container.NewCenter(runBtn))
+
+	items := []fyne.CanvasObject{
+		hint(t.BenchmarkDesc),
+		container.NewCenter(runBtn),
+	}
 
 	cfg, err := appcfg.LoadBenchmarkConfig()
 	if err == nil && len(cfg.History) > 0 {
-		content.Add(widget.NewSeparator())
-
 		recentHeader := widget.NewLabel(t.BenchmarkRecent)
 		recentHeader.TextStyle = fyne.TextStyle{Bold: true}
-		content.Add(recentHeader)
+		items = append(items, widget.NewSeparator(), recentHeader)
 
 		limit := 3
 		if len(cfg.History) < limit {
@@ -58,51 +76,36 @@ func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
 		}
 		for i := 0; i < limit; i++ {
 			run := cfg.History[i]
-			timestamp := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
-			summary := fmt.Sprintf("%s - Recommended: %s", timestamp, benchmark.HWAccelLabel(run.RecommendedHWAccel))
-
-			runLabel := widget.NewLabel(summary)
-			runLabel.TextStyle = fyne.TextStyle{Italic: true}
-			content.Add(runLabel)
+			ts := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
+			lbl := widget.NewLabel(fmt.Sprintf("%s — Recommended: %s", ts, benchmark.HWAccelLabel(run.RecommendedHWAccel)))
+			lbl.TextStyle = fyne.TextStyle{Italic: true}
+			items = append(items, lbl)
 		}
 	}
 
-	return content
+	return settingsCard(t.BenchmarkTitle, items...)
 }
 
 func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
-	content := container.NewVBox()
 	t := i18n.T()
+	settingsColor := utils.MustHex(ModuleColor)
+	prefs := cb.PrefsConfig()
 
-	header := widget.NewLabel(t.SettingsAppPreferences)
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
-
-	content.Add(widget.NewSeparator())
-
-	updatesHeader := widget.NewLabel(t.SettingsTabUpdates)
-	updatesHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(updatesHeader)
-
-	versionLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateCurrentVersion, cb.FullVersion()))
-	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(versionLabel)
+	// ── Updates ───────────────────────────────────────────────────────────────
+	versionValLabel := widget.NewLabel(cb.FullVersion())
+	versionValLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	hashDisplay := cb.BuildCommit()
 	if hashDisplay == "" || hashDisplay == "dev" {
 		hashDisplay = "development build"
 	}
-	hashLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateVersionHash, hashDisplay))
-	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
-	content.Add(hashLabel)
+	hashValLabel := widget.NewLabel(hashDisplay)
+	hashValLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
 	updateStatusIcon := widget.NewIcon(nil)
 	updateStatusIcon.Hide()
 	updateStatusLabel := widget.NewLabel("")
 	updateStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(container.NewHBox(updateStatusIcon, updateStatusLabel))
-
-	settingsColor := utils.MustHex(ModuleColor)
 
 	installBtn := ui.MakePillButton(t.UpdateInstall, settingsColor, nil)
 	installBtn.Hide()
@@ -121,16 +124,11 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		cb.CheckForUpdatesWithStatus(updateStatusIcon, updateStatusLabel, onUpdateAvailable)
 	})
 
-	content.Add(container.NewHBox(checkBtn, installBtn))
-
 	if !cb.UpdateLastChecked().IsZero() {
 		cb.ApplyUpdateStatusToUI(updateStatusIcon, updateStatusLabel, onUpdateAvailable)
 	} else {
 		cb.CheckForUpdatesWithStatus(updateStatusIcon, updateStatusLabel, onUpdateAvailable)
 	}
-
-	autoCheckLabel := widget.NewLabel(t.UpdateAutoCheck)
-	autoCheckLabel.TextStyle = fyne.TextStyle{}
 
 	autoCheckKeys := []string{
 		"disabled", "every_hour", "every_2h", "every_3h", "every_4h",
@@ -138,21 +136,10 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		"bi_weekly", "monthly", "bi_monthly",
 	}
 	autoCheckOptions := []string{
-		t.UpdateDisabled,
-		t.UpdateEveryHour,
-		t.UpdateEvery2Hours,
-		t.UpdateEvery3Hours,
-		t.UpdateEvery4Hours,
-		t.UpdateEvery6Hours,
-		t.UpdateEvery12Hours,
-		t.UpdateDaily,
-		t.UpdateSemiWeekly,
-		t.UpdateWeekly,
-		t.UpdateBiWeekly,
-		t.UpdateMonthly,
-		t.UpdateBiMonthly,
+		t.UpdateDisabled, t.UpdateEveryHour, t.UpdateEvery2Hours, t.UpdateEvery3Hours,
+		t.UpdateEvery4Hours, t.UpdateEvery6Hours, t.UpdateEvery12Hours, t.UpdateDaily,
+		t.UpdateSemiWeekly, t.UpdateWeekly, t.UpdateBiWeekly, t.UpdateMonthly, t.UpdateBiMonthly,
 	}
-
 	legacyEnglishToKey := map[string]string{
 		"Disabled":                    "disabled",
 		"Every hour":                  "every_hour",
@@ -168,8 +155,6 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		"Monthly":                     "monthly",
 		"Bi-monthly (every 2 months)": "bi_monthly",
 	}
-
-	prefs := cb.PrefsConfig()
 	normalizeKey := func(saved string) string {
 		if saved == "" {
 			return "daily"
@@ -186,7 +171,6 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}
 		return "daily"
 	}
-
 	keyToLabel := func(key string) string {
 		for i, k := range autoCheckKeys {
 			if k == key && i < len(autoCheckOptions) {
@@ -195,7 +179,6 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}
 		return t.UpdateDaily
 	}
-
 	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
 		for i, opt := range autoCheckOptions {
 			if opt == selected && i < len(autoCheckKeys) {
@@ -205,25 +188,20 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}
 		cb.SavePrefsConfig()
 	})
-
 	autoCheckSelect.SetSelected(keyToLabel(normalizeKey(prefs.AutoCheckFrequency)))
 
-	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
-	content.Add(autoCheckRow)
+	updatesCard := settingsCard(t.SettingsTabUpdates,
+		settingsRow(t.UpdateCurrentVersion, versionValLabel),
+		settingsRow(t.UpdateVersionHash, hashValLabel),
+		container.NewHBox(updateStatusIcon, updateStatusLabel),
+		container.NewHBox(checkBtn, installBtn),
+		settingsRow(t.UpdateAutoCheck, autoCheckSelect),
+		hint(t.SettingsUpdatesAutoInfo),
+	)
 
-	infoLabel := widget.NewLabel(t.SettingsUpdatesAutoInfo)
-	infoLabel.Wrapping = fyne.TextWrapWord
-	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(infoLabel)
-
-	content.Add(widget.NewSeparator())
-
-	langLabel := widget.NewLabel(t.SettingsLanguage)
-	langLabel.TextStyle = fyne.TextStyle{Bold: true}
-
+	// ── Language ──────────────────────────────────────────────────────────────
 	scriptLabel := widget.NewLabel(t.SettingsLanguageScript)
 	scriptLabel.Hide()
-
 	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
 	scriptSelect.Hide()
 
@@ -261,31 +239,61 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		cb.ShowSettingsView()
 	})
 
-	langSection := container.NewVBox(
-		langLabel,
+	langCard := settingsCard(t.SettingsLanguage,
 		langSelect,
 		container.NewHBox(scriptLabel, scriptSelect),
 	)
-	content.Add(langSection)
 
-	content.Add(widget.NewSeparator())
+	// ── Appearance ────────────────────────────────────────────────────────────
+	fontSizeSelect := widget.NewSelect([]string{"large", "small"}, func(selected string) {
+		cb.SetFontSize(selected)
+	})
+	fontSizeSelect.SetSelected(cb.FontSize())
 
-	masterHeader := widget.NewLabel(t.SettingsMasterSettings)
-	masterHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(masterHeader)
+	fontOptions := []string{t.SettingsFontIBM, t.SettingsFontVCR}
+	currentFont := prefs.PlayerFont
+	if currentFont == "" {
+		currentFont = "ibm"
+	}
+	fontSelect := widget.NewSelect(fontOptions, func(selected string) {
+		if selected == t.SettingsFontVCR {
+			cb.SetPlayerFont("vcr")
+		} else {
+			cb.SetPlayerFont("ibm")
+		}
+	})
+	if currentFont == "vcr" {
+		fontSelect.SetSelected(t.SettingsFontVCR)
+	} else {
+		fontSelect.SetSelected(t.SettingsFontIBM)
+	}
 
-	hwLabel := widget.NewLabel(t.SettingsHardwareAccel)
-	hwLabel.TextStyle = fyne.TextStyle{Bold: true}
+	showTooltipsCheck := widget.NewCheck(t.SettingsShowTooltips, func(enabled bool) {
+		cb.SetShowTooltips(enabled)
+	})
+	showTooltipsCheck.Checked = prefs.ShowTooltips
 
-	hwStatus := widget.NewLabel("Press Detect to scan your hardware.")
-	hwStatus.TextStyle = fyne.TextStyle{Monospace: true}
-	hwStatus.Wrapping = fyne.TextWrapWord
+	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, cb.ShowPlayer())
 
+	appearanceCard := settingsCard("Appearance",
+		settingsRow("Font Size", fontSizeSelect),
+		settingsRow(t.SettingsFont, fontSelect),
+		hint(t.SettingsFontHint),
+		showTooltipsCheck,
+		container.NewHBox(testPatternBtn),
+		hint(t.SettingsTestPatternHint),
+	)
+
+	// ── Hardware ──────────────────────────────────────────────────────────────
 	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi"}, func(selected string) {
 		cb.SetConvertHardwareAccel(selected)
 		cb.PersistConvertConfig()
 	})
 	hwSelect.SetSelected(cb.ConvertHardwareAccel())
+
+	hwStatus := widget.NewLabel("Press Detect to scan your hardware.")
+	hwStatus.TextStyle = fyne.TextStyle{Monospace: true}
+	hwStatus.Wrapping = fyne.TextWrapWord
 
 	var detectBtn *ui.PillButton
 	detectBtn = ui.MakePillButton(t.SettingsDetect, settingsColor, func() {
@@ -311,152 +319,15 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwStatus.SetText("Set to auto — best available encoder selected at encode time.")
 	})
 
-	content.Add(container.NewVBox(
-		hwLabel,
-		hwSelect,
-		container.NewHBox(detectBtn, autoBtn),
-		hwStatus,
-	))
-
-	fontSizeLabel := widget.NewLabel("Font Size")
-	fontSizeLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	fontSizeSelect := widget.NewSelect([]string{"large", "small"}, func(selected string) {
-		cb.SetFontSize(selected)
-	})
-	fontSizeSelect.SetSelected(cb.FontSize())
-
-	fontSizeHint := widget.NewLabel("Large: 16pt text. Small: 14pt text.")
-	fontSizeHint.TextStyle = fyne.TextStyle{Monospace: true}
-	fontSizeHint.Wrapping = fyne.TextWrapWord
-
-	content.Add(container.NewVBox(
-		fontSizeLabel,
-		fontSizeSelect,
-		fontSizeHint,
-	))
-
-	content.Add(widget.NewSeparator())
-
-	moduleHeader := widget.NewLabel(t.SettingsModuleVisibility)
-	moduleHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(moduleHeader)
-
-	showUpscale := widget.NewCheck(t.SettingsShowUpscale, func(checked bool) {
-		cb.SetConvertShowUpscale(checked)
-		cb.PersistConvertConfig()
-	})
-	showUpscale.SetChecked(cb.ConvertShowUpscale())
-
-	visibilityItems := []fyne.CanvasObject{showUpscale}
-
-	showDisc := widget.NewCheck(t.SettingsShowDisc, func(checked bool) {
-		cb.SetConvertShowDisc(checked)
-		cb.PersistConvertConfig()
-	})
-	showDisc.SetChecked(cb.ConvertShowDisc())
-
-	visibilityItems = append(visibilityItems, showDisc)
-
-	visibilityHint := widget.NewLabel(t.SettingsModuleVisibilityHint)
-	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
-	visibilityHint.Wrapping = fyne.TextWrapWord
-	visibilityItems = append(visibilityItems, visibilityHint)
-
-	content.Add(container.NewVBox(visibilityItems...))
-
-	content.Add(widget.NewSeparator())
-
-	queueHeader := widget.NewLabel(t.SettingsQueueSection)
-	queueHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(queueHeader)
-
-	queuePlayLabel := widget.NewLabel(t.SettingsQueuePlayLabel)
-	content.Add(queuePlayLabel)
-
-	currentBehavior := prefs.QueuePlayBehavior
-	if currentBehavior == "" {
-		currentBehavior = "player"
-	}
-	queuePlayOpts := []string{t.SettingsQueuePlaySystem, t.SettingsQueuePlayInspect}
-	selectedOpt := queuePlayOpts[0]
-	if currentBehavior == "inspect" {
-		selectedOpt = queuePlayOpts[1]
-	}
-	queuePlayRadio := widget.NewRadioGroup(queuePlayOpts, func(selected string) {
-		if selected == t.SettingsQueuePlayInspect {
-			prefs.QueuePlayBehavior = "inspect"
-		} else {
-			prefs.QueuePlayBehavior = "player"
-		}
-		cb.SavePrefsConfig()
-	})
-	queuePlayRadio.SetSelected(selectedOpt)
-	content.Add(queuePlayRadio)
-
-	queuePlayHint := widget.NewLabel(t.SettingsQueuePlayHint)
-	queuePlayHint.TextStyle = fyne.TextStyle{Italic: true}
-	queuePlayHint.Wrapping = fyne.TextWrapWord
-	content.Add(queuePlayHint)
-
-	pipelineHeader := widget.NewLabel(t.SettingsPipelineSection)
-	pipelineHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(pipelineHeader)
-
-	keepIntermediateCheck := widget.NewCheck(t.SettingsPipelineKeepIntermediate, func(checked bool) {
-		prefs.PipelineKeepIntermediate = checked
-		cb.SavePrefsConfig()
-	})
-	keepIntermediateCheck.SetChecked(prefs.PipelineKeepIntermediate)
-	content.Add(keepIntermediateCheck)
-
-	keepIntermediateHint := widget.NewLabel(t.SettingsPipelineKeepIntermediateHint)
-	keepIntermediateHint.TextStyle = fyne.TextStyle{Italic: true}
-	keepIntermediateHint.Wrapping = fyne.TextWrapWord
-	content.Add(keepIntermediateHint)
-
-	content.Add(widget.NewSeparator())
-
-	discLogHeader := widget.NewLabel("Disc Verbose Logging")
-	discLogHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(discLogHeader)
-
-	verboseDiscCheck := widget.NewCheck("Enable verbose disc logging", func(checked bool) {
-		cb.SetVerboseDiscLogging(checked)
-	})
-	verboseDiscCheck.SetChecked(cb.VerboseDiscLogging())
-	content.Add(verboseDiscCheck)
-
-	verboseDiscHint := widget.NewLabel("Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues.")
-	verboseDiscHint.TextStyle = fyne.TextStyle{Italic: true}
-	verboseDiscHint.Wrapping = fyne.TextWrapWord
-	content.Add(verboseDiscHint)
-
-	content.Add(widget.NewSeparator())
-
-	tooltipsHeader := widget.NewLabel(t.SettingsShowTooltips)
-	tooltipsHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(tooltipsHeader)
-
-	showTooltipsCheck := widget.NewCheck("", func(enabled bool) {
-		cb.SetShowTooltips(enabled)
-	})
-	showTooltipsCheck.Checked = prefs.ShowTooltips
-	content.Add(showTooltipsCheck)
-
-	content.Add(widget.NewSeparator())
-
 	hwDecodeHeader := widget.NewLabel(t.SettingsHWDecode)
 	hwDecodeHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(hwDecodeHeader)
+
+	hwDecodeStatus := widget.NewLabel(t.SettingsHWDecodeDetecting)
+	hwDecodeStatus.TextStyle = fyne.TextStyle{Italic: true}
 
 	hwDecodeAutoCheck := widget.NewCheck(t.SettingsHWDecodeAuto, func(enabled bool) {
 		cb.SetHWDecodeEnabled(enabled)
 	})
-
-	hwDecodeStatus := widget.NewLabel(t.SettingsHWDecodeDetecting)
-	hwDecodeStatus.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(hwDecodeStatus)
 
 	go func() {
 		available := appcfg.DetectHWDeviceType() != 0
@@ -476,56 +347,75 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}, false)
 	}()
 
-	content.Add(hwDecodeAutoCheck)
+	hwCard := settingsCard(t.SettingsMasterSettings,
+		settingsRow(t.SettingsHardwareAccel, hwSelect),
+		container.NewHBox(detectBtn, autoBtn),
+		hwStatus,
+		widget.NewSeparator(),
+		hwDecodeHeader,
+		hwDecodeStatus,
+		hwDecodeAutoCheck,
+		hint(t.SettingsHWDecodeAutoHint),
+	)
 
-	hwDecodeHint := widget.NewLabel(t.SettingsHWDecodeAutoHint)
-	hwDecodeHint.TextStyle = fyne.TextStyle{Italic: true}
-	hwDecodeHint.Wrapping = fyne.TextWrapWord
-	content.Add(hwDecodeHint)
-
-	fontHeader := widget.NewLabel(t.SettingsFont)
-	fontHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(fontHeader)
-
-	fontOptions := []string{t.SettingsFontIBM, t.SettingsFontVCR}
-	currentFont := prefs.PlayerFont
-	if currentFont == "" {
-		currentFont = "ibm"
-	}
-	fontSelect := widget.NewSelect(fontOptions, func(selected string) {
-		if selected == t.SettingsFontVCR {
-			cb.SetPlayerFont("vcr")
-		} else {
-			cb.SetPlayerFont("ibm")
-		}
+	// ── Module Visibility ─────────────────────────────────────────────────────
+	showUpscale := widget.NewCheck(t.SettingsShowUpscale, func(checked bool) {
+		cb.SetConvertShowUpscale(checked)
+		cb.PersistConvertConfig()
 	})
-	if currentFont == "vcr" {
-		fontSelect.SetSelected(t.SettingsFontVCR)
-	} else {
-		fontSelect.SetSelected(t.SettingsFontIBM)
+	showUpscale.SetChecked(cb.ConvertShowUpscale())
+
+	showDisc := widget.NewCheck(t.SettingsShowDisc, func(checked bool) {
+		cb.SetConvertShowDisc(checked)
+		cb.PersistConvertConfig()
+	})
+	showDisc.SetChecked(cb.ConvertShowDisc())
+
+	modulesCard := settingsCard(t.SettingsModuleVisibility,
+		showUpscale,
+		showDisc,
+		hint(t.SettingsModuleVisibilityHint),
+	)
+
+	// ── Queue Behaviour ───────────────────────────────────────────────────────
+	currentBehavior := prefs.QueuePlayBehavior
+	if currentBehavior == "" {
+		currentBehavior = "player"
 	}
-	content.Add(fontSelect)
+	queuePlayOpts := []string{t.SettingsQueuePlaySystem, t.SettingsQueuePlayInspect}
+	selectedOpt := queuePlayOpts[0]
+	if currentBehavior == "inspect" {
+		selectedOpt = queuePlayOpts[1]
+	}
+	queuePlayRadio := widget.NewRadioGroup(queuePlayOpts, func(selected string) {
+		if selected == t.SettingsQueuePlayInspect {
+			prefs.QueuePlayBehavior = "inspect"
+		} else {
+			prefs.QueuePlayBehavior = "player"
+		}
+		cb.SavePrefsConfig()
+	})
+	queuePlayRadio.SetSelected(selectedOpt)
 
-	fontHint := widget.NewLabel(t.SettingsFontHint)
-	fontHint.TextStyle = fyne.TextStyle{Italic: true}
-	fontHint.Wrapping = fyne.TextWrapWord
-	content.Add(fontHint)
+	queueCard := settingsCard(t.SettingsQueueSection,
+		widget.NewLabel(t.SettingsQueuePlayLabel),
+		queuePlayRadio,
+		hint(t.SettingsQueuePlayHint),
+	)
 
-	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, cb.ShowPlayer())
-	content.Add(testPatternBtn)
+	// ── Pipeline ──────────────────────────────────────────────────────────────
+	keepIntermediateCheck := widget.NewCheck(t.SettingsPipelineKeepIntermediate, func(checked bool) {
+		prefs.PipelineKeepIntermediate = checked
+		cb.SavePrefsConfig()
+	})
+	keepIntermediateCheck.SetChecked(prefs.PipelineKeepIntermediate)
 
-	testPatternHint := widget.NewLabel(t.SettingsTestPatternHint)
-	testPatternHint.TextStyle = fyne.TextStyle{Italic: true}
-	testPatternHint.Wrapping = fyne.TextWrapWord
-	content.Add(testPatternHint)
+	pipelineCard := settingsCard(t.SettingsPipelineSection,
+		keepIntermediateCheck,
+		hint(t.SettingsPipelineKeepIntermediateHint),
+	)
 
-	content.Add(widget.NewSeparator())
-
-	outputHeader := widget.NewLabel(t.SettingsDefaultOutputDir)
-	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(outputHeader)
-
-	// Platform-specific default output directory
+	// ── Output Directory ──────────────────────────────────────────────────────
 	defaultPath := "~/Videos/VideoTools"
 	if runtime.GOOS == "windows" {
 		homeDir := os.Getenv("USERPROFILE")
@@ -561,17 +451,36 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		cb.SetDefaultOutputDir("")
 	})
 
-	outputHint := widget.NewLabel(t.SettingsDefaultOutputDirHint)
-	outputHint.TextStyle = fyne.TextStyle{Italic: true}
-	outputHint.Wrapping = fyne.TextWrapWord
+	outputCard := settingsCard(t.SettingsDefaultOutputDir,
+		container.NewBorder(nil, nil, nil,
+			container.NewHBox(outputBrowseBtn, outputClearBtn),
+			outputDirEntry,
+		),
+		hint(t.SettingsDefaultOutputDirHint),
+	)
 
-	content.Add(container.NewBorder(nil, nil, nil,
-		container.NewHBox(outputBrowseBtn, outputClearBtn),
-		outputDirEntry,
-	))
-	content.Add(outputHint)
+	// ── Developer Tools ───────────────────────────────────────────────────────
+	verboseDiscCheck := widget.NewCheck("Enable verbose disc logging", func(checked bool) {
+		cb.SetVerboseDiscLogging(checked)
+	})
+	verboseDiscCheck.SetChecked(cb.VerboseDiscLogging())
 
-	return content
+	developerCard := settingsCard("Developer Tools",
+		verboseDiscCheck,
+		hint("Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues."),
+	)
+
+	return container.NewVBox(
+		updatesCard,
+		langCard,
+		appearanceCard,
+		hwCard,
+		modulesCard,
+		queueCard,
+		pipelineCard,
+		outputCard,
+		developerCard,
+	)
 }
 
 func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
@@ -649,7 +558,6 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 		statusRow := container.NewHBox(statusIcon, statusBg, statusLabel)
 
-		// Bundled tools are included in release binary - no install/uninstall needed
 		bundledDeps := map[string]bool{
 			"ffmpeg":                 true,
 			"realesrgan-ncnn-vulkan": true,
@@ -665,7 +573,6 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 		depColor := utils.MustHex(ModuleColor)
 
 		if cmds.Install != nil {
-			// Skip install button for bundled deps
 			if !bundledDeps[depName] {
 				installBtn := ui.MakePillButton(t.DependenciesInstall, depColor, func() {
 					cb.RunDependencyCommandWithProgress(fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
@@ -680,9 +587,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			}
 		}
 
-		// Skip uninstall button for bundled tools
 		showUninstall := cmds.Uninstall != nil && !bundledDeps[depName]
-
 		if showUninstall {
 			uninstallBtn := ui.MakePillButton(t.DependenciesUninstall, depColor, func() {
 				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
@@ -717,9 +622,8 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			infoBox.Add(installCmdLabel)
 		}
 
-		if actions.Objects != nil && len(actions.Objects) > 0 {
-			actionsContainer := container.NewHBox(actions.Objects...)
-			infoBox.Add(actionsContainer)
+		if len(actions.Objects) > 0 {
+			infoBox.Add(container.NewHBox(actions.Objects...))
 		}
 
 		modulesNeeding := []string{}
@@ -762,7 +666,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 // buildFlagLangSelect creates a language selector that shows a flag icon alongside
 // each language name. Tapping opens a popup list; selecting calls onChange with the
-// chosen language code. The view is rebuilt by the caller after a selection.
+// chosen language code.
 func buildFlagLangSelect(langs []i18n.Language, activeFont, currentCode string, window fyne.Window, onChange func(string)) fyne.CanvasObject {
 	var popup *widget.PopUp
 
