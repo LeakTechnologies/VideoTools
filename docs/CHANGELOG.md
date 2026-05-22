@@ -16,6 +16,11 @@
 - **i18n integration**: `translitFill()` wired into `SetLanguageWithScript`. Empty Inuktitut fields auto-filled from the other script variant via transliteration. Manually-entered strings take precedence as overrides.
 - **Test coverage**: 15 unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge — all passing.
 
+### Frame Pacing — PTS-Driven Timing Overhaul
+- **No-audio WaitForPTS**: Replaced `e.clock.SetTime(pts)` with `e.clock.WaitForPTS(pts)` in `NextFrame` for audio-less playback. The clock now ticks forward in real time between frames; `WaitForPTS` blocks for the correct PTS interval (e.g. 41.7ms at 24fps), eliminating the previous decode-speed pacing that caused non-smooth video.
+- **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of per-frame jitter (ΔV up to ±16.7ms on frame intervals). Frame timing is now purely PTS-driven, removing all vsync-alignment jitter.
+- **Frame rate propagation**: `VideoPlayer.SetFrameRate()` now called during `loadViaOpen` from `Engine.GetFrameRate()`, giving the player widget frame-accurate display configuration.
+
 ### VT Media Engine — Subsystem Split
 - **engine.go (3245→1117 lines)**: Broken into 6 focused subsystem files — errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go. framepool.go extracts frame buffer pool (toRGBA/ReleaseFrame/GetFramePoolSize/ensureSwsCtx). subtitle_engine.go extracts subtitle decoding+rendering (SubtitleOverlay, initSubtitleDecoder, decodeSubtitle, RenderSubtitles, drawBitmapText). buffer.go extracts buffer management (SetBufferMode, recordDecodeTime, AdjustBufferForPerformance, GetBufferHealth). playback.go extracts the entire playback pipeline (Start, demuxerLoop, Seek, ResetAfterGrab, GrabFrame, videoDecodeLoop, NextFrame, Pause, Resume, Close, Duration, etc.) plus all query helpers.
 - **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go — deferred to dev50.

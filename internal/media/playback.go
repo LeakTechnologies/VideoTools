@@ -638,7 +638,12 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 				traceAction = "snap"
 			}
 		} else {
-			e.clock.SetTime(pts)
+			// No-audio: use WaitForPTS for PTS-based frame pacing.
+			// The clock ticks forward at real-time speed after Resume().
+			// After Seek(), clock.ResetTime(seconds) anchors to the seek
+			// target, so the first new frame returns immediately and
+			// subsequent frames wait their PTS interval naturally.
+			e.clock.WaitForPTS(pts)
 		}
 
 		clockNow := e.clock.GetTime()

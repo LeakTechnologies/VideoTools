@@ -25,6 +25,11 @@
 - **i18n integration**: `translitFill()` in `i18n.go` uses reflection to iterate `Strings` struct fields. Empty `iu` fields auto-filled from `iu-latn` (and vice versa) via transliteration during `SetLanguageWithScript`. Manually-entered strings in `iu.go` take precedence as overrides — never overwritten.
 - **Test coverage**: 15 translit unit tests with 276 round-trip assertions; 3 integration tests for the `i18n.SetLanguageWithScript` ↔ translit bridge. All passing.
 
+### Frame Pacing — PTS-Driven Timing Overhaul
+- **No-audio WaitForPTS**: Replaced `e.clock.SetTime(pts)` with `e.clock.WaitForPTS(pts)` in `NextFrame` for the no-audio path. Previously the clock was instantly snapped to each frame's PTS, erasing wall-time pacing and causing frames to be displayed at decode speed. Now the clock ticks forward in real time and `WaitForPTS` blocks until the correct PTS interval elapses, giving proper frame-duration spacing (e.g. 41.7ms for 24fps).
+- **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of random jitter because the vsync phase varies per frame. With audio, the displayed interval became `frame_period + ΔV` (ΔV up to ±16.7ms), a ±40% variation at 24fps. Removing it eliminated all vsync-induced jitter; frame timing is now purely PTS-driven via `WaitForPTS`.
+- **Frame rate propagation**: `v.player.SetFrameRate(eng.GetFrameRate())` added to `loadViaOpen` ready callback so the `VideoPlayer` always knows the source frame rate for frame-step calculations and display configuration.
+
 ### VT ISO Engine — Roadmap
 - **Roadmap columns** — VT Media Engine and VT ISO Engine added as dedicated columns on the interactive roadmap with individual status cards for each refactoring task (engine.go split, view.go split, Player interface, HW decode, thread safety, UDF reader, UDF thread safety).
 
