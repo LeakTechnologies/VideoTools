@@ -43,6 +43,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Thread safety formalisation** — Lock hierarchy docs, lockdep assertions, eliminate reverse-order paths like DegradeToSoftware
 - [ ] **Error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed AudioBufferLatency
 - [ ] **Frame cache memory bounds** — Byte-aware eviction, frame pool size distribution, memory-pressure callback
+- [ ] **ASS subtitle format bugs** — `formatASSTime` outputs `1:02:03.372345` instead of `1:02:03.45` (centisecs not handled); `escapeASSText` double-escapes closing brace
 
 ### VT ISO Engine Refactoring (HIGH — UDF reader hardening)
 
