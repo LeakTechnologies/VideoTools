@@ -414,6 +414,8 @@ const roadmap = {
       { id: 'log-management-settings', title: 'Settings Log Management', desc: 'Clear Log File + Open Log Folder buttons in Settings → Preferences; truncates active log in-place without restart', status: 'shipped', cycle: 'dev49', files: ['internal/app/modules/settings/tabs.go', 'settings_module.go'], deps: ['log-rotation'], docs: [] },
       { id: 'convert-nav-fix', title: 'Convert → Queue Navigation Fix', desc: 'convertNow() replaced blocking dialog.ShowInformation with direct s.showQueue() call; user lands on queue immediately after job is added', status: 'shipped', cycle: 'dev49', files: ['main.go'], deps: ['job-queue'], docs: [] },
       { id: 'queue-refresh-fix', title: 'Queue Auto-Refresh Goroutine Fix', desc: 'startQueueAutoRefresh + startQueueElapsedTicker changed return→continue in ticker guard; goroutines now stay alive between queue visits so progress bars update correctly', status: 'shipped', cycle: 'dev49', files: ['queue_module.go'], deps: ['job-queue'], docs: [] },
+      { id: 'no-inherit-handles', title: 'Windows Handle Inheritance Fix (file-in-use)', desc: 'CreateCommand/CreateCommandRaw in exec_windows.go now set NoInheritHandles:true in SysProcAttr. The media engine\'s avformat_open_input file handles were inherited by every FFmpeg child process, holding source video files locked for the entire encode duration. On Windows this caused "file in use" errors when trying to delete or move the source after conversion. NoInheritHandles:true prevents any parent handles from being duplicated into child processes.', status: 'shipped', cycle: 'dev49', files: ['internal/utils/exec_windows.go'], deps: ['job-queue'], docs: [] },
+      { id: 'queue-stop-cancel', title: 'Queue.Stop() Cancels Running Job (zombie FFmpeg fix)', desc: 'Stop() — called on app close via s.shutdown() — now calls cancelRunningLocked() before clearing q.running. Previously, closing VT while a conversion was in progress left the FFmpeg subprocess running as an orphan process. Context cancellation now propagates through exec.CommandContext to terminate the child process cleanly when the app closes.', status: 'shipped', cycle: 'dev49', files: ['internal/queue/queue.go'], deps: ['job-queue'], docs: [] },
       { id: 'visual-feedback', title: 'Queue Visual Polish', desc: 'Improve button states and hover effects in queue view', status: 'future', cycle: 'future', files: ['internal/app/modules/queue/view.go'], deps: [], docs: [] },
     ]
   },
@@ -797,6 +799,46 @@ const changelogData = [
     { title: 'VT ISO Engine Refactoring', items: [
       'UDF reader robustness: fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge',
       'Thread safety & progress: mutex-guarded Reader, extraction progress callbacks, temp file cleanup tracking',
+    ]},
+    { title: 'Rip Module — Layout Alignment & Source Rework', items: [
+      'Player panel HSplit 0.40→0.65: player now takes two-thirds of module width, matching Convert layout',
+      'buildRipBox() header sections: Source, Format, Output, Status with teal accent bars matching buildConvertBox visual language',
+      'Open in Player relocated from below player canvas into footer action bar alongside queue/rip buttons',
+      'Collapsible log: ▼/▶ toggle in RIP LOG header; expanded 0.60, collapsed 0.97 main/log VSplit',
+      'Disc info (type/region/size) moved from Format box to Source section — visible immediately under source path',
+      'Single ... browse button replaces ISO... + Folder... — opens 900×640 file dialog for ISO selection',
+      'Format validation: loadDisc rejects non-ISO/VIDEO_TS paths with RipErrNotDisc user-visible error in discInfoLabel',
+    ]},
+    { title: 'Convert Module — Collapsible Section Headers', items: [
+      'internal/ui/collapsible.go: tappableBox widget + BuildCollapsibleHeader — full-width module-colored accent bar (CornerRadius 10, h=34) with ▼/▶ uppercase bold label',
+      'Metadata panel: tappable header labeled "▼ METADATA"/"▶ METADATA"; drives leftColumn VSplit 0.5↔0.97; Copy/Clear buttons stay in header',
+      'Settings panel: tappable header labeled "▼ SETTINGS"/"▶ SETTINGS"; drives mainSplit 0.65↔0.97; replaces old pill button',
+      'ConvertSectionSettings i18n key added to all four locale files',
+      'Rip log toggle relabeled "▼ LOG"/"▶ LOG" (was bare ▼/▶)',
+    ]},
+    { title: 'Player — Configurable Idle Aspect Ratio', items: [
+      'Settings → Preferences: Idle Aspect Ratio dropdown — 4:3 (Standard), 16:9 (Widescreen), 5:3, 21:9 (Ultrawide), 9:16 (Portrait)',
+      'Persisted as PlayerDefaultAspect in PrefsConfig JSON; 8 new i18n string keys across all four locale files',
+      'idleAspectRatio field on VideoPlayer with SetIdleAspectRatio/IdleAspectRatio accessors; draw() uses it instead of hardcoded 4.0/3.0',
+      'applyPlayerDefaultAspect() iterates all player singletons on startup and on pref change',
+    ]},
+    { title: 'Settings — Log File Management', items: [
+      'Session rotation: rotateLog() trims log file to last 2 sessions on startup; "=== VideoTools session started" marker written each boot',
+      'Stale binary noise from old installations disappears automatically after two runs — no manual deletion needed',
+      'Clear Log File button in Settings → Preferences → Log File card: truncates active log in-place with confirmation dialog; writes cleared-at timestamp',
+      'Open Log Folder button: reveals logs directory in system file manager',
+    ]},
+    { title: 'Queue — Navigation & Refresh Bug Fixes', items: [
+      'convertNow() blocking dialog removed: direct s.showQueue() call replaces dialog.ShowInformation — user lands on queue immediately after adding a job',
+      'On fast hardware (e.g. AMF AV1 at 10× realtime), the encode was completing before the user could dismiss the modal — now irrelevant',
+      'startQueueAutoRefresh + startQueueElapsedTicker goroutine self-exit fixed: return→continue in ticker guard so goroutines stay alive when not on queue view',
+      'Previously goroutines died silently while queueAutoRefreshRunning=true, making the next showQueue() call a no-op — progress bars never updated',
+    ]},
+    { title: 'Process Management — File-in-Use & Zombie FFmpeg Fixes', items: [
+      'exec_windows.go CreateCommand/CreateCommandRaw: SysProcAttr now sets NoInheritHandles:true — media engine avformat_open_input handles no longer inherited by FFmpeg child processes',
+      'Fixes Windows "file in use" error when trying to delete or move source video after conversion; affected 4K sources most visibly due to longer encode duration',
+      'Queue.Stop() now calls cancelRunningLocked() before clearing q.running — context cancellation propagates through exec.CommandContext to terminate FFmpeg subprocess',
+      'Fixes zombie FFmpeg processes that continued encoding after VT was closed mid-conversion',
     ]},
   ]},
   { version: 'v0.1.1-dev48', date: 'May 2026', tag: 'shipped', sections: [

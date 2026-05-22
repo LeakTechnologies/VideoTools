@@ -19,8 +19,9 @@ func CreateCommand(ctx context.Context, name string, arg ...string) *exec.Cmd {
 	// CreationFlags: CREATE_NO_WINDOW (0x08000000) prevents the creation of a console window.
 	// This is crucial for a smooth GUI experience when launching CLI tools.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		HideWindow:       true,
+		CreationFlags:    0x08000000, // CREATE_NO_WINDOW
+		NoInheritHandles: true,
 	}
 	return cmd
 }
@@ -30,8 +31,9 @@ func CreateCommand(ctx context.Context, name string, arg ...string) *exec.Cmd {
 func CreateCommandRaw(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		HideWindow:       true,
+		CreationFlags:    0x08000000, // CREATE_NO_WINDOW
+		NoInheritHandles: true,
 	}
 	return cmd
 }

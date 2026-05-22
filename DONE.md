@@ -42,6 +42,10 @@
 - **Clear Log File**: Settings → Preferences → Log File — truncates the file in-place (no restart), writes a cleared-at header. Confirmation dialog prevents accidental wipes.
 - **Open Log Folder**: Reveals the logs directory in the system file manager.
 
+### Queue & Process Management — File-in-Use & Zombie FFmpeg Fixes
+- **`NoInheritHandles` on Windows subprocess creation**: `internal/utils/exec_windows.go` sets `NoInheritHandles: true` in `SysProcAttr` for both `CreateCommand` and `CreateCommandRaw`. The VT media engine's `avformat_open_input` file handles were inherited by FFmpeg child processes, holding the source video locked on Windows — preventing delete/move after conversion. `NoInheritHandles: true` closes the inheritance path entirely.
+- **`Queue.Stop()` cancels running job**: `Stop()` now calls `cancelRunningLocked()` before clearing `q.running`. Previously, app shutdown left any active encode running as an orphan FFmpeg process. Context cancellation now propagates through `exec.CommandContext` to terminate the child process cleanly.
+
 ### Queue Module — Convert Navigation & Progress Refresh Bug Fixes
 - **Blocking dialog removed**: `convertNow()` replaced `dialog.ShowInformation` with `s.showQueue()`. User is taken directly to the queue after adding a job; no modal to dismiss.
 - **Auto-refresh goroutine self-exit fixed**: `startQueueAutoRefresh` and `startQueueElapsedTicker` (queue_module.go) used `return` in the ticker case when `s.active != "queue"`, killing the goroutines while leaving `queueAutoRefreshRunning`/`queueElapsedRunning = true`. Next `showQueue()` call did nothing (guard check). Changed both `return` to `continue` so goroutines remain alive and simply skip work while not on the queue view.

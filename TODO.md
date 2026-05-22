@@ -35,6 +35,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Settings log management** — Clear Log File + Open Log Folder buttons in Settings → Preferences.
 - [x] **Queue blocking dialog removed** — `convertNow()` now calls `s.showQueue()` directly; no more modal dialog after queuing a job.
 - [x] **Queue auto-refresh goroutine self-exit fixed** — `startQueueAutoRefresh` + `startQueueElapsedTicker` changed `return` to `continue` so goroutines stay alive when not on queue view; progress bar now updates correctly.
+- [x] **`NoInheritHandles` on Windows subprocess creation** — `internal/utils/exec_windows.go` `SysProcAttr` sets `NoInheritHandles: true` on both `CreateCommand`/`CreateCommandRaw`. Fixes "file in use" error on Windows when trying to delete/move source video after conversion; player engine's `avformat_open_input` handles were inherited by FFmpeg child processes.
+- [x] **`Queue.Stop()` cancels running job** — `internal/queue/queue.go` `Stop()` now calls `cancelRunningLocked()` before clearing `q.running`. Fixes zombie FFmpeg processes persisting after VT closes mid-conversion.
 - [x] **BuildCollapsibleHeader component** — `internal/ui/collapsible.go`; `tappableBox` widget + `BuildCollapsibleHeader`; labeled module-colored tappable bars replace clumsy pill buttons for Metadata and Settings panels. Rip log toggle relabeled "▼ LOG"/"▶ LOG".
 - [x] **Disc info moved to Source section** — `discInfoLabel` relocated from Format box to Source section; disc type/region/size now visible directly under source path.
 - [x] **Single browse button** — ISO... and Folder... buttons replaced with single `...` button opening a 900×640 file dialog.
