@@ -2,6 +2,13 @@
 
 ## Version 0.1.1-dev49 (in progress)
 
+### Media Engine — Seek Corruption Fix & Player Consolidation
+- **Seek corruption root cause found & fixed**: `Engine.Seek()` accurate fallback used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, landing the format context mid-GOP. `avcodec_flush_buffers` destroyed decoder reference state, causing the first P/B-frame after seek to produce garbage. Fixed by adding `AVSEEK_FLAG_BACKWARD` so the fallback lands at the keyframe immediately before the target.
+- **Verbose seek logging added**: Human-readable seek flags, accurate fallback confirmation with position, clock reset target (including audio offset), stale frame queue drain count, seekGen change detection in videoDecodeLoop with frame format/dimensions/PTS logging, InlineVideoPlayer level seek completion logging.
+- **Player singleton consolidation**: All 10 per-module `InlineVideoPlayer` singletons (`convertInlinePlayer`, `trimInlinePlayer`, `inspectInlinePlayer`, `filtersInlinePlayer`, `upscaleInlinePlayer`, etc.) consolidated into 2 shared instances: `GetPrimaryPlayer()` and `GetPreviewPlayer()`. Same absolute singleton count (2 engine instances), all modules share the same primary player. Eliminates per-module player state fragmentation.
+- **Legacy getters forward**: `GetConvertPlayer()`, `GetTrimPlayer()`, `GetInspectPlayer()`, etc. now forward to `GetPrimaryPlayer()` / `GetPreviewPlayer()`. Callers can migrate gradually.
+- **Architecture doc created**: `docs/MEDIA_ENGINE_ARCHITECTURE.md` documents the full three-layer stack, the 10-player problem, seek architecture with the fix, frame pacing design, known issues, and the consolidation plan.
+
 ### Rip Module — Menu Bleed, Chapters & Multi-Title Export
 - **Menu VOB bleed fixed**: `CollectVOBSets` now excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Previously the menu VOB was concatenated at the rip start, causing menu frames to glitch into the video and shifting chapter timestamps.
 - **Chapter diagnostics**: Added verbose logging of chapter count, first/last timestamp, and embed/no-embed decision to rip log for easier debugging.
@@ -30,15 +37,35 @@
 - **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of random jitter because the vsync phase varies per frame. With audio, the displayed interval became `frame_period + ΔV` (ΔV up to ±16.7ms), a ±40% variation at 24fps. Removing it eliminated all vsync-induced jitter; frame timing is now purely PTS-driven via `WaitForPTS`.
 - **Frame rate propagation**: `v.player.SetFrameRate(eng.GetFrameRate())` added to `loadViaOpen` ready callback so the `VideoPlayer` always knows the source frame rate for frame-step calculations and display configuration.
 
-### Convert Module — Collapsible Metadata and Settings Panels
-- **Metadata panel**: ▼/▶ toggle in header drives leftColumn VSplit 0.5↔0.97. Button visible with no video loaded.
-- **Settings panel**: ◀/▶ toggle in Convert top bar drives mainSplit 0.65↔0.97. Player fills full width when collapsed.
+### Convert Module — Collapsible Section Header Bars (BuildCollapsibleHeader)
+- **`internal/ui/collapsible.go`**: `tappableBox` widget + `BuildCollapsibleHeader` function. Full-width module-colored accent bar (CornerRadius 10, h=34) with ▼/▶ uppercase label, matching `buildConvertBox`/`buildRipBox` visual language. Accepts `extraRight` widgets and `onToggle(open bool)`.
+- **Metadata panel**: Tappable header bar labeled "▼ METADATA" / "▶ METADATA". Copy/Clear buttons remain in the header right side. Drives `leftColumn` VSplit 0.5↔0.97.
+- **Settings panel**: Tappable header bar labeled "▼ SETTINGS" / "▶ SETTINGS". Drives `mainSplit` 0.65↔0.97. Removes old pill button from top nav bar.
+- **`ConvertSectionSettings` i18n**: New key in all four locale files.
+- **Rip log toggle**: Relabeled "▼ LOG" / "▶ LOG" (was bare ▼/▶).
 
 ### Rip Module — Layout Alignment to Convert Style
 - **Player panel width**: HSplit offset 0.40 → 0.65; player takes two-thirds of module width, matching the Convert module.
 - **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) — four sections: Source, Format, Output, Status.
 - **Open in Player relocated**: Moved from below the player canvas into the footer action bar.
 - **Collapsible log**: ▼/▶ toggle in the RIP LOG header collapses/expands the log (expanded 0.60, collapsed 0.97); overall VSplit corrected from 0.75 → 0.60.
+
+### Rip Module — Source Section Rework
+- **Disc info moved to Source section**: The `discInfoLabel` (showing disc type/region/size) was relocated from the Format box to the Source section, giving users immediate access to basic disc metadata under the source path entry.
+- **Single browse button**: The ISO... and Folder... buttons were replaced with a single `...` button that opens a 900×640 file dialog for selecting ISO files. Folder selection is handled via the existing drag-and-drop droppable area on the source entry.
+- **Format validation**: `loadDisc` now validates that the provided path is either an `.iso` file or contains a `VIDEO_TS` directory. Non-disc files (e.g. `.mkv`) are rejected with a user-visible error message (`RipErrNotDisc`) shown in the disc info label, replacing the previous silent failure.
+
+### Player — Configurable Idle Aspect Ratio
+- **Settings → Preferences**: New "Idle Aspect Ratio" dropdown with options 4:3 (Standard), 16:9 (Widescreen), 5:3, 21:9 (Ultrawide), and 9:16 (Portrait). Persisted as `PlayerDefaultAspect` in `PrefsConfig` JSON.
+- **VideoPlayer field**: Added `idleAspectRatio` field with `SetIdleAspectRatio()` / `IdleAspectRatio()` accessors. The `draw()` method now calls `v.IdleAspectRatio()` instead of the hardcoded `4.0/3.0`.
+- **InlineVideoPlayer forwarding**: `SetIdleAspectRatio` method on `InlineVideoPlayer` forwards to the underlying `VideoPlayer`. A new `applyPlayerDefaultAspect()` function in `native_media.go` iterates all player singletons on startup and on pref change.
+- **i18n**: 8 new string keys (SettingsPlayerAspect/Hint/4x3/16x9/5x3/21x9/9x16) in all four locale files.
+
+### C Disc Debug Utility
+- **New `internal/media/disc_debug.c`**: C-level debug tools for probing DVD/VIDEO_TS file systems. `read_file_hex` opens and dumps raw IFO bytes; `list_directory` enumerates files via `FindFirstFileA` (Windows) or `opendir` (POSIX); `dir_stat` counts files and sums sizes.
+- **Go wrappers** (`disc_debug.go`): `DiscDebugHexDump(path, maxBytes)`, `DiscDebugListDir(dirPath, maxEntries)`, `DiscDebugDirStat(dirPath)` exposed to Go via CGo.
+- **Stubs** (`disc_debug_stub.go`): No-op implementations for `!native_media` builds.
+- **Build-gated**: `//go:build native_media` on all C and Go files; no new dependencies.
 
 ### VT ISO Engine — Roadmap
 - **Roadmap columns** — VT Media Engine and VT ISO Engine added as dedicated columns on the interactive roadmap with individual status cards for each refactoring task (engine.go split, view.go split, Player interface, HW decode, thread safety, UDF reader, UDF thread safety).

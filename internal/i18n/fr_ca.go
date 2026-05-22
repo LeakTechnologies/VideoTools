@@ -563,6 +563,7 @@ var frCA = Strings{
 	ConvertSectionRotation:         "Rotation",
 	ConvertSectionBitrateSimple:    "Débit (préréglages simples)",
 	ConvertSectionMetadata:         "Métadonnées",
+	ConvertSectionSettings:         "Paramètres",
 
 	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
 	ConvertSectionVideoEncoding:   "Encodage vidéo",

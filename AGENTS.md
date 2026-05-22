@@ -6,7 +6,7 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring + Rip module fixes + UI consistency pass**. Priorities below.
 - Public/stable baseline: `v0.1.1`.
-- `dev49` active: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS for proper PTS-driven timing; WaitVsync removed from playbackLoop (eliminates 0-16ms per-frame jitter); frame rate propagated to VideoPlayer on load. Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Inuktitut transliteration package (`internal/i18n/translit/`) — syllabics↔roman via iutools algorithm, auto-fills empty i18n fields. Rip module layout aligned to Convert style: buildRipBox sections (teal headers), HSplit 0.65, collapsible log, Open in Player moved to footer. Convert module: collapsible metadata panel (▼/▶ toggle in header, leftColumn VSplit 0.5↔0.97) and collapsible settings panel (◀/▶ in top bar, mainSplit 0.65↔0.97). Design doc at docs/RIP_MODULE_REDESIGN.md.
+- `dev49` active: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS for proper PTS-driven timing; WaitVsync removed from playbackLoop (eliminates 0-16ms per-frame jitter); frame rate propagated to VideoPlayer on load. Player default aspect ratio setting (4:3/16:9/5:3/21:9/9:16 idle SMPTE bars). Seek corruption fix: accurate fallback now uses AVSEEK_FLAG_BACKWARD to avoid mid-GOP codec flush corruption. Player singleton consolidation: 10 per-module singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Verbose seek logging added. Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming, disc info moved to Source section, single ... browse button, format validation. C disc debug utility (`internal/media/disc_debug.c`). Inuktitut transliteration package (`internal/i18n/translit/`) — syllabics↔roman via iutools algorithm, auto-fills empty i18n fields. Rip module layout aligned to Convert style: buildRipBox sections (teal headers), HSplit 0.65, collapsible log, Open in Player moved to footer. Convert module: collapsible metadata panel (▼/▶ toggle in header, leftColumn VSplit 0.5↔0.97) and collapsible settings panel (◀/▶ in top bar, mainSplit 0.65↔0.97). BuildCollapsibleHeader component (internal/ui/collapsible.go): tappableBox widget + full-width module-colored labeled tappable section header bars replace pill buttons for Metadata/Settings panels; rip log toggle relabeled "▼ LOG"/"▶ LOG". Design doc at docs/RIP_MODULE_REDESIGN.md.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
@@ -29,6 +29,9 @@ All items in `internal/app/modules/rip/`.
 | Chapter embedding diagnostics | `executor.go` | **SHIPPED** |
 | Menu preservation option (separate file export) | `executor.go`, `types.go`, `view.go`, `modulecfg/rip.go`, `rip_module.go` | **SHIPPED** |
 | Main/extra title naming (main path + _Extra suffix) | `view.go` | **SHIPPED** |
+| Disc info moved to Source section | `view.go` | **SHIPPED** |
+| Single ... browse button (replaces ISO... + Folder...) | `view.go` | **SHIPPED** |
+| Format validation (reject non-disc sources) | `view.go` | **SHIPPED** |
 
 ### VT Media Engine Refactoring (HIGH — start here)
 
@@ -38,6 +41,11 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 |------|---------|--------|
 | Split 3245-line engine.go into subsystem files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go) | `internal/media/engine.go` | **SHIPPED** |
 | Frame pacing: no-audio WaitForPTS, remove WaitVsync jitter, propagate frame rate | `internal/media/playback.go`, `internal/ui/inline_player.go` | **SHIPPED** |
+| Player default aspect ratio setting (idle SMPTE bars) | `internal/media/view.go`, `internal/ui/inline_player.go`, `settings_module.go`, `tabs.go` | **SHIPPED** |
+| Seek corruption fix: accurate fallback uses AVSEEK_FLAG_BACKWARD | `internal/media/playback.go` | **SHIPPED** |
+| Verbose seek logging (flags, clock reset, frame queue drain, seekGen change) | `internal/media/playback.go`, `internal/ui/inline_player.go` | **SHIPPED** |
+| Player singleton consolidation: 10 → 2 (GetPrimaryPlayer/GetPreviewPlayer) | `native_media.go`, `main.go` | **SHIPPED** |
+| Media Engine Architecture document | `docs/MEDIA_ENGINE_ARCHITECTURE.md` | **SHIPPED** |
 | Split 1438-line view.go (VideoPlayer widget) into components (control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go) | `internal/media/view.go` | Planned |
 | Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned |
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned |
@@ -51,6 +59,7 @@ All items in `internal/dvd/udf/` and `internal/app/modules/rip/`.
 |------|---------|--------|
 | UDF reader robustness: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge | `internal/dvd/udf/reader.go`, `internal/dvd/udf/udf.go` | **ACTIVE** |
 | Thread safety & progress: mutex-guarded Reader, progress callbacks, temp file cleanup | `internal/dvd/udf/reader.go`, `internal/app/modules/rip/iso_udf.go` | Planned |
+| C disc debug utility (hex dump, dir listing, stat) | `internal/media/disc_debug.{c,h,go}` | **SHIPPED** |
 
 ### Button Stragglers (carry-forward from dev48)
 

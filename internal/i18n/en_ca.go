@@ -564,6 +564,7 @@ var enCA = Strings{
 	ConvertSectionRotation:         "Rotation",
 	ConvertSectionBitrateSimple:    "Bitrate (simple presets)",
 	ConvertSectionMetadata:         "Metadata",
+	ConvertSectionSettings:         "Settings",
 
 	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
 	ConvertSectionVideoEncoding:   "Video Encoding",

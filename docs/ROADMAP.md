@@ -17,6 +17,10 @@ timeline
     v0.1.1-dev49 (Current) : engine.go subsystem split (done) : Frame pacing PTS-driven overhaul : UDF reader robustness
     v0.1.1-dev49 (Current) : WaitForPTS for no-audio path : WaitVsync removed from playbackLoop : Frame rate propagation on load
     v0.1.1-dev49 (Current) : Rip module layout aligned to Convert style : buildRipBox sections : collapsible log : Open in Player to footer
+    v0.1.1-dev49 (Current) : Rip source rework : disc info in Source section : single ... browse button : format validation
+    v0.1.1-dev49 (Current) : Player idle aspect ratio setting : 4:3/16:9/5:3/21:9/9:16 SMPTE bars
+    v0.1.1-dev49 (Current) : C disc debug utility (hex dump, dir listing, stat)
+    v0.1.1-dev49 (Current) : Seek corruption fix (accurate fallback) : Player singleton consolidation (10→2) : Verbose seek logging : Media Engine architecture doc
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -45,7 +49,7 @@ timeline
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
 - Theme system, PillButton/PillIconButton, text primitives, VTTheme — all button+slider migrations shipped in dev48.
 - STATUS_STACK_OVERFLOW recovery, dual before/after player sync shipped in dev48.
-- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness + Rip module fixes + Inuktitut transliteration** — breaking monoliths into subsystem files, fixing menu VOB bleed and chapter embedding, adding menu preservation and main/extra title naming, auto-filling empty i18n script variants via iutools transliteration.
+- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness + Rip module fixes + Inuktitut transliteration + player QoL** — breaking monoliths into subsystem files, fixing menu VOB bleed and chapter embedding, adding menu preservation and main/extra title naming, auto-filling empty i18n script variants via iutools transliteration, configurable idle aspect ratio for SMPTE bars, C disc debug utility, seek corruption fix, player singleton consolidation, Media Engine architecture doc.
 - PAL/NTSC full-disc conversion with IFO regeneration.
 - Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
@@ -56,9 +60,18 @@ timeline
 - **Rip chapter diagnostics** — Verbose logging of chapter count, timestamps, and embedding decisions.
 - **Rip menu preservation** — New `IncludeMenus` config + checkbox; menu VOBs export as separate files.
 - **Rip main/extra naming** — Main feature (longest title) gets main output path; extras get `_Extra_Title_NN` suffix.
+- **Rip disc info in Source section** — `discInfoLabel` (type/region/size) moved from Format box to Source section.
+- **Rip single browse button** — ISO... and Folder... replaced with `...` opening 900×640 dialog.
+- **Rip format validation** — Non-ISO/VIDEO_TS paths rejected with user-visible error.
 - **Inuktitut transliteration** — `internal/i18n/translit/` package with iutools algorithm for syllabics↔roman conversion; auto-fills empty i18n fields via `translitFill()` in `SetLanguageWithScript`.
 - **VT Media Engine engine.go split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
 - **VT ISO Engine UDF reader robustness** — Fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge.
+- **Player idle aspect ratio setting** — Configurable SMPTE bars ratio (4:3/16:9/5:3/21:9/9:16) in Settings → Preferences.
+- **C disc debug utility** — `DiscDebugHexDump`, `DiscDebugListDir`, `DiscDebugDirStat` for low-level IFO and directory probing.
+- **Seek corruption fix** — Accurate fallback seeks with `AVSEEK_FLAG_BACKWARD` to land at keyframe before target, preventing `avcodec_flush_buffers` from destroying unrecoverable decoder state.
+- **Player singleton consolidation** — 10 per-module `InlineVideoPlayer` singletons consolidated into 2 shared instances (`GetPrimaryPlayer` / `GetPreviewPlayer`), eliminating per-module player state fragmentation.
+- **Verbose seek logging** — Human-readable seek flags, clock reset with audio offset, frame queue drain count, seekGen change tracking with first frame diagnostics.
+- **Media Engine Architecture document** — `docs/MEDIA_ENGINE_ARCHITECTURE.md` with full stack, issues, consolidation plan.
 - **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
 - **Player interface** — Extract formal Go `Player` interface from `InlineVideoPlayer` for mock testing.
 - **HW decode default-on** — Re-evaluate D3D11VA default with VEH/SEH bridge coverage; add per-codec HW blacklist.

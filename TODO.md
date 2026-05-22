@@ -31,6 +31,19 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Convert collapsible metadata panel** — ▼/▶ toggle in metadata header; leftColumn VSplit 0.5↔0.97.
 - [x] **Convert collapsible settings panel** — ◀/▶ toggle in top bar; mainSplit 0.65↔0.97.
 - [x] **Design doc** — `docs/RIP_MODULE_REDESIGN.md` documents the redesign.
+- [x] **BuildCollapsibleHeader component** — `internal/ui/collapsible.go`; `tappableBox` widget + `BuildCollapsibleHeader`; labeled module-colored tappable bars replace clumsy pill buttons for Metadata and Settings panels. Rip log toggle relabeled "▼ LOG"/"▶ LOG".
+- [x] **Disc info moved to Source section** — `discInfoLabel` relocated from Format box to Source section; disc type/region/size now visible directly under source path.
+- [x] **Single browse button** — ISO... and Folder... buttons replaced with single `...` button opening a 900×640 file dialog.
+- [x] **Format validation** — `loadDisc` rejects non-ISO/VIDEO_TS paths with a user-visible error in `discInfoLabel`.
+
+### Player Default Aspect Ratio (idle SMPTE bars)
+- [x] **Settings → Preferences** — New "Idle Aspect Ratio" dropdown (4:3, 16:9, 5:3, 21:9, 9:16) persists as `PlayerDefaultAspect` in `PrefsConfig`.
+- [x] **VideoPlayer field** — `idleAspectRatio` with `SetIdleAspectRatio`/`IdleAspectRatio`; `draw()` uses it instead of hardcoded `4.0/3.0`.
+- [x] **InlineVideoPlayer forwarding** — `SetIdleAspectRatio` method; all player singletons updated on startup and pref change.
+
+### C Disc Debug Utility
+- [x] **C-level disc probing** — `internal/media/disc_debug.{c,h,go}`: `DiscDebugHexDump` for raw IFO hex dumps, `DiscDebugListDir` for directory listing via FindFirstFile/opendir, `DiscDebugDirStat` for file count/size.
+- [x] **Stub support** — No-op stubs for `!native_media` builds.
 
 ### Inuktitut Transliteration — Auto-Fill i18n Script Variants
 - [x] **translit package** — `internal/i18n/translit/` with 270-entry mapping tables, greedy longest-prefix roman→syllabics, compound sequence handling for syllabics→roman, format verb escaping, script detection helpers.
@@ -40,6 +53,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [x] **engine.go subsystem split** — 3245→1117 lines: errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted
 - [x] **Frame pacing fix** — Replaced SetTime(pts) with WaitForPTS(pts) in no-audio path for proper PTS-driven frame timing; removed WaitVsync from playbackLoop (0-16ms DwmFlush jitter was causing ±16ms interval variation); propagated source frame rate to VideoPlayer widget on load
+- [x] **Seek corruption fix** — Accurate fallback in `Engine.Seek()` now includes `AVSEEK_FLAG_BACKWARD` so the format context lands at a keyframe before the target PTS. Previously used `AVSEEK_FLAG_ACCURATE` alone, landing mid-GOP, and `avcodec_flush_buffers` destroyed decoder reference state, producing garbled frames for 1-3s after seek.
+- [x] **Player singleton consolidation** — All 10 per-module singletons consolidated into 2 shared instances: `GetPrimaryPlayer()` and `GetPreviewPlayer()`. Per-module getters (`GetConvertPlayer`, `GetTrimPlayer`, `GetInspectPlayer`, etc.) now forward to these.
+- [x] **Verbose seek logging** — Human-readable seek flags, accurate fallback confirmation, clock reset with audio offset, frame queue drain count, seekGen change detection in videoDecodeLoop, first frame after seek diagnostics.
 - [ ] **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go
 - [ ] **Player interface extraction** — Formal Go `Player` interface from InlineVideoPlayer enabling mock-based unit tests
 - [ ] **HW decode default-on evaluation** — With VEH/SEH bridge catching AV + stack overflow, re-enable D3D11VA by default; add per-codec HW blacklist

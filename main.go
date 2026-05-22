@@ -3032,6 +3032,20 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		// Check if it's a directory
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
 			logging.Debug(logging.CatModule, "processing directory: %s", path)
+			// Detect DVD VIDEO_TS directories — load as single disc instead
+			// of enumerating individual VOBs, which picks the menu VOB
+			// (~0s, zero audio) as the first file.
+			if isDVDDisc(path) {
+				logging.Info(logging.CatModule, "detected DVD disc directory on Convert drop, loading via dvdvideo demuxer")
+				dvdRoot := dvdDiscRoot(path)
+				p := GetPrimaryPlayer()
+				if p != nil {
+					p.Close()
+					go func() { _ = p.LoadDVD(dvdRoot, 0) }()
+				}
+				videoPaths = append(videoPaths, path)
+				continue
+			}
 			videos := s.findVideoFiles(path)
 			videoPaths = append(videoPaths, videos...)
 		} else if s.isVideoFile(path) || (moduleID == "audio" && s.isAudioFile(path)) {
@@ -3171,7 +3185,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			}, false)
 
 			// Load native player after view is shown.
-			if err := GetInspectPlayer().Load(path); err != nil {
+			if err := GetPrimaryPlayer().Load(path); err != nil {
 				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 			}
 
@@ -3828,7 +3842,7 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		Window:         state.window,
 		ModuleColor:    moduleColor("trim"),
 		StatsBar:       state.statsBar,
-		Player:         GetTrimPlayer(),
+		Player:         GetPrimaryPlayer(),
 		OnShowMainMenu: state.showMainMenu,
 		OnShowQueue:    state.showQueue,
 		OnAddToQueue: func(clip trim.TrimClip) {
@@ -9074,21 +9088,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cmdPreviewBtn.Disable()
 	}
 
-	// mainSplit and collapseSettingsBtn declared here so the closure can capture
-	// mainSplit before the split container is created further down.
+	// mainSplit declared here so the settings panel onToggle callback can capture
+	// it before the split container is created further down.
 	var mainSplit *container.Split
-	var settingsCollapsed bool
-	var collapseSettingsBtn *ui.PillButton
-	collapseSettingsBtn = ui.MakePillButton("◀", ui.BorderDim, func() {
-		settingsCollapsed = !settingsCollapsed
-		if settingsCollapsed {
-			mainSplit.SetOffset(0.97)
-			collapseSettingsBtn.SetText("▶")
-		} else {
-			mainSplit.SetOffset(0.65)
-			collapseSettingsBtn.SetText("◀")
-		}
-	})
 
 	// Build back bar
 	backBarItems := []fyne.CanvasObject{
@@ -9098,7 +9100,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		layout.NewSpacer(),
 		cmdPreviewBtn,
 		clearCompletedBtn,
-		collapseSettingsBtn,
 		queueBtn,
 	}
 
@@ -9126,22 +9127,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Video pane uses VSplit with metadata at 50% - use moderate minimum for scaling.
 	videoPanel := buildVideoPane(state, fyne.NewSize(480, 270), src, updateCover)
 
-	// leftColumn declared here so collapseMetaBtn closure can capture it before the split is created.
+	// leftColumn declared here so the metadata onToggle callback can capture it
+	// before the split container is created further down.
 	var leftColumn *container.Split
-	var metaCollapsed bool
-	var collapseMetaBtn *ui.PillButton
-	collapseMetaBtn = ui.MakePillButton("▼", convertColor, func() {
-		metaCollapsed = !metaCollapsed
-		if metaCollapsed {
-			leftColumn.SetOffset(0.97)
-			collapseMetaBtn.SetText("▶")
-		} else {
+
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
+		if open {
 			leftColumn.SetOffset(0.5)
-			collapseMetaBtn.SetText("▼")
+		} else {
+			leftColumn.SetOffset(0.97)
 		}
 	})
-
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), collapseMetaBtn)
 	updateMetaCover = metaCoverUpdate
 
 	// Forward declare functions needed by formatContainer callback
@@ -12399,7 +12395,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.CornerRadius = 8
 	optionsRect.StrokeColor = gridColor
 	optionsRect.StrokeWidth = 1
-	optionsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
+	settingsTabsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
+	settingsHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
+		if open {
+			mainSplit.SetOffset(0.65)
+		} else {
+			mainSplit.SetOffset(0.97)
+		}
+	})
+	optionsPanel := container.NewBorder(settingsHeader, nil, nil, nil, settingsTabsPanel)
 
 	// Initialize snippet settings defaults
 	if state.snippetLength == 0 {
@@ -12478,7 +12482,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		positionDesc := "midpoint"
 		if state.snippetFromCurrent {
 			if HasNativeMediaPlayer() {
-				cp := GetConvertPlayer()
+				cp := GetPrimaryPlayer()
 				if cp != nil {
 					startPosition = cp.CurrentTime()
 					positionDesc = "current position"
@@ -12570,7 +12574,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				positionDesc := "midpoint"
 				if state.snippetFromCurrent {
 					if HasNativeMediaPlayer() {
-						cp := GetConvertPlayer()
+						cp := GetPrimaryPlayer()
 						if cp != nil {
 							startPosition = cp.CurrentTime()
 							positionDesc = "current position"
@@ -12993,7 +12997,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(layers...)
 }
 
-func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, collapseBtn *ui.PillButton) (fyne.CanvasObject, func()) {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, onToggle func(open bool)) (fyne.CanvasObject, func()) {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
@@ -13002,23 +13006,12 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, collap
 	// Don't set rigid MinSize - let the container be flexible for better splitter movement
 	// outer.SetMinSize(min)
 
-	header := widget.NewLabelWithStyle(t.ConvertSectionMetadata, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	var top fyne.CanvasObject = header
-
 	if src == nil {
-		nilHeaderItems := []fyne.CanvasObject{header}
-		if collapseBtn != nil {
-			nilHeaderItems = append(nilHeaderItems, collapseBtn)
-		}
-		nilHeaderRow := container.NewHBox(nilHeaderItems...)
-		body := container.NewVBox(
-			nilHeaderRow,
-			widget.NewSeparator(),
-			widget.NewLabel(t.ConvertInspectHint),
-			layout.NewSpacer(),
-		)
+		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle)
+		noSrcBody := container.NewBorder(nilHeader, nil, nil, nil,
+			container.NewPadded(container.NewVBox(widget.NewLabel(t.ConvertInspectHint))))
 		layers := ui.NoisyBackgroundObjects(outer)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, noSrcBody)
 		return container.NewMax(layers...), func() {}
 	}
 
@@ -13210,12 +13203,8 @@ Metadata: %s`,
 		}
 	})
 
-	headerItems := []fyne.CanvasObject{header, copyBtn}
-	if collapseBtn != nil {
-		headerItems = append(headerItems, collapseBtn)
-	}
-	headerRow := container.NewHBox(headerItems...)
-	top = container.NewBorder(nil, nil, nil, clearBtn, headerRow)
+	metaHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle, copyBtn, clearBtn)
+	top := fyne.CanvasObject(metaHeader)
 
 	// Cover art support removed - users can add cover art through metadata editor
 	updateCoverDisplay := func() {
@@ -13403,17 +13392,13 @@ Metadata: %s`,
 	// Layout: two-column metadata display with spacing
 	contentArea := info
 
-	body := container.NewVBox(
-		top,
-		widget.NewSeparator(),
-		contentArea,
-		interlaceSection,
-	)
 	// No inner VScroll here — the caller wraps metaPanel in ui.NewFastVScroll
 	// (see showConvertView). A double-scroll causes the inner one to never
 	// activate because NewMax gives it unlimited height equal to content.
+	contentBody := container.NewPadded(container.NewVBox(contentArea, interlaceSection))
+	body := container.NewBorder(top, nil, nil, nil, contentBody)
 	layers := ui.NoisyBackgroundObjects(outer)
-	layers = append(layers, container.NewPadded(body))
+	layers = append(layers, body)
 	return container.NewMax(layers...), updateCoverDisplay
 }
 
@@ -14251,7 +14236,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			}, false)
 
 			// Load native player now that probe is done and view is being shown.
-			if err := GetInspectPlayer().Load(videoPath); err != nil {
+			if err := GetPrimaryPlayer().Load(videoPath); err != nil {
 				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 			}
 
@@ -14516,7 +14501,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.showPlayerView()
 				logging.Debug(logging.CatModule, "loaded video into player module")
 
-				p := GetConvertPlayer()
+				p := GetPrimaryPlayer()
 				if p != nil {
 					_ = p.Load(src.Path)
 				}
@@ -14693,7 +14678,7 @@ func (s *appState) loadVideo(path string) {
 			// canvas when Refresh fires, so the stored first frame is actually painted.
 			if HasNativeMediaPlayer() {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					GetConvertPlayer().Widget().Refresh()
+					GetPrimaryPlayer().Widget().Refresh()
 				}, false)
 			}
 		}
@@ -14772,7 +14757,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		// which leaves the player widget unredrawn.
 		if HasNativeMediaPlayer() {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				GetConvertPlayer().Widget().Refresh()
+				GetPrimaryPlayer().Widget().Refresh()
 			}, false)
 		}
 
