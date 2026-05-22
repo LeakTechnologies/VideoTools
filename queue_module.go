@@ -376,7 +376,7 @@ func (s *appState) startQueueAutoRefresh() {
 				return
 			case <-ticker.C:
 				if s.active != "queue" {
-					return
+					continue
 				}
 				app := fyne.CurrentApp()
 				if app == nil || app.Driver() == nil {
@@ -423,7 +423,7 @@ func (s *appState) startQueueElapsedTicker() {
 				return
 			case <-ticker.C:
 				if s.active != "queue" || s.queueView == nil {
-					return
+					continue
 				}
 				app := fyne.CurrentApp()
 				if app == nil || app.Driver() == nil {
