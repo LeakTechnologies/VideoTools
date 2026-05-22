@@ -410,6 +410,8 @@ const roadmap = {
       { id: 'pipeline', title: 'Module Pipeline (&&)', desc: 'Two-module chains: pipelineActive state machine, && button in header, intermediate file cleanup', status: 'shipped', cycle: 'dev45', files: ['main.go', 'internal/queue/'], deps: ['job-queue'], docs: [] },
       { id: 'queue-console', title: 'ConsoleBox Live Output', desc: 'Real-time FFmpeg log display in queue view using ConsoleBox widget', status: 'shipped', cycle: 'dev47', files: ['internal/queue/', 'internal/ui/consolebox.go'], deps: ['job-queue', 'consolebox'], docs: [] },
       { id: 'race-fix', title: 'Queue notifyChange Race Fix', desc: 'Fix goroutine in queue.go spawning without lock on queue state', status: 'shipped', cycle: 'dev45', files: ['internal/queue/queue.go'], deps: ['job-queue'], docs: [] },
+      { id: 'convert-nav-fix', title: 'Convert → Queue Navigation Fix', desc: 'convertNow() replaced blocking dialog.ShowInformation with direct s.showQueue() call; user lands on queue immediately after job is added', status: 'shipped', cycle: 'dev49', files: ['main.go'], deps: ['job-queue'], docs: [] },
+      { id: 'queue-refresh-fix', title: 'Queue Auto-Refresh Goroutine Fix', desc: 'startQueueAutoRefresh + startQueueElapsedTicker changed return→continue in ticker guard; goroutines now stay alive between queue visits so progress bars update correctly', status: 'shipped', cycle: 'dev49', files: ['queue_module.go'], deps: ['job-queue'], docs: [] },
       { id: 'visual-feedback', title: 'Queue Visual Polish', desc: 'Improve button states and hover effects in queue view', status: 'future', cycle: 'future', files: ['internal/app/modules/queue/view.go'], deps: [], docs: [] },
     ]
   },

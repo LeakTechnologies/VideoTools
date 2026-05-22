@@ -31,6 +31,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Convert collapsible metadata panel** — ▼/▶ toggle in metadata header; leftColumn VSplit 0.5↔0.97.
 - [x] **Convert collapsible settings panel** — ◀/▶ toggle in top bar; mainSplit 0.65↔0.97.
 - [x] **Design doc** — `docs/RIP_MODULE_REDESIGN.md` documents the redesign.
+- [x] **Queue blocking dialog removed** — `convertNow()` now calls `s.showQueue()` directly; no more modal dialog after queuing a job.
+- [x] **Queue auto-refresh goroutine self-exit fixed** — `startQueueAutoRefresh` + `startQueueElapsedTicker` changed `return` to `continue` so goroutines stay alive when not on queue view; progress bar now updates correctly.
 - [x] **BuildCollapsibleHeader component** — `internal/ui/collapsible.go`; `tappableBox` widget + `BuildCollapsibleHeader`; labeled module-colored tappable bars replace clumsy pill buttons for Metadata and Settings panels. Rip log toggle relabeled "▼ LOG"/"▶ LOG".
 - [x] **Disc info moved to Source section** — `discInfoLabel` relocated from Format box to Source section; disc type/region/size now visible directly under source path.
 - [x] **Single browse button** — ISO... and Folder... buttons replaced with single `...` button opening a 900×640 file dialog.

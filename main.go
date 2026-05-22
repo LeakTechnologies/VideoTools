@@ -8582,7 +8582,6 @@ func (s *appState) executeAddAllToQueue() {
 }
 
 func (s *appState) executeConversion() {
-	t := i18n.T()
 	// Add job to queue (at top if queue is already running)
 	if err := s.addConvertToQueue(true); err != nil {
 		dialog.ShowError(err, s.window)
@@ -8598,12 +8597,7 @@ func (s *appState) executeConversion() {
 	// Clear the loaded video from convert module
 	s.clearVideo()
 
-	// Show success message
-	if s.jobQueue != nil && s.jobQueue.IsRunning() {
-		dialog.ShowInformation(t.ModuleConvert, "Added to top of queue! View progress in Job Queue.", s.window)
-	} else {
-		dialog.ShowInformation(t.ModuleConvert, "Conversion started! View progress in Job Queue.", s.window)
-	}
+	s.showQueue()
 }
 
 // buildFormatBadge creates a color-coded badge for a format option

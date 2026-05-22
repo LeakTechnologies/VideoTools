@@ -37,6 +37,10 @@
 - **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of random jitter because the vsync phase varies per frame. With audio, the displayed interval became `frame_period + ΔV` (ΔV up to ±16.7ms), a ±40% variation at 24fps. Removing it eliminated all vsync-induced jitter; frame timing is now purely PTS-driven via `WaitForPTS`.
 - **Frame rate propagation**: `v.player.SetFrameRate(eng.GetFrameRate())` added to `loadViaOpen` ready callback so the `VideoPlayer` always knows the source frame rate for frame-step calculations and display configuration.
 
+### Queue Module — Convert Navigation & Progress Refresh Bug Fixes
+- **Blocking dialog removed**: `convertNow()` replaced `dialog.ShowInformation` with `s.showQueue()`. User is taken directly to the queue after adding a job; no modal to dismiss.
+- **Auto-refresh goroutine self-exit fixed**: `startQueueAutoRefresh` and `startQueueElapsedTicker` (queue_module.go) used `return` in the ticker case when `s.active != "queue"`, killing the goroutines while leaving `queueAutoRefreshRunning`/`queueElapsedRunning = true`. Next `showQueue()` call did nothing (guard check). Changed both `return` to `continue` so goroutines remain alive and simply skip work while not on the queue view.
+
 ### Convert Module — Collapsible Section Header Bars (BuildCollapsibleHeader)
 - **`internal/ui/collapsible.go`**: `tappableBox` widget + `BuildCollapsibleHeader` function. Full-width module-colored accent bar (CornerRadius 10, h=34) with ▼/▶ uppercase label, matching `buildConvertBox`/`buildRipBox` visual language. Accepts `extraRight` widgets and `onToggle(open bool)`.
 - **Metadata panel**: Tappable header bar labeled "▼ METADATA" / "▶ METADATA". Copy/Clear buttons remain in the header right side. Drives `leftColumn` VSplit 0.5↔0.97.
