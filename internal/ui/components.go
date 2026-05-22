@@ -1951,7 +1951,7 @@ func selectTextColor(bg ...color.Color) color.Color {
 		r, g, b, _ := bg[0].RGBA()
 		// Perceived luminance: 0.299*R + 0.587*G + 0.114*B
 		lum := (299*uint32(r>>8) + 587*uint32(g>>8) + 114*uint32(b>>8)) / 1000
-		if lum > 150 {
+		if lum > 130 {
 			return color.NRGBA{R: 15, G: 15, B: 15, A: 255} // dark text on light bg
 		}
 	}
