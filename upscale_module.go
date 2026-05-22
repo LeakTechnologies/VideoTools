@@ -188,7 +188,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 			if w == nil {
 				return nil
 			}
-			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
 		BuildPreviewPlayerPane: func() fyne.CanvasObject {
 			if !HasNativeMediaPlayer() {
@@ -198,7 +198,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 			if w == nil {
 				return nil
 			}
-			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
 		OnFilterChanged: func() { s.applyUpscalePreview() },
 		OnDualPlayerSeek: func(seconds float64) {

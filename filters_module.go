@@ -205,7 +205,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			if w == nil {
 				return nil
 			}
-			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
 		BuildPreviewPlayerPane: func() fyne.CanvasObject {
 			if !HasNativeMediaPlayer() {
@@ -215,7 +215,11 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			if w == nil {
 				return nil
 			}
-			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
+		},
+		BuildMetadataPane: func() fyne.CanvasObject {
+			panel, _ := buildMetadataPanel(state, state.filtersFile, fyne.NewSize(0, 200))
+			return panel
 		},
 		OnFilterChanged: func() { state.applyFiltersPreview() },
 		OnBuildFilterChain: func() []string {
