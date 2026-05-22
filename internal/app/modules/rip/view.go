@@ -254,16 +254,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
 
-	var logCollapsed bool
 	var collapseLogBtn *ui.PillButton
-	collapseLogBtn = ui.MakePillButton("▼", ui.BorderDim, func() {
-		logCollapsed = !logCollapsed
-		if logCollapsed {
-			logVSplit.SetOffset(0.97)
-			collapseLogBtn.SetText("▶")
-		} else {
+	collapseLogBtn = ui.MakePillButton("▼ LOG", ui.BorderDim, func() {
+		if logVSplit.Offset > 0.9 {
 			logVSplit.SetOffset(0.60)
-			collapseLogBtn.SetText("▼")
+			collapseLogBtn.SetText("▼ LOG")
+		} else {
+			logVSplit.SetOffset(0.97)
+			collapseLogBtn.SetText("▶ LOG")
 		}
 	})
 

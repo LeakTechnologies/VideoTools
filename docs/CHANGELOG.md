@@ -2,9 +2,19 @@
 
 ## v0.1.1-dev49 (May 2026)
 
-### Convert Module — Collapsible Metadata and Settings Panels
-- **Metadata panel collapse**: ▼/▶ toggle in the metadata panel header drives the `leftColumn` VSplit between expanded (0.5) and collapsed (0.97). Button visible even with no video loaded.
-- **Settings panel collapse**: ◀/▶ toggle added to the Convert top bar drives `mainSplit` between expanded (0.65) and collapsed (0.97). Allows player to take the full module width.
+### Media Engine — Seek Corruption Fix & Player Consolidation
+- **Accurate fallback seek corruption fixed**: `Engine.Seek()` (playback.go:179-181) used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, causing the format context to land mid-GOP. After `avcodec_flush_buffers` destroyed the decoder reference state, the first decoded P/B-frame had no reference I-frame, producing garbled output for 1-3 seconds after every seek that triggered the adaptive accuracy fallback. Fixed by adding `AVSEEK_FLAG_BACKWARD`.
+- **Verbose seek logging**: Added human-readable seek flags (`Seek: flags=`), accurate fallback confirmation, clock reset target with audio offset, frame queue drain count, and videoDecodeLoop seekGen change detection logging the first decoded frame's format/dimensions/PTS after each seek.
+- **InlineVideoPlayer seek logging**: `InlineVideoPlayer.Seek()` now logs the seek target and the first decoded frame status (`err=%v img=%v`).
+- **Player singleton consolidation**: All 10 per-module player singletons consolidated into 2 shared instances — `GetPrimaryPlayer()` (for Convert, Trim, Inspect, Filters, Upscale, Audio, Subtitles) and `GetPreviewPlayer()` (for Filters/Upscale before/after comparison). Per-module getters forward through these. Unused players (`convertPreviewPlayer`, `subtitleInlinePlayer`, `audioInlinePlayer`) retained as backward-compat aliases but now reference the shared instances. `applyPlayerDefaultAspect` updated to iterate only 2 players.
+- **Media Engine Architecture document**: Created `docs/MEDIA_ENGINE_ARCHITECTURE.md` documenting the full three-layer stack, the 10-player problem, seek architecture with the fixed bug, frame pacing design, known issues, and the consolidation plan.
+
+### Convert Module — Collapsible Section Header Bars (BuildCollapsibleHeader)
+- **`internal/ui/collapsible.go`**: New `tappableBox` widget (implements `fyne.Tappable` via `widget.BaseWidget`) and `BuildCollapsibleHeader` function. Returns a full-width module-colored accent bar (CornerRadius 10, height 34) with uppercase bold ▼/▶ label matching the `buildConvertBox`/`buildRipBox` visual pattern. Accepts `extraRight` widgets and an `onToggle(open bool)` callback.
+- **Metadata panel collapse**: Metadata header is now a tappable `BuildCollapsibleHeader` bar labeled "▼ METADATA" / "▶ METADATA" with module color. Drives `leftColumn` VSplit (expanded 0.5 ↔ collapsed 0.97). Copy/Clear action buttons remain in the header right side.
+- **Settings panel collapse**: Settings column header is a tappable `BuildCollapsibleHeader` bar labeled "▼ SETTINGS" / "▶ SETTINGS". Drives `mainSplit` (expanded 0.65 ↔ collapsed 0.97). Replaces the old pill button in the top nav bar.
+- **`ConvertSectionSettings` i18n key**: New key added across all four locale files (en_ca, fr_ca, iu, iu_latin) for the settings section label.
+- **Rip log relabeled**: Log toggle pill now reads "▼ LOG" / "▶ LOG" (was bare ▼/▶ arrows).
 
 ### Rip Module — Layout Alignment to Convert Style
 - **Player panel width**: HSplit offset 0.40 → 0.65; player now takes two-thirds of the module width, matching the Convert module's spatial balance.
@@ -41,6 +51,20 @@
 ### VT ISO Engine — Production Hardening
 - **UDF reader robustness**: Fallback sector scanning for non-standard AVDP locations; format validation on all descriptor parsing; multi-extent file support; ISO 9660 bridge for non-UDF discs.
 - **Thread safety & progress**: Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup.
+
+### Rip Module — Source Section Rework
+- **Disc info moved to Source**: `discInfoLabel` (type/region/size) relocated from the Format box to the Source section, so basic disc metadata is visible directly under the source path entry.
+- **Single browse button**: ISO... and Folder... buttons replaced with a single `...` button that opens a 900×640 file dialog. Folder selection is handled via drag-and-drop on the droppable source entry.
+- **Format validation**: `loadDisc` now rejects non-ISO/non-VIDEO_TS paths with a user-visible error message (`RipErrNotDisc`) shown in the disc info label, instead of silently failing.
+
+### Player — Configurable Idle Aspect Ratio
+- **Settings → Preferences**: New "Idle Aspect Ratio" dropdown (4:3, 16:9, 5:3, 21:9, 9:16) controls the aspect ratio of SMPTE colour bars displayed when no video is loaded. Persisted as `PlayerDefaultAspect` in `PrefsConfig`.
+- **VideoPlayer field**: `idleAspectRatio` field with `SetIdleAspectRatio`/`IdleAspectRatio` methods; `draw()` uses `IdleAspectRatio()` instead of hardcoded `4.0/3.0`.
+- **InlineVideoPlayer forwarding**: `SetIdleAspectRatio` method on `InlineVideoPlayer` forwards to the underlying `VideoPlayer`. All player singletons updated at startup and on pref change.
+
+### C Disc Debug Utility
+- **New `internal/media/disc_debug.{c,h,go}`**: C-level debug tools for probing DVD/VIDEO_TS file systems via Win32 `FindFirstFile` / POSIX `opendir`. `DiscDebugHexDump` reads IFO file headers; `DiscDebugListDir` lists directory contents with sizes; `DiscDebugDirStat` returns file count and total size.
+- **Build-gated**: `native_media` build tag; no-op stubs for non-native-media builds.
 
 ## v0.1.1-dev48 (May 2026)
 
