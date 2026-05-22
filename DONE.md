@@ -11,7 +11,11 @@
 
 ### VT Media Engine — Subsystem Split (engine.go)
 - **errors.go extracted** — PlaybackError type, ErrCode constants, error/degradation methods moved from engine.go to errors.go. C preamble duplicated for `av_buffer_unref` calls.
-- **hwdecode.go extracted** — HWDeviceType, device detection, SetHWDevice/GetHWDevice, codecCanUseHWDevice, initHWDecode, getHWPixelFormat, retrieveHWFrame, C helper functions vt_get_hw_format/vt_set_get_format moved from engine.go to hwdecode.go. engine.go C preamble cleaned up to subtitle helpers only.
+- **hwdecode.go extracted** — HWDeviceType, device detection, SetHWDevice/GetHWDevice, codecCanUseHWDevice, initHWDecode, getHWPixelFormat, retrieveHWFrame, C helper functions vt_get_hw_format/vt_set_get_format moved from engine.go to hwdecode.go.
+- **framepool.go extracted** — Frame buffer pool fields + toRGBA, ReleaseFrame, GetFramePoolSize, ensureSwsCtx moved to framepool.go. SwScale context creation separated from decode loop.
+- **subtitle_engine.go extracted** — SubtitleOverlay type + Bounds, initSubtitleDecoder, decodeSubtitle, RenderSubtitles, drawSubtitleText, drawBitmapText, isCharPixel moved to subtitle_engine.go. C preamble macros vt_sub_rect0/vt_sub_rect_type duplicated.
+- **buffer.go extracted** — Buffer mode management, decode time tracking, adaptive buffer adjustment, buffer health reporting moved to buffer.go. Pure-Go file (no C preamble needed).
+- **playback.go extracted** — Entire playback pipeline (Start, demuxerLoop, Seek, ResetAfterGrab, Step, GrabFrame, sendToFrameQueue, videoDecodeLoop, NextFrame, Pause, Resume, TogglePause, DrainAudio, WaitForFrame, Close) plus query helpers (Duration, CurrentTime, GetLastVideoPTS, GetLastAudioPTS, IsRunning, QueueStats) moved to playback.go. engine.go reduced from 3245→1117 lines.
 
 ### Inuktitut Transliteration — Auto-Fill i18n Script Variants
 - **`internal/i18n/translit/` package**: Pure-Go reimplementation of the iutools syllabics↔roman transliteration algorithm (MIT-licensed, National Research Council Canada). 270-entry mapping tables cover all 15 consonant series (p, t, k, g, m, n, s, l, j, v, r, q, ng, nng, ł) plus short/long vowels, finals, and `lh` ASCII fallback for `ł`.

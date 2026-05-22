@@ -14,7 +14,7 @@ timeline
     v0.1.1-dev48 (Shipped) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Button straggler clean-up
     v0.1.1-dev49 (Current) : Rip module menu bleed fix : Chapter diagnostics : Menu preservation option : Main/extra title naming
     v0.1.1-dev49 (Current) : Inuktitut transliteration package : Auto-fill i18n script variants : VT Media Engine refactor : VT ISO Engine refactor
-    v0.1.1-dev49 (Current) : engine.go subsystem split : UDF reader robustness : HW decode default-on eval : Thread safety formalisation
+    v0.1.1-dev49 (Current) : engine.go subsystem split (done) : UDF reader robustness : HW decode default-on eval : Thread safety formalisation
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
