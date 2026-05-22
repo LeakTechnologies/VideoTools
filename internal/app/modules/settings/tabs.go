@@ -505,6 +505,33 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hint("Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues."),
 	)
 
+	// ── Log File ──────────────────────────────────────────────────────────────
+	logPathLabel := widget.NewLabel(cb.LogFilePath())
+	logPathLabel.Wrapping = fyne.TextWrapBreak
+
+	openLogBtn := ui.MakePillButton("Open Log Folder", settingsColor, func() {
+		cb.OpenLogFolder()
+	})
+
+	clearLogBtn := ui.MakePillButton("Clear Log File", settingsColor, func() {
+		dialog.ShowConfirm("Clear Log File", "This will erase the entire log file. Continue?", func(confirmed bool) {
+			if !confirmed {
+				return
+			}
+			if err := cb.ClearLogFile(); err != nil {
+				dialog.ShowError(err, cb.Window())
+				return
+			}
+			dialog.ShowInformation("Log Cleared", "The log file has been cleared.", cb.Window())
+		}, cb.Window())
+	})
+
+	logCard := settingsCard("Log File",
+		logPathLabel,
+		container.NewHBox(openLogBtn, clearLogBtn),
+		hint("Clear removes all previous sessions from the log file. The file stays open — no restart needed."),
+	)
+
 	return container.NewVBox(
 		updatesCard,
 		langCard,
@@ -515,6 +542,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		pipelineCard,
 		outputCard,
 		developerCard,
+		logCard,
 	)
 }
 

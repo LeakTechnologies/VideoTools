@@ -305,6 +305,28 @@ func Reopen() {
 	Init()
 }
 
+// Clear truncates the active log file and writes a fresh session header.
+// Safe to call while the app is running — holds fileMu for the truncation.
+func Clear() error {
+	fileMu.Lock()
+	defer fileMu.Unlock()
+
+	if file == nil || filePath == "" {
+		return fmt.Errorf("log file not open")
+	}
+
+	if err := file.Truncate(0); err != nil {
+		return fmt.Errorf("truncate log: %w", err)
+	}
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("seek log: %w", err)
+	}
+
+	header := fmt.Sprintf("=== Log cleared at %s ===\n", time.Now().Format(time.RFC3339))
+	_, err := fmt.Fprint(file, header)
+	return err
+}
+
 // SetDebug enables or disables debug logging.
 func SetDebug(enabled bool) {
 	debugOn = enabled
