@@ -445,8 +445,10 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 	if eng == nil {
 		return
 	}
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Seek: target=%.2f", target)
 	eng.Seek(target)
 	img, err := eng.NextFrame()
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Seek: first frame after seek err=%v img=%v", err, img != nil)
 	// SetFrame/SetCurrentTime write directly to raster state — dispatch to main thread.
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		if err == nil {

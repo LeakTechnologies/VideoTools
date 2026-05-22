@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev49 &mdash; Updated 21 May 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev49 &mdash; Updated 22 May 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -502,6 +502,9 @@ const roadmap = {
     items: [
       { id: 'engine-subsystem-split', title: 'engine.go Subsystem Split', desc: '3245→1117 lines: errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted — each subsystem file focused on one concern', status: 'done', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/playback.go', 'internal/media/framepool.go', 'internal/media/subtitle_engine.go', 'internal/media/buffer.go'], deps: [], docs: [] },
       { id: 'frame-pacing', title: 'PTS-Driven Frame Pacing', desc: 'Replaced SetTime(pts) with WaitForPTS(pts) for no-audio frame pacing; removed WaitVsync (DwmFlush) from playbackLoop to eliminate 0-16ms per-frame jitter; propagated source frame rate to VideoPlayer on load', status: 'done', cycle: 'dev49', files: ['internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'seek-corruption', title: 'Seek Corruption Fix', desc: 'Engine.Seek accurate fallback used AVSEEK_FLAG_ACCURATE without BACKWARD — landed format context mid-GOP; avcodec_flush_buffers destroyed decoder ref state, producing 1-3s of garbage after every seek. Fixed by adding AVSEEK_FLAG_BACKWARD. Verbose seek logging added (flags, clock reset, frame queue drain, seekGen tracking).', status: 'done', cycle: 'dev49', files: ['internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['frame-pacing'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
+      { id: 'player-consolidation', title: 'Player Singleton Consolidation', desc: 'All 10 per-module InlineVideoPlayer singletons consolidated into 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Per-module getters forward through shared instances. applyPlayerDefaultAspect iterates only 2 players. Unused players removed.', status: 'done', cycle: 'dev49', files: ['native_media.go', 'native_media_stub.go', 'main.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
+      { id: 'media-arch-doc', title: 'Media Engine Architecture Doc', desc: 'Comprehensive architecture document (docs/MEDIA_ENGINE_ARCHITECTURE.md) covering the three-layer stack, the 10-player problem, seek architecture with the fixed bug, frame pacing design, known issues, and the consolidation plan.', status: 'done', cycle: 'dev49', files: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'], deps: ['engine-subsystem-split', 'frame-pacing', 'seek-corruption'], docs: [] },
       { id: 'view-component-split', title: 'view.go Component Split', desc: 'Break 1438-line VideoPlayer widget into components: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go, loading_indicator.go', status: 'planned', cycle: 'dev49', files: ['internal/media/view.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'player-interface', title: 'Player Interface', desc: 'Extract formal Go Player interface from InlineVideoPlayer, enabling mock-based unit tests for all consuming modules', status: 'planned', cycle: 'dev49', files: ['internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'hw-decode-default-on', title: 'HW Decode Default On', desc: 'With VEH+SEH bridge catching AV + stack overflow, re-evaluate enabling D3D11VA by default; add per-codec HW blacklist for known-crash decoders', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/safe_bridge.c'], deps: ['veh-crash-recovery', 'engine-subsystem-split'], docs: [] },
@@ -774,10 +777,14 @@ const changelogData = [
       '15 translit unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge',
     ]},
     { title: 'VT Media Engine Refactoring', items: [
-      'engine.go subsystem split: 3245→1117 lines — errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted as focused subsystem files',
-      'Frame pacing overhaul: replaced SetTime(pts) with WaitForPTS(pts) in no-audio path — clock ticks forward in real time, WaitForPTS blocks for the correct PTS interval (e.g. 41.7ms at 24fps)',
-      'Removed WaitVsync(DwmFlush) from playbackLoop — 0-16ms per-frame jitter eliminated; frame timing is now purely PTS-driven',
+      'engine.go subsystem split: 3245→1117 lines - errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted as focused subsystem files',
+      'Frame pacing overhaul: replaced SetTime(pts) with WaitForPTS(pts) in no-audio path - clock ticks forward in real time, WaitForPTS blocks for the correct PTS interval (e.g. 41.7ms at 24fps)',
+      'Removed WaitVsync(DwmFlush) from playbackLoop - 0-16ms per-frame jitter eliminated; frame timing is now purely PTS-driven',
       'Frame rate propagation: VideoPlayer.SetFrameRate() called from Engine.GetFrameRate() on load for player-wide frame-rate awareness',
+      'Seek corruption fix: accurate fallback now uses AVSEEK_FLAG_BACKWARD to land at keyframe before target - previously landed mid-GOP, causing avcodec_flush_buffers to destroy decoder reference state and produce 1-3s of garbage after seek',
+      'Player singleton consolidation: 10 per-module InlineVideoPlayer singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer) - per-module getters forward to shared instances',
+      'Verbose seek logging: human-readable flags, clock reset with audio offset, frame queue drain count, seekGen change tracking with first-frame diagnostics',
+      'Media Engine Architecture document: docs/MEDIA_ENGINE_ARCHITECTURE.md with full three-layer stack, the 10-player problem, seek architecture, fixes, and consolidation plan',
       'view.go component split: break 1438-line VideoPlayer widget into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go (deferred)',
       'Player interface extraction: formal Go Player interface from InlineVideoPlayer for mock testing (deferred)',
       'HW decode default-on re-evaluation with VEH/SEH bridge coverage (deferred)',
@@ -1240,6 +1247,9 @@ const checklistData = [
     'Frame pacing: video without audio plays at correct speed (no fast-forward from missing PTS pacing)',
     'Frame pacing: video with audio has no vsync-jitter stutter (smooth playback at native frame rate)',
     'Frame rate: player widget reports correct source frame rate via GetFrameRate()',
+    'Seek: dragging seek bar to any position shows correct frame (no mid-GOP corruption)',
+    'Seek: accurate fallback lands at keyframe before target (no garbage for 1-3s after seek)',
+    'Player consolidation: all modules share the same primary player instance',
   ]},
   { title: 'Burn Module', items: [
     'isoburn.exe (Windows) burns DVD without errors',
