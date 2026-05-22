@@ -14,8 +14,13 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
+var primaryInlinePlayer *ui.InlineVideoPlayer // single player for all single-playback modules
+var previewPlayer *ui.InlineVideoPlayer       // preview player for Filters/Upscale comparison
+
+// Legacy vars — all point to primaryInlinePlayer or previewPlayer.
+// Kept for backward compat during migration; remove after all callers updated.
 var convertInlinePlayer *ui.InlineVideoPlayer
-var convertPreviewPlayer *ui.InlineVideoPlayer // right pane for processed preview
+var convertPreviewPlayer *ui.InlineVideoPlayer
 var trimInlinePlayer *ui.InlineVideoPlayer
 var inspectInlinePlayer *ui.InlineVideoPlayer
 var subtitleInlinePlayer *ui.InlineVideoPlayer
@@ -27,21 +32,24 @@ var upscalePreviewPlayer *ui.InlineVideoPlayer
 
 func init() {
 	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
-	convertInlinePlayer = ui.NewInlineVideoPlayer()
-	convertPreviewPlayer = ui.NewInlineVideoPlayer()
-	trimInlinePlayer = ui.NewInlineVideoPlayer()
-	inspectInlinePlayer = ui.NewInlineVideoPlayer()
-	subtitleInlinePlayer = ui.NewInlineVideoPlayer()
-	upscaleInlinePlayer = ui.NewInlineVideoPlayer()
-	audioInlinePlayer = ui.NewInlineVideoPlayer()
-	filtersInlinePlayer = ui.NewInlineVideoPlayer()
-	filtersPreviewPlayer = ui.NewInlineVideoPlayer()
-	upscalePreviewPlayer = ui.NewInlineVideoPlayer()
+	primaryInlinePlayer = ui.NewInlineVideoPlayer()
+	previewPlayer = ui.NewInlineVideoPlayer()
+
+	// All module-specific vars point to the consolidated instances
+	convertInlinePlayer = primaryInlinePlayer
+	convertPreviewPlayer = previewPlayer
+	trimInlinePlayer = primaryInlinePlayer
+	inspectInlinePlayer = primaryInlinePlayer
+	subtitleInlinePlayer = primaryInlinePlayer
+	upscaleInlinePlayer = primaryInlinePlayer
+	audioInlinePlayer = primaryInlinePlayer
+	filtersInlinePlayer = primaryInlinePlayer
+	filtersPreviewPlayer = previewPlayer
+	upscalePreviewPlayer = previewPlayer
 
 	// Mirror play/pause/seek from primary to preview; disable preview controls
 	// so both players are driven by the primary's transport bar only.
-	filtersInlinePlayer.SetPeer(filtersPreviewPlayer)
-	upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)
+	primaryInlinePlayer.SetPeer(previewPlayer)
 }
 
 func hwDecodeEnabled() bool {
@@ -71,15 +79,7 @@ func applyPlayerDefaultAspect(aspect string) {
 	if ratio <= 0 {
 		ratio = 16.0 / 9.0
 	}
-	players := []*ui.InlineVideoPlayer{
-		convertInlinePlayer, convertPreviewPlayer,
-		trimInlinePlayer,
-		inspectInlinePlayer,
-		subtitleInlinePlayer,
-		upscaleInlinePlayer, upscalePreviewPlayer,
-		audioInlinePlayer,
-		filtersInlinePlayer, filtersPreviewPlayer,
-	}
+	players := []*ui.InlineVideoPlayer{primaryInlinePlayer, previewPlayer}
 	for _, p := range players {
 		if p != nil {
 			p.SetIdleAspectRatio(ratio)
@@ -91,44 +91,54 @@ func HasNativeMediaPlayer() bool {
 	return true
 }
 
+func GetPrimaryPlayer() *ui.InlineVideoPlayer {
+	return primaryInlinePlayer
+}
+
+func GetPreviewPlayer() *ui.InlineVideoPlayer {
+	return previewPlayer
+}
+
+// Legacy getters — forward to consolidated players.
+// Kept for backward compat during migration; remove after all callers updated.
 func GetConvertPlayer() *ui.InlineVideoPlayer {
-	return convertInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetConvertPreviewPlayer() *ui.InlineVideoPlayer {
-	return convertPreviewPlayer
+	return GetPreviewPlayer()
 }
 
 func GetTrimPlayer() *ui.InlineVideoPlayer {
-	return trimInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetInspectPlayer() *ui.InlineVideoPlayer {
-	return inspectInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetSubtitlePlayer() *ui.InlineVideoPlayer {
-	return subtitleInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetUpscalePlayer() *ui.InlineVideoPlayer {
-	return upscaleInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetAudioPlayer() *ui.InlineVideoPlayer {
-	return audioInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetFiltersPlayer() *ui.InlineVideoPlayer {
-	return filtersInlinePlayer
+	return GetPrimaryPlayer()
 }
 
 func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer {
-	return filtersPreviewPlayer
+	return GetPreviewPlayer()
 }
 
 func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer {
-	return upscalePreviewPlayer
+	return GetPreviewPlayer()
 }
 
 // loadFiltersVideo loads path into both the original and preview filters players.

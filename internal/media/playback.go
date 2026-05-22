@@ -136,23 +136,28 @@ func (e *Engine) Seek(seconds float64) error {
 
 	var flags C.int
 	var minTS, maxTS C.int64_t
+	var flagsDesc string
 	maxTS = target
 	switch e.seekAcc {
 	case SeekAccuracyFrame:
 		flags = C.int(AVSEEK_FLAG_FRAME)
 		minTS = target
+		flagsDesc = "AVSEEK_FLAG_FRAME"
 	case SeekAccuracyKeyframe:
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
 			maxTS = 1000
 		}
+		flagsDesc = "AVSEEK_FLAG_BACKWARD (keyframe)"
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
 			maxTS = 1000
 		}
+		flagsDesc = "AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_ACCURATE"
 	}
+	logging.Info(logging.CatPlayer, "Seek: flags=%s target=%.2f minTS=%d maxTS=%d", flagsDesc, seconds, int64(minTS), int64(maxTS))
 
 	e.formatMu.Lock()
 	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
@@ -175,16 +180,18 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 
 		if landedSecs >= 0 && math.Abs(landedSecs-seconds) > 2.0 {
-			logging.Info(logging.CatPlayer, "Seek: keyframe landed at %.2f (target %.2f, diff=%.1fs) — accurate fallback", landedSecs, seconds, math.Abs(landedSecs-seconds))
+			logging.Info(logging.CatPlayer, "Seek: keyframe landed at %.2f (target %.2f, diff=%.1fs) — accurate fallback with BACKWARD", landedSecs, seconds, math.Abs(landedSecs-seconds))
 			accurateRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx),
 				C.int64_t(math.MinInt64/2), target, target,
-				C.int(AVSEEK_FLAG_ACCURATE))
+				C.int(AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_ACCURATE))
 			if accurateRet < 0 {
 				logging.Warning(logging.CatPlayer, "Seek: accurate fallback failed (ret=%d) — restoring keyframe position", accurateRet)
 				C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
 			} else {
-				logging.Info(logging.CatPlayer, "Seek: accurate fallback OK")
+				logging.Info(logging.CatPlayer, "Seek: accurate fallback OK — format at keyframe before target %.2f", seconds)
 			}
+		} else if landedSecs < 0 {
+			logging.Info(logging.CatPlayer, "Seek: could not verify keyframe position (no video packets in peek) — using initial seek position")
 		} else {
 			C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
 		}
@@ -252,19 +259,25 @@ func (e *Engine) Seek(seconds float64) error {
 	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
 	if e.audioPlayer != nil {
-		e.clock.ResetTime(seconds - AudioBufferLatency.Seconds())
+		clkTarget := seconds - AudioBufferLatency.Seconds()
+		e.clock.ResetTime(clkTarget)
+		logging.Info(logging.CatPlayer, "Seek: clock reset to %.2f (audio offset: -%.2fs = AudioBufferLatency)", clkTarget, AudioBufferLatency.Seconds())
 	} else {
 		e.clock.ResetTime(seconds)
+		logging.Info(logging.CatPlayer, "Seek: clock reset to %.2f (no audio)", seconds)
 	}
 
+	drained := 0
 	for {
 		select {
 		case <-e.frameQueue:
+			drained++
 		default:
 			goto drainDone
 		}
 	}
 drainDone:
+	logging.Info(logging.CatPlayer, "Seek: drained %d stale frames from frameQueue", drained)
 	e.decodeEOFSent = false
 
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
@@ -457,6 +470,7 @@ func (e *Engine) videoDecodeLoop() {
 	}()
 
 	logging.Info(logging.CatPlayer, "videoDecodeLoop: started")
+	var lastSeekGen uint64
 
 	for {
 		select {
@@ -527,6 +541,13 @@ func (e *Engine) videoDecodeLoop() {
 
 			pts := float64(e.frame.pts) * e.videoTimeBase
 
+			gen := e.seekGen.Load()
+			if gen != lastSeekGen {
+				logging.Info(logging.CatPlayer, "videoDecodeLoop: seekGen changed %d→%d — first frame after seek pts=%.3f", lastSeekGen, gen, pts)
+				logging.Info(logging.CatPlayer, "videoDecodeLoop: frame fmt=%d w=%d h=%d pts=%.3f",
+					int(e.frame.format), int(e.frame.width), int(e.frame.height), pts)
+			}
+
 			flushBefore := math.Float64frombits(e.seekFlushBefore.Load())
 			if flushBefore > 0 && pts < flushBefore {
 				e.videoCodecMu.Unlock()
@@ -560,7 +581,7 @@ func (e *Engine) videoDecodeLoop() {
 				img = e.toRGBA()
 			}
 
-			gen := e.seekGen.Load()
+			gen = e.seekGen.Load()
 			e.videoCodecMu.Unlock()
 
 			if !e.sendToFrameQueue(decodedFrame{img: img, pts: pts, gen: gen}) {

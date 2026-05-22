@@ -41,37 +41,45 @@ func buildVideoPaneNative(_ *appState, _ fyne.Size, _ *videoSource, _ func(strin
 
 func (s *appState) showVideoLoadDialog() {}
 
-func GetTrimPlayer() *ui.InlineVideoPlayer {
+func GetPrimaryPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
+}
+
+func GetPreviewPlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}
+
+func GetTrimPlayer() *ui.InlineVideoPlayer {
+	return GetPrimaryPlayer()
 }
 
 func GetInspectPlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPrimaryPlayer()
 }
 
 func GetConvertPlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPrimaryPlayer()
 }
 
 func GetConvertPreviewPlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPreviewPlayer()
 }
 
 func GetSubtitlePlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPrimaryPlayer()
 }
 
 func GetUpscalePlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPrimaryPlayer()
 }
 
 func GetAudioPlayer() *ui.InlineVideoPlayer {
-	return ui.NewInlineVideoPlayer()
+	return GetPrimaryPlayer()
 }
 
-func GetFiltersPlayer() *ui.InlineVideoPlayer        { return ui.NewInlineVideoPlayer() }
-func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer { return ui.NewInlineVideoPlayer() }
-func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer { return ui.NewInlineVideoPlayer() }
+func GetFiltersPlayer() *ui.InlineVideoPlayer        { return GetPrimaryPlayer() }
+func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer { return GetPreviewPlayer() }
+func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer { return GetPreviewPlayer() }
 
 func (s *appState) loadFiltersVideo(_ string)           {}
 func (s *appState) applyFiltersPreview()                {}
