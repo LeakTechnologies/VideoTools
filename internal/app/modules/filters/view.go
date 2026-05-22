@@ -1,8 +1,6 @@
 package filters
 
 import (
-	"fmt"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -106,6 +104,7 @@ type Options struct {
 	// can rebuild and apply the filter pipeline to the preview player.
 	OnFilterChanged func()
 	OnGetModuleFooter func(color.Color, fyne.CanvasObject, *ui.ConversionStatsBar) fyne.CanvasObject
+	BuildMetadataPane func() fyne.CanvasObject
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -146,18 +145,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	fileLabel := widget.NewLabel(t.LabelNoFile)
-	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	if opts.FiltersFile != nil {
-		if opts.FiltersFilePath != "" {
-			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(opts.FiltersFilePath)))
-		} else {
-			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, "video loaded"))
-		}
-		if opts.OnHasNativeMediaPlayer != nil && opts.OnHasNativeMediaPlayer() && opts.FiltersFilePath != "" {
-			go opts.OnLoadVideoNative(opts.FiltersFilePath)
-		}
+	if opts.FiltersFile != nil && opts.OnHasNativeMediaPlayer != nil && opts.OnHasNativeMediaPlayer() && opts.FiltersFilePath != "" {
+		go opts.OnLoadVideoNative(opts.FiltersFilePath)
 	}
 
 	// Build player area — dual before/after panes when available, single pane otherwise.
@@ -555,12 +544,27 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	videoBoxContent := container.NewBorder(
-		container.NewHBox(fileLabel, layout.NewSpacer(), upscaleNavBtn),
-		nil, nil, nil,
-		videoArea,
-	)
-	videoBox := buildFilterBox("Video", videoBoxContent)
+	var metaPane fyne.CanvasObject
+	if opts.BuildMetadataPane != nil {
+		metaPane = opts.BuildMetadataPane()
+	} else {
+		outer := canvas.NewRectangle(navyBlue)
+		outer.CornerRadius = 8
+		outer.StrokeColor = gridColor
+		outer.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle("Source Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			widget.NewLabel("Load a video to inspect its technical details."),
+		)
+		layers := ui.NoisyBackgroundObjects(outer)
+		layers = append(layers, container.NewPadded(body))
+		metaPane = container.NewMax(layers...)
+	}
+
+	metaScroll := ui.NewFastVScroll(metaPane)
+	leftSplit := container.NewVSplit(container.NewPadded(videoArea), metaScroll)
+	leftSplit.SetOffset(0.65)
 
 	settingsPanel := container.NewVBox(
 		colorSection,
@@ -575,21 +579,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
 	leftMin := canvas.NewRectangle(color.Transparent)
-	leftMin.SetMinSize(fyne.NewSize(560, 0))
-	leftWrapped := container.NewMax(leftMin, videoBox)
+	leftMin.SetMinSize(fyne.NewSize(680, 0))
+	leftWrapped := container.NewMax(leftMin, leftSplit)
 
 	rightMin := canvas.NewRectangle(color.Transparent)
 	rightMin.SetMinSize(fyne.NewSize(400, 0))
 	rightWrapped := container.NewMax(rightMin, settingsScroll)
 
 	split := container.NewHSplit(leftWrapped, rightWrapped)
-	split.Offset = 0.58
+	split.Offset = 0.65
 
 	content := container.NewMax(
 		append(ui.NoisyBackgroundObjects(canvas.NewRectangle(mediumBlue)), container.NewPadded(split))...,
 	)
 
-	actionBar := container.NewHBox(layout.NewSpacer(), applyBtn, filterNowBtn, addQueueBtn)
+	actionBar := container.NewHBox(layout.NewSpacer(), upscaleNavBtn, applyBtn, filterNowBtn, addQueueBtn)
 	bottomBar := opts.OnGetModuleFooter(filtersColor, actionBar, opts.OnGetStatsBar())
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)

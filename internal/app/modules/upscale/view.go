@@ -1265,7 +1265,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
 	metaScroll := ui.NewFastVScroll(metaPanel)
 	leftSplit := container.NewVSplit(videoBox, metaScroll)
-	leftSplit.SetOffset(0.55)
+	leftSplit.SetOffset(0.60)
 	leftPanel := leftSplit
 
 	settingsPanel := container.NewVBox(
@@ -1289,7 +1289,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
 	leftMin := canvas.NewRectangle(color.Transparent)
-	leftMin.SetMinSize(fyne.NewSize(560, 0))
+	leftMin.SetMinSize(fyne.NewSize(680, 0))
 	leftWrapped := container.NewMax(leftMin, leftPanel)
 
 	rightMin := canvas.NewRectangle(color.Transparent)
@@ -1297,7 +1297,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	rightWrapped := container.NewMax(rightMin, settingsScroll)
 
 	split := container.NewHSplit(leftWrapped, rightWrapped)
-	split.Offset = 0.58
+	split.Offset = 0.65
 	mainContent := split
 
 	content := container.NewMax(
