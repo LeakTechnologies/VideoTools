@@ -28,6 +28,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Menu preservation option** — New `IncludeMenus` config + "Preserve menus" checkbox. Menu VOBs exported as separate files: `{base}_Menu_{VTS_Name}.{ext}`.
 - [x] **Main/extra title naming** — Main feature (longest title) uses main output path; extras get `_Extra_Title_NN` suffix. Star indicator in title selection UI.
 - [x] **Layout alignment to Convert style** — buildRipBox sections, HSplit 0.65, collapsible log, Open in Player to footer.
+- [x] **Convert collapsible metadata panel** — ▼/▶ toggle in metadata header; leftColumn VSplit 0.5↔0.97.
+- [x] **Convert collapsible settings panel** — ◀/▶ toggle in top bar; mainSplit 0.65↔0.97.
 - [x] **Design doc** — `docs/RIP_MODULE_REDESIGN.md` documents the redesign.
 
 ### Inuktitut Transliteration — Auto-Fill i18n Script Variants

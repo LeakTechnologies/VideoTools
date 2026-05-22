@@ -2,6 +2,10 @@
 
 ## v0.1.1-dev49 (May 2026)
 
+### Convert Module — Collapsible Metadata and Settings Panels
+- **Metadata panel collapse**: ▼/▶ toggle in the metadata panel header drives the `leftColumn` VSplit between expanded (0.5) and collapsed (0.97). Button visible even with no video loaded.
+- **Settings panel collapse**: ◀/▶ toggle added to the Convert top bar drives `mainSplit` between expanded (0.65) and collapsed (0.97). Allows player to take the full module width.
+
 ### Rip Module — Layout Alignment to Convert Style
 - **Player panel width**: HSplit offset 0.40 → 0.65; player now takes two-thirds of the module width, matching the Convert module's spatial balance.
 - **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) matching Convert's `buildConvertBox()` visual pattern — four sections: Source, Format, Output, Status.
