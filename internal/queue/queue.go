@@ -404,10 +404,11 @@ func (q *Queue) Start() {
 	go q.processJobs()
 }
 
-// Stop stops processing jobs
+// Stop stops processing jobs and cancels any currently running job.
 func (q *Queue) Stop() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	q.cancelRunningLocked()
 	q.running = false
 }
 
