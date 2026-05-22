@@ -36,6 +36,7 @@ This file tracks upcoming features, improvements, and known issues.
 ### VT Media Engine Refactoring (HIGH — monolith breakup)
 
 - [x] **engine.go subsystem split** — 3245→1117 lines: errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted
+- [x] **Frame pacing fix** — Replaced SetTime(pts) with WaitForPTS(pts) in no-audio path for proper PTS-driven frame timing; removed WaitVsync from playbackLoop (0-16ms DwmFlush jitter was causing ±16ms interval variation); propagated source frame rate to VideoPlayer widget on load
 - [ ] **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go
 - [ ] **Player interface extraction** — Formal Go `Player` interface from InlineVideoPlayer enabling mock-based unit tests
 - [ ] **HW decode default-on evaluation** — With VEH/SEH bridge catching AV + stack overflow, re-enable D3D11VA by default; add per-codec HW blacklist
