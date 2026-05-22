@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -58,6 +59,48 @@ const (
 // Categories represents a log category
 type Category string
 
+const sessionMarker = "=== VideoTools session started"
+
+// rotateLog keeps at most 2 sessions in the log file.
+// It reads the existing content, finds session markers, and trims everything
+// before the last session boundary so only the most recent previous session
+// plus the new one accumulate.
+func rotateLog(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 {
+		return
+	}
+
+	marker := []byte("\n" + sessionMarker)
+	// Find all marker positions.
+	var positions []int
+	search := data
+	offset := 0
+	for {
+		idx := bytes.Index(search, marker)
+		if idx < 0 {
+			break
+		}
+		positions = append(positions, offset+idx)
+		search = search[idx+1:]
+		offset += idx + 1
+	}
+
+	// Fewer than 2 existing sessions — nothing to trim.
+	if len(positions) < 2 {
+		return
+	}
+
+	// Keep from the second-to-last session start (preserves last complete
+	// session + whatever was written after it).
+	keepFrom := positions[len(positions)-1] // start of most recent session
+	trimmed := data[keepFrom:]
+
+	if err := os.WriteFile(path, trimmed, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "videotools: log rotate failed: %v\n", err)
+	}
+}
+
 // Init initializes logging system with organized log folders
 func Init() {
 	// Use environment variable or configured default
@@ -74,12 +117,18 @@ func Init() {
 		return
 	}
 
+	// Trim old sessions before opening for append.
+	rotateLog(filePath)
+
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "videotools: cannot open log file %s: %v\n", filePath, err)
 		return
 	}
 	file = f
+
+	// Write session boundary so rotateLog can find it next run.
+	fmt.Fprintf(file, "\n%s at %s\n", sessionMarker, time.Now().Format(time.RFC3339))
 
 	// Enable per-frame playback trace when the env var is set.
 	if os.Getenv("VIDEOTOOLS_PLAYER_TRACE") != "" {

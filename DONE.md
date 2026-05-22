@@ -37,6 +37,11 @@
 - **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of random jitter because the vsync phase varies per frame. With audio, the displayed interval became `frame_period + ΔV` (ΔV up to ±16.7ms), a ±40% variation at 24fps. Removing it eliminated all vsync-induced jitter; frame timing is now purely PTS-driven via `WaitForPTS`.
 - **Frame rate propagation**: `v.player.SetFrameRate(eng.GetFrameRate())` added to `loadViaOpen` ready callback so the `VideoPlayer` always knows the source frame rate for frame-step calculations and display configuration.
 
+### Settings — Log File Management
+- **Session rotation**: `logging.Init()` writes a `=== VideoTools session started` marker on each boot; `rotateLog()` trims everything before the most recent previous session so the file never accumulates more than 2 sessions. Prevents stale binary noise from old installations polluting current diagnostics.
+- **Clear Log File**: Settings → Preferences → Log File — truncates the file in-place (no restart), writes a cleared-at header. Confirmation dialog prevents accidental wipes.
+- **Open Log Folder**: Reveals the logs directory in the system file manager.
+
 ### Queue Module — Convert Navigation & Progress Refresh Bug Fixes
 - **Blocking dialog removed**: `convertNow()` replaced `dialog.ShowInformation` with `s.showQueue()`. User is taken directly to the queue after adding a job; no modal to dismiss.
 - **Auto-refresh goroutine self-exit fixed**: `startQueueAutoRefresh` and `startQueueElapsedTicker` (queue_module.go) used `return` in the ticker case when `s.active != "queue"`, killing the goroutines while leaving `queueAutoRefreshRunning`/`queueElapsedRunning = true`. Next `showQueue()` call did nothing (guard check). Changed both `return` to `continue` so goroutines remain alive and simply skip work while not on the queue view.

@@ -9,6 +9,11 @@
 - **Player singleton consolidation**: All 10 per-module player singletons consolidated into 2 shared instances — `GetPrimaryPlayer()` (for Convert, Trim, Inspect, Filters, Upscale, Audio, Subtitles) and `GetPreviewPlayer()` (for Filters/Upscale before/after comparison). Per-module getters forward through these. Unused players (`convertPreviewPlayer`, `subtitleInlinePlayer`, `audioInlinePlayer`) retained as backward-compat aliases but now reference the shared instances. `applyPlayerDefaultAspect` updated to iterate only 2 players.
 - **Media Engine Architecture document**: Created `docs/MEDIA_ENGINE_ARCHITECTURE.md` documenting the full three-layer stack, the 10-player problem, seek architecture with the fixed bug, frame pacing design, known issues, and the consolidation plan.
 
+### Settings — Log File Management
+- **Session rotation**: `logging.Init()` now trims the log file to the last 2 sessions on every startup. A `=== VideoTools session started` boundary marker is written at each boot; `rotateLog()` scans for these and discards anything before the most recent previous session. Old binary noise from stale installations disappears automatically after two runs.
+- **Clear Log File button**: Settings → Preferences → Log File card. Truncates the active log file in place (no restart needed) and writes a cleared-at timestamp. Useful for a fresh start before sending a log to a tester.
+- **Open Log Folder button**: Opens the logs directory in the system file manager.
+
 ### Queue Module — Convert Navigation & Progress Refresh Bug Fixes
 - **Blocking dialog removed**: `convertNow()` no longer shows `dialog.ShowInformation` after queuing a job. Replaced with direct `s.showQueue()` — user is taken straight to the queue to watch progress. Previously, a modal dialog blocked the view; on fast hardware (e.g. AMF AV1 at 10× speed), the encode completed before the user could dismiss it.
 - **Queue auto-refresh goroutine self-exit fixed**: `startQueueAutoRefresh` and `startQueueElapsedTicker` in `queue_module.go` both used `return` in the ticker case when `s.active != "queue"`, silently killing the goroutine while leaving `queueAutoRefreshRunning`/`queueElapsedRunning = true`. The next `showQueue()` call became a no-op (guard returned early), so the progress bar never updated. Fixed by changing both `return` statements to `continue`.

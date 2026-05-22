@@ -72,6 +72,8 @@ timeline
 - **Player singleton consolidation** — 10 per-module `InlineVideoPlayer` singletons consolidated into 2 shared instances (`GetPrimaryPlayer` / `GetPreviewPlayer`), eliminating per-module player state fragmentation.
 - **Verbose seek logging** — Human-readable seek flags, clock reset with audio offset, frame queue drain count, seekGen change tracking with first frame diagnostics.
 - **Media Engine Architecture document** — `docs/MEDIA_ENGINE_ARCHITECTURE.md` with full stack, issues, consolidation plan.
+- **Log session rotation** — `rotateLog()` keeps last 2 sessions on startup; stale binary noise disappears automatically after two runs.
+- **Settings log management** — Clear Log File + Open Log Folder in Settings → Preferences.
 - **Queue convert navigation fix** — `convertNow()` now calls `s.showQueue()` directly instead of a blocking `dialog.ShowInformation`. User lands on the queue immediately after queuing a job.
 - **Queue auto-refresh goroutine fix** — `startQueueAutoRefresh` and `startQueueElapsedTicker` changed `return` to `continue` in the ticker guard; goroutines stay alive between queue visits, so progress bars update correctly.
 - **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
