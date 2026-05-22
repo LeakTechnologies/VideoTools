@@ -285,7 +285,7 @@ func runFFmpegExtraction(ctx context.Context, args []string, progressCallback fu
 	if err != nil {
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("failed to start FFmpeg: %w", err)
 	}
 

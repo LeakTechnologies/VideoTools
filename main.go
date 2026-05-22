@@ -4126,7 +4126,7 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("ffmpeg start: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
@@ -5098,7 +5098,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	}
 	logging.Debug(logging.CatFFMPEG, "merge total expected duration: %.2fs (%d clips)", totalDur, len(clips))
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("merge start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
@@ -5938,7 +5938,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		cmd.Stderr = &stderrBuf
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
@@ -6472,7 +6472,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("snippet start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
@@ -6991,7 +6991,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			} else {
 				cmd.Stderr = io.Discard
 			}
-			if err := cmd.Start(); err != nil {
+			if err := utils.StartCmd(cmd); err != nil {
 				return fmt.Errorf("failed to start ffmpeg: %w", err)
 			}
 			scanner := bufio.NewScanner(stdout)
@@ -7501,7 +7501,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		cmd.Stderr = io.Discard
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("failed to start upscale: %w", err)
 	}
 
@@ -8045,6 +8045,7 @@ func main() {
 	logging.Init()
 	defer logging.Close()
 	defer logging.RecoverPanic() // Catch and log any panics with stack trace
+	utils.InitJobObject() // Create Windows Job Object (no-op on Linux)
 
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
@@ -15832,7 +15833,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 		}()
 
-		if err := cmd.Start(); err != nil {
+		if err := utils.StartCmd(cmd); err != nil {
 			close(progressQuit)
 			logging.Error(logging.CatConvert, "convert failed to start: input=%s output=%s err=%v", src.Path, outPath, err)
 			_ = saveConvertRecovery(convertRecoveryState{

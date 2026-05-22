@@ -1219,7 +1219,7 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	cmd.Stderr = &stderr
 
 	startTime := time.Now()
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return fmt.Errorf("ffmpeg start: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
