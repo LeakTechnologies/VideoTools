@@ -314,6 +314,13 @@ var iu = Strings{
 	SettingsHWDecodeNotCompatible: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                    // machine-generated, needs human review: Not Compatible
 	SettingsHWDecodeDetecting:    "ᓇᓗᓇᐃᖅᓯᓗᒍ...",                            // machine-generated, needs human review: Detecting...
 	SettingsHWDecodeAutoHint:       "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
+	SettingsPlayerAspect:       "ᐊᓯᖏᑦ ᑕᑯᒃᓴᐅᑎᑦ ᐊᒥᓱᐊᒃᓴᖅ",            // machine-generated, needs human review: Idle Aspect Ratio
+	SettingsPlayerAspectHint:   "SMPTE ᐊᒥᓱᐊᒃᓴᑦ ᑕᑯᒃᓴᐅᑎᑦ ᑕᐃᒪᐃᓕᐅᕐᒥᔭᐅᔪᓐᓇᖅᑐᑦ.",  // machine-generated: Aspect ratio shown by SMPTE bars when idle
+	SettingsPlayerAspect4x3:    "4:3 (ᓴᓇᔭᐅᔪᑦ)",                    // machine-generated, needs human review: 4:3 (Standard)
+	SettingsPlayerAspect16x9:   "16:9 (ᐊᒥᓱᐊᒃᓴᖅ)",                 // machine-generated, needs human review: 16:9 (Widescreen)
+	SettingsPlayerAspect5x3:    "5:3",                              // machine-generated
+	SettingsPlayerAspect21x9:   "21:9 (ᐊᒥᓱᐊᒃᓴᖅ)",               // machine-generated, needs human review: 21:9 (Ultrawide)
+	SettingsPlayerAspect9x16:   "9:16 (ᐊᓐᓄᕌᒃᓴᖅ)",                // machine-generated, needs human review: 9:16 (Portrait)
 	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                      // Master Settings
 	SettingsHardwareAccel:        "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",                      // Hardware Acceleration (Global)
 	SettingsDetect:               "ᓇᓗᓇᐃᖅᓯᓗᒍ",                                 // Detect
@@ -605,6 +612,7 @@ var iu = Strings{
 	RipConfigSavedTitle: "ᐋᖅᑭᒃᓱᐃᔾᔪᑎᑦ ᓴᐳᒻᒥᔭᐅᓚᐅᖅᑐᑦ",                                      // Config Saved
 	RipConfigSavedFmt:   "ᓴᐳᒻᒥᔭᐅᓚᐅᖅᑐᖅ %s-ᒧᑦ",                                           // Saved to %s
 	RipErrNoSource:      "DVD/ISO/VIDEO_TS ᓇᑭᑐᐃᓐᓇᖓ ᐋᖅᑭᒃᓱᐃᓗᒍ",                           // set a source path
+	RipErrNotDisc:       "Rip ᐊᑐᕐᓂᖓᓄᑦ DVD, ISO, ᐊᓪᓚᓗᒍ VIDEO_TS ᓇᑭᑐᐃᓐᓇᖓ ᐱᔭᕆᐊᖃᕐᒪᑦ.",        // machine-generated, needs human review: Rip module requires a DVD, ISO, or VIDEO_TS source
 	RipCSSEncrypted:     "CSS ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",                                               // CSS Encrypted
 	RipCSSDecrypting:    "CSS ᓯᕗᓪᓕᖅᐸᐅᔪᑦ ᐃᓗᓯᒪᔪᑦ...",                                     // Decrypting CSS...
 	RipCSSNotEncrypted:  "ᓯᕗᓪᓕᖅᐸᐅᔪᖓᓄᖅᑲᖅᑐᑦ",                                             // Not Encrypted

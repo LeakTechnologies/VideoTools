@@ -1857,6 +1857,21 @@ func (a *preferencesAdapter) SetFontSize(size string) {
 	fyne.CurrentApp().Settings().SetTheme(fyne.CurrentApp().Settings().Theme())
 }
 
+func (a *preferencesAdapter) PlayerDefaultAspect() string {
+	if a.s.prefs.PlayerDefaultAspect == "" {
+		return "16:9"
+	}
+	return a.s.prefs.PlayerDefaultAspect
+}
+
+func (a *preferencesAdapter) SetPlayerDefaultAspect(aspect string) {
+	a.s.prefs.PlayerDefaultAspect = aspect
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetPlayerDefaultAspect save failed: %v", err)
+	}
+	applyPlayerDefaultAspect(aspect)
+}
+
 func (a *preferencesAdapter) DefaultOutputDir() string {
 	return a.s.defaultOutputDir
 }

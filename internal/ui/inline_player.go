@@ -142,6 +142,10 @@ func (v *InlineVideoPlayer) SetIdleText(text string) {
 	v.player.SetIdleText(text)
 }
 
+func (v *InlineVideoPlayer) SetIdleAspectRatio(ratio float64) {
+	v.player.SetIdleAspectRatio(ratio)
+}
+
 func (v *InlineVideoPlayer) Load(path string) (err error) {
 	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.Open(path) })
 }

@@ -855,12 +855,24 @@ func BuildView(opts Options) fyne.CanvasObject {
 	discInfoLabel.Hide()
 
 	// loadDisc is the single entry-point for loading an ISO or VIDEO_TS path —
-	// shared by drop, Browse ISO, and Browse Folder.
+	// shared by drop, Browse, and the old Folder picker path.
 	loadDisc := func(path string) {
 		path = strings.TrimSpace(path)
 		if path == "" {
 			return
 		}
+
+		// Reject non-disc files: only .iso and VIDEO_TS directories are valid.
+		lower := strings.ToLower(path)
+		isISO := strings.HasSuffix(lower, ".iso")
+		isVideoTS := strings.Contains(lower, "video_ts")
+		if !isISO && !isVideoTS {
+			discInfoLabel.SetText("⏺  " + t.RipErrNotDisc)
+			discInfoLabel.Show()
+			return
+		}
+		discInfoLabel.Hide()
+
 		vs.sourcePath = path
 		sourceEntry.SetText(path)
 		if opts.SetRipSourcePath != nil {
@@ -927,40 +939,33 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	browseISOBtn := ui.MakePillButton("ISO...", ui.BorderDim, func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+	browseBtn := ui.MakePillButton("...", ui.BorderDim, func() {
+		d := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
 			}
 			defer reader.Close()
 			loadDisc(reader.URI().Path())
 		}, opts.Window)
-	})
-
-	browseDirBtn := ui.MakePillButton("Folder...", ui.BorderDim, func() {
-		dialog.ShowFolderOpen(func(lister fyne.ListableURI, err error) {
-			if err != nil || lister == nil {
-				return
-			}
-			loadDisc(lister.Path())
-		}, opts.Window)
+		d.Resize(fyne.NewSize(900, 640))
+		d.Show()
 	})
 
 	controls := container.NewVBox(
 		buildRipBox(t.RipSource, container.NewVBox(
 			container.NewBorder(nil, nil, nil,
-				container.NewHBox(browseISOBtn, browseDirBtn, clearISOBtn),
+				container.NewHBox(browseBtn, clearISOBtn),
 				ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 					if opts.OnDropFirstLocal != nil {
 						loadDisc(opts.OnDropFirstLocal(items))
 					}
 				}),
 			),
+			discInfoLabel,
 		)),
 		sectionGap(),
 		buildRipBox(t.RipFormatLabel, container.NewVBox(
 			formatSelect,
-			discInfoLabel,
 			enrichContent,
 		)),
 		sectionGap(),
