@@ -2,6 +2,12 @@
 
 ## v0.1.1-dev49 (May 2026)
 
+### Rip Module — Layout Alignment to Convert Style
+- **Player panel width**: HSplit offset 0.40 → 0.65; player now takes two-thirds of the module width, matching the Convert module's spatial balance.
+- **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) matching Convert's `buildConvertBox()` visual pattern — four sections: Source, Format, Output, Status.
+- **Open in Player relocated**: Button moved from below the player canvas into the module footer action bar alongside the queue/rip buttons.
+- **Collapsible log**: ▼/▶ toggle in the RIP LOG console header collapses/expands the log section (logVSplit: expanded 0.60, collapsed 0.97). Log is proportionally larger when open (was 0.75 → now 0.60 main/log split).
+
 ### Rip Module — Menu Bleed, Chapters & Multi-Title Export
 - **Menu VOB bleed fixed**: `CollectVOBSets` now excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Previously the menu VOB was concatenated at the start of every rip, causing menu frames to glitch into the output video and shifting all chapter timestamps by the menu duration.
 - **Chapter embedding diagnostics**: Added verbose logging of chapter count, first/last timestamp, and embed decision to rip log for easier debugging.
