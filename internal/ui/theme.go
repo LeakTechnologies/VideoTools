@@ -26,6 +26,7 @@ var (
 	Yellow  = vtheme.Yellow
 	Blue    = vtheme.Blue
 	Orange  = vtheme.Orange
+	Red     = vtheme.Red
 	Purple  = vtheme.Purple
 	Magenta = vtheme.Magenta
 

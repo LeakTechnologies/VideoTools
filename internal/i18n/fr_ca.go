@@ -581,7 +581,7 @@ var frCA = Strings{
 	ConvertUseSystemTemp:          "Utiliser le dossier temp système",
 	ConvertUseDefault:             "Utiliser la valeur par défaut",
 
-	ConvertSavePresetBtn:           "Enregistrer les paramètres actuels comme préréglage...",
+	ConvertSavePresetBtn:           "Enregistrer comme préréglage...",
 	ConvertKeepChapters:            "Conserver les chapitres",
 	ConvertChapterLostWarning:      "Les chapitres seront perdus — le format DVD ne prend pas en charge les chapitres intégrés. Utilisez MKV/MP4 pour les conserver.",
 	ConvertAutoNameFromMeta:        "Nommer automatiquement depuis les métadonnées",

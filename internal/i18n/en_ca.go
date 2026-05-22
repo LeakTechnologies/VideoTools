@@ -586,7 +586,7 @@ var enCA = Strings{
 	ConvertDevicePresets:           "Device Presets",
 	ConvertUserPresets:             "User Presets",
 	ConvertSavePreset:              "Save Preset",
-	ConvertSavePresetBtn:           "Save Current Settings as Preset...",
+	ConvertSavePresetBtn:           "Save as Preset...",
 	ConvertPresetNamePlaceholder:   `Preset name, e.g. "4K Archival"`,
 	ConvertKeepChapters:            "Keep chapters",
 	ConvertChapterLostWarning:      "Chapters will be lost — DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.",

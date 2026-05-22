@@ -9379,7 +9379,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	userPresetSelect.SetSelected("None")
 
-	deleteUserPresetBtn := ui.MakePillButton(t.ActionDelete, ui.BorderDim, func() {
+	deleteUserPresetBtn := ui.MakePillButton(t.ActionDelete, ui.Red, func() {
 		sel := userPresetSelect.Selected
 		if sel == "None" || sel == "" {
 			return
@@ -9399,7 +9399,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		userPresetSelect.Refresh()
 	})
 
-	saveUserPresetBtn := ui.MakePillButton(t.ConvertSavePresetBtn, ui.BorderDim, func() {
+	saveUserPresetBtn := ui.MakePillButton(t.ConvertSavePresetBtn, convertColor, func() {
 		entry := widget.NewEntry()
 		entry.SetPlaceHolder(t.ConvertPresetNamePlaceholder)
 		dialog.ShowCustomConfirm(t.ConvertSavePreset, t.ActionSave, t.ActionCancel, entry, func(ok bool) {

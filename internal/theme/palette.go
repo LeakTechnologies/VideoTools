@@ -33,6 +33,7 @@ var (
 	Yellow   = utils.MustHex("#eab308") // active / in progress
 	Blue     = utils.MustHex("#3b82f6") // planned
 	Orange   = utils.MustHex("#f97316") // future
+	Red      = utils.MustHex("#ef4444") // destructive / danger
 	Purple   = utils.MustHex("#a855f7") // deprecated
 	Magenta  = utils.MustHex("#5961FF") // queue accent (main.go queueColor)
 

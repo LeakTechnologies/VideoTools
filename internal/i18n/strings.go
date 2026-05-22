@@ -598,7 +598,7 @@ type Strings struct {
 	ConvertDevicePresets         string // "Device Presets"
 	ConvertUserPresets           string // "User Presets"
 	ConvertSavePreset            string // "Save Preset" — dialog title
-	ConvertSavePresetBtn         string // "Save Current Settings as Preset..." — button label
+	ConvertSavePresetBtn         string // "Save as Preset..." — button label
 	ConvertPresetNamePlaceholder string // placeholder for preset name entry
 	ConvertKeepChapters          string // "Keep chapters"
 	ConvertChapterLostWarning    string // DVD chapter loss warning
