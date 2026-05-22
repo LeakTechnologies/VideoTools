@@ -326,13 +326,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 	titleNavRow.Hide()
 
-	playWithMenusBtn := ui.MakePillButton("▶  Play with Menus", opts.ModuleColor, func() {
-		if err := launchDVDPlayer(vs.sourcePath); err != nil {
-			dialog.ShowError(err, opts.Window)
+	openInPlayerBtn := ui.MakePillButton("▶  Open in Player", opts.ModuleColor, func() {
+		if vs.sourcePath == "" {
+			dialog.ShowError(fmt.Errorf("no disc loaded — drop an ISO or VIDEO_TS folder"), opts.Window)
+			return
+		}
+		if opts.OnOpenInPlayer != nil {
+			opts.OnOpenInPlayer(vs.sourcePath)
 		}
 	})
 
-	playerBottomRow := container.NewVBox(titleNavRow, playWithMenusBtn)
+	playerBottomRow := container.NewVBox(titleNavRow, openInPlayerBtn)
 	playerPane := container.NewBorder(nil, playerBottomRow, nil, nil, playerCanvas)
 
 	rebuildTitleNav = func() {
@@ -807,88 +811,107 @@ func BuildView(opts Options) fyne.CanvasObject {
 	discInfoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	discInfoLabel.Hide()
 
+	// loadDisc is the single entry-point for loading an ISO or VIDEO_TS path —
+	// shared by drop, Browse ISO, and Browse Folder.
+	loadDisc := func(path string) {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return
+		}
+		vs.sourcePath = path
+		sourceEntry.SetText(path)
+		if opts.SetRipSourcePath != nil {
+			opts.SetRipSourcePath(path)
+		}
+		sourceChangedHook(path)
+		vs.outputPath = DefaultOutputPath(path, vs.format)
+		if opts.SetRipOutputPath != nil {
+			opts.SetRipOutputPath(vs.outputPath)
+		}
+		outputEntry.SetText(vs.outputPath)
+
+		vs.scanResult = nil
+		vs.selectedTitles = nil
+		rebuildEnrich()
+
+		if strings.HasSuffix(strings.ToLower(path), ".iso") {
+			go func() {
+				result, scanErr := scanISOViaUDF(path)
+				if scanErr != nil {
+					logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
+					return
+				}
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					vs.scanResult = result
+					if len(result.Titles) > 0 {
+						vs.selectedTitles = make(map[int]bool)
+						for _, dt := range result.Titles {
+							vs.selectedTitles[dt.Number] = true
+						}
+						go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
+					}
+					rebuildTitleNav()
+					rebuildEnrich()
+				}, false)
+			}()
+		} else {
+			go func() {
+				vtsp, _, err := ResolveVideoTSPath(path)
+				if err != nil {
+					logging.Warning(logging.CatDVD, "ResolveVideoTSPath failed: %v", err)
+					return
+				}
+				result, scanErr := ScanDisc(vtsp)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					if scanErr != nil {
+						logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
+					} else {
+						vs.scanResult = result
+						vs.videoTSPath = vtsp
+						vs.selectedTitles = make(map[int]bool)
+						for _, dt := range result.Titles {
+							vs.selectedTitles[dt.Number] = true
+						}
+						if len(result.Titles) > 0 {
+							discRoot := resolveDVDRoot(vs.sourcePath)
+							go func() { _ = dvdPlayer.LoadDVD(discRoot, result.Titles[0].Number) }()
+						}
+						rebuildTitleNav()
+					}
+					rebuildEnrich()
+				}, false)
+			}()
+		}
+	}
+
+	browseISOBtn := ui.MakePillButton("ISO...", ui.BorderDim, func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			loadDisc(reader.URI().Path())
+		}, opts.Window)
+	})
+
+	browseDirBtn := ui.MakePillButton("Folder...", ui.BorderDim, func() {
+		dialog.ShowFolderOpen(func(lister fyne.ListableURI, err error) {
+			if err != nil || lister == nil {
+				return
+			}
+			loadDisc(lister.Path())
+		}, opts.Window)
+	})
+
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil, clearISOBtn, ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
-			path := ""
-			if opts.OnDropFirstLocal != nil {
-				path = opts.OnDropFirstLocal(items)
-			}
-			if path != "" {
-				vs.sourcePath = path
-				sourceEntry.SetText(path)
-				if opts.SetRipSourcePath != nil {
-					opts.SetRipSourcePath(path)
+		container.NewBorder(nil, nil, nil,
+			container.NewHBox(browseISOBtn, browseDirBtn, clearISOBtn),
+			ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
+				if opts.OnDropFirstLocal != nil {
+					loadDisc(opts.OnDropFirstLocal(items))
 				}
-
-				sourceChangedHook(path)
-				vs.outputPath = DefaultOutputPath(path, vs.format)
-				if opts.SetRipOutputPath != nil {
-					opts.SetRipOutputPath(vs.outputPath)
-				}
-				outputEntry.SetText(vs.outputPath)
-
-				// Reset previous scan state and trigger a new background scan.
-				vs.scanResult = nil
-				vs.selectedTitles = nil
-				rebuildEnrich()
-
-				isISO := strings.HasSuffix(strings.ToLower(path), ".iso")
-				if isISO {
-					go func() {
-						result, scanErr := scanISOViaUDF(path)
-						if scanErr != nil {
-							logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
-							return
-						}
-						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-							vs.scanResult = result
-							if len(result.Titles) > 0 {
-								vs.selectedTitles = make(map[int]bool)
-								for _, dt := range result.Titles {
-									vs.selectedTitles[dt.Number] = true
-								}
-								go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
-							}
-							rebuildTitleNav()
-							rebuildEnrich()
-						}, false)
-					}()
-				} else {
-					if info, err := os.Stat(filepath.Join(path, "VIDEO_TS.IFO")); err == nil && !info.IsDir() {
-						if opts.OnScanDVDStruct != nil {
-							opts.OnScanDVDStruct(path)
-						}
-					}
-					go func() {
-						vtsp, _, err := ResolveVideoTSPath(path)
-						if err != nil {
-							return
-						}
-						result, scanErr := ScanDisc(vtsp)
-						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-							if scanErr != nil {
-								logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
-							} else {
-								vs.scanResult = result
-								vs.videoTSPath = vtsp
-								vs.selectedTitles = make(map[int]bool)
-								for _, dt := range result.Titles {
-									vs.selectedTitles[dt.Number] = true
-								}
-								if len(result.Titles) > 0 {
-									discRoot := resolveDVDRoot(vs.sourcePath)
-									titleNum := result.Titles[0].Number
-									go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
-								}
-								rebuildTitleNav()
-							}
-							rebuildEnrich()
-						}, false)
-					}()
-				}
-			}
-		}),
+			}),
 		),
 		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,

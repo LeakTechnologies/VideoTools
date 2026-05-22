@@ -44,6 +44,7 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		OnShowQueue:              s.showQueue,
 		OnClearCompleted:         s.clearCompletedJobs,
 		OnUpdateQueueButtonLabel: s.updateQueueButtonLabel,
+		OnOpenInPlayer:           func(path string) { s.showDVDDiscView(path) },
 
 		SetRipSourcePath: func(p string) { s.ripSourcePath = p },
 		SetRipOutputPath: func(p string) { s.ripOutputPath = p },

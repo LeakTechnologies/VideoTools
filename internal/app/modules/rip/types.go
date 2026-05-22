@@ -58,6 +58,7 @@ type Options struct {
 	OnShowQueue              func()
 	OnClearCompleted         func()
 	OnUpdateQueueButtonLabel func()
+	OnOpenInPlayer           func(path string) // open the loaded disc in the VT DVD player
 
 	// State setters.
 	SetRipSourcePath func(string)
