@@ -61,6 +61,13 @@ var enCA = Strings{
 	SettingsFontVCR:           "VCR OSD Mono",
 	SettingsTestPattern:      "Test Pattern",
 	SettingsTestPatternHint:  "Shows SMPTE color bars for display calibration. Close video to view.",
+	SettingsPlayerAspect:          "Idle Aspect Ratio",
+	SettingsPlayerAspectHint:      "Aspect ratio shown by SMPTE bars when no video is loaded",
+	SettingsPlayerAspect4x3:       "4:3 (Standard)",
+	SettingsPlayerAspect16x9:      "16:9 (Widescreen)",
+	SettingsPlayerAspect5x3:       "5:3",
+	SettingsPlayerAspect21x9:      "21:9 (Ultrawide)",
+	SettingsPlayerAspect9x16:      "9:16 (Portrait)",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",
@@ -667,6 +674,7 @@ var enCA = Strings{
 	RipConfigSavedTitle: "Config Saved",
 	RipConfigSavedFmt:   "Saved to %s",
 	RipErrNoSource:      "set a DVD/ISO/VIDEO_TS source path",
+	RipErrNotDisc:       "Rip module requires a DVD, ISO, or VIDEO_TS source",
 	RipCSSEncrypted:     "CSS Encrypted",
 	RipCSSDecrypting:    "Decrypting CSS...",
 	RipCSSNotEncrypted:  "Not Encrypted",

@@ -53,6 +53,13 @@ var frCA = Strings{
 	SettingsFontVCR:      "VCR OSD Mono",
 	SettingsTestPattern:  "Motif de test",
 	SettingsTestPatternHint: "Affiche les barres de couleurs SMPTE pour l'etalonnage de l'ecran. Fermez la video pour voir.",
+	SettingsPlayerAspect:  "Format d'ecran au repos",
+	SettingsPlayerAspectHint: "Format d'ecran affiche par les barres SMPTE lorsqu'aucune video n'est chargee",
+	SettingsPlayerAspect4x3:  "4:3 (Standard)",
+	SettingsPlayerAspect16x9: "16:9 (Panoramique)",
+	SettingsPlayerAspect5x3:  "5:3",
+	SettingsPlayerAspect21x9: "21:9 (Ultra-large)",
+	SettingsPlayerAspect9x16: "9:16 (Portrait)",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",
@@ -652,6 +659,7 @@ var frCA = Strings{
 	RipConfigSavedTitle: "Configuration enregistrée",
 	RipConfigSavedFmt:   "Enregistré dans %s",
 	RipErrNoSource:      "définissez un chemin source DVD/ISO/VIDEO_TS",
+	RipErrNotDisc:       "Le module Rip nécessite une source DVD, ISO ou VIDEO_TS",
 	RipCSSEncrypted:     "Chiffré CSS",
 	RipCSSDecrypting:    "Déchiffrement CSS...",
 	RipCSSNotEncrypted:  "Non chiffré",

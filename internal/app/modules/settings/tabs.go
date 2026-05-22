@@ -284,6 +284,30 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, cb.ShowPlayer())
 
+	aspectOptions := []string{
+		t.SettingsPlayerAspect4x3,
+		t.SettingsPlayerAspect16x9,
+		t.SettingsPlayerAspect5x3,
+		t.SettingsPlayerAspect21x9,
+		t.SettingsPlayerAspect9x16,
+	}
+	aspectValues := []string{"4:3", "16:9", "5:3", "21:9", "9:16"}
+	currentAspect := cb.PlayerDefaultAspect()
+	aspectSelect := widget.NewSelect(aspectOptions, func(selected string) {
+		for i, opt := range aspectOptions {
+			if opt == selected {
+				cb.SetPlayerDefaultAspect(aspectValues[i])
+				return
+			}
+		}
+	})
+	for i, val := range aspectValues {
+		if val == currentAspect {
+			aspectSelect.SetSelected(aspectOptions[i])
+			break
+		}
+	}
+
 	appearanceCard := settingsCard("Appearance",
 		settingsRow("Font Size", fontSizeSelect),
 		settingsRow(t.SettingsFont, fontSelect),
@@ -291,6 +315,8 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		showTooltipsCheck,
 		container.NewHBox(testPatternBtn),
 		hint(t.SettingsTestPatternHint),
+		settingsRow(t.SettingsPlayerAspect, aspectSelect),
+		hint(t.SettingsPlayerAspectHint),
 	)
 
 	// ── Hardware ──────────────────────────────────────────────────────────────

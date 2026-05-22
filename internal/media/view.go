@@ -293,6 +293,7 @@ type VideoPlayer struct {
 	onSubtitles     func(bool)
 	onTapEmpty      func() // called when tapped with no video loaded
 	idleText        string // overlay text shown by SMPTE bars when source is nil
+	idleAspectRatio float64 // aspect ratio for idle SMPTE bars (default 4:3)
 
 	subtitleBgAlpha int
 
@@ -1286,6 +1287,20 @@ func (v *VideoPlayer) SetIdleText(text string) {
 	v.idleText = text
 }
 
+func (v *VideoPlayer) SetIdleAspectRatio(ratio float64) {
+	if ratio <= 0 {
+		ratio = 4.0 / 3.0
+	}
+	v.idleAspectRatio = ratio
+}
+
+func (v *VideoPlayer) IdleAspectRatio() float64 {
+	if v.idleAspectRatio <= 0 {
+		return 4.0 / 3.0
+	}
+	return v.idleAspectRatio
+}
+
 func formatVideoTime(seconds float64) string {
 	t := time.Duration(seconds * float64(time.Second))
 	h := int(t.Hours())
@@ -1362,15 +1377,15 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	if src == nil {
 		availableH := h
 
-		// Draw SMPTE bars in 4:3 ratio with letterboxing
-		targetAspect := 4.0 / 3.0
+		// Draw SMPTE bars at configured aspect ratio with letterboxing.
+		targetAspect := v.IdleAspectRatio()
 		availableAspect := float64(w) / float64(availableH)
 
 		var smpteW, smpteH int
 		var offsetX, offsetY int
 
 		if availableAspect > targetAspect {
-			// Player is wider than 4:3 - pillarbox (black bars on sides)
+			// Player is wider than target - pillarbox (black bars on sides)
 			smpteH = availableH
 			smpteW = int(float64(smpteH) * targetAspect)
 			offsetX = (w - smpteW) / 2

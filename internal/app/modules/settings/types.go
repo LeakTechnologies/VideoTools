@@ -53,6 +53,8 @@ type PreferencesCallbacks interface {
 	SetPlayerFont(font string)
 	FontSize() string
 	SetFontSize(size string)
+	PlayerDefaultAspect() string
+	SetPlayerDefaultAspect(aspect string)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -91,6 +93,7 @@ type PrefsConfig struct {
 	FontSize                 string `json:"FontSize"`
 	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`
 	VerboseDiscLogging       bool   `json:"VerboseDiscLogging"`
+	PlayerDefaultAspect      string `json:"PlayerDefaultAspect"`
 }
 
 type Dependency struct {

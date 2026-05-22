@@ -3,6 +3,8 @@
 package main
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -48,6 +50,41 @@ func hwDecodeEnabled() bool {
 
 func setHWDecodeEnabled(enabled bool) {
 	media.SetHWDecodeEnabled(enabled)
+}
+
+// parseAspectRatio converts "W:H" to a float ratio. Returns 0 on parse failure.
+func parseAspectRatio(s string) float64 {
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		return 0
+	}
+	w, errW := strconv.ParseFloat(parts[0], 64)
+	h, errH := strconv.ParseFloat(parts[1], 64)
+	if errW != nil || errH != nil || h == 0 {
+		return 0
+	}
+	return w / h
+}
+
+func applyPlayerDefaultAspect(aspect string) {
+	ratio := parseAspectRatio(aspect)
+	if ratio <= 0 {
+		ratio = 16.0 / 9.0
+	}
+	players := []*ui.InlineVideoPlayer{
+		convertInlinePlayer, convertPreviewPlayer,
+		trimInlinePlayer,
+		inspectInlinePlayer,
+		subtitleInlinePlayer,
+		upscaleInlinePlayer, upscalePreviewPlayer,
+		audioInlinePlayer,
+		filtersInlinePlayer, filtersPreviewPlayer,
+	}
+	for _, p := range players {
+		if p != nil {
+			p.SetIdleAspectRatio(ratio)
+		}
+	}
 }
 
 func HasNativeMediaPlayer() bool {
@@ -203,6 +240,7 @@ func initNativeMediaAssets(s *appState) {
 	media.WarmHWDeviceCache()
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
+	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)
 }
 
 func (s *appState) loadVideoNative(path string) {

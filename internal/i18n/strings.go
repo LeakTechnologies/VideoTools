@@ -69,6 +69,13 @@ type Strings struct {
 	SettingsFontVCR        string // "VCR OSD Mono"
 	SettingsTestPattern     string // "Test Pattern"
 	SettingsTestPatternHint string // "Show SMPTE color bars for display calibration"
+	SettingsPlayerAspect         string // "Idle Aspect Ratio"
+	SettingsPlayerAspectHint     string // "Aspect ratio shown by SMPTE bars when no video is loaded"
+	SettingsPlayerAspect4x3      string // "4:3 (Standard)"
+	SettingsPlayerAspect16x9     string // "16:9 (Widescreen)"
+	SettingsPlayerAspect5x3      string // "5:3"
+	SettingsPlayerAspect21x9     string // "21:9 (Ultrawide)"
+	SettingsPlayerAspect9x16     string // "9:16 (Portrait)"
 
 	// Dialog Titles
 	DialogCompare            string
@@ -680,6 +687,7 @@ type Strings struct {
 	RipConfigSavedTitle string
 	RipConfigSavedFmt   string // "Saved to %s"
 	RipErrNoSource      string
+	RipErrNotDisc        string // "Rip module requires a DVD/ISO/VIDEO_TS source"
 	RipCSSEncrypted     string // "CSS Encrypted"
 	RipCSSDecrypting    string // "Decrypting CSS..."
 	RipCSSNotEncrypted  string // "Not Encrypted"
