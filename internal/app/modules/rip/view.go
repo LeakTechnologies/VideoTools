@@ -139,6 +139,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var rebuildEnrich func()
 	var rebuildTitleNav func()
 	var discInfoLabel *widget.Label
+	var logVSplit *container.Split
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -252,6 +253,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
+
+	var logCollapsed bool
+	var collapseLogBtn *ui.PillButton
+	collapseLogBtn = ui.MakePillButton("▼", ui.BorderDim, func() {
+		logCollapsed = !logCollapsed
+		if logCollapsed {
+			logVSplit.SetOffset(0.97)
+			collapseLogBtn.SetText("▶")
+		} else {
+			logVSplit.SetOffset(0.60)
+			collapseLogBtn.SetText("▼")
+		}
+	})
+
 	logSection := ui.NewConsoleBox(
 		t.RipLog,
 		ripTeal,
@@ -263,7 +278,36 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return vs.logText
 		},
 		opts.Window,
+		collapseLogBtn,
 	)
+
+	ripNavy := utils.MustHex("#191F35")
+	buildRipBox := func(title string, content fyne.CanvasObject) *fyne.Container {
+		bg := canvas.NewRectangle(ripNavy)
+		bg.CornerRadius = 10
+		bg.StrokeColor = ui.GridColor
+		bg.StrokeWidth = 1
+		headerBg := canvas.NewRectangle(ripTeal)
+		headerBg.CornerRadius = 10
+		headerBg.SetMinSize(fyne.NewSize(0, 34))
+		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
+		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
+		headerTitle.TextSize = 12
+		header := container.NewMax(
+			headerBg,
+			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
+		)
+		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, body)
+		return container.NewMax(layers...)
+	}
+
+	sectionGap := func() fyne.CanvasObject {
+		gap := canvas.NewRectangle(color.Transparent)
+		gap.SetMinSize(fyne.NewSize(0, 10))
+		return gap
+	}
 
 	// ── DVD Player ───────────────────────────────────────────────────────────
 	dvdPlayer := ui.NewInlineVideoPlayer()
@@ -336,8 +380,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	playerBottomRow := container.NewVBox(titleNavRow, openInPlayerBtn)
-	playerPane := container.NewBorder(nil, playerBottomRow, nil, nil, playerCanvas)
+	playerPane := container.NewBorder(nil, titleNavRow, nil, nil, playerCanvas)
 
 	rebuildTitleNav = func() {
 		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 {
@@ -904,41 +947,47 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	controls := container.NewVBox(
-		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil,
-			container.NewHBox(browseISOBtn, browseDirBtn, clearISOBtn),
-			ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
-				if opts.OnDropFirstLocal != nil {
-					loadDisc(opts.OnDropFirstLocal(items))
-				}
-			}),
-		),
-		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		formatSelect,
-		discInfoLabel,
-		enrichContent,
-		widget.NewLabelWithStyle(t.LabelOutput, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputEntry,
-		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.LabelStatus, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		statusLabel,
-		progressBar,
+		buildRipBox(t.RipSource, container.NewVBox(
+			container.NewBorder(nil, nil, nil,
+				container.NewHBox(browseISOBtn, browseDirBtn, clearISOBtn),
+				ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
+					if opts.OnDropFirstLocal != nil {
+						loadDisc(opts.OnDropFirstLocal(items))
+					}
+				}),
+			),
+		)),
+		sectionGap(),
+		buildRipBox(t.RipFormatLabel, container.NewVBox(
+			formatSelect,
+			discInfoLabel,
+			enrichContent,
+		)),
+		sectionGap(),
+		buildRipBox(t.LabelOutput, container.NewVBox(
+			outputEntry,
+			container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
+		)),
+		sectionGap(),
+		buildRipBox(t.LabelStatus, container.NewVBox(
+			statusLabel,
+			progressBar,
+		)),
 	)
 
 	mainSplit := container.NewHSplit(
 		playerPane,
 		container.NewVScroll(container.NewPadded(controls)),
 	)
-	mainSplit.SetOffset(0.40)
+	mainSplit.SetOffset(0.65)
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
-		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), opts.OnGetStatsBar())
+		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), openInPlayerBtn, runNowBtn), opts.OnGetStatsBar())
 	}
 
-	logVSplit := container.NewVSplit(mainSplit, logSection)
-	logVSplit.SetOffset(0.75)
+	logVSplit = container.NewVSplit(mainSplit, logSection)
+	logVSplit.SetOffset(0.60)
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		logVSplit,
 	)
