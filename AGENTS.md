@@ -52,9 +52,9 @@ All items in `internal/dvd/udf/` and `internal/app/modules/rip/`.
 | UDF reader robustness: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge | `internal/dvd/udf/reader.go`, `internal/dvd/udf/udf.go` | **ACTIVE** |
 | Thread safety & progress: mutex-guarded Reader, progress callbacks, temp file cleanup | `internal/dvd/udf/reader.go`, `internal/app/modules/rip/iso_udf.go` | Planned |
 
-### Button Stragglers
+### Button Stragglers (carry-forward from dev48)
 
-All major module migrations are done. Most stragglers are now converted. The remaining files still contain `widget.NewButton` or `widget.NewButtonWithIcon` and must be migrated before dev48 closes.
+All major module migrations are done. Three stragglers remain blocked and carry forward until their dependencies are resolved:
 **Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
 
 | File | Count | Status |
@@ -225,9 +225,11 @@ When adding a new feature, grep for hardcoded strings:
 - Use `scripts/windows/install.ps1` or `scripts/windows/install.bat` from PowerShell/CMD.
 - `scripts/linux/install.sh` is for bash shells only; do not run it from PowerShell.
 
-## CI Build — Settled Decisions (Do Not Revert)
+## Settled Decisions
 
-The following decisions in `.forgejo/workflows/dev-packages.yml` were reached after multiple failed attempts and must not be changed without explicit approval:
+The following decisions were reached after multiple failed attempts and must not be changed or re-litigated without explicit Human Director approval. Each entry includes the rationale (what was tried and why it failed) to prevent future agents from repeating the same mistakes.
+
+### CI Toolchain — FFmpeg, x264, x265
 
 **FFmpeg must be built from source — never use BtbN pre-built packages.**
 BtbN Windows packages contain executables only, no static `.a` libraries.
@@ -256,9 +258,7 @@ archive (for operator new/delete, __cxa_guard, RTTI vtables).
 If CI is failing, read the build log carefully before changing the FFmpeg setup strategy.
 Open an issue or ask before touching the "Setup static FFmpeg" steps.
 
-## Roadmap & Planning — Settled Decisions (Do Not Revert)
-
-The following decisions about the interactive roadmap (`docs/roadmap.html`) and feature tracking were reached after multiple audit passes and must not be changed without explicit approval:
+### Roadmap & Feature Tracking
 
 **Interactive roadmap is the single source of truth.** The roadmap HTML board at `docs/roadmap.html` is the canonical feature tracker. TODO.md and DONE.md are narrative supplements; keep them in sync when landing work, but always update the roadmap first.
 
@@ -266,19 +266,18 @@ The following decisions about the interactive roadmap (`docs/roadmap.html`) and 
 
 **GStreamer was fully removed in dev42.** All `internal/player/gstreamer*` files, build scripts, and CI references were deleted. The native_media build tag is the only player path. Any stale GStreamer references in docs are historical and should be cleaned up when found.
 
-**x264/x265 tuning presets shipped in dev45.** Film, Animation, Grain, Stillimage, Fastdecode presets are fully wired in the Convert module. Do not list this as future/planned work.
-
-**Presets consolidation shipped in dev45.** Format definitions moved from inline builder code to `internal/convert/presets.go`. Do not list this as future/planned work.
-
-**Drag-and-drop for Convert shipped in dev44.** Files dropped onto the Convert module are registered correctly. Do not list this as a known issue.
-
-**Queue notifyChange race fix shipped in dev45.** The goroutine spawning without lock in `internal/queue/queue.go` was fixed. Do not list this as a known issue.
-
-**Audio pre-warm shipped in dev42**, not dev47. Shared audio context (oto/WASAPI) initialized at startup was part of the original player stabilization cycle.
-
-**PAL/NTSC full-disc conversion shipped in dev47**, not dev46. The IFO regeneration pipeline with full-disc extraction was completed in dev47.
-
 **Testing checklist lives in the roadmap.** The interactive roadmap at `docs/roadmap.html` includes a Testing Checklist modal (button next to Changelog). Items are grouped by module with pass/fail/untested status persisted to localStorage. Any new feature added to the roadmap must also be added to the testing checklist. The checklist server-side data (`checklistData` array in the roadmap JS) should be updated when features land.
+
+### Dev Cycle Boundary — Do Not List as Future/Planned
+
+The following decisions prevent regression — these items shipped in the indicated cycles and must not reappear on roadmaps or TODO lists:
+
+- **x264/x265 tuning presets** — shipped dev45 (Film, Animation, Grain, Stillimage, Fastdecode)
+- **Presets consolidation** — shipped dev45 (format definitions in `internal/convert/presets.go`)
+- **Drag-and-drop for Convert** — shipped dev44 (files dropped on module register correctly)
+- **Queue notifyChange race fix** — shipped dev45 (goroutine spawning without lock fixed)
+- **Audio pre-warm** — shipped dev42 (shared oto/WASAPI context at startup)
+- **PAL/NTSC full-disc conversion** — shipped dev47 (IFO regeneration pipeline)
 
 ## Player: SEH/VEH Crash Recovery — SHIPPED dev48
 
@@ -357,9 +356,9 @@ Architecture reference: `docs/NATIVE_PLAYER.md` — read this before touching an
 
 ### The One Rule
 
-**All modules must use `ui.InlineVideoPlayer` as their API layer. Period.**
+**All modules must use `ui.InlineVideoPlayer` as their API layer.**
 
-Do not call `media.NewEngine()` inside a module. Do not write a per-module playback goroutine. Do not call `media.NewVideoPlayer()` directly. Get the widget via `opts.Player.Widget()`.
+Do not call `media.NewEngine()` inside a module. Do not write a per-module playback goroutine. Do not call `media.NewVideoPlayer()` directly. Get the widget via `opts.Player.Widget()`. The only exceptions are the dual-engine modules documented under Approved Exceptions below.
 
 ### Three-Layer Stack
 
@@ -398,10 +397,6 @@ internal/ui      InlineVideoPlayer — THE API layer every module talks to
 
 Stub implementations must expose the **identical** method set as the real type so all callers compile on every target.
 
-### Reference in `AGENTS.md` Line 158
-
-The entry `player_module.go` in the completed Phase 3 list refers to the root-level `player_module.go` (shows the legacy static player view), **not** to the native media player stack above.
-
 ### Approved Exceptions to InlineVideoPlayer Rule
 
 The following modules create `media.Engine()` directly instead of using `InlineVideoPlayer`. This is intentional because they require **two simultaneous video streams** which `InlineVideoPlayer` does not support.
@@ -412,6 +407,18 @@ The following modules create `media.Engine()` directly instead of using `InlineV
 | Upscale | `upscale_player_native.go` | Preview window + main player require two engines with custom playback loops |
 
 **Do NOT refactor these modules to use InlineVideoPlayer** — the dual-engine architecture is required for their functionality.
+
+## Agent Pipeline
+
+LT uses a three-tier agent hierarchy defined in the Unified Framework v1.2 (§6). Roles and scope:
+
+| Agent | Role | Scope | Examples |
+|---|---|---|---|
+| **Claude (Primary)** | Architect, systems planner, triage, documentation | Cross-session context, major architectural decisions, design discussions | Feature design, CI pipeline architecture, release strategy |
+| **opencode (Secondary)** | Refactoring, code hygiene, smaller features | Module extraction, structural work, tasks without broad context | Button migration, file splits, lint fixes |
+| **Gemini (Tertiary)** | Isolated specialist tasks | Contained problems with minimal cross-project context | DVD authoring pipeline, wiki sync |
+
+Pipeline phases: **Design** (Claude) → **Implementation** (Claude + opencode + Gemini) → **Refinement** → **Versioning**. Each phase has clear entry/exit criteria.
 
 ## Using Sub-Agents
 
@@ -503,8 +510,9 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 ## Next Steps (dev49)
 
 1. Engine.go subsystem split completed (3245→1117 lines). All 6 files extracted: hwdecode.go, errors.go, framepool.go, subtitle_engine.go, buffer.go, playback.go.
-2. Split view.go (1438 lines) into components — pure file moves (deferred).
-3. Extract Player interface from InlineVideoPlayer for mock testing (deferred).
-4. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
-5. Push staged commits to origin when satisfied.
-6. Test rip module fixes with real disc: verify menu bleed is gone, chapters appear in output, menu preservation exports separate files, main/extra naming works correctly.
+2. Frame pacing fixed: no-audio WaitForPTS, WaitVsync removed from playbackLoop, frame rate propagated on load.
+3. Split view.go (1438 lines) into components — pure file moves (deferred).
+4. Extract Player interface from InlineVideoPlayer for mock testing (deferred).
+5. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
+6. Push staged commits to origin when satisfied.
+7. Test rip module fixes with real disc: verify menu bleed is gone, chapters appear in output, menu preservation exports separate files, main/extra naming works correctly.
