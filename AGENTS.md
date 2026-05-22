@@ -6,7 +6,7 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring + Rip module fixes**. Priorities below.
 - Public/stable baseline: `v0.1.1`.
-- `dev49` active: engine.go subsystem split (errors.go, hwdecode.go extracted). Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Inuktitut transliteration package (`internal/i18n/translit/`) — syllabics↔roman via iutools algorithm, auto-fills empty i18n fields. Design doc at docs/RIP_MODULE_REDESIGN.md.
+- `dev49` active: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Rip module: menu VOB bleed fixed, chapter diagnostics added, menu preservation option (separate menu file export), main/extra title naming. Inuktitut transliteration package (`internal/i18n/translit/`) — syllabics↔roman via iutools algorithm, auto-fills empty i18n fields. Design doc at docs/RIP_MODULE_REDESIGN.md.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
@@ -36,7 +36,7 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 
 | Task | File(s) | Status |
 |------|---------|--------|
-| Split 3245-line engine.go into subsystem files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go) | `internal/media/engine.go` | **ACTIVE** |
+| Split 3245-line engine.go into subsystem files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go) | `internal/media/engine.go` | **SHIPPED** |
 | Split 1438-line view.go (VideoPlayer widget) into components (control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go) | `internal/media/view.go` | Planned |
 | Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned |
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned |
@@ -501,9 +501,9 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 
 ## Next Steps (dev49)
 
-1. Split engine.go (3245 lines) into subsystem files — pure file moves, no behavior changes.
-2. Split view.go (1438 lines) into components — pure file moves.
-3. Extract Player interface from InlineVideoPlayer for mock testing.
+1. Engine.go subsystem split completed (3245→1117 lines). All 6 files extracted: hwdecode.go, errors.go, framepool.go, subtitle_engine.go, buffer.go, playback.go.
+2. Split view.go (1438 lines) into components — pure file moves (deferred).
+3. Extract Player interface from InlineVideoPlayer for mock testing (deferred).
 4. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
 5. Push staged commits to origin when satisfied.
 6. Test rip module fixes with real disc: verify menu bleed is gone, chapters appear in output, menu preservation exports separate files, main/extra naming works correctly.

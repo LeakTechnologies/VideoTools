@@ -500,7 +500,7 @@ const roadmap = {
 
   'VT Media Engine': {
     items: [
-      { id: 'engine-subsystem-split', title: 'engine.go Subsystem Split', desc: 'Break 3245-line Engine monolith into focused files: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go — high priority for maintainability', status: 'active', cycle: 'dev49', files: ['internal/media/engine.go'], deps: [], docs: [] },
+      { id: 'engine-subsystem-split', title: 'engine.go Subsystem Split', desc: '3245→1117 lines: errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted — each subsystem file focused on one concern', status: 'done', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/playback.go', 'internal/media/framepool.go', 'internal/media/subtitle_engine.go', 'internal/media/buffer.go'], deps: [], docs: [] },
       { id: 'view-component-split', title: 'view.go Component Split', desc: 'Break 1438-line VideoPlayer widget into components: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go, loading_indicator.go', status: 'planned', cycle: 'dev49', files: ['internal/media/view.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'player-interface', title: 'Player Interface', desc: 'Extract formal Go Player interface from InlineVideoPlayer, enabling mock-based unit tests for all consuming modules', status: 'planned', cycle: 'dev49', files: ['internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'hw-decode-default-on', title: 'HW Decode Default On', desc: 'With VEH+SEH bridge catching AV + stack overflow, re-evaluate enabling D3D11VA by default; add per-codec HW blacklist for known-crash decoders', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/safe_bridge.c'], deps: ['veh-crash-recovery', 'engine-subsystem-split'], docs: [] },
@@ -772,11 +772,11 @@ const changelogData = [
       '15 translit unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge',
     ]},
     { title: 'VT Media Engine Refactoring', items: [
-      'engine.go subsystem split: break 3245-line monolith into focused files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go)',
-      'view.go component split: break 1438-line VideoPlayer widget into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go',
-      'Player interface extraction: formal Go Player interface from InlineVideoPlayer for mock testing',
-      'HW decode default-on re-evaluation with VEH/SEH bridge coverage',
-      'Thread safety formalisation: lock hierarchy documentation, lockdep assertions, eliminate reverse-order paths',
+      'engine.go subsystem split: 3245→1117 lines — errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted as focused subsystem files',
+      'view.go component split: break 1438-line VideoPlayer widget into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go (deferred)',
+      'Player interface extraction: formal Go Player interface from InlineVideoPlayer for mock testing (deferred)',
+      'HW decode default-on re-evaluation with VEH/SEH bridge coverage (deferred)',
+      'Thread safety formalisation: lock hierarchy documentation, lockdep assertions, eliminate reverse-order paths (deferred)',
     ]},
     { title: 'VT ISO Engine Refactoring', items: [
       'UDF reader robustness: fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge',
@@ -955,7 +955,7 @@ const changelogData = [
   ]},
   { version: 'v0.1.1-dev41', date: 'April 2026', tag: 'shipped', sections: [
   { title: 'VT Media Engine (Backend)', items: [
-    'engine.go split: all Engine methods still work after extraction into subsystem files',
+    'engine.go split: all Engine methods still work — 3245→1117 lines, 6 subsystem files extracted, build and vet pass clean',
     'view.go split: VideoPlayer widget renders and controls function after component extraction',
     'Player interface: modules compile with interface type instead of concrete *InlineVideoPlayer',
     'HW decode: D3D11VA/VAAPI/QSV decode works with default-on setting, no startup crash',

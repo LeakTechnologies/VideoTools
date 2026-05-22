@@ -17,9 +17,9 @@
 - **Test coverage**: 15 unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge — all passing.
 
 ### VT Media Engine — Subsystem Split
-- **engine.go (3245 lines)**: Breaking into focused subsystem files — hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
-- **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
-- **Player interface**: Extracting formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests across all consuming modules.
+- **engine.go (3245→1117 lines)**: Broken into 6 focused subsystem files — errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go. framepool.go extracts frame buffer pool (toRGBA/ReleaseFrame/GetFramePoolSize/ensureSwsCtx). subtitle_engine.go extracts subtitle decoding+rendering (SubtitleOverlay, initSubtitleDecoder, decodeSubtitle, RenderSubtitles, drawBitmapText). buffer.go extracts buffer management (SetBufferMode, recordDecodeTime, AdjustBufferForPerformance, GetBufferHealth). playback.go extracts the entire playback pipeline (Start, demuxerLoop, Seek, ResetAfterGrab, GrabFrame, videoDecodeLoop, NextFrame, Pause, Resume, Close, Duration, etc.) plus all query helpers.
+- **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go — deferred to dev50.
+- **Player interface**: Extracting formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests — deferred to dev50.
 - **HW decode default-on**: Re-evaluating D3D11VA default with VEH/SEH crash bridge coverage; per-codec HW blacklist for known-crash decoders.
 - **Thread safety formalisation**: Lock hierarchy documentation, lockdep-style assertions, elimination of reverse-order lock paths (e.g. DegradeToSoftware).
 
