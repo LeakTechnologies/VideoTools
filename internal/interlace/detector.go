@@ -80,7 +80,7 @@ func (d *Detector) Analyze(ctx context.Context, videoPath string, sampleFrames i
 		return nil, fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := utils.StartCmd(cmd); err != nil {
 		return nil, fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 

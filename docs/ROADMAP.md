@@ -22,6 +22,7 @@ timeline
     v0.1.1-dev49 (Current) : C disc debug utility (hex dump, dir listing, stat)
     v0.1.1-dev49 (Current) : Seek corruption fix (accurate fallback) : Player singleton consolidation (10→2) : Verbose seek logging : Media Engine architecture doc
     v0.1.1-dev49 (Current) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
+    v0.1.1-dev49 (Current) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -76,7 +77,9 @@ timeline
 - **Log session rotation** — `rotateLog()` keeps last 2 sessions on startup; stale binary noise disappears automatically after two runs.
 - **Settings log management** — Clear Log File + Open Log Folder in Settings → Preferences.
 - **`NoInheritHandles` Windows subprocess fix** — `CreateCommand`/`CreateCommandRaw` in `internal/utils/exec_windows.go` now set `NoInheritHandles: true`, preventing the player engine's open `avformat_open_input` handles from being inherited by FFmpeg subprocesses. Fixes the "file in use" error when trying to delete or move the source video after conversion on Windows.
-- **`Queue.Stop()` cancels running job** — `Stop()` now calls `cancelRunningLocked()`, propagating context cancellation to the running FFmpeg subprocess via `exec.CommandContext`. Fixes zombie FFmpeg processes that continued encoding after VT was closed mid-conversion.
+- **`Queue.Stop()` cancels running job** — `Stop()` now calls `cancelRunningLocked()`, propagating context cancellation to the running FFmpeg subprocess via `exec.CommandContext`. Fixes zombie FFmpeg on clean VT shutdown.
+- **Windows Job Object — crash-safe child process cleanup** — `utils.InitJobObject()` (called at app startup) creates a global Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. All long-running encode processes are assigned via `utils.StartCmd()`. When VT exits for any reason — including crashes during 4K encodes — Windows automatically kills all Job Object members. Covers the crash scenario where `Queue.Stop()` is never reached.
+- **Linux `Pdeathsig: SIGKILL`** — `exec_linux.go` now sets `SysProcAttr.Pdeathsig = syscall.SIGKILL` on all `CreateCommand`/`CreateCommandRaw` calls. Kernel sends SIGKILL to all child processes when VT exits for any reason.
 - **Queue convert navigation fix** — `convertNow()` now calls `s.showQueue()` directly instead of a blocking `dialog.ShowInformation`. User lands on the queue immediately after queuing a job.
 - **Queue auto-refresh goroutine fix** — `startQueueAutoRefresh` and `startQueueElapsedTicker` changed `return` to `continue` in the ticker guard; goroutines stay alive between queue visits, so progress bars update correctly.
 - **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
