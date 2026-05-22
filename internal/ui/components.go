@@ -1817,7 +1817,7 @@ func (cs *ColoredSelect) showPopup() {
 		colorBar.SetMinSize(fyne.NewSize(4, 24))
 
 		// Create label using canvas text for color control
-		textColor := selectTextColor()
+		textColor := selectTextColor(itemColor)
 		if isDisabled {
 			textColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
 		}
@@ -1946,8 +1946,16 @@ func selectBackgroundColor() color.Color {
 	return color.NRGBA{R: 52, G: 66, B: 86, A: 255}
 }
 
-func selectTextColor() color.Color {
-	return color.NRGBA{R: 230, G: 236, B: 245, A: 255}
+func selectTextColor(bg ...color.Color) color.Color {
+	if len(bg) > 0 && bg[0] != nil {
+		r, g, b, _ := bg[0].RGBA()
+		// Perceived luminance: 0.299*R + 0.587*G + 0.114*B
+		lum := (299*uint32(r>>8) + 587*uint32(g>>8) + 114*uint32(b>>8)) / 1000
+		if lum > 150 {
+			return color.NRGBA{R: 15, G: 15, B: 15, A: 255} // dark text on light bg
+		}
+	}
+	return color.NRGBA{R: 230, G: 236, B: 245, A: 255} // light text on dark bg
 }
 
 func selectAccentColor(selected string, colorMap map[string]color.Color) color.Color {
