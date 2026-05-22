@@ -49,6 +49,9 @@ type PreferencesCallbacks interface {
 	SetHWDecodeEnabled(enabled bool)
 	VerboseDiscLogging() bool
 	SetVerboseDiscLogging(enabled bool)
+	LogFilePath() string
+	ClearLogFile() error
+	OpenLogFolder()
 	PlayerFont() string
 	SetPlayerFont(font string)
 	FontSize() string

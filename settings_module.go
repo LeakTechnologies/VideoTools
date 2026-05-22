@@ -1828,6 +1828,18 @@ func (a *preferencesAdapter) SetVerboseDiscLogging(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) LogFilePath() string {
+	return logging.FilePath()
+}
+
+func (a *preferencesAdapter) ClearLogFile() error {
+	return logging.Clear()
+}
+
+func (a *preferencesAdapter) OpenLogFolder() {
+	_ = openFolder(logging.LogsDir())
+}
+
 func (a *preferencesAdapter) PlayerFont() string {
 	return a.s.prefs.PlayerFont
 }
