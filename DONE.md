@@ -30,6 +30,12 @@
 - **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of random jitter because the vsync phase varies per frame. With audio, the displayed interval became `frame_period + ΔV` (ΔV up to ±16.7ms), a ±40% variation at 24fps. Removing it eliminated all vsync-induced jitter; frame timing is now purely PTS-driven via `WaitForPTS`.
 - **Frame rate propagation**: `v.player.SetFrameRate(eng.GetFrameRate())` added to `loadViaOpen` ready callback so the `VideoPlayer` always knows the source frame rate for frame-step calculations and display configuration.
 
+### Rip Module — Layout Alignment to Convert Style
+- **Player panel width**: HSplit offset 0.40 → 0.65; player takes two-thirds of module width, matching the Convert module.
+- **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) — four sections: Source, Format, Output, Status.
+- **Open in Player relocated**: Moved from below the player canvas into the footer action bar.
+- **Collapsible log**: ▼/▶ toggle in the RIP LOG header collapses/expands the log (expanded 0.60, collapsed 0.97); overall VSplit corrected from 0.75 → 0.60.
+
 ### VT ISO Engine — Roadmap
 - **Roadmap columns** — VT Media Engine and VT ISO Engine added as dedicated columns on the interactive roadmap with individual status cards for each refactoring task (engine.go split, view.go split, Player interface, HW decode, thread safety, UDF reader, UDF thread safety).
 

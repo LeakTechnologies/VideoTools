@@ -16,6 +16,7 @@ timeline
     v0.1.1-dev49 (Current) : Inuktitut transliteration package : Auto-fill i18n script variants : VT Media Engine refactor : VT ISO Engine refactor
     v0.1.1-dev49 (Current) : engine.go subsystem split (done) : Frame pacing PTS-driven overhaul : UDF reader robustness
     v0.1.1-dev49 (Current) : WaitForPTS for no-audio path : WaitVsync removed from playbackLoop : Frame rate propagation on load
+    v0.1.1-dev49 (Current) : Rip module layout aligned to Convert style : buildRipBox sections : collapsible log : Open in Player to footer
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
