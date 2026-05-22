@@ -9074,6 +9074,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cmdPreviewBtn.Disable()
 	}
 
+	// mainSplit and collapseSettingsBtn declared here so the closure can capture
+	// mainSplit before the split container is created further down.
+	var mainSplit *container.Split
+	var settingsCollapsed bool
+	var collapseSettingsBtn *ui.PillButton
+	collapseSettingsBtn = ui.MakePillButton("◀", ui.BorderDim, func() {
+		settingsCollapsed = !settingsCollapsed
+		if settingsCollapsed {
+			mainSplit.SetOffset(0.97)
+			collapseSettingsBtn.SetText("▶")
+		} else {
+			mainSplit.SetOffset(0.65)
+			collapseSettingsBtn.SetText("◀")
+		}
+	})
+
 	// Build back bar
 	backBarItems := []fyne.CanvasObject{
 		back,
@@ -9082,6 +9098,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		layout.NewSpacer(),
 		cmdPreviewBtn,
 		clearCompletedBtn,
+		collapseSettingsBtn,
 		queueBtn,
 	}
 
@@ -9108,7 +9125,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen.
 	// Video pane uses VSplit with metadata at 50% - use moderate minimum for scaling.
 	videoPanel := buildVideoPane(state, fyne.NewSize(480, 270), src, updateCover)
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
+
+	// leftColumn declared here so collapseMetaBtn closure can capture it before the split is created.
+	var leftColumn *container.Split
+	var metaCollapsed bool
+	var collapseMetaBtn *ui.PillButton
+	collapseMetaBtn = ui.MakePillButton("▼", convertColor, func() {
+		metaCollapsed = !metaCollapsed
+		if metaCollapsed {
+			leftColumn.SetOffset(0.97)
+			collapseMetaBtn.SetText("▶")
+		} else {
+			leftColumn.SetOffset(0.5)
+			collapseMetaBtn.SetText("▼")
+		}
+	})
+
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), collapseMetaBtn)
 	updateMetaCover = metaCoverUpdate
 
 	// Forward declare functions needed by formatContainer callback
@@ -12611,11 +12644,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Do NOT wrap in VBox — VBox only gives children their minimum height, leaving
 	// the rest of the VSplit's allocated space as an empty dark gap.
 	metaPanelScroll := ui.NewFastVScroll(metaPanel)
-	leftColumn := container.NewVSplit(videoPanel, metaPanelScroll)
+	leftColumn = container.NewVSplit(videoPanel, metaPanelScroll)
 	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
-	mainSplit := container.NewHSplit(
+	mainSplit = container.NewHSplit(
 		leftColumn,
 		optionsPanel)
 	mainSplit.SetOffset(0.65) // 65/35 split
@@ -12960,7 +12993,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(layers...)
 }
 
-func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.CanvasObject, func()) {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, collapseBtn *ui.PillButton) (fyne.CanvasObject, func()) {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
@@ -12973,8 +13006,13 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 	var top fyne.CanvasObject = header
 
 	if src == nil {
+		nilHeaderItems := []fyne.CanvasObject{header}
+		if collapseBtn != nil {
+			nilHeaderItems = append(nilHeaderItems, collapseBtn)
+		}
+		nilHeaderRow := container.NewHBox(nilHeaderItems...)
 		body := container.NewVBox(
-			top,
+			nilHeaderRow,
 			widget.NewSeparator(),
 			widget.NewLabel(t.ConvertInspectHint),
 			layout.NewSpacer(),
@@ -13172,7 +13210,11 @@ Metadata: %s`,
 		}
 	})
 
-	headerRow := container.NewHBox(header, copyBtn)
+	headerItems := []fyne.CanvasObject{header, copyBtn}
+	if collapseBtn != nil {
+		headerItems = append(headerItems, collapseBtn)
+	}
+	headerRow := container.NewHBox(headerItems...)
 	top = container.NewBorder(nil, nil, nil, clearBtn, headerRow)
 
 	// Cover art support removed - users can add cover art through metadata editor
