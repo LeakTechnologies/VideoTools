@@ -457,7 +457,7 @@ var iuLatn = Strings{
 	ConvertUseSystemTemp:          "Tamarmik Aulajariit Atuqlugit",                                                            // machine-generated, needs human review — Use System Temp
 	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                                            // machine-generated, needs human review — Use Default
 
-	ConvertSavePresetBtn:           "Save Current Settings as Preset...",                                  // machine-generated
+	ConvertSavePresetBtn:           "Save as Preset...",                                                   // machine-generated
 	ConvertKeepChapters:            "Keep chapters",                                                       // machine-generated
 	ConvertChapterLostWarning:      "Chapters will be lost — DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.", // machine-generated
 	ConvertAutoNameFromMeta:        "Auto-name from metadata",                                             // machine-generated
