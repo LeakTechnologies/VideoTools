@@ -2,6 +2,13 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### HDR Tone-Mapping
+
+- **`internal/media/hdr.go`** — new CGo file (build tag `native_media`) following the `deinterlace.go` pattern. C preamble implements three helpers: `frame_is_hdr` (checks `color_trc` for `AVCOL_TRC_SMPTE2084`/`AVCOL_TRC_ARIB_STD_B67`), `create_hdr_tonemap_filter` (builds libavfilter graph: `buffer → zscale(t=linear,npl=1000) → format(gbrpf32le) → tonemap(hable,desat=0.5) → zscale(t=bt709,m=bt709) → format(yuv420p) → buffersink`), `run_hdr_tonemap` (pushes a frame through and returns an SDR `yuv420p` output). Color metadata (TRC, primaries, matrix, range) is forwarded to the `buffersrc` args so zscale correctly identifies the input transfer characteristic.
+- **`Engine` struct fields** — `hdrFilterGraph *C.AVFilterGraph`, `hdrBuffersrc *C.AVFilterContext`, `hdrBuffersink *C.AVFilterContext`, `hdrInputPixFmt C.enum_AVPixelFormat`, `hdrTonemapUnsupported bool`. Graph is created lazily on first HDR frame. `hdrTonemapUnsupported` suppresses retry when zscale (libzimg) is absent, avoiding per-frame graph-creation attempts.
+- **`renderSWFrame()` helper in `playback.go`** — centralises the SW→RGBA pipeline: checks `isFrameHDR`→`applyHDRTonemap`→`ensureSwsCtx(tonemapped.format)`→`toRGBA(tonemapped)`, or falls through to `ensureSwsCtx(e.frame.format)`→bwdif deinterlace (if enabled)→`toRGBA`. Replaces four separate inline decode-to-RGBA blocks in `GrabFrame` and `videoDecodeLoop` (SW path and HW→SW-fallback path in each).
+- **`freeHDRFilter()` in `Close()`** — releases AVFilterGraph and resets all HDR pointers. Called after `freeDeinterlaceFilter()` in the engine teardown sequence.
+
 ### Per-Codec HW Decode Deny-List
 
 - **`media.SetHWCodecDenyList(s string)` / `GetHWCodecDenyList()`** — package-level API in `hwdecode.go`. Populates `hwCodecDenyList map[string]struct{}` from a comma-separated string of FFmpeg codec names. `codecCanUseHWDevice` checks the deny-list before the built-in allowlist, unconditionally falling back to SW decode for listed codecs.

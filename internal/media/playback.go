@@ -380,6 +380,32 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 	return lastFrame, nil
 }
 
+// renderSWFrame converts e.frame to an RGBA image, applying HDR tone-mapping
+// when the frame carries a PQ or HLG transfer characteristic, or bwdif
+// deinterlacing for flagged interlaced frames.  Must be called with
+// videoCodecMu held.
+func (e *Engine) renderSWFrame() *image.RGBA {
+	if !e.hdrTonemapUnsupported && isFrameHDR(e.frame) {
+		if tonemapped := e.applyHDRTonemap(e.frame); tonemapped != nil {
+			e.ensureSwsCtx(C.enum_AVPixelFormat(tonemapped.format))
+			img := e.toRGBA(tonemapped)
+			C.av_frame_free(&tonemapped)
+			return img
+		}
+		// applyHDRTonemap already set hdrTonemapUnsupported=true on failure;
+		// fall through and render without tone-mapping (washed-out).
+	}
+	e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
+	if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
+		if filtered := e.applyDeinterlace(); filtered != nil {
+			img := e.toRGBA(filtered)
+			C.av_frame_free(&filtered)
+			return img
+		}
+	}
+	return e.toRGBA(nil)
+}
+
 func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -455,30 +481,10 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 						e.unlockVideoCodecMu()
 						continue
 					}
-					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-					if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
-						if filtered := e.applyDeinterlace(); filtered != nil {
-							img = e.toRGBA(filtered)
-							C.av_frame_free(&filtered)
-						} else {
-							img = e.toRGBA(nil)
-						}
-					} else {
-						img = e.toRGBA(nil)
-					}
+					img = e.renderSWFrame()
 				}
 			} else {
-				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-				if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
-					if filtered := e.applyDeinterlace(); filtered != nil {
-						img = e.toRGBA(filtered)
-						C.av_frame_free(&filtered)
-					} else {
-						img = e.toRGBA(nil)
-					}
-				} else {
-					img = e.toRGBA(nil)
-				}
+				img = e.renderSWFrame()
 			}
 			e.unlockVideoCodecMu()
 			return img, nil
@@ -645,30 +651,10 @@ func (e *Engine) videoDecodeLoop() {
 						e.unlockVideoCodecMu()
 						continue
 					}
-					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-					if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
-						if filtered := e.applyDeinterlace(); filtered != nil {
-							img = e.toRGBA(filtered)
-							C.av_frame_free(&filtered)
-						} else {
-							img = e.toRGBA(nil)
-						}
-					} else {
-						img = e.toRGBA(nil)
-					}
+					img = e.renderSWFrame()
 				}
 			} else {
-				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-				if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
-					if filtered := e.applyDeinterlace(); filtered != nil {
-						img = e.toRGBA(filtered)
-						C.av_frame_free(&filtered)
-					} else {
-						img = e.toRGBA(nil)
-					}
-				} else {
-					img = e.toRGBA(nil)
-				}
+				img = e.renderSWFrame()
 			}
 
 			gen = e.seekGen.Load()
@@ -1010,6 +996,7 @@ closeDrainDone:
 	e.subtitleCodecMu.Unlock()
 
 	e.freeDeinterlaceFilter()
+	e.freeHDRFilter()
 
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)

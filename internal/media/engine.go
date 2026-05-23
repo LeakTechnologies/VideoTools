@@ -254,6 +254,15 @@ type Engine struct {
 	deintBuffersrc     *C.AVFilterContext
 	deintBuffersink    *C.AVFilterContext
 
+	// HDR tone-mapping filter graph — lazily created on first HDR frame.
+	// hdrTonemapUnsupported is set when zscale/tonemap are unavailable so we
+	// don't retry the expensive graph creation on every subsequent frame.
+	hdrFilterGraph       *C.AVFilterGraph
+	hdrBuffersrc         *C.AVFilterContext
+	hdrBuffersink        *C.AVFilterContext
+	hdrInputPixFmt       C.enum_AVPixelFormat
+	hdrTonemapUnsupported bool
+
 	// seekFlushBefore is read/written by both Seek() and videoDecodeLoop.
 	// Seek() holds e.mu; videoDecodeLoop holds videoCodecMu at the read site.
 	// Acquiring e.mu inside videoCodecMu creates a lock-order deadlock with

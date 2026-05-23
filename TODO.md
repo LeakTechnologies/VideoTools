@@ -49,6 +49,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 
+### HDR Tone-Mapping
+
+- [x] **HDR tone-mapping** — `internal/media/hdr.go`: `isFrameHDR` detects PQ/HLG via `color_trc`. `renderSWFrame` applies `applyHDRTonemap` before sws_scale. Filter graph: `zscale(t=linear,npl=1000)→format(gbrpf32le)→tonemap(hable,desat=0.5)→zscale(t=bt709,m=bt709)→format(yuv420p)`. `hdrTonemapUnsupported` suppresses retry when zscale unavailable. Wired into both `GrabFrame` and `videoDecodeLoop` (SW + HW→SW paths).
+
 ### Per-Codec HW Deny-List
 
 - [x] **Per-codec HW decode deny-list** — `hwCodecDenyList` + `SetHWCodecDenyList(s)`; `PrefsConfig.HWCodecDenyList`; Settings → Player text entry; loaded at startup.

@@ -39,7 +39,7 @@ Update this file whenever a player issue is found or fixed.
 | seekLoop goroutine lifecycle | ✅ |
 | HW sws context cached | ✅ Keyed on (format, width, height) |
 | Duration() lock safety | ✅ formatMu held |
-| HDR tone-mapping | ❌ Not implemented — HDR content washed-out on SDR displays |
+| HDR tone-mapping | ✅ libavfilter: zscale(linear,npl=1000)→tonemap(hable)→zscale(bt709)→yuv420p; PQ+HLG detected; graceful fallback if zscale unavailable |
 | Mid-playback audio track switching | ✅ SelectAudioTrack: close player first, reinit codec, seek to current PTS, resume if playing |
 | Mid-playback subtitle track switching | ✅ SelectSubtitleTrack: subtitleCodecMu, flush queue, reinit codec, clear stale overlay |
 | VFR (variable frame rate) | ⚠️ PTS-based timing handles it in principle; not stress-tested |
@@ -53,10 +53,10 @@ Update this file whenever a player issue is found or fixed.
 
 ### P1 — Playback correctness
 
-- [ ] **HDR content washed-out on SDR displays** — No `AV_FRAME_DATA_MASTERING_DISPLAY_METADATA` / `AV_FRAME_DATA_CONTENT_LIGHT_LEVEL` detection. No tone-mapping via libavfilter `zscale` or `tonemap`. All HDR10/HLG sources render without tone-mapping.
+- [x] **HDR content washed-out on SDR displays** — Fixed: `isFrameHDR` detects PQ (SMPTE 2084) and HLG (ARIB STD B67) via `frame->color_trc`. `renderSWFrame` applies HDR tone-mapping before sws_scale: libavfilter pipeline `zscale(t=linear,npl=1000)→format(gbrpf32le)→tonemap(hable,desat=0.5)→zscale(t=bt709,m=bt709)→format(yuv420p)`. If zscale/tonemap are unavailable (missing libzimg), `hdrTonemapUnsupported` is set and the frame renders without tone-mapping (avoids retrying on every frame).
 - [x] **Audio track cannot be switched mid-playback** — Fixed: `SelectAudioTrack` now closes the old `AudioPlayer` before freeing `audioCodecCtx` (was a use-after-free); reinits codec with `thread_count=1`; seeks to current video PTS; resumes if engine was playing.
 - [x] **Subtitle track cannot be switched mid-playback** — Fixed: `SelectSubtitleTrack` flushes `subtitleQueue`, frees old `subtitleCodecCtx` under `subtitleCodecMu`, calls `initSubtitleDecoder` for the new stream, and clears the stale overlay. `decodeSubtitle` and the `demuxerLoop` check are also guarded by `subtitleCodecMu`.
-- [ ] **VFR not stress-tested** — PTS-based WaitForPTS should handle variable frame rates correctly in theory. Needs testing with screen recordings and web video.
+- [ ] **VFR not stress-tested** — PTS-based `WaitForPTS` handles variable frame rates correctly in theory: each frame carries its own PTS, and the clock waits for exactly that timestamp regardless of whether the interval is constant. The critical path (`NextFrame` → `WaitForPTS(pts)`) is frame-interval-agnostic. Known risk: the `preDecodeFrames=8` buffer may under-buffer during high-rate bursts (e.g. screen recordings at 60fps variable), causing micro-stutters. Needs field testing with: screen recordings, web video captures (YouTube/Twitch downloads), variable-rate game captures.
 
 ### P2 — Quality / performance
 
@@ -69,6 +69,7 @@ Update this file whenever a player issue is found or fixed.
 
 ## Fixed (dev50)
 
+- [x] **HDR tone-mapping** — `hdr.go`: `isFrameHDR` checks `color_trc` (SMPTE 2084 / ARIB STD B67). `renderSWFrame` applies `applyHDRTonemap` before `ensureSwsCtx`+`toRGBA`. Filter graph: `zscale(t=linear,npl=1000)→format(gbrpf32le)→tonemap(hable,desat=0.5)→zscale(t=bt709,m=bt709)→format(yuv420p)`. `hdrTonemapUnsupported` flag suppresses retry when zscale is unavailable. Applied in both `GrabFrame` and `videoDecodeLoop` SW and HW→SW-fallback paths via `renderSWFrame`.
 - [x] **Per-codec HW deny-list** — `hwCodecDenyList` map + `SetHWCodecDenyList(s)`. `codecCanUseHWDevice` checks deny-list before allowlist. `PrefsConfig.HWCodecDenyList` (JSON) + Settings → Player text field. Loaded at startup.
 - [x] **Error resilience flags** — `setVideoCodecErrorFlags()`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` set explicitly before `avcodec_open2` on both video codec init paths (`SelectVideoTrack`, `openFinalize`).
 - [x] **Mid-playback audio track switching** — `SelectAudioTrack`: close old `AudioPlayer` before `avcodec_free_context` (was use-after-free); reinit codec `thread_count=1`; seek to current video PTS; resume if playing. Restores speed/volume/muted on new player.
