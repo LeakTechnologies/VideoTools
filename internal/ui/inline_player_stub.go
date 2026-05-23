@@ -49,6 +49,7 @@ func (v *InlineVideoPlayer) SetOnTapEmpty(fn func())              {}
 func (v *InlineVideoPlayer) SetIdleText(text string)              {}
 func (v *InlineVideoPlayer) SetIdleAspectRatio(ratio float64)     {}
 func (v *InlineVideoPlayer) SetDeinterlaceEnabled(enabled bool)   {}
+func (v *InlineVideoPlayer) SetGrowingFile(growing bool)         {}
 func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState)  {}
 func (v *InlineVideoPlayer) RefreshCurrentFrame()                 {}
 

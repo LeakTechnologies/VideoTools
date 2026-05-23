@@ -2,25 +2,12 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
-### P1-4: Speed + Pitch Correction (atempo filter)
+### P1-10: Growing/In-Progress File Support
 
-- **`AudioFilterGraph.Process()` implemented** in `internal/media/audio_filter.go`: real `vt_atempo_process` C helper replaces the stub. Pushes S16 stereo PCM through the atempo filter graph via `av_buffersrc_add_frame_flags(KEEP_REF)`, drains output frames with `av_buffersink_get_frame`, accumulates into a `malloc`'d buffer returned via `C.GoBytes`. Returns `nil, nil` when still buffering.
-- **`AudioFilterGraph.sampleRate int`** stored during `Init()` for use by `Process()`.
-- **`AudioPlayer.filterGraph *AudioFilterGraph`** lazy-initialized in `SetSpeed()` when speed ≠ 1.0. Init uses `TargetSampleRate`/`TargetChannels`. `SetTempo(speed)` clamps to 0.25–2.0.
-- **`AudioPlayer.Read()`**: uses `fg.Process(chunk.data)` when filterGraph active; returns silence on empty output (filter buffering); leftover path skips `adjustSamplesForSpeed` when fg is active.
-- **`AudioPlayer.Close()`**: releases filterGraph after oto teardown.
-- New CGo headers: `stdlib.h`, `string.h`, `libavutil/frame.h`, `libavutil/channel_layout.h`.
-
-### P1-3: Audio Delay (A/V Offset)
-
-- **`audioDelayBits atomic.Uint64`** added to `Engine` struct in `internal/media/engine.go`. `SetAudioDelay(d float64)` / `GetAudioDelay() float64` use `math.Float64bits` for lock-free hot-path read. `defaultAudioDelayBits` package-level atomic with `DefaultAudioDelay()` / `SetDefaultAudioDelay()` for global default (default 0).
-- **`NextFrame` patched** in `internal/media/playback.go`: audio-present path calls `e.clock.WaitForPTS(pts + avDelay)` and adjusts the drift snap. No-audio path unchanged. Positive delay: video shows later (compensates for early-arriving audio, e.g. Bluetooth). Negative: video shows sooner (late-arriving audio).
-- **`InlineVideoPlayer.SetAudioDelay(d float64)`** added to `internal/ui/inline_player.go`; `loadViaOpen` picks up `media.DefaultAudioDelay()` on each new engine open.
-- **2 new i18n strings** (`SettingsAVOffset`, `SettingsAVOffsetHint`) in `strings.go`, `en_ca.go`, `fr_ca.go`.
-- **`PrefsConfig.AVOffset int`** (milliseconds) added to `types.go`. New interface methods: `PlayerAVOffset() int` / `SetPlayerAVOffset(ms int)`.
-- **Settings → Player card**: `widget.Entry` for A/V Offset (ms) added between Seek Accuracy and HW decode. `OnChanged` parses int, clamps ±5000 ms, calls `SetPlayerAVOffset`.
-- **`setPlayerAVOffset(ms int)`** in `native_media.go`, stub in `native_media_stub.go`, adapter in `settings_module.go`. Called from `initNativeMediaAssets`.
-- Build clean; no regressions.
+- **Engine-level toggle** — `Engine.SetGrowingFile(bool)` + `IsGrowingFile()` in `internal/media/engine.go`, implemented as simple locked accessors alongside `looping`. `InlineVideoPlayer.SetGrowingFile(bool)` wires through.
+- **EOF polling** — `InlineVideoPlayer.growingFileWatcher(path, lastPos)` goroutine: polls `os.Stat` on a 2s ticker. Records initial file size; when `fi.Size()` exceeds the recorded size, calls `v.Load(path)` to re-open the grown file, `v.Seek(lastPos)` to restore the playback position, and `v.Play()` to resume. Exits the goroutine on success.
+- **No-regression EOF path** — When `eng.IsGrowingFile()` is false (default), the existing behavior is preserved: `onEnd` fires, resume marks completed, and the file is reloaded for re-play. Growing-file only activates when explicitly toggled on and EOF is reached.
+- Builds clean with `CGO_LDFLAGS_ALLOW`.
 
 ### P1-2: Resume/Watch-Later
 
