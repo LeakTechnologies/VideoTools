@@ -2,6 +2,18 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-5: A-B Loop
+
+- **`Engine.SetLoopPoints(a, b float64)` / `SetABLoopEnabled(bool)`** — stores loopA and loopB PTS thresholds; when enabled, `NextFrame` checks PTS after each decoded frame and seeks back to loopA when PTS >= loopB. Loop-back scheduled via `abLoopPending` flag on next `NextFrame` call, returning the frame at B first.
+- **`InlineVideoPlayer.SetABLoopEnabled(bool)` / `SetLoopPoints(a, b float64)`** — forwards to Engine through the standard InlineVideoPlayer API layer.
+- **Zero overhead when disabled** — `abLoopEnabled` check is a single `IsABLoopEnabled()` call after each frame decode; no branching cost for normal playback when disabled.
+
+### P1-8: Frame Timing Diagnostics Overlay
+
+- **`InlineVideoPlayer.SetFrameTimingOverlayVisible(bool)`** — toggle drives `VideoPlayer.SetFrameTimingVisible` flag; overlay renders in top-right corner showing: sequential frame count, PTS (s), inter-frame delta (ms), and PTS delta (s).
+- **Per-frame collection at InlineVideoPlayer level** — frame count, last PTS, and last-received timestamp tracked in `InlineVideoPlayer` fields; formatted string pushed to widget via `DoFromGoroutine` each frame.
+- **Semi-transparent background** — auto-sized to text width using `fyne.MeasureText`; green monospace text on dark background.
+
 ### P1-11: Clock Drift Correction
 
 - **`MasterClock.SetTime()` underrun recovery** at `internal/media/clock.go:58-66`: the monotonic ratchet now allows a backward reset when `backwardJump > 1s` AND `time.Since(c.ptsTime) > 500ms`. This detects the "audio was silent, clock coasted on wall-time, audio recovered with a stale PTS" scenario. Without it, the clock would drift permanently forward and subsequent video frames at the correct PTS would be rejected as too late.

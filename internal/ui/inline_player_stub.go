@@ -50,8 +50,11 @@ func (v *InlineVideoPlayer) SetIdleText(text string)              {}
 func (v *InlineVideoPlayer) SetIdleAspectRatio(ratio float64)     {}
 func (v *InlineVideoPlayer) SetDeinterlaceEnabled(enabled bool)   {}
 func (v *InlineVideoPlayer) SetGrowingFile(growing bool)         {}
+func (v *InlineVideoPlayer) SetABLoopEnabled(enabled bool)       {}
+func (v *InlineVideoPlayer) SetLoopPoints(a, b float64)          {}
 func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState)  {}
 func (v *InlineVideoPlayer) RefreshCurrentFrame()                 {}
+func (v *InlineVideoPlayer) SetFrameTimingOverlayVisible(bool)    {}
 
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	return nil, nil

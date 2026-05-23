@@ -528,10 +528,10 @@ const roadmap = {
       { id: 'resume-watchlater', title: 'P1-2: Resume/Watch-Later', desc: 'InlineVideoPlayer auto-saves playback position every 5s during playback, restores on load, marks completed on EOF. Shared ResumeState wired to both player singletons in initNativeMediaAssets. Trim module retains its own independent resume for safety.', status: 'done', cycle: 'dev50', files: ['internal/media/state/resume.go', 'internal/ui/inline_player.go', 'native_media.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
       { id: 'audio-delay', title: 'P1-3: Audio Delay Adjustment', desc: 'A/V Offset (ms) entry in Settings → Player card. Engine.audioDelayBits atomic.Uint64 + SetAudioDelay/GetAudioDelay. NextFrame: WaitForPTS(pts + avDelay) in audio path, drift snap adjusted. +ms = delay video (early audio / Bluetooth). -ms = advance video (late audio). PrefsConfig.AVOffset int, persisted, applied mid-session.', status: 'done', cycle: 'dev50', files: ['internal/media/engine.go', 'internal/media/playback.go', 'internal/ui/inline_player.go', 'internal/app/modules/settings/tabs.go', 'native_media.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
       { id: 'speed-pitch-correction', title: 'P1-4: Speed + Pitch Correction', desc: 'AudioFilterGraph.Process() implemented with vt_atempo_process C helper (AVFrame push/drain through atempo filter graph). AudioPlayer.filterGraph lazy-initialized in SetSpeed(). Read() routes chunks through atempo; leftover path skips re-processing when filter active. New CGo headers: stdlib.h, string.h, libavutil/frame.h, channel_layout.h.', status: 'done', cycle: 'dev50', files: ['internal/media/audio_filter.go', 'internal/media/audio.go'], deps: ['engine-subsystem-split'], docs: [] },
-      { id: 'ab-loop', title: 'P1-5: A-B Loop', desc: 'No repeat-section support for review/editing workflows. Fix: SetLoopPoints(a,b) + SetLoopEnabled(bool), wire into NextFrame.', status: 'planned', cycle: 'future', files: ['internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'ab-loop', title: 'P1-5: A-B Loop', desc: 'Engine NextFrame auto-seeks loopA→loopB; InlineVideoPlayer.SetABLoopEnabled/SetLoopPoints wiring.', status: 'done', cycle: 'dev50', files: ['internal/media/playback.go', 'internal/media/engine.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'seek-accuracy-ui', title: 'P1-6: SeekAccuracy Settings UI', desc: 'Dropdown in Settings → Player card: Fast (Keyframe) / Fastest (Frame) / Precise (Slow). Persists in PrefsConfig.SeekAccuracy. loadViaOpen uses media.DefaultSeekAccuracy() instead of hardcoded keyframe. setPlayerSeekAccuracy() applies mid-session to live players.', status: 'done', cycle: 'dev50', files: ['internal/app/modules/settings/tabs.go', 'internal/app/modules/settings/types.go', 'internal/media/engine.go', 'native_media.go', 'settings_module.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'bilinear-scaling', title: 'P1-7: Bilinear Scaling (docs-only)', desc: 'FFmpeg sws_scale has always used SWS_BICUBIC at engine.go:1445 and framepool.go:36. No code change needed — just clarified the scaleNearest docstring in view.go to distinguish the bicubic FFmpeg pipeline from the nearest-neighbour canvas blit.', status: 'done', cycle: 'dev50', files: ['internal/media/view.go'], deps: ['engine-subsystem-split'], docs: [] },
-      { id: 'timing-diagnostics-overlay', title: 'P1-8: Frame Timing Diagnostics Overlay', desc: 'No Ctrl+J equivalent for per-frame PTS/clock/drop/decode-time stats. MEDIA_ENGINE_ARCHITECTURE.md plans it but no code. Fix: ring buffer + hotkey overlay.', status: 'planned', cycle: 'future', files: ['internal/media/view.go', 'internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
+      { id: 'timing-diagnostics-overlay', title: 'P1-8: Frame Timing Diagnostics Overlay', desc: 'Per-frame timing overlay (frame count, PTS, delta, inter-frame gap) in top-right corner; InlineVideoPlayer.SetFrameTimingOverlayVisible toggle.', status: 'done', cycle: 'dev50', files: ['internal/media/view.go', 'internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
       { id: 'player-tuning-ui', title: 'P1-9: Settings UI for Player Tuning', desc: 'HW decode section moved from Hardware card into Player card. SeekAccuracy dropdown added (P1-6). Thread count (locked to 1 for stability) and buffer size (preDecodeFrames=8 constant) not exposed. Scale mode, audio buffer latency, max drift threshold deferred.', status: 'done', cycle: 'dev50', files: ['internal/app/modules/settings/tabs.go', 'internal/app/modules/settings/types.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'growing-file-support', title: 'P1-10: Growing/In-Progress File Support', desc: 'InlineVideoPlayer.pollFileGrowth() goroutine watched file size on 2s ticker; on EOF when growing-file mode is active, polls os.Stat until size grows, then re-opens via Load + Seeks to last position + resumes. Fire-and-forget for incomplete downloads/recordings.', status: 'done', cycle: 'dev50', files: ['internal/media/engine.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'clock-drift-correction', title: 'P1-11: Clock Drift Correction', desc: 'MasterClock.SetTime monotonic ratchet now allows backward reset when the jump > 1s and no PTS anchor arrived in 500ms — handles audio underrun recovery without requiring ResetTime. Simple, targeted fix in clock.go.', status: 'done', cycle: 'dev50', files: ['internal/media/clock.go', 'internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
@@ -591,7 +591,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev49';
+const currentVersion = 'dev50';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -788,6 +788,16 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev50', date: 'June 2026', tag: 'current', sections: [
+    { title: 'P1-5: A-B Loop', items: [
+      'SetLoopPoints(a, b) on Engine: stores loopA and loopB PTS values; NextFrame checks after each decode — when PTS >= loopB, seeks back to loopA instead of continuing forward',
+      'SetABLoopEnabled(bool) on Engine: mutex-guarded toggle; when disabled (default), NextFrame runs normally — zero overhead for non-looping playback',
+      'InlineVideoPlayer.SetABLoopEnabled(bool) / SetLoopPoints(a, b): forward to Engine through InlineVideoPlayer API layer',
+    ]},
+    { title: 'P1-8: Frame Timing Diagnostics Overlay', items: [
+      'InlineVideoPlayer.SetFrameTimingOverlayVisible(bool) toggle; VideoPlayer draws diagnostics in top-right corner: frame count (sequential), PTS (s), inter-frame delta (ms), PTS delta (s)',
+      'Per-frame collection at InlineVideoPlayer level (frameCount, lastPTS, lastTime); formatted string pushed via DoFromGoroutine each frame',
+      'Semi-transparent auto-sized background using fyne.MeasureText; green monospace text on dark background',
+    ]},
     { title: 'Comprehensive Media Engine Gap Analysis', items: [
       'Full audit of 20+ gaps across 4 phases (P0 Critical Stability, P1 Player Completeness, P2 ISO Engine, P3 Polish)',
       'DegradeToSoftware confirmed dead code: errors.go:57-111 defines DegradeToSoftware(), ShouldDegrade(), RecordHWFailure(), ResetHWFailureCount() — none called anywhere',
@@ -1328,6 +1338,8 @@ const checklistData = [
     'LoadURL: opening http/https/hls/rtsp URL plays without blocking indefinitely (timeout + reconnect configured)',
     'SeekAccuracy UI: Settings → Player dropdown switches between Keyframe/Frame/Accurate modes',
     'Player Tuning UI: Settings → Player shows HW toggle, buffer size, thread count controls',
+    'A-B loop: SetLoopPoints(a,b) + SetABLoopEnabled causes NextFrame to auto-seek from B back to A',
+    'Frame timing overlay: InlineVideoPlayer.SetFrameTimingOverlayVisible toggle — per-frame PTS/delta/gap overlay in top-right corner',
   ]},
   { title: 'Player Module (legacy — stable)', items: [
     'CGo/FFmpeg engine plays video with A/V sync',

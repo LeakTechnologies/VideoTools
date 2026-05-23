@@ -33,6 +33,12 @@ type InlineVideoPlayer struct {
 	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
 	resumeState *state.ResumeState  // persisted playback position (optional)
 	lastSave    time.Time           // throttle for resume auto-save
+
+	// Frame timing diagnostics (P1-8)
+	frameTimingVisible  bool
+	frameTimingCount    int
+	frameTimingLastPTS  float64
+	frameTimingLastTime time.Time
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -92,6 +98,23 @@ func (v *InlineVideoPlayer) fireLoad(evt LoadEvent) {
 		return
 	}
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() { fn(evt) }, false)
+}
+
+// SetFrameTimingOverlayVisible enables or disables the per-frame timing
+// diagnostics overlay on the player widget.
+func (v *InlineVideoPlayer) SetFrameTimingOverlayVisible(visible bool) {
+	v.mu.Lock()
+	v.frameTimingVisible = visible
+	if !visible {
+		v.frameTimingCount = 0
+		v.frameTimingLastTime = time.Time{}
+		v.frameTimingLastPTS = 0
+	}
+	player := v.player
+	v.mu.Unlock()
+	if player != nil {
+		player.SetFrameTimingVisible(visible)
+	}
 }
 
 func NewInlineVideoPlayer() *InlineVideoPlayer {
@@ -171,6 +194,22 @@ func (v *InlineVideoPlayer) SetGrowingFile(growing bool) {
 	defer v.mu.Unlock()
 	if v.engine != nil {
 		v.engine.SetGrowingFile(growing)
+	}
+}
+
+func (v *InlineVideoPlayer) SetABLoopEnabled(enabled bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.engine != nil {
+		v.engine.SetABLoopEnabled(enabled)
+	}
+}
+
+func (v *InlineVideoPlayer) SetLoopPoints(a, b float64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.engine != nil {
+		v.engine.SetLoopPoints(a, b)
 	}
 }
 
@@ -840,6 +879,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 
 		img, err := eng.NextFrame()
 		t := eng.CurrentTime()
+
 		if err != nil {
 			logging.Info(logging.CatPlayer, "playbackLoop: NextFrame returned err=%v", err)
 			if errors.Is(err, io.EOF) {
@@ -886,6 +926,28 @@ func (v *InlineVideoPlayer) playbackLoop() {
 				}, false)
 			}
 			return
+		}
+
+		// Frame timing diagnostics (P1-8): collect per-frame stats.
+		if v.frameTimingVisible {
+			v.frameTimingCount++
+			now := time.Now()
+			var dt string
+			if !v.frameTimingLastTime.IsZero() {
+				elapsed := now.Sub(v.frameTimingLastTime)
+				dt = fmt.Sprintf("%.1fms", float64(elapsed)/float64(time.Millisecond))
+			} else {
+				dt = "-"
+			}
+			ptsDelta := t - v.frameTimingLastPTS
+			v.frameTimingLastPTS = t
+			v.frameTimingLastTime = now
+
+			label := fmt.Sprintf("frm %d  pts %.3f  Δ%s  ptsΔ%+.3f",
+				v.frameTimingCount, t, dt, ptsDelta)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				v.player.SetFrameTimingText(label)
+			}, false)
 		}
 
 		// Frame delivery: atomic store + goroutine-safe widget.Refresh().
