@@ -1,6 +1,12 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev49 (in progress)
+## Version 0.1.1-dev50 (in progress)
+
+*(No entries yet — cycle just opened)*
+
+---
+
+## Version 0.1.1-dev49 (complete)
 
 ### Select / Dropdown — Active Item Text Colour Fix
 - **Active menu item text colour fixed** (`_fyne/widget/menu_item.go`): `refreshText()` now uses `ColorNameForegroundOnPrimary` when the item is active (sitting on a `ColorNameFocus`/VT_Green background). `VTTheme` maps `ForegroundOnPrimary` to `BgBase` (#0B0F1A, near-black), giving high contrast against VT_Green (#22c55e). Previously `ColorNameForeground` (light #E1EEFF) was always used, making active dropdown rows illegible regardless of background colour.

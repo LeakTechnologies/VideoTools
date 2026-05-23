@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev49 &mdash; Updated 22 May 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev50 &mdash; Updated 23 May 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -324,7 +324,7 @@ const roadmap = {
       { id: 'chapter-diag', title: 'Chapter Diagnosis', desc: 'Verbose logging in executor: chapter count, first/last timestamps, embed/no-embed decision. Makes chapter issues debuggable from rip log.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go'], deps: ['ifo-scan'], docs: [] },
       { id: 'menu-preserve', title: 'Menu Preservation Option', desc: 'New IncludeMenus config + "Preserve menus" checkbox. Menu VOBs (VIDEO_TS.VOB + VTS_XX_0.VOB) exported as separate files alongside main rip.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go', 'internal/app/modules/rip/types.go', 'internal/app/modules/rip/view.go', 'internal/app/modulecfg/rip.go', 'rip_module.go'], deps: ['menu-bleed'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
       { id: 'main-extra', title: 'Main/Extra Title Naming', desc: 'Longest title (main feature) uses main output path; shorter titles use _Extra_Title_NN suffix. Title selection UI marks main feature with star indicator.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/view.go'], deps: ['title-select'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
-      { id: 'css-bypass', title: 'CSS Decryption Wiring', desc: 'Full CSS decryptor package exists (DecryptSector, DecryptVOB, DecryptReader) — needs wiring into the VOB concat and dvdvideo rip pipeline to unblock commercial encrypted disc ripping', status: 'planned', cycle: 'dev49', files: ['internal/dvd/css/css.go', 'internal/dvd/css/detect.go', 'internal/app/modules/rip/executor.go'], deps: ['css-detect'], docs: [] },
+      { id: 'css-bypass', title: 'CSS Decryption Wiring', desc: 'Full CSS decryptor package exists (DecryptSector, DecryptVOB, DecryptReader) — needs wiring into the VOB concat and dvdvideo rip pipeline to unblock commercial encrypted disc ripping', status: 'planned', cycle: 'dev50', files: ['internal/dvd/css/css.go', 'internal/dvd/css/detect.go', 'internal/app/modules/rip/executor.go'], deps: ['css-detect'], docs: [] },
       { id: 'm2ts-support', title: '.m2ts File Support', desc: 'Handle .m2ts files in CollectVOBSets (currently only .vob is matched)', status: 'future', cycle: 'future', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'future', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
       { id: 'clone-disc', title: 'Clone Disc to ISO', desc: 'Sector-by-sector disc copy with queue integration — see CLONE_DISC_DESIGN.md', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CLONE_DISC_DESIGN.md'] },
@@ -337,8 +337,8 @@ const roadmap = {
       { id: 'growisofs', title: 'growisofs (Linux)', desc: 'dvd+rw-tools with SG_IO progress parsing + SHA-256 verify', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
       { id: 'drive-info', title: 'Drive Info / Capacity', desc: 'Detect disc type (DVD5/9, BD25/50) before burning starts', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/burn/view.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
       { id: 'consolebox', title: 'ConsoleBox Log', desc: 'Styled dark-background log widget with pill header, clipboard copy, header extras', status: 'shipped', cycle: 'dev47', files: ['internal/ui/consolebox.go'], deps: [], docs: [] },
-      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously', status: 'active', cycle: 'dev49', files: [], deps: ['drive-info'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
-      { id: 'imapi2', title: 'IMAPI2 COM Replacement', desc: 'Replace isoburn.exe with direct COM API for proper progress callbacks, speed control, and error reporting', status: 'planned', cycle: 'dev49', files: [], deps: ['multi-drive'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously', status: 'active', cycle: 'dev50', files: [], deps: ['drive-info'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'imapi2', title: 'IMAPI2 COM Replacement', desc: 'Replace isoburn.exe with direct COM API for proper progress callbacks, speed control, and error reporting', status: 'planned', cycle: 'dev50', files: [], deps: ['multi-drive'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
     ]
   },
 
@@ -426,8 +426,8 @@ const roadmap = {
     items: [
       { id: 'quick-access', title: 'Quick Access Dropdown', desc: 'Files dropdown in header: recent files list, open in module, open output folder', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: [], docs: ['docs/QUICK_ACCESS_DROPDOWN.md'] },
       { id: 'pipeline-toggle', title: 'Module Pipeline (&&) Toggle', desc: 'Button in main menu header that toggles pipeline mode, dims invalid step-2 targets', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: ['pipeline'], docs: [] },
-      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/', status: 'active', cycle: 'dev49', files: ['mainmenu_module.go'], deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
-      { id: 'root-hygiene', title: 'Root Package Cleanup', desc: 'Move 24+ package main files from root to internal/app/modules/ with thin shims', status: 'planned', cycle: 'dev49', files: ['*.go'], deps: ['menu-refactor'], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/', status: 'active', cycle: 'dev50', files: ['mainmenu_module.go'], deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+      { id: 'root-hygiene', title: 'Root Package Cleanup', desc: 'Move 24+ package main files from root to internal/app/modules/ with thin shims', status: 'planned', cycle: 'dev50', files: ['*.go'], deps: ['menu-refactor'], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
     ]
   },
 
@@ -435,8 +435,8 @@ const roadmap = {
     items: [
       { id: 'settings-ship', title: 'Settings Module', desc: 'Preferences panel: FFmpeg path, KeepIntermediate toggle, performance presets, dependency validation', status: 'shipped', cycle: 'dev47', files: ['settings_module.go'], deps: [], docs: ['docs/SETTINGS_EXTRACTION_PLAN.md'] },
       { id: 'dropdown-active-text', title: 'Dropdown Active Item Text Fix', desc: '_fyne/widget/menu_item.go refreshText() now uses ColorNameForegroundOnPrimary (BgBase #0B0F1A, near-black) when the item isActive() instead of always using ColorNameForeground (light #E1EEFF). Active dropdown rows sit on the ColorNameFocus background (VT_Green #22c55e); the previous light text was illegible. Fixes all Select dropdowns app-wide. Previous partial fix (d9b6056b) only patched the select widget\'s own label, not the popup menu rows.', status: 'shipped', cycle: 'dev49', files: ['_fyne/widget/menu_item.go'], deps: [], docs: [] },
-      { id: 'win-signing', title: 'Windows Code Signing', desc: 'Wire production signing cert into Forgejo secrets for signed release builds', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
-      { id: 'msix-packaging', title: 'MSIX / Winget Packaging', desc: 'Keep Windows installer aligned with MSIX/WinGet production publishing path', status: 'planned', cycle: 'dev49', files: ['packaging/windows/'], deps: ['win-signing'], docs: ['docs/WINDOWS_PACKAGING.md'] },
+      { id: 'win-signing', title: 'Windows Code Signing', desc: 'Wire production signing cert into Forgejo secrets for signed release builds', status: 'planned', cycle: 'dev50', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
+      { id: 'msix-packaging', title: 'MSIX / Winget Packaging', desc: 'Keep Windows installer aligned with MSIX/WinGet production publishing path', status: 'planned', cycle: 'dev50', files: ['packaging/windows/'], deps: ['win-signing'], docs: ['docs/WINDOWS_PACKAGING.md'] },
       { id: 'dep-bootstrap', title: 'First-Run Dependency Bootstrap', desc: 'Validate FFmpeg bootstrap on clean Windows; modules unlock without restart', status: 'future', cycle: 'future', files: ['internal/app/appcfg/'], deps: [], docs: ['docs/INSTALL_WINDOWS.md'] },
     ]
   },

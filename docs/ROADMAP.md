@@ -12,20 +12,24 @@ timeline
     v0.1.1-dev48 (Shipped) : Theme system (internal/theme/) : PillButton + PillIconButton : Transport controls migrated : Text primitives
     v0.1.1-dev48 (Shipped) : Startup crash diagnostics : i18n script persistence : Windows signing wired : Roadmap visual polish
     v0.1.1-dev48 (Shipped) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Button straggler clean-up
-    v0.1.1-dev49 (Current) : Rip module menu bleed fix : Chapter diagnostics : Menu preservation option : Main/extra title naming
-    v0.1.1-dev49 (Current) : Inuktitut transliteration package : Auto-fill i18n script variants : VT Media Engine refactor : VT ISO Engine refactor
-    v0.1.1-dev49 (Current) : engine.go subsystem split (done) : Frame pacing PTS-driven overhaul : UDF reader robustness
-    v0.1.1-dev49 (Current) : WaitForPTS for no-audio path : WaitVsync removed from playbackLoop : Frame rate propagation on load
-    v0.1.1-dev49 (Current) : Rip module layout aligned to Convert style : buildRipBox sections : collapsible log : Open in Player to footer
-    v0.1.1-dev49 (Current) : Rip source rework : disc info in Source section : single ... browse button : format validation
-    v0.1.1-dev49 (Current) : Player idle aspect ratio setting : 4:3/16:9/5:3/21:9/9:16 SMPTE bars
-    v0.1.1-dev49 (Current) : C disc debug utility (hex dump, dir listing, stat)
-    v0.1.1-dev49 (Current) : Seek corruption fix (accurate fallback) : Player singleton consolidation (10→2) : Verbose seek logging : Media Engine architecture doc
-    v0.1.1-dev49 (Current) : Engine-level bwdif deinterlace (libavfilter) : Settings toggle : disc_debug.c double-include fix
-    v0.1.1-dev49 (Current) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
-    v0.1.1-dev49 (Current) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
-    v0.1.1-dev49 (Current) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)
-    Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
+    v0.1.1-dev49 (Shipped) : Rip module menu bleed fix : Chapter diagnostics : Menu preservation option : Main/extra title naming
+    v0.1.1-dev49 (Shipped) : Inuktitut transliteration package : Auto-fill i18n script variants : VT Media Engine refactor
+    v0.1.1-dev49 (Shipped) : engine.go subsystem split : Frame pacing PTS-driven overhaul : bwdif deinterlace (libavfilter)
+    v0.1.1-dev49 (Shipped) : WaitForPTS for no-audio path : WaitVsync removed from playbackLoop : Frame rate propagation on load
+    v0.1.1-dev49 (Shipped) : Rip module layout aligned to Convert style : buildRipBox sections : collapsible log : Open in Player to footer
+    v0.1.1-dev49 (Shipped) : Rip source rework : disc info in Source section : single ... browse button : format validation
+    v0.1.1-dev49 (Shipped) : Player idle aspect ratio setting : 4:3/16:9/5:3/21:9/9:16 SMPTE bars
+    v0.1.1-dev49 (Shipped) : C disc debug utility (hex dump, dir listing, stat)
+    v0.1.1-dev49 (Shipped) : Seek corruption fix (accurate fallback) : Player singleton consolidation (10→2) : Verbose seek logging : Media Engine architecture doc
+    v0.1.1-dev49 (Shipped) : Thread safety formalisation (lock hierarchy, lockdep, named helpers)
+    v0.1.1-dev49 (Shipped) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
+    v0.1.1-dev49 (Shipped) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
+    v0.1.1-dev49 (Shipped) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)
+    v0.1.1-dev50 (Current) : Player error recovery overhaul : HW decode default-on evaluation : Frame cache memory bounds
+    v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
+    v0.1.1-dev50 (Current) : ASS subtitle format bugs (formatASSTime centisecs, escapeASSText double-escape)
+    v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
+    v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -36,7 +40,8 @@ timeline
 |--------|---------|
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
-| **Green** | **Current dev49 work** |
+| Purple | Shipped in dev49 |
+| **Green** | **Current dev50 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -45,52 +50,30 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev49)
+## Current State (v0.1.1-dev50)
 
 - Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
 - Native Go DVD authoring engine with full M1-M7 menu system.
-- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
-- Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
-- Theme system, PillButton/PillIconButton, text primitives, VTTheme — all button+slider migrations shipped in dev48.
-- STATUS_STACK_OVERFLOW recovery, dual before/after player sync shipped in dev48.
-- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness + Rip module fixes + Inuktitut transliteration + player QoL** — breaking monoliths into subsystem files, fixing menu VOB bleed and chapter embedding, adding menu preservation and main/extra title naming, auto-filling empty i18n script variants via iutools transliteration, configurable idle aspect ratio for SMPTE bars, C disc debug utility, seek corruption fix, player singleton consolidation, Media Engine architecture doc.
+- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe, bwdif deinterlace, PTS-driven frame timing.
+- Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA, menu preservation, main/extra naming.
+- Theme system, PillButton/PillIconButton, text primitives, VTTheme, collapsible section headers — all migrations shipped.
+- Process management: Windows Job Object (crash-safe FFmpeg cleanup), Linux Pdeathsig, NoInheritHandles, Queue.Stop cancellation.
 - PAL/NTSC full-disc conversion with IFO regeneration.
-- Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
+- Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated + auto-translit).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
+- **dev50 focuses on player stability (error recovery, HW decode evaluation, frame bounds), view.go split, ASS subtitle fixes, UDF hardening.**
 
-## Now (dev49 focus)
+## Now (dev50 focus)
 
-- **Rip module menu VOB bleed fixed** — `CollectVOBSets` excludes `VTS_XX_0.VOB` from content sets; chapter timestamps no longer shifted by menu duration.
-- **Rip chapter diagnostics** — Verbose logging of chapter count, timestamps, and embedding decisions.
-- **Rip menu preservation** — New `IncludeMenus` config + checkbox; menu VOBs export as separate files.
-- **Rip main/extra naming** — Main feature (longest title) gets main output path; extras get `_Extra_Title_NN` suffix.
-- **Rip disc info in Source section** — `discInfoLabel` (type/region/size) moved from Format box to Source section.
-- **Rip single browse button** — ISO... and Folder... replaced with `...` opening 900×640 dialog.
-- **Rip format validation** — Non-ISO/VIDEO_TS paths rejected with user-visible error.
-- **Inuktitut transliteration** — `internal/i18n/translit/` package with iutools algorithm for syllabics↔roman conversion; auto-fills empty i18n fields via `translitFill()` in `SetLanguageWithScript`.
-- **VT Media Engine engine.go split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
-- **VT ISO Engine UDF reader robustness** — Fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge.
-- **Player idle aspect ratio setting** — Configurable SMPTE bars ratio (4:3/16:9/5:3/21:9/9:16) in Settings → Preferences.
-- **C disc debug utility** — `DiscDebugHexDump`, `DiscDebugListDir`, `DiscDebugDirStat` for low-level IFO and directory probing.
-- **Seek corruption fix** — Accurate fallback seeks with `AVSEEK_FLAG_BACKWARD` to land at keyframe before target, preventing `avcodec_flush_buffers` from destroying unrecoverable decoder state.
-- **Player singleton consolidation** — 10 per-module `InlineVideoPlayer` singletons consolidated into 2 shared instances (`GetPrimaryPlayer` / `GetPreviewPlayer`), eliminating per-module player state fragmentation.
-- **Verbose seek logging** — Human-readable seek flags, clock reset with audio offset, frame queue drain count, seekGen change tracking with first frame diagnostics.
-- **Media Engine Architecture document** — `docs/MEDIA_ENGINE_ARCHITECTURE.md` with full stack, issues, consolidation plan.
-- **Log session rotation** — `rotateLog()` keeps last 2 sessions on startup; stale binary noise disappears automatically after two runs.
-- **Settings log management** — Clear Log File + Open Log Folder in Settings → Preferences.
-- **`NoInheritHandles` Windows subprocess fix** — `CreateCommand`/`CreateCommandRaw` in `internal/utils/exec_windows.go` now set `NoInheritHandles: true`, preventing the player engine's open `avformat_open_input` handles from being inherited by FFmpeg subprocesses. Fixes the "file in use" error when trying to delete or move the source video after conversion on Windows.
-- **`Queue.Stop()` cancels running job** — `Stop()` now calls `cancelRunningLocked()`, propagating context cancellation to the running FFmpeg subprocess via `exec.CommandContext`. Fixes zombie FFmpeg on clean VT shutdown.
-- **Windows Job Object — crash-safe child process cleanup** — `utils.InitJobObject()` (called at app startup) creates a global Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. All long-running encode processes are assigned via `utils.StartCmd()`. When VT exits for any reason — including crashes during 4K encodes — Windows automatically kills all Job Object members. Covers the crash scenario where `Queue.Stop()` is never reached.
-- **Linux `Pdeathsig: SIGKILL`** — `exec_linux.go` now sets `SysProcAttr.Pdeathsig = syscall.SIGKILL` on all `CreateCommand`/`CreateCommandRaw` calls. Kernel sends SIGKILL to all child processes when VT exits for any reason.
-- **Queue convert navigation fix** — `convertNow()` now calls `s.showQueue()` directly instead of a blocking `dialog.ShowInformation`. User lands on the queue immediately after queuing a job.
-- **Queue auto-refresh goroutine fix** — `startQueueAutoRefresh` and `startQueueElapsedTicker` changed `return` to `continue` in the ticker guard; goroutines stay alive between queue visits, so progress bars update correctly.
-- **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
-- **Player interface** — Extract formal Go `Player` interface from `InlineVideoPlayer` for mock testing.
-- **HW decode default-on** — Re-evaluate D3D11VA default with VEH/SEH bridge coverage; add per-codec HW blacklist.
-- **Thread safety formalisation — SHIPPED** — Formal lock hierarchy (`mu → formatMu → videoCodecMu → framepoolMu`), named helper wrappers across ~60 call sites, lockdep build-tag runtime verification with goroutine-local tracking, `DegradeToSoftware` safety docs, `docs/PLAYER_DEBUG.md` lock hierarchy section.
-- **UDF thread safety & progress** — Mutex-guarded Reader, extraction progress callbacks, temp file cleanup.
+- **Player error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed `AudioBufferLatency`. Wire up `DegradeToSoftware` into the decode loop so HW→SW fallback actually triggers on repeated failures.
+- **HW decode default-on evaluation** — Re-evaluate D3D11VA default with VEH/SEH bridge and `STATUS_STACK_OVERFLOW` recovery in place; add per-codec HW blacklist for problem codecs.
+- **Frame cache memory bounds** — Byte-aware frame pool eviction, memory-pressure callback, pool size distribution logging.
+- **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
+- **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` enabling mock-based unit tests.
+- **ASS subtitle format bugs** — `formatASSTime` outputs wrong centiseconds format; `escapeASSText` double-escapes closing brace.
+- **UDF reader robustness** — Fallback AVDP scanning for non-standard discs; format validation on all descriptors; multi-extent file support; ISO 9660 bridge.
 
-## Remaining dev49 work
+## Remaining dev50 work (carry-forward from dev49)
 
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners.
   See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
