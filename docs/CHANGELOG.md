@@ -2,6 +2,13 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P0-1 + P0-2: HW→SW Decoder Degradation + NextFrame Hang Fix
+
+- **`vt_clear_hw_decode` C helper** (`errors.go`): unrefs `hw_device_ctx` from the codec context, resets the `get_format` callback and `opaque` pointer to NULL, and re-enables `FF_THREAD_SLICE` threading. Prevents the codec from attempting HW pixel-format negotiation after degradation.
+- **`DegradeToSoftware()` now fully functional**: previously only freed the engine's HW context references; the codec context still had `hw_device_ctx` set + `get_format` wired, causing the codec to re-init HW on the next decode cycle. Now calls `vt_clear_hw_decode` + `avcodec_flush_buffers` to break the cycle and discard buffered HW frames.
+- **`videoDecodeLoop` degradation wired in**: when `retrieveHWFrame` sets `videoDecodeDead=true` (SEH in `av_hwframe_transfer_data` or `sws_scale`), the decode loop now calls `RecordHWFailure()` + `DegradeToSoftware()`, clears the dead flag, and continues. The next iteration runs the SW decode branch (`hwDevice == HWDeviceNone`). If degradation was already attempted and SW is also failing, sends EOF sentinel and exits.
+- **EOF sentinel sent on all fatal `videoDecodeLoop` exit paths** (P0-2): `SafeSendPacket` SEH, `SafeReceiveFrame` SEH, and already-degraded fatal path all now send `decodeEOFPTS` into `frameQueue` before returning. `NextFrame` unblocks and returns `io.EOF` instead of hanging forever.
+
 ### P0-4: Error Ring Buffer (replaces single-slot lastError)
 
 - **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer. New `ErrorRecord` struct includes `Timestamp time.Time` so every error carries a temporal trace. Thread-safe via dedicated `errorMu`.

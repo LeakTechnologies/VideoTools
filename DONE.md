@@ -2,6 +2,20 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P0-1 + P0-2: HW→SW Decoder Degradation + NextFrame Hang Fix
+
+- **`vt_clear_hw_decode` C helper** added to `errors.go` CGo preamble: unrefs and NULLs `hw_device_ctx` from the codec context, resets `get_format` callback and `opaque` to NULL (so FFmpeg won't re-negotiate HW pixel format on the next flush+decode cycle), and re-enables `FF_THREAD_SLICE` threading that was disabled for HW compatibility.
+- **`DegradeToSoftware()` completed**: Previously freed HW contexts but left `hw_device_ctx` on the codec context and the `get_format` callback wired, meaning the codec would try to re-init HW on the next packet. Now calls `vt_clear_hw_decode` (breaks the re-init cycle) and `avcodec_flush_buffers` (discards buffered HW frames, prevents use-after-free when the decode loop continues).
+- **`videoDecodeLoop` degradation path** — when `retrieveHWFrame` sets `videoDecodeDead=true` (SEH in `av_hwframe_transfer_data` or `sws_scale`):
+  - If not yet degraded (`!e.hwDegraded`): calls `RecordHWFailure()`, calls `DegradeToSoftware()` synchronously (safe — outside `videoCodecMu` at this point), clears `videoDecodeDead`, continues the loop. Next iteration: `hwDevice == HWDeviceNone`, takes the SW decode branch directly.
+  - If already degraded: SW decode is also failing; sends `decodeEOFPTS` EOF sentinel and returns.
+- **P0-2 EOF sentinel on all fatal return paths** — three paths in `videoDecodeLoop` that previously returned without signalling:
+  - `SafeSendPacket` SEH exception: `videoDecodeDead=true` + EOF sentinel + return
+  - `SafeReceiveFrame` SEH exception: `videoDecodeDead=true` + EOF sentinel + return
+  - Already-degraded fatal path: EOF sentinel + return
+  `NextFrame` unblocks and returns `io.EOF` instead of hanging forever at `df = <-e.frameQueue`.
+- Build clean.
+
 ### P0-4: Error Ring Buffer (replaces single-slot lastError)
 
 - **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer (`errorRing [16]ErrorRecord` + `errorRingNext int`) in `internal/media/errors.go`.
