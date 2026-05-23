@@ -2,6 +2,16 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-4: Speed + Pitch Correction (atempo filter)
+
+- **`AudioFilterGraph.Process()` implemented** in `internal/media/audio_filter.go`: replaces the stub with a real `vt_atempo_process` C helper. Builds an `AVFrame` (S16 stereo, `av_channel_layout_default` 2ch), pushes it into the filter graph via `av_buffersrc_add_frame_flags(KEEP_REF)`, then drains all output frames from the buffersink into a `malloc`'d buffer returned to Go. Caller frees via `C.GoBytes` + `C.free`. Returns `nil, nil` when the filter is still buffering (no output yet) — caller returns silence for that tick.
+- **`AudioFilterGraph.sampleRate int`** stored during `Init()` so `Process()` can pass the correct sample rate to the C helper without caller involvement.
+- **`AudioPlayer.filterGraph *AudioFilterGraph`** added to the struct. Lazy-initialized in `SetSpeed()` when `speed != 1.0`: creates and `Init(TargetSampleRate, TargetChannels)` the graph, then calls `SetTempo(speed)`. Clamps naturally via `AudioFilterGraph.SetTempo` (0.25–2.0 range).
+- **`AudioPlayer.Read()` updated**: reads `fg := p.filterGraph` under lock alongside `speed`. Main chunk path uses `fg.Process(chunk.data)` when fg is non-nil; returns silence on empty output (buffering). Leftover path skips `adjustSamplesForSpeed` when fg is active — leftover is already atempo-processed. Crude sample-skip/duplicate path (`adjustSamplesForSpeed`) retained as fallback when fg is nil (speed change without filter, or filter init failure).
+- **`AudioPlayer.Close()` updated**: releases the filter graph after oto is closed and pcmCh is drained, before swrCtx cleanup. Properly nil-guards `filterGraph` under `p.mu`.
+- New CGo preamble headers in `audio_filter.go`: `stdlib.h`, `string.h`, `libavutil/frame.h`, `libavutil/channel_layout.h`.
+- Build clean; no regressions.
+
 ### P1-3: Audio Delay (A/V Offset)
 
 - **A/V Offset control** added to Settings → Player card. `widget.Entry` (milliseconds, ±5000 ms). Persists in `PrefsConfig.AVOffset`. Applied mid-session via `setPlayerAVOffset()` → `media.SetDefaultAudioDelay()` + `InlineVideoPlayer.SetAudioDelay()`.

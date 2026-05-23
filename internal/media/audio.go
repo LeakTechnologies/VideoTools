@@ -58,8 +58,9 @@ type AudioPlayer struct {
 	frame       *C.AVFrame
 	resampleBuf []byte
 
-	timeBase float64
-	speed    float64 // playback speed; 1.0 = normal, 0.5 = half speed, 2.0 = double speed
+	timeBase    float64
+	speed       float64 // playback speed; 1.0 = normal, 0.5 = half speed, 2.0 = double speed
+	filterGraph *AudioFilterGraph
 
 	volume float32
 	muted  bool
@@ -309,6 +310,7 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 	p.mu.Lock()
 	speed := p.speed
+	fg := p.filterGraph
 	p.mu.Unlock()
 
 	// Drain any leftover from the previous chunk first.
@@ -326,7 +328,9 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		if volumeMul != 1.0 {
 			applyVolumeS16(buf[:n], volumeMul)
 		}
-		if speed != 1.0 {
+		// Leftover is already atempo-processed when filterGraph is active;
+		// only apply the crude sample-skip/dup when the filter is not in use.
+		if fg == nil && speed != 1.0 {
 			adjusted := p.adjustSamplesForSpeed(buf[:n], speed)
 			n = copy(buf, adjusted)
 		}
@@ -386,21 +390,33 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
 		p.lastPTSBits.Store(math.Float64bits(chunk.pts))
 
-		// Adjust chunk data based on speed.
-		adjustedData := p.adjustSamplesForSpeed(chunk.data, speed)
+		var processedData []byte
+		if fg != nil {
+			out, _ := fg.Process(chunk.data)
+			if len(out) == 0 {
+				// atempo filter is still buffering — return silence for this tick.
+				for i := range buf {
+					buf[i] = 0
+				}
+				return len(buf), nil
+			}
+			processedData = out
+		} else {
+			processedData = p.adjustSamplesForSpeed(chunk.data, speed)
+		}
 
-		n := copy(buf, adjustedData)
+		n := copy(buf, processedData)
 
 		p.mu.Lock()
-		volumeMul := p.volumeMul
+		volumeMul = p.volumeMul
 		p.mu.Unlock()
 		if volumeMul != 1.0 {
 			applyVolumeS16(buf[:n], volumeMul)
 		}
 
-		if n < len(adjustedData) {
+		if n < len(processedData) {
 			p.mu.Lock()
-			p.leftover = adjustedData[n:]
+			p.leftover = processedData[n:]
 			p.mu.Unlock()
 		}
 		return n, nil
@@ -613,6 +629,21 @@ func (p *AudioPlayer) ResetLastPTS() {
 func (p *AudioPlayer) SetSpeed(speed float64) {
 	p.mu.Lock()
 	p.speed = speed
+	if speed != 1.0 {
+		if p.filterGraph == nil {
+			fg := NewAudioFilterGraph()
+			if err := fg.Init(TargetSampleRate, TargetChannels); err == nil {
+				p.filterGraph = fg
+			} else {
+				logging.Warning(logging.CatPlayer, "AudioPlayer.SetSpeed: filter graph init failed: %v", err)
+			}
+		}
+		if p.filterGraph != nil {
+			if err := p.filterGraph.SetTempo(speed); err != nil {
+				logging.Warning(logging.CatPlayer, "AudioPlayer.SetSpeed: SetTempo failed: %v", err)
+			}
+		}
+	}
 	p.mu.Unlock()
 	logging.Info(logging.CatPlayer, "AudioPlayer.SetSpeed: speed=%.2f", speed)
 }
@@ -645,6 +676,14 @@ func (p *AudioPlayer) Close() {
 	// fully stopped — no concurrent receiver on pcmCh any more.
 	for len(p.pcmCh) > 0 {
 		<-p.pcmCh
+	}
+
+	p.mu.Lock()
+	fg := p.filterGraph
+	p.filterGraph = nil
+	p.mu.Unlock()
+	if fg != nil {
+		fg.Release()
 	}
 
 	if p.swrCtx != nil {
