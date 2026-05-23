@@ -44,7 +44,7 @@ Update this file whenever a player issue is found or fixed.
 | Mid-playback subtitle track switching | ✅ SelectSubtitleTrack: subtitleCodecMu, flush queue, reinit codec, clear stale overlay |
 | VFR (variable frame rate) | ⚠️ PTS-based timing handles it in principle; not stress-tested |
 | Error resilience (libavcodec) | ✅ `setVideoCodecErrorFlags`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicit on both video codec init paths |
-| Playlist / sequential play | ❌ Not implemented |
+| Playlist / sequential play | ✅ `Enqueue(path)` / `ClearPlaylist()` / `PlaylistLen()`; auto-advance on EOF; manual `Load` resets queue |
 | Per-codec HW blacklist UI | ✅ `PrefsConfig.HWCodecDenyList` + Settings → Player text field; `SetHWCodecDenyList` wires into `codecCanUseHWDevice` |
 
 ---
@@ -62,7 +62,7 @@ Update this file whenever a player issue is found or fixed.
 
 - [x] **Error resilience not set** — Fixed: `setVideoCodecErrorFlags()` called before `avcodec_open2` on both video codec init paths (`SelectVideoTrack` and `openFinalize` SW/HW paths). Sets `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicitly so motion-vector extrapolation and deblocking are applied to concealed macroblocks on corrupt or streamed content.
 - [x] **Per-codec HW blacklist hardcoded** — Fixed: `hwCodecDenyList` package-level map populated by `SetHWCodecDenyList(s)`. `codecCanUseHWDevice` checks deny-list first. `PrefsConfig.HWCodecDenyList` persists across sessions. Settings → Player shows "HW Decode Deny-List" text entry (comma-separated codec names, e.g. `vc1,wmv3`). Loaded at startup via `initNativeMediaAssets`.
-- [ ] **No playlist / sequential playback** — `InlineVideoPlayer.Enqueue(path)` not implemented. Files must be loaded one at a time.
+- [x] **No playlist / sequential playback** — Fixed: `Enqueue(path string)` appends to an internal queue; `ClearPlaylist()` empties it; `PlaylistLen()` reports remaining items. On clean EOF, `playbackLoop` checks for a queued item: if found, loads and auto-plays it (without resetting the playlist); otherwise reloads the current file as before. Direct `Load`/`LoadDVD`/`LoadURL` calls reset the playlist so a new manual load starts fresh.
 - [ ] **QSV (Intel Quick Sync) less tested** — Detection works; frame transfer and decode path not specifically validated.
 
 ---

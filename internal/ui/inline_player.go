@@ -39,6 +39,12 @@ type InlineVideoPlayer struct {
 	frameTimingCount    int
 	frameTimingLastPTS  float64
 	frameTimingLastTime time.Time
+
+	// Playlist for sequential playback.  playlist holds paths queued after
+	// the current item; playlistIdx is the index of the next item to load.
+	// Both are protected by mu.
+	playlist    []string
+	playlistIdx int
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -56,6 +62,37 @@ func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
 	v.mu.Lock()
 	v.onEnd = fn
 	v.mu.Unlock()
+}
+
+// Enqueue appends path to the playlist.  When the current item reaches
+// end-of-stream, the player automatically loads and plays the next queued
+// item.  Calling Enqueue while nothing is loaded makes path the first item;
+// the caller must still call Load+Play explicitly for the first item.
+func (v *InlineVideoPlayer) Enqueue(path string) {
+	v.mu.Lock()
+	v.playlist = append(v.playlist, path)
+	v.mu.Unlock()
+}
+
+// ClearPlaylist empties the queued items.  The currently playing item is
+// not affected.
+func (v *InlineVideoPlayer) ClearPlaylist() {
+	v.mu.Lock()
+	v.playlist = v.playlist[:0]
+	v.playlistIdx = 0
+	v.mu.Unlock()
+}
+
+// PlaylistLen returns the number of items currently queued (not including
+// the currently playing item).
+func (v *InlineVideoPlayer) PlaylistLen() int {
+	v.mu.Lock()
+	n := len(v.playlist) - v.playlistIdx
+	v.mu.Unlock()
+	if n < 0 {
+		return 0
+	}
+	return n
 }
 
 // SetOnFrame registers a callback that receives every rendered frame (both
@@ -235,26 +272,27 @@ func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
-	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.OpenAuto(path) })
+	return v.loadViaOpen(path, true, func(eng *media.Engine) error { return eng.OpenAuto(path) })
 }
 
 // LoadDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) in the
 // player using FFmpeg's dvdvideo demuxer (libdvdnav/libdvdread). title=0
 // selects the longest title automatically; title>0 selects by DVD title number.
 func (v *InlineVideoPlayer) LoadDVD(devicePath string, title int) (err error) {
-	return v.loadViaOpen(devicePath, func(eng *media.Engine) error { return eng.OpenDVD(devicePath, title) })
+	return v.loadViaOpen(devicePath, true, func(eng *media.Engine) error { return eng.OpenDVD(devicePath, title) })
 }
 
 // LoadURL opens a network stream or URL. opts may be nil to use sensible
 // defaults (60s timeout, reconnect on error). Supported schemes: http,
 // https, hls, dash, rtsp, rtmp, mms, tcp, udp.
 func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) (err error) {
-	return v.loadViaOpen(url, func(eng *media.Engine) error { return eng.OpenURL(url, opts) })
+	return v.loadViaOpen(url, true, func(eng *media.Engine) error { return eng.OpenURL(url, opts) })
 }
 
-// loadViaOpen is the shared implementation of Load and LoadDVD. openFn is
-// called after the engine is created and configured; it should open the source.
-func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.Engine) error) (err error) {
+// loadViaOpen is the shared implementation of Load, LoadDVD and LoadURL.
+// resetPlaylist clears the pending playlist queue (set true on all user-facing
+// load calls; false when the playlist auto-advance reuses this path internally).
+func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, openFn func(*media.Engine) error) (err error) {
 	logging.Info(logging.CatPlayer, "Load: called for %s", displayPath)
 	defer func() {
 		if r := recover(); r != nil {
@@ -274,6 +312,11 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.E
 	}, false)
 
 	v.mu.Lock()
+
+	if resetPlaylist {
+		v.playlist = v.playlist[:0]
+		v.playlistIdx = 0
+	}
 
 	// Snapshot and clear the previous engine/scrubber before swapping in new
 	// ones. Clearing under the lock prevents concurrent callers (seekLoop,
@@ -909,10 +952,26 @@ func (v *InlineVideoPlayer) playbackLoop() {
 						endFn()
 					}
 				}, false)
-				// Reload the file so the user can play it again. Load() closes
-				// the dead engine, reopens from scratch, and leaves the player
-				// paused at the first frame — ready for another Play().
-				if reloadPath != "" {
+
+				// Advance to next playlist item if one is queued.
+				v.mu.Lock()
+				var nextPath string
+				if v.playlistIdx < len(v.playlist) {
+					nextPath = v.playlist[v.playlistIdx]
+					v.playlistIdx++
+				}
+				v.mu.Unlock()
+
+				if nextPath != "" {
+					go func() {
+						if err := v.loadViaOpen(nextPath, false, func(eng *media.Engine) error { return eng.OpenAuto(nextPath) }); err != nil {
+							logging.Error(logging.CatPlayer, "playbackLoop: playlist advance Load failed: %v", err)
+							return
+						}
+						v.Play()
+					}()
+				} else if reloadPath != "" {
+					// No next item — reload current file so the user can play again.
 					go func() {
 						if err := v.Load(reloadPath); err != nil {
 							logging.Error(logging.CatPlayer, "playbackLoop: EOF reload failed: %v", err)

@@ -25,7 +25,7 @@ timeline
     v0.1.1-dev49 (Shipped) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
     v0.1.1-dev49 (Shipped) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
     v0.1.1-dev49 (Shipped) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)
-    v0.1.1-dev50 (Current) : Player error recovery overhaul : HW decode default-on evaluation : Frame cache memory bounds : HDR tone-mapping (hable, PQ+HLG, zscale)
+    v0.1.1-dev50 (Current) : Player error recovery overhaul : HW decode default-on evaluation : Frame cache memory bounds : HDR tone-mapping (hable, PQ+HLG, zscale) : Playlist / sequential play (Enqueue/ClearPlaylist/PlaylistLen)
     v0.1.1-dev50 (Current) : P1-1 Network streaming (Engine.OpenURL, LoadURL) : P1-2 Resume/watch-later : P1-3 A/V Offset (audio delay)
     v0.1.1-dev50 (Current) : P1-4 Speed+pitch correction (atempo filter) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
     v0.1.1-dev50 (Current) : P1-10 Growing-file support (poll + reload on growth) : P1-7 Bilinear scaling (SWS_BICUBIC confirmed, docs only)
