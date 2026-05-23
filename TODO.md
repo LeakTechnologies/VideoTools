@@ -37,10 +37,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **P1-3: Audio delay adjustment** — No lip-sync correction anywhere. Fix: add `AudioDelay` to Engine + InlineVideoPlayer, offset clock target in Seek/WaitForPTS. Persist in PrefsConfig.
 - [ ] **P1-4: Speed + pitch correction** — Speed change shifts pitch (chipmunk/baritone at non-1.0x). Fix: add scaletempo/rubberband via libavfilter (atempo filter) in audio pipeline.
 - [ ] **P1-5: A-B loop** — No repeat-section support for review/editing. Fix: `SetLoopPoints(a,b)`, `SetLoopEnabled(bool)`, wire into NextFrame: after B seek back to A.
-- [ ] **P1-6: SeekAccuracy Settings UI** — Locked to Keyframe, Frame/Accurate modes unreachable. Fix: dropdown in Settings → Player, persist in PrefsConfig, apply in loadViaOpen.
+- [x] **P1-6: SeekAccuracy Settings UI** — Dropdown in Settings → Player (Fast/Keyframe, Fastest/Frame, Precise/Slow). Persists in `PrefsConfig.SeekAccuracy`. `loadViaOpen` uses `media.DefaultSeekAccuracy()` instead of hardcoded keyframe. `setPlayerSeekAccuracy()` applies mid-session.
 - [ ] **P1-7: Bilinear scaling** — Nearest-neighbour only, aliasing on downscale. Fix: add `scaleBilinear` path, auto-select when scale < 1.0.
 - [ ] **P1-8: Frame timing diagnostics overlay** — No Ctrl+J equivalent. Fix: ring buffer of per-frame PTS/clock/drop/display-time, hotkey to toggle overlay.
-- [ ] **P1-9: Settings UI for player tuning** — Only deinterlace + aspect ratio exposed. Fix: HW decode toggle, seek accuracy, buffer size, thread count, scale mode, audio buffer latency, max drift threshold in Settings → Player.
+- [x] **P1-9: Settings UI for player tuning** — HW decode toggle moved from Hardware card into Player card. Seek accuracy dropdown added (P1-6). Thread count locked to 1 (stability) and buffer size (`preDecodeFrames`) are constants — not user-configurable. Scale mode, audio buffer latency, and max drift threshold deferred.
 - [ ] **P1-10: Growing/in-progress file support** — File read once at Open(), no re-probe. Fix: goroutine watches file size, re-probes format context on growth.
 - [ ] **P1-11: Clock drift correction goroutine** — Audio underrun causes clock to drift forever. Fix: background goroutine every 250ms compares clock to wall-time, snaps to anchor on no-advance.
 

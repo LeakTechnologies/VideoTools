@@ -2,6 +2,21 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-6 + P1-9: SeekAccuracy Settings UI + Player Tuning Settings UI
+
+- **`defaultSeekAccuracy` global** added to `internal/media/engine.go` with `DefaultSeekAccuracy()` / `SetDefaultSeekAccuracy()` getters/setters. `InlineVideoPlayer.loadViaOpen` now calls `eng.SetSeekAccuracy(media.DefaultSeekAccuracy())` (was hardcoded `SeekAccuracyKeyframe`).
+- **`InlineVideoPlayer.SetSeekAccuracy(acc media.SeekAccuracy)`** added to `internal/ui/inline_player.go`: applies seek accuracy to a live player's engine, used when the setting changes mid-session.
+- **5 new i18n strings** in `internal/i18n/strings.go`: `SettingsSeekAccuracy`, `SettingsSeekAccuracyHint`, `SettingsSeekKeyframe`, `SettingsSeekFrame`, `SettingsSeekAccurate`. Populated in `en_ca.go` and `fr_ca.go`; Inuktitut falls back to en-CA.
+- **`PrefsConfig.SeekAccuracy string`** added to `internal/app/modules/settings/types.go`. Two new `PreferencesCallbacks` methods: `PlayerSeekAccuracy() string` and `SetPlayerSeekAccuracy(accuracy string)`.
+- **Settings → Player card restructured** (`internal/app/modules/settings/tabs.go`):
+  - Seek Accuracy dropdown added (options: Fast/Keyframe, Fastest/Frame, Precise/Slow; persists "keyframe"/"frame"/"accurate" strings).
+  - HW decode section (header, status label, auto-detect checkbox) **moved from Hardware card** into Player card, keeping all existing behaviour (async goroutine, disable logic) intact.
+  - Hardware card now shows encode settings only (HW encoder select, Detect, Use Auto).
+- **`setPlayerSeekAccuracy(accuracy string)`** added to `native_media.go`: converts string to `media.SeekAccuracy` via `seekAccuracyFromString()`, calls `media.SetDefaultSeekAccuracy()`, and applies to `primaryInlinePlayer`/`previewPlayer`. Called from `initNativeMediaAssets`.
+- **`setPlayerSeekAccuracy(string) {}`** stub added to `native_media_stub.go`.
+- **`PlayerSeekAccuracy()` / `SetPlayerSeekAccuracy()`** adapter methods added to `preferencesAdapter` in `settings_module.go`. `SetPlayerSeekAccuracy` saves to prefs on change.
+- Build clean; no regressions.
+
 ### P1-1: Network/URL Streaming
 
 - **`Engine.OpenURL(url string, opts map[string]string) error`** added to `internal/media/engine.go`: creates AVDictionary with `timeout=60000000` (60s), `reconnect_streamed=1`, `reconnect_on_network_error=1`, `reconnect_delay_max=5`. User-provided `opts` merge over defaults (caller wins). Passes `&dict` to `avformat_open_input` which enables any FFmpeg-supported network protocol (HTTP, HTTPS, HLS, DASH, RTSP, RTMP, RTMPS, MMS, TCP, UDP) without format hacks.

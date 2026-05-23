@@ -2,6 +2,13 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-6 + P1-9: SeekAccuracy Settings UI + Player Tuning Settings UI
+
+- **Seek Accuracy dropdown** added to Settings → Player card: Fast (Keyframe), Fastest (Frame), Precise (Slow). Persists as `"keyframe"` / `"frame"` / `"accurate"` in `PrefsConfig.SeekAccuracy`. Default is keyframe (existing behaviour unchanged).
+- **`InlineVideoPlayer.loadViaOpen`** now picks up `media.DefaultSeekAccuracy()` instead of always using `SeekAccuracyKeyframe`.
+- **HW decode controls** (header, detection status label, auto-detect checkbox) moved from the Hardware card into the Player card. Hardware card now shows encode acceleration settings only.
+- **`setPlayerSeekAccuracy(accuracy string)`** in `native_media.go` updates the engine global and applies the change live to `primaryInlinePlayer` and `previewPlayer`.
+
 ### P1-1: Network/URL Streaming
 
 - **`Engine.OpenURL(url string, opts map[string]string) error`** added to `internal/media/engine.go`: builds AVDictionary with sensible defaults (60s I/O timeout, `reconnect_streamed=1`, `reconnect_on_network_error=1`, `reconnect_delay_max=5`). User-provided opts override defaults. Passes `&dict` to `avformat_open_input` for full network protocol support (HTTP/HTTPS/HLS/DASH/RTSP/RTMP).

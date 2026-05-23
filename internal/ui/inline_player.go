@@ -154,6 +154,14 @@ func (v *InlineVideoPlayer) SetDeinterlaceEnabled(enabled bool) {
 	}
 }
 
+func (v *InlineVideoPlayer) SetSeekAccuracy(acc media.SeekAccuracy) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.engine != nil {
+		v.engine.SetSeekAccuracy(acc)
+	}
+}
+
 func (v *InlineVideoPlayer) Load(path string) (err error) {
 	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.OpenAuto(path) })
 }
@@ -234,7 +242,7 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.E
 	// goroutine is never blocked acquiring v.mu while Load is inside FFmpeg.
 	// v.mu is held only briefly at the end to swap in the live engine/scrubber.
 	eng := media.NewEngine()
-	eng.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+	eng.SetSeekAccuracy(media.DefaultSeekAccuracy())
 	eng.SetDropFrames(true)
 	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
 		eng.SetHWDevice(hw)
