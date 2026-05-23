@@ -71,6 +71,11 @@ var enCA = Strings{
 	SettingsPlayerAspect5x3:       "5:3",
 	SettingsPlayerAspect21x9:      "21:9 (Ultrawide)",
 	SettingsPlayerAspect9x16:      "9:16 (Portrait)",
+	SettingsSeekAccuracy:          "Seek Accuracy",
+	SettingsSeekAccuracyHint:      "Keyframe: fastest, seeks to the nearest I-frame. Frame: seeks to any frame boundary. Precise: frame-accurate but slower for long seeks.",
+	SettingsSeekKeyframe:          "Fast (Keyframe)",
+	SettingsSeekFrame:             "Fastest (Frame)",
+	SettingsSeekAccurate:          "Precise (Slow)",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",

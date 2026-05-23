@@ -60,6 +60,8 @@ type PreferencesCallbacks interface {
 	SetFontSize(size string)
 	PlayerDefaultAspect() string
 	SetPlayerDefaultAspect(aspect string)
+	PlayerSeekAccuracy() string
+	SetPlayerSeekAccuracy(accuracy string)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -100,6 +102,7 @@ type PrefsConfig struct {
 	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`
 	VerboseDiscLogging       bool   `json:"VerboseDiscLogging"`
 	PlayerDefaultAspect      string `json:"PlayerDefaultAspect"`
+	SeekAccuracy             string `json:"SeekAccuracy"`
 }
 
 type Dependency struct {

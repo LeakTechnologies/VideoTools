@@ -83,6 +83,16 @@ const (
 	SeekAccuracyAccurate
 )
 
+var defaultSeekAccuracy = SeekAccuracyKeyframe
+
+func DefaultSeekAccuracy() SeekAccuracy {
+	return defaultSeekAccuracy
+}
+
+func SetDefaultSeekAccuracy(acc SeekAccuracy) {
+	defaultSeekAccuracy = acc
+}
+
 type BufferMode int
 
 const (

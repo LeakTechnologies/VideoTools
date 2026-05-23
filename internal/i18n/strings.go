@@ -78,6 +78,11 @@ type Strings struct {
 	SettingsPlayerAspect5x3      string // "5:3"
 	SettingsPlayerAspect21x9     string // "21:9 (Ultrawide)"
 	SettingsPlayerAspect9x16     string // "9:16 (Portrait)"
+	SettingsSeekAccuracy         string // "Seek Accuracy"
+	SettingsSeekAccuracyHint     string // description of seek accuracy modes
+	SettingsSeekKeyframe         string // "Fast (Keyframe)"
+	SettingsSeekFrame            string // "Fastest (Frame)"
+	SettingsSeekAccurate         string // "Precise (Slow)"
 
 	// Dialog Titles
 	DialogCompare            string

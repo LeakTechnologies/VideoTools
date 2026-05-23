@@ -74,6 +74,28 @@ func setHWDecodeEnabled(enabled bool) {
 	media.SetHWDecodeEnabled(enabled)
 }
 
+func seekAccuracyFromString(s string) media.SeekAccuracy {
+	switch s {
+	case "frame":
+		return media.SeekAccuracyFrame
+	case "accurate":
+		return media.SeekAccuracyAccurate
+	default:
+		return media.SeekAccuracyKeyframe
+	}
+}
+
+func setPlayerSeekAccuracy(accuracy string) {
+	acc := seekAccuracyFromString(accuracy)
+	media.SetDefaultSeekAccuracy(acc)
+	players := []*ui.InlineVideoPlayer{primaryInlinePlayer, previewPlayer}
+	for _, p := range players {
+		if p != nil {
+			p.SetSeekAccuracy(acc)
+		}
+	}
+}
+
 // parseAspectRatio converts "W:H" to a float ratio. Returns 0 on parse failure.
 func parseAspectRatio(s string) float64 {
 	parts := strings.Split(s, ":")
@@ -263,6 +285,7 @@ func initNativeMediaAssets(s *appState) {
 	// all subsequent Load() calls return immediately without touching COM.
 	media.WarmHWDeviceCache()
 	setAutoDeinterlace(s.prefs.AutoDeinterlace)
+	setPlayerSeekAccuracy(s.prefs.SeekAccuracy)
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)

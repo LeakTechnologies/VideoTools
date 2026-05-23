@@ -63,6 +63,11 @@ var frCA = Strings{
 	SettingsPlayerAspect5x3:  "5:3",
 	SettingsPlayerAspect21x9: "21:9 (Ultra-large)",
 	SettingsPlayerAspect9x16: "9:16 (Portrait)",
+	SettingsSeekAccuracy:     "Précision de recherche",
+	SettingsSeekAccuracyHint: "Trame clé : plus rapide, va à la trame clé la plus proche. Trame : n'importe quelle limite de trame. Précis : précision à la trame mais plus lent.",
+	SettingsSeekKeyframe:     "Rapide (trame clé)",
+	SettingsSeekFrame:        "Le plus rapide (trame)",
+	SettingsSeekAccurate:     "Précis (lent)",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",

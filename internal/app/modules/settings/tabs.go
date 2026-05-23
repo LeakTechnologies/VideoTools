@@ -325,9 +325,66 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	})
 	autoDeintCheck.SetChecked(prefs.AutoDeinterlace)
 
+	seekOptions := []string{t.SettingsSeekKeyframe, t.SettingsSeekFrame, t.SettingsSeekAccurate}
+	seekValues := []string{"keyframe", "frame", "accurate"}
+	seekSelect := widget.NewSelect(seekOptions, func(selected string) {
+		for i, opt := range seekOptions {
+			if opt == selected {
+				cb.SetPlayerSeekAccuracy(seekValues[i])
+				return
+			}
+		}
+	})
+	currentSeek := prefs.SeekAccuracy
+	if currentSeek == "" {
+		currentSeek = "keyframe"
+	}
+	for i, val := range seekValues {
+		if val == currentSeek {
+			seekSelect.SetSelected(seekOptions[i])
+			break
+		}
+	}
+
+	hwDecodeHeader := widget.NewLabel(t.SettingsHWDecode)
+	hwDecodeHeader.TextStyle = fyne.TextStyle{Bold: true}
+
+	hwDecodeStatus := widget.NewLabel(t.SettingsHWDecodeDetecting)
+	hwDecodeStatus.TextStyle = fyne.TextStyle{Italic: true}
+
+	hwDecodeAutoCheck := widget.NewCheck(t.SettingsHWDecodeAuto, func(enabled bool) {
+		cb.SetHWDecodeEnabled(enabled)
+	})
+
+	go func() {
+		available := appcfg.DetectHWDeviceType() != 0
+		var label string
+		if available {
+			label = t.SettingsHWDecodeAvailable
+		} else {
+			label = t.SettingsHWDecodeNotCompatible
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			hwDecodeStatus.SetText(label)
+			if prefs.HWDecodeEnabled && available {
+				cb.SetHWDecodeEnabled(true)
+			}
+			hwDecodeAutoCheck.Checked = prefs.HWDecodeEnabled && available
+			hwDecodeAutoCheck.Disable()
+		}, false)
+	}()
+
 	playerCard := settingsCard(t.ModulePlayer,
 		autoDeintCheck,
 		hint(t.SettingsAutoDeinterlaceHint),
+		widget.NewSeparator(),
+		settingsRow(t.SettingsSeekAccuracy, seekSelect),
+		hint(t.SettingsSeekAccuracyHint),
+		widget.NewSeparator(),
+		hwDecodeHeader,
+		hwDecodeStatus,
+		hwDecodeAutoCheck,
+		hint(t.SettingsHWDecodeAutoHint),
 	)
 
 	// ── Hardware ──────────────────────────────────────────────────────────────
@@ -365,43 +422,10 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwStatus.SetText("Set to auto — best available encoder selected at encode time.")
 	})
 
-	hwDecodeHeader := widget.NewLabel(t.SettingsHWDecode)
-	hwDecodeHeader.TextStyle = fyne.TextStyle{Bold: true}
-
-	hwDecodeStatus := widget.NewLabel(t.SettingsHWDecodeDetecting)
-	hwDecodeStatus.TextStyle = fyne.TextStyle{Italic: true}
-
-	hwDecodeAutoCheck := widget.NewCheck(t.SettingsHWDecodeAuto, func(enabled bool) {
-		cb.SetHWDecodeEnabled(enabled)
-	})
-
-	go func() {
-		available := appcfg.DetectHWDeviceType() != 0
-		var label string
-		if available {
-			label = t.SettingsHWDecodeAvailable
-		} else {
-			label = t.SettingsHWDecodeNotCompatible
-		}
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			hwDecodeStatus.SetText(label)
-			if prefs.HWDecodeEnabled && available {
-				cb.SetHWDecodeEnabled(true)
-			}
-			hwDecodeAutoCheck.Checked = prefs.HWDecodeEnabled && available
-			hwDecodeAutoCheck.Disable()
-		}, false)
-	}()
-
 	hwCard := settingsCard(t.SettingsMasterSettings,
 		settingsRow(t.SettingsHardwareAccel, hwSelect),
 		container.NewHBox(detectBtn, autoBtn),
 		hwStatus,
-		widget.NewSeparator(),
-		hwDecodeHeader,
-		hwDecodeStatus,
-		hwDecodeAutoCheck,
-		hint(t.SettingsHWDecodeAutoHint),
 	)
 
 	// ── Module Visibility ─────────────────────────────────────────────────────

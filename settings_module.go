@@ -1828,6 +1828,18 @@ func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) PlayerSeekAccuracy() string {
+	return a.s.prefs.SeekAccuracy
+}
+
+func (a *preferencesAdapter) SetPlayerSeekAccuracy(accuracy string) {
+	setPlayerSeekAccuracy(accuracy)
+	a.s.prefs.SeekAccuracy = accuracy
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetPlayerSeekAccuracy save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) VerboseDiscLogging() bool {
 	return a.s.prefs.VerboseDiscLogging
 }
