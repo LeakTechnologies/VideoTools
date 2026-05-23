@@ -32,7 +32,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Phase 1 — Player Completeness (missing basic features)
 
-- [ ] **P1-1: Network/URL streaming** — `engine.go:851`: avformat_open_input gets no AVDictionary options. No timeout, reconnect, protocol whitelist, TLS options. Fix: `Engine.OpenURL(url, opts)` with sensible defaults (60s timeout, reconnect for streamed). `InlineVideoPlayer.LoadURL()`. FFmpeg supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP natively — just missing the options.
+- [x] **P1-1: Network/URL streaming** — `Engine.OpenURL(url, opts)` with AVDictionary options (60s timeout, reconnect). `InlineVideoPlayer.LoadURL()`. HTTP/HTTPS/HLS/DASH/RTSP/RTMP supported.
 - [ ] **P1-2: Resume/watch-later** — Only Trim module has resume (`internal/media/state/resume.go`). No other module saves/restores position. Fix: integrate ResumeState into InlineVideoPlayer, auto-save on pause/seek/close, restore on load.
 - [ ] **P1-3: Audio delay adjustment** — No lip-sync correction anywhere. Fix: add `AudioDelay` to Engine + InlineVideoPlayer, offset clock target in Seek/WaitForPTS. Persist in PrefsConfig.
 - [ ] **P1-4: Speed + pitch correction** — Speed change shifts pitch (chipmunk/baritone at non-1.0x). Fix: add scaletempo/rubberband via libavfilter (atempo filter) in audio pipeline.

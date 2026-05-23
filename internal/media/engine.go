@@ -877,6 +877,66 @@ func (e *Engine) OpenAuto(path string) error {
 	return e.OpenDVD(path, 0)
 }
 
+// OpenURL opens a network stream or URL with AVDictionary options passed
+// directly to avformat_open_input.  opts may be nil for defaults; otherwise
+// each key/value pair is set on the AVDictionary before opening.
+//
+// Sensible network defaults are applied and may be overridden via opts:
+//
+//	timeout (µs)              60000000  (60s I/O timeout)
+//	reconnect_streamed        1         (reconnect on broken pipe)
+//	reconnect_on_network_error 1        (reconnect on TCP/network err)
+//	reconnect_delay_max (s)   5         (max 5s between retries)
+//
+// Supported URL schemes: http, https, hls, dash, rtsp, rtmp, rtmpe, rtmps,
+// mms, tcp, udp, and any other protocol FFmpeg was built with.
+func (e *Engine) OpenURL(url string, opts map[string]string) error {
+	e.filePath = url
+
+	cURL := C.CString(url)
+	defer C.free(unsafe.Pointer(cURL))
+
+	var dict *C.AVDictionary
+	defer func() {
+		if dict != nil {
+			C.av_dict_free(&dict)
+		}
+	}()
+
+	setOpt := func(key, val string) {
+		cK := C.CString(key)
+		cV := C.CString(val)
+		C.av_dict_set(&dict, cK, cV, 0)
+		C.free(unsafe.Pointer(cK))
+		C.free(unsafe.Pointer(cV))
+	}
+
+	setOpt("timeout", "60000000")
+	setOpt("reconnect_streamed", "1")
+	setOpt("reconnect_on_network_error", "1")
+	setOpt("reconnect_delay_max", "5")
+
+	for k, v := range opts {
+		setOpt(k, v)
+	}
+
+	logging.Info(logging.CatPlayer, "OpenURL: opening %s", url)
+
+	ret := C.avformat_open_input(&e.formatCtx, cURL, nil, &dict)
+	if ret != 0 {
+		errBuf := make([]byte, 256)
+		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
+		errStr := C.GoString((*C.char)(unsafe.Pointer(&errBuf[0])))
+		if errStr == "" {
+			errStr = "unknown FFmpeg error"
+		}
+		logging.Error(logging.CatPlayer, "OpenURL: avformat_open_input failed for %s: %s (code: %d)", url, errStr, ret)
+		return fmt.Errorf("failed to open URL %s: %s", url, errStr)
+	}
+
+	return e.openFinalize()
+}
+
 // openFinalize runs after avformat_open_input succeeds: probes streams, allocates
 // codec contexts, and sets up frame buffers. Called by both Open and OpenDVD.
 func (e *Engine) openFinalize() error {

@@ -2,6 +2,11 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-1: Network/URL Streaming
+
+- **`Engine.OpenURL(url string, opts map[string]string) error`** added to `internal/media/engine.go`: builds AVDictionary with sensible defaults (60s I/O timeout, `reconnect_streamed=1`, `reconnect_on_network_error=1`, `reconnect_delay_max=5`). User-provided opts override defaults. Passes `&dict` to `avformat_open_input` for full network protocol support (HTTP/HTTPS/HLS/DASH/RTSP/RTMP).
+- **`InlineVideoPlayer.LoadURL(url string, opts map[string]string) error`** added to `internal/ui/inline_player.go` — follows `loadViaOpen` pattern, same lifecycle as `Load()`/`LoadDVD()`. Stub in `inline_player_stub.go` preserves build without `native_media` tag.
+
 ### P0-5: OpenAuto — Open→OpenDVD Fallback
 
 - **`Engine.OpenAuto(path string) error`** — tries `Open()` (generic avformat), falls back to `OpenDVD(path, 0)` (dvdvideo demuxer, longest title) on failure. `InlineVideoPlayer.Load()` now calls `OpenAuto` instead of `Open`, so ISOs and VIDEO_TS directories load automatically in Convert, Inspect, Filters, Upscale, Trim, Audio, and Subtitles modules without explicit disc-aware callers.
