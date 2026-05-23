@@ -45,7 +45,10 @@ func NewMasterClock() *MasterClock {
 // collapsing the wall-elapsed component, which was the root cause of
 // WaitForPTS hanging after a brief backward clock jump.
 //
-// Use ResetTime for unconditional resets (e.g. after a seek operation).
+// Exception: if the PTS is behind by more than 1s AND no SetTime has been
+// called in the last 500ms, the ratchet allows the reset. This handles
+// audio underrun recovery — the clock coasted on wall-time while audio was
+// absent, and the next audio PTS reflects where playback actually is.
 func (c *MasterClock) SetTime(pts float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -56,6 +59,15 @@ func (c *MasterClock) SetTime(pts float64) {
 		current = c.pts + time.Since(c.ptsTime).Seconds()*c.speed
 	}
 	if pts <= current {
+		backwardJump := current - pts
+		// Allow reset on underrun recovery: large backward jump (> 1s) with
+		// no recent PTS anchoring (> 500ms idle).
+		if backwardJump > 1.0 && time.Since(c.ptsTime) > 500*time.Millisecond {
+			logging.Debug(logging.CatPlayer, "clock: SetTime underrun recovery, reset %.3f→%.3f (jump %.0fms, idle %.0fms)",
+				current, pts, backwardJump*1000, time.Since(c.ptsTime).Seconds()*1000)
+			c.pts = pts
+			c.ptsTime = time.Now()
+		}
 		return
 	}
 	jump := pts - current
