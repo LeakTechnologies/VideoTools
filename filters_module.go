@@ -217,8 +217,8 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			}
 			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
-		BuildMetadataPane: func() fyne.CanvasObject {
-			panel, _ := buildMetadataPanel(state, state.filtersFile, fyne.NewSize(0, 200), moduleColor("filters"), nil)
+		BuildMetadataPane: func(onToggle func(bool)) fyne.CanvasObject {
+			panel, _ := buildMetadataPanel(state, state.filtersFile, fyne.NewSize(0, 200), moduleColor("filters"), onToggle)
 			return panel
 		},
 		OnFilterChanged: func() { state.applyFiltersPreview() },
