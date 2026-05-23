@@ -22,13 +22,29 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev50 Scope (current)
 
-### Player Stability Hardening
+### Phase 0 — Critical Stability (fix first — hangs/crashes/dead-code)
 
-- [ ] **Error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed `AudioBufferLatency`. Wire `DegradeToSoftware` and `ShouldDegrade`/`RecordHWFailure` into the decode loop so HW→SW fallback actually triggers.
-- [ ] **HW decode default-on evaluation** — Re-evaluate D3D11VA default now that VEH/SEH bridge covers `STATUS_STACK_OVERFLOW`; add per-codec HW blacklist for known-bad codecs.
-- [ ] **Frame cache memory bounds** — Byte-aware eviction from frame pool, memory-pressure callback, pool size distribution logging.
+- [ ] **P0-1: Wire DegradeToSoftware() into decode paths** — `errors.go:57` defines DegradeToSoftware, ShouldDegrade, RecordHWFailure, ResetHWFailureCount — **all dead code**. HW→SW fallback is per-frame inline, retrying HW on every frame until `videoDecodeDead=true` kills decode permanently. Fix: after N HW failures per session, call `go e.DegradeToSoftware()`, set `hwDegraded`, stop retrying HW.
+- [ ] **P0-2: Fix NextFrame hang after videoDecodeDead** — `playback.go:585-588`: when SEH fires in videoDecodeLoop, `videoDecodeDead=true` and return. Frame queue drains, then NextFrame blocks forever (`playback.go:662`) because no EOF sentinel arrives. Fix: on fatal error, send EOF sentinel into frameQueue so NextFrame exits.
+- [ ] **P0-3: Fix backward frame stepping** — `playback.go:335-338`: `Step()` rejects `frames <= 0` with error. All `StepFrame(-1)` callers silently fail. Fix: add true backward step — seek back 2 keyframes, decode forward to target frame.
+- [ ] **P0-4: Replace lastError with error ring buffer** — `errors.go:17-48`, `engine.go:205`: single `*PlaybackError` overwritten, `GetLastError()`/`ClearError()` never called. Fix: 16-entry ring buffer with timestamp+code+message, `SetError()` wired into all error paths, exposed via `InlineVideoPlayer.GetErrorHistory()`.
+- [ ] **P0-5: Add OpenAuto() with Open→OpenDVD fallback** — `engine.go:843`, `inline_player.go:157-165`: Load calls `Open()` only, LoadDVD calls `OpenDVD()` only. No auto-detection of disc structures. Fix: `Engine.OpenAuto(path)` tries Open, then OpenDVD on failure. Wire into Load().
 
-### Player Refactoring
+### Phase 1 — Player Completeness (missing basic features)
+
+- [ ] **P1-1: Network/URL streaming** — `engine.go:851`: avformat_open_input gets no AVDictionary options. No timeout, reconnect, protocol whitelist, TLS options. Fix: `Engine.OpenURL(url, opts)` with sensible defaults (60s timeout, reconnect for streamed). `InlineVideoPlayer.LoadURL()`. FFmpeg supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP natively — just missing the options.
+- [ ] **P1-2: Resume/watch-later** — Only Trim module has resume (`internal/media/state/resume.go`). No other module saves/restores position. Fix: integrate ResumeState into InlineVideoPlayer, auto-save on pause/seek/close, restore on load.
+- [ ] **P1-3: Audio delay adjustment** — No lip-sync correction anywhere. Fix: add `AudioDelay` to Engine + InlineVideoPlayer, offset clock target in Seek/WaitForPTS. Persist in PrefsConfig.
+- [ ] **P1-4: Speed + pitch correction** — Speed change shifts pitch (chipmunk/baritone at non-1.0x). Fix: add scaletempo/rubberband via libavfilter (atempo filter) in audio pipeline.
+- [ ] **P1-5: A-B loop** — No repeat-section support for review/editing. Fix: `SetLoopPoints(a,b)`, `SetLoopEnabled(bool)`, wire into NextFrame: after B seek back to A.
+- [ ] **P1-6: SeekAccuracy Settings UI** — Locked to Keyframe, Frame/Accurate modes unreachable. Fix: dropdown in Settings → Player, persist in PrefsConfig, apply in loadViaOpen.
+- [ ] **P1-7: Bilinear scaling** — Nearest-neighbour only, aliasing on downscale. Fix: add `scaleBilinear` path, auto-select when scale < 1.0.
+- [ ] **P1-8: Frame timing diagnostics overlay** — No Ctrl+J equivalent. Fix: ring buffer of per-frame PTS/clock/drop/display-time, hotkey to toggle overlay.
+- [ ] **P1-9: Settings UI for player tuning** — Only deinterlace + aspect ratio exposed. Fix: HW decode toggle, seek accuracy, buffer size, thread count, scale mode, audio buffer latency, max drift threshold in Settings → Player.
+- [ ] **P1-10: Growing/in-progress file support** — File read once at Open(), no re-probe. Fix: goroutine watches file size, re-probes format context on growth.
+- [ ] **P1-11: Clock drift correction goroutine** — Audio underrun causes clock to drift forever. Fix: background goroutine every 250ms compares clock to wall-time, snaps to anchor on no-advance.
+
+### Player Refactoring (deferred — non-blocking)
 
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
@@ -38,7 +54,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **`formatASSTime` centisecs bug** — Outputs `1:02:03.372345` instead of `1:02:03.45`; centiseconds not clamped/divided correctly.
 - [ ] **`escapeASSText` double-escape** — Closing brace `}` double-escaped when input already contains escaped sequences.
 
-### VT ISO Engine (carry-forward from dev49)
+### VT ISO Engine (separate project — Media Engine opens ISOs as files)
 
 - [ ] **UDF reader robustness** — Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge.
 - [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup.

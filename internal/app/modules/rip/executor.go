@@ -153,6 +153,17 @@ func ResolveVideoTSPath(path string) (string, func(), error) {
 	if strings.HasSuffix(strings.ToLower(path), ".iso") {
 		return resolveFromISO(path)
 	}
+	// User may have selected an IFO/VOB file from within a VIDEO_TS directory via
+	// the file browser (file dialogs return files, not folders). Resolve to the
+	// containing VIDEO_TS dir, or its parent's VIDEO_TS sibling.
+	dir := filepath.Dir(path)
+	if strings.EqualFold(filepath.Base(dir), "VIDEO_TS") {
+		return dir, nil, nil
+	}
+	videoTS := filepath.Join(dir, "VIDEO_TS")
+	if fi, err := os.Stat(videoTS); err == nil && fi.IsDir() {
+		return videoTS, nil, nil
+	}
 	return "", nil, fmt.Errorf("unsupported source: %s", path)
 }
 

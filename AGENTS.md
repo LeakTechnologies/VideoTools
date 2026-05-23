@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev50` — **Player stability hardening (error recovery, HW decode evaluation, frame cache bounds) + view.go split + ASS subtitle fixes + UDF reader robustness**. Priorities below.
+- Current cycle: `v0.1.1-dev50` — **Media Engine gap closure: comprehensive gap analysis completed (20+ gaps across 4 phases). Phase 0 critical fixes (DegradeToSoftware wiring, NextFrame hang, backward step, error ring buffer, OpenAuto). Phase 1 completeness items (network streaming, resume, audio delay, SeekAccuracy UI, player tuning UI). view.go split + ASS subtitle fixes deferred.** Priorities below.
 - Public/stable baseline: `v0.1.1`.
 - `dev49` shipped: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS; WaitVsync removed from playbackLoop. Player default aspect ratio setting (4:3/16:9/5:3/21:9/9:16 idle SMPTE bars). Seek corruption fix: accurate fallback uses AVSEEK_FLAG_BACKWARD. Player singleton consolidation: 10 per-module singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Engine-level bwdif deinterlace (libavfilter, Settings toggle default on). Thread safety formalisation (mu→formatMu→videoCodecMu→framepoolMu hierarchy, named helpers, lockdep build-tag). Rip module: menu VOB bleed fixed, chapter diagnostics, menu preservation, main/extra title naming, disc info to Source section, single browse button, format validation. C disc debug utility. Inuktitut transliteration package (internal/i18n/translit/) with iutools algorithm. Rip/Convert layout: buildRipBox sections, BuildCollapsibleHeader component, collapsible metadata/settings/log panels. Queue: blocking dialog removed, goroutine self-exit fixed. Log session rotation + Clear/Open in Settings. Dropdown active item text: ForegroundOnPrimary on VT_Green. Process management: NoInheritHandles (file-in-use fix), Queue.Stop() cancellation (zombie fix), Windows Job Object KILL_ON_JOB_CLOSE, Linux Pdeathsig:SIGKILL.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton. VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
@@ -46,10 +46,21 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | Verbose seek logging (flags, clock reset, frame queue drain, seekGen change) | `internal/media/playback.go`, `internal/ui/inline_player.go` | **SHIPPED** |
 | Player singleton consolidation: 10 → 2 (GetPrimaryPlayer/GetPreviewPlayer) | `native_media.go`, `main.go` | **SHIPPED** |
 | Media Engine Architecture document | `docs/MEDIA_ENGINE_ARCHITECTURE.md` | **SHIPPED** |
-| Split 1438-line view.go (VideoPlayer widget) into components (control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go) | `internal/media/view.go` | Planned |
-| Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned |
-| Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned |
-| Formalise lock hierarchy, add lockdep assertions, eliminate reverse-order paths | `internal/media/engine.go` | Planned |
+| **P0-1: Wire DegradeToSoftware() into decode paths** — dead code, never called | `internal/media/errors.go`, `internal/media/playback.go`, `internal/media/hwdecode.go` | **ACTIVE** |
+| **P0-2: Fix NextFrame hang after videoDecodeDead** — no EOF sentinel, blocks forever | `internal/media/playback.go` | **ACTIVE** |
+| **P0-3: Fix backward frame stepping** — Step() rejects negative `frames` | `internal/media/playback.go` | **ACTIVE** |
+| **P0-4: Replace lastError with error ring buffer** — single slot, never read | `internal/media/errors.go`, `internal/media/engine.go` | **ACTIVE** |
+| **P0-5: Add OpenAuto() with Open→OpenDVD fallback** | `internal/media/engine.go`, `internal/ui/inline_player.go` | Planned |
+| **P1-1: Network/URL streaming** — AVDictionary options, OpenURL, LoadURL | `internal/media/engine.go`, `internal/ui/inline_player.go` | **ACTIVE** |
+| **P1-2: Resume/watch-later outside Trim module** | `internal/media/state/resume.go`, `internal/ui/inline_player.go` | Planned |
+| **P1-3: Audio delay adjustment** — no lip-sync correction exists | `internal/media/engine.go`, `internal/media/playback.go`, `internal/ui/inline_player.go` | Planned |
+| **P1-6: SeekAccuracy Settings UI** — locked to Keyframe, Frame/Accurate unreachable | `internal/app/modules/settings/tabs.go`, `types.go` | Planned |
+| **P1-9: Player Tuning Settings UI** — HW toggle, buffer size, thread count, etc. | `internal/app/modules/settings/tabs.go`, `types.go` | Planned |
+| Split 1438-line view.go (VideoPlayer widget) into components | `internal/media/view.go` | Planned (deferred) |
+| Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned (deferred) |
+| Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned (deferred) |
+| Thread safety formalisation (lock hierarchy, lockdep, named helpers) | `internal/media/engine.go` | **SHIPPED** |
+| P1-4: Speed + pitch correction, P1-5: A-B loop, P1-7: Bilinear scaling, P1-8: Frame timing overlay, P1-10: Growing-file, P1-11: Clock drift | Various | Future |
 
 ### VT ISO Engine Refactoring (HIGH)
 
@@ -527,14 +538,15 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
-## Next Steps (dev49)
+## Next Steps (dev50)
 
-1. Engine.go subsystem split completed (3245→1117 lines). All 6 files extracted: hwdecode.go, errors.go, framepool.go, subtitle_engine.go, buffer.go, playback.go.
-2. Frame pacing fixed: no-audio WaitForPTS, WaitVsync removed from playbackLoop, frame rate propagated on load.
-3. Engine-level bwdif deinterlace shipped: libavfilter filter graph in videoDecodeLoop, Settings toggle default on.
-4. Thread safety formalisation shipped: lock hierarchy docs, lockdep assertions, all lock calls named.
-5. Split view.go (1438 lines) into components — pure file moves (deferred).
-6. Extract Player interface from InlineVideoPlayer for mock testing (deferred).
-7. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
-8. Push staged commits to origin when satisfied.
-9. Test rip module fixes with real disc: verify menu bleed is gone, chapters appear in output, menu preservation exports separate files, main/extra naming works correctly.
+1. Wire `DegradeToSoftware()` into `GrabFrame` and `videoDecodeLoop` HW paths after N consecutive failures — set `hwDegraded`, call `DegradeToSoftware()`, stop retrying HW per session.
+2. Replace `lastError *PlaybackError` with 16-entry ring buffer (`errors.go:43-48`). Expose `GetErrorHistory() []PlaybackError`. Add timestamp field to `PlaybackError`.
+3. Fix `Step()` backward stepping — un-reject negative frames, implement true backward step via 2-keyframe re-seek + decode forward.
+4. Fix `NextFrame` hang after `videoDecodeDead` — add EOF sentinel to frameQueue on fatal error.
+5. Add `OpenAuto(path)` to Engine — tries `Open()`, then `OpenDVD(path, 0)` on failure.
+6. Add network streaming: `Engine.OpenURL(string, map[string]string)` with AVDictionary options (reconnect, timeout), `InlineVideoPlayer.LoadURL()`.
+7. Build + test all changes. Verify no regressions.
+8. Commit with six-document update.
+9. Push to origin.
+10. (Deferred: resume/watch-later, audio delay, speed+pitch, A-B loop, frame step backward, SeekAccuracy UI, player tuning UI, growing-file, clock drift, diagnostics overlay.)

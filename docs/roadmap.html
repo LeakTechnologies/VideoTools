@@ -519,11 +519,26 @@ const roadmap = {
       { id: 'player-interface', title: 'Player Interface', desc: 'Extract formal Go Player interface from InlineVideoPlayer, enabling mock-based unit tests for all consuming modules', status: 'planned', cycle: 'dev49', files: ['internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'hw-decode-default-on', title: 'HW Decode Default On', desc: 'With VEH+SEH bridge catching AV + stack overflow, re-evaluate enabling D3D11VA by default; add per-codec HW blacklist for known-crash decoders', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/safe_bridge.c'], deps: ['veh-crash-recovery', 'engine-subsystem-split'], docs: [] },
       { id: 'thread-safety-formal', title: 'Thread Safety Formalisation', desc: 'Formal lock hierarchy mu(1)→formatMu(2)→videoCodecMu(3)→framepoolMu(4); named lock/unlock helpers + lockdep build-tag runtime verification with goroutine-local tracking; DegradeToSoftware safety docs; PLAYER_DEBUG.md lock hierarchy section', status: 'done', cycle: 'dev49', files: ['internal/media/lock.go', 'internal/media/lockdep_on.go', 'internal/media/lockdep_off.go', 'docs/PLAYER_DEBUG.md'], deps: ['engine-subsystem-split'], docs: ['docs/PLAYER_DEBUG.md'] },
-      { id: 'error-recovery-overhaul', title: 'Error Recovery Overhaul', desc: 'Replace single-slot lastError with ring-buffer history; adaptive HW degradation with cooldown; per-codec HW blacklist; platform-probed AudioBufferLatency', status: 'future', cycle: 'future', files: ['internal/media/engine.go', 'internal/media/audio.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'wire-degradetosoftware', title: 'P0-1: Wire DegradeToSoftware()', desc: 'DegradeToSoftware, ShouldDegrade, RecordHWFailure, ResetHWFailureCount are ALL dead code (errors.go:57-111). HW→SW fallback is per-frame inline, retrying HW until videoDecodeDead=true kills decode permanently. Fix: after N HW failures, call go DegradeToSoftware(), set hwDegraded, stop retrying HW.', status: 'active', cycle: 'dev50', files: ['internal/media/errors.go', 'internal/media/playback.go', 'internal/media/hwdecode.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'fix-nextframe-hang', title: 'P0-2: Fix NextFrame Hang After HW Crash', desc: 'When SEH fires in videoDecodeLoop, videoDecodeDead=true and it returns. Frame queue drains, then NextFrame blocks forever at playback.go:662 receiving from e.frameQueue — no EOF sentinel arrives. Fix: on fatal error, send EOF sentinel.', status: 'active', cycle: 'dev50', files: ['internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'fix-backward-step', title: 'P0-3: Fix Backward Frame Stepping', desc: 'Step(frames) at playback.go:335-338 rejects frames <= 0 with error. All StepFrame(-1) callers silently fail. Fix: seek back 2 keyframes, decode forward to target frame.', status: 'active', cycle: 'dev50', files: ['internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'error-ring-buffer', title: 'P0-4: Replace lastError with Ring Buffer', desc: 'Single *PlaybackError at engine.go:205, written only in dead code, read from nowhere. GetLastError/ClearError never called by any module. Fix: 16-entry ring buffer with timestamp+code+message. Wire SetError into all error paths.', status: 'active', cycle: 'dev50', files: ['internal/media/errors.go', 'internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'open-auto', title: 'P0-5: Add OpenAuto() for Disc Fallback', desc: 'Load() calls eng.Open() only; LoadDVD() calls eng.OpenDVD() only. No auto-detection of disc structures. Fix: Engine.OpenAuto(path) tries Open() then OpenDVD() on failure.', status: 'planned', cycle: 'dev50', files: ['internal/media/engine.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'network-streaming', title: 'P1-1: Network/URL Streaming', desc: 'avformat_open_input gets nil,nil — no AVDictionary options for timeout, reconnect, protocol whitelist. FFmpeg supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP natively but VT passes zero options. Fix: Engine.OpenURL(url, opts) with sensible defaults.', status: 'active', cycle: 'dev50', files: ['internal/media/engine.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'resume-watchlater', title: 'P1-2: Resume/Watch-Later', desc: 'Only Trim module has resume (internal/media/state/resume.go). No other module saves/restores playback position across restarts. Fix: integrate ResumeState into InlineVideoPlayer, auto-save on pause/seek/close.', status: 'planned', cycle: 'dev50', files: ['internal/media/state/resume.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'audio-delay', title: 'P1-3: Audio Delay Adjustment', desc: 'No lip-sync correction anywhere in the engine. All A/V sync relies on WaitForPTS + clock ratchet. Fix: add AudioDelay offset to Engine + InlineVideoPlayer, offset clock target in Seek/WaitForPTS.', status: 'planned', cycle: 'dev50', files: ['internal/media/engine.go', 'internal/media/playback.go', 'internal/ui/inline_player.go', 'internal/app/modules/settings/types.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
+      { id: 'speed-pitch-correction', title: 'P1-4: Speed + Pitch Correction', desc: 'Speed change shifts pitch (chipmunk/baritone effect at non-1.0x). Fix: add scaletempo/rubberband via libavfilter atempo filter in audio pipeline.', status: 'planned', cycle: 'future', files: ['internal/media/audio.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'ab-loop', title: 'P1-5: A-B Loop', desc: 'No repeat-section support for review/editing workflows. Fix: SetLoopPoints(a,b) + SetLoopEnabled(bool), wire into NextFrame.', status: 'planned', cycle: 'future', files: ['internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'seek-accuracy-ui', title: 'P1-6: SeekAccuracy Settings UI', desc: 'Locked to Keyframe — Frame and Accurate modes defined but unreachable. All 3 callers hardcode SeekAccuracyKeyframe. Fix: dropdown in Settings Player tab.', status: 'planned', cycle: 'dev50', files: ['internal/app/modules/settings/tabs.go', 'internal/app/modules/settings/types.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'bilinear-scaling', title: 'P1-7: Bilinear Scaling', desc: 'Nearest-neighbour only, causes aliasing on downscale. Fix: add scaleBilinear path, auto-select when scale < 1.0.', status: 'planned', cycle: 'future', files: ['internal/media/view.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'timing-diagnostics-overlay', title: 'P1-8: Frame Timing Diagnostics Overlay', desc: 'No Ctrl+J equivalent for per-frame PTS/clock/drop/decode-time stats. MEDIA_ENGINE_ARCHITECTURE.md plans it but no code. Fix: ring buffer + hotkey overlay.', status: 'planned', cycle: 'future', files: ['internal/media/view.go', 'internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
+      { id: 'player-tuning-ui', title: 'P1-9: Settings UI for Player Tuning', desc: 'Only deinterlace + aspect ratio exposed in Settings Player tab. Fix: HW decode toggle, seek accuracy, buffer size, thread count, scale mode, audio buffer latency, max drift threshold.', status: 'planned', cycle: 'dev50', files: ['internal/app/modules/settings/tabs.go', 'internal/app/modules/settings/types.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'growing-file-support', title: 'P1-10: Growing/In-Progress File Support', desc: 'File is probed once at Open() — no re-probe, no size-change detection. Partially-written files return bad results. Fix: watch file size via goroutine, re-probe format context on growth.', status: 'planned', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'clock-drift-correction', title: 'P1-11: Clock Drift Correction', desc: 'Audio underrun causes clock to drift forever. No background comparison of clock vs wall-time. Fix: background goroutine waking every 250ms; snap clock to wall-time anchor on no-advance.', status: 'planned', cycle: 'future', files: ['internal/media/clock.go', 'internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_ARCHITECTURE.md'] },
+      { id: 'error-recovery-overhaul', title: 'Error Recovery Overhaul (Phase 0 done above)', desc: 'Replaced by P0-1 (DegradeToSoftware), P0-2 (NextFrame hang), P0-4 (error ring buffer). Per-codec HW blacklist and platform AudioBufferLatency deferred.', status: 'done', cycle: 'dev50', files: ['internal/media/errors.go', 'internal/media/playback.go'], deps: ['engine-subsystem-split'], docs: ['docs/MEDIA_ENGINE_GAP_ANALYSIS.md'] },
       { id: 'memory-mgmt', title: 'Frame Cache Memory Bounds', desc: 'Add byte-aware eviction to PlaybackFrameCache (not just count-based); frame pool size distribution; memory-pressure signal callback', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'subtitle-renderer', title: 'Subtitle Renderer Upgrade', desc: 'Replace custom bitmap font with proper text rendering; expand charset coverage; add anti-aliasing', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'ass-format-bugs', title: 'ASS Subtitle Format Bugs', desc: 'formatASSTime outputs microsecond precision instead of centisecs (h:mm:ss.cs); escapeASSText double-escapes closing brace. Pre-existing test failures unrelated to pacing changes.', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go'], deps: ['subtitle-renderer'], docs: [] },
-      { id: 'network-streaming', title: 'Network Stream Support', desc: 'Extend Open() to accept URLs (RTSP, HTTP, HLS); add buffering/progress for network sources', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
     ]
   },
 
@@ -772,7 +787,21 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev49', date: 'May 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev50', date: 'June 2026', tag: 'current', sections: [
+    { title: 'Comprehensive Media Engine Gap Analysis', items: [
+      'Full audit of 20+ gaps across 4 phases (P0 Critical Stability, P1 Player Completeness, P2 ISO Engine, P3 Polish)',
+      'DegradeToSoftware confirmed dead code: errors.go:57-111 defines DegradeToSoftware(), ShouldDegrade(), RecordHWFailure(), ResetHWFailureCount() — none called anywhere',
+      'NextFrame hang after HW crash confirmed: videoDecodeDead=true + no EOF sentinel → <-frameQueue blocks forever at playback.go:662',
+      'Backward frame stepping broken: Step(frames) rejects frames <= 0 at playback.go:335-338 — all StepFrame(-1) callers silently fail',
+      'lastError orphaned: single *PlaybackError at engine.go:205, written only in dead code, GetLastError()/ClearError() never called by any module',
+      'SeekAccuracy locked to Keyframe: Frame and Accurate modes defined but unreachable — all 3 callers hardcode SeekAccuracyKeyframe',
+      'No network streaming: avformat_open_input gets nil,nil — no AVDictionary timeout/reconnect/protocol options despite FFmpeg native HTTP/HTTPS/HLS/DASH/RTSP/RTMP support',
+      'Resume/watch-later only in Trim module — no other module saves/restores playback position',
+      'No audio delay, speed+pitch correction, A-B loop, bilinear scaling, frame timing overlay, clock drift correction, or growing-file support',
+      'New design doc: docs/MEDIA_ENGINE_GAP_ANALYSIS.md with tiered list, file:line refs, effort estimates',
+    ]},
+  },
+  { version: 'v0.1.1-dev49', date: 'May 2026', tag: 'shipped', sections: [
     { title: 'Select / Dropdown — Active Item Text Colour Fix', items: [
       '_fyne/widget/menu_item.go refreshText(): uses ColorNameForegroundOnPrimary when isActive() — near-black BgBase (#0B0F1A) on VT_Green (#22c55e) focus background',
       'Previous fix (d9b6056b) only patched the select widget\'s own label text; popup menu rows were not covered',
@@ -1290,7 +1319,17 @@ const checklistData = [
     'Menu preservation checkbox exports menu VOBs as separate files',
     'Main feature (longest title) uses main output path; extras get _Extra suffix',
   ]},
-  { title: 'Player Module', items: [
+  { title: 'Player Module (dev50 gap fixes)', items: [
+    'DegradeToSoftware(): HW decode fails after N attempts → permanent SW degradation (no per-frame retry thrash)',
+    'NextFrame hang: rapid close/reopen after HW decode crash does not hang NextFrame',
+    'Backward step: Ctrl+Left (StepFrame(-1)) moves one frame backward',
+    'Error ring buffer: errors.go exposes 16-entry GetErrorHistory() with timestamps',
+    'OpenAuto: Load() on a disc directory/ISO auto-detects and uses OpenDVD',
+    'LoadURL: opening http/https/hls/rtsp URL plays without blocking indefinitely (timeout + reconnect configured)',
+    'SeekAccuracy UI: Settings → Player dropdown switches between Keyframe/Frame/Accurate modes',
+    'Player Tuning UI: Settings → Player shows HW toggle, buffer size, thread count controls',
+  ]},
+  { title: 'Player Module (legacy — stable)', items: [
     'CGo/FFmpeg engine plays video with A/V sync',
     'D3D11VA hardware decode works on Windows without crash',
     'Audio sync via oto timing is correct',
