@@ -175,9 +175,9 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 }
 
 func (s *SmoothScrubbing) openDecoder() error {
-	s.engine.mu.Lock()
+	s.engine.lockMu()
 	path := s.engine.filePath
-	s.engine.mu.Unlock()
+	s.engine.unlockMu()
 	if path == "" {
 		return fmt.Errorf("no file path")
 	}
@@ -194,9 +194,9 @@ func (s *SmoothScrubbing) openDecoder() error {
 		return fmt.Errorf("avformat_find_stream_info failed")
 	}
 
-	s.engine.mu.Lock()
+	s.engine.lockMu()
 	vidIdx := s.engine.videoStreamIdx
-	s.engine.mu.Unlock()
+	s.engine.unlockMu()
 	if vidIdx < 0 {
 		C.avformat_close_input(&s.fmtCtx)
 		return fmt.Errorf("no video stream")
@@ -320,9 +320,9 @@ func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
 		return
 	}
 
-	s.engine.mu.Lock()
+	s.engine.lockMu()
 	timeBase := s.engine.videoTimeBase
-	s.engine.mu.Unlock()
+	s.engine.unlockMu()
 
 	pts := C.int64_t(target / timeBase)
 	C.avformat_seek_file(s.fmtCtx, s.videoIdx, pts, pts, pts, 0)
@@ -333,8 +333,8 @@ func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
 }
 
 func (s *SmoothScrubbing) flushEngineQueues() {
-	s.engine.mu.Lock()
-	defer s.engine.mu.Unlock()
+	s.engine.lockMu()
+	defer s.engine.unlockMu()
 	s.engine.videoQueue.Flush()
 	if s.engine.audioPlayer != nil {
 		s.engine.audioPlayer.FlushCodec()

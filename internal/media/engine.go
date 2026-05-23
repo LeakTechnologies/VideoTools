@@ -154,15 +154,15 @@ type Engine struct {
 	hwSwsW, hwSwsH int
 
 	framePool    [][]byte
-	framepoolMu  sync.Mutex // protects framePool only — must NOT be acquired under videoCodecMu
+	framepoolMu  sync.Mutex // protects framePool only (level 4 — see lock.go for hierarchy)
 
 	videoTimeBase    float64
 	audioTimeBase    float64
 	subtitleTimeBase float64
 
-	mu           sync.Mutex
-	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file
-	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame on videoCodecCtx
+	mu           sync.Mutex // general engine state (level 1 — see lock.go for hierarchy)
+	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file (level 2)
+	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame (level 3)
 	demuxerWg    sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
 	paused       bool
@@ -437,20 +437,20 @@ func (e *Engine) GetFrameRate() float64 {
 }
 
 func (e *Engine) SetLoading(loading bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	e.loading = loading
 }
 
 func (e *Engine) IsLoading() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.loading
 }
 
 func (e *Engine) GetChapters() []Chapter {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.chapters
 }
 
@@ -496,8 +496,8 @@ func (e *Engine) GetSeekAccuracy() SeekAccuracy {
 }
 
 func (e *Engine) SetDeinterlaceEnabled(enabled bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	e.deinterlaceEnabled = enabled
 	if !enabled {
 		e.freeDeinterlaceFilter()
@@ -505,8 +505,8 @@ func (e *Engine) SetDeinterlaceEnabled(enabled bool) {
 }
 
 func (e *Engine) IsDeinterlaceEnabled() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.deinterlaceEnabled
 }
 
@@ -519,8 +519,8 @@ func (e *Engine) IsDropFramesEnabled() bool {
 }
 
 func (e *Engine) SetLooping(looping bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	e.looping = looping
 	if e.audioPlayer != nil {
 		e.audioPlayer.SetLooping(looping)
@@ -528,26 +528,26 @@ func (e *Engine) SetLooping(looping bool) {
 }
 
 func (e *Engine) IsLooping() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.looping
 }
 
 func (e *Engine) SetFilterPipeline(pipeline *filters.FilterPipeline) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	e.filterPipeline = pipeline
 }
 
 func (e *Engine) GetFilterPipeline() *filters.FilterPipeline {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.filterPipeline
 }
 
 func (e *Engine) GetFilterGraph() string {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	if e.filterPipeline == nil {
 		return ""
 	}
@@ -556,8 +556,8 @@ func (e *Engine) GetFilterGraph() string {
 }
 
 func (e *Engine) SetFilter(filterType filters.FilterType, params map[string]interface{}, enabled bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if e.filterPipeline == nil {
 		e.filterPipeline = filters.NewFilterPipeline()
@@ -579,24 +579,24 @@ func (e *Engine) SetFilter(filterType filters.FilterType, params map[string]inte
 }
 
 func (e *Engine) EnableFilter(filterType filters.FilterType, enabled bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	if e.filterPipeline != nil {
 		e.filterPipeline.Enable(filterType, enabled)
 	}
 }
 
 func (e *Engine) ClearFilters() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	if e.filterPipeline != nil {
 		e.filterPipeline.Clear()
 	}
 }
 
 func (e *Engine) SetPreset(preset filters.Preset) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	if e.filterPipeline == nil {
 		e.filterPipeline = filters.NewFilterPipeline()
 	}
@@ -816,11 +816,11 @@ func (e *Engine) CheckCodecSupport(codecName string) bool {
 }
 
 func (e *Engine) Thumbnail(seconds float64) (*image.RGBA, error) {
-	e.mu.Lock()
+	e.lockMu()
 	origStreamIdx := e.videoStreamIdx
 	origCodecCtx := e.videoCodecCtx
 	origTimeBase := e.videoTimeBase
-	e.mu.Unlock()
+	e.unlockMu()
 
 	if err := e.Seek(seconds); err != nil {
 		return nil, err
@@ -831,11 +831,11 @@ func (e *Engine) Thumbnail(seconds float64) (*image.RGBA, error) {
 		return nil, err
 	}
 
-	e.mu.Lock()
+	e.lockMu()
 	e.videoStreamIdx = origStreamIdx
 	e.videoCodecCtx = origCodecCtx
 	e.videoTimeBase = origTimeBase
-	e.mu.Unlock()
+	e.unlockMu()
 
 	return img, nil
 }
@@ -1169,10 +1169,10 @@ func (e *Engine) OpenDVD(devicePath string, title int) error {
 // Using a separate AVFormatContext means thumbnail extraction never races with
 // the main engine's demuxer, queue, or paused/playing state.
 func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.RGBA)) {
-	e.mu.Lock()
+	e.lockMu()
 	path := e.filePath
 	duration := e.info.Duration
-	e.mu.Unlock()
+	e.unlockMu()
 
 	if path == "" || duration <= 0 {
 		return
