@@ -16,6 +16,13 @@
   `NextFrame` unblocks and returns `io.EOF` instead of hanging forever at `df = <-e.frameQueue`.
 - Build clean.
 
+### P0-3: Backward Frame Stepping (un-break StepFrame(-1))
+
+- **`Engine.Step(frames int)`** at `playback.go:335-338` previously rejected `frames <= 0` with `"invalid frame count"` — all `StepFrame(-1)` callers (main.go, convert_player_native.go, trim/view.go) silently failed to step backward.
+- **Implemented true backward step**: When `frames < 0`, calculates the target PTS via `CurrentTime() - abs(frames) * frameDur`, seeks ~2 seconds before that position (to land at a keyframe before target), then decodes forward `abs(frames)` frames via `NextFrame()` and returns the last one. Falls back to position 0 if below start.
+- **Frame rate awareness**: Uses `Engine.GetFrameRate()` to compute `frameDur = 1/fps`. Returns error if frame rate is unknown (cannot calculate backward step without it).
+- All existing media tests pass (2 pre-existing ASS subtitle failures unaffected).
+
 ### P0-4: Error Ring Buffer (replaces single-slot lastError)
 
 - **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer (`errorRing [16]ErrorRecord` + `errorRingNext int`) in `internal/media/errors.go`.

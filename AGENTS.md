@@ -48,7 +48,7 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | Media Engine Architecture document | `docs/MEDIA_ENGINE_ARCHITECTURE.md` | **SHIPPED** |
 | **P0-1: Wire DegradeToSoftware() into decode paths** — dead code, never called | `internal/media/errors.go`, `internal/media/playback.go`, `internal/media/hwdecode.go` | **SHIPPED** |
 | **P0-2: Fix NextFrame hang after videoDecodeDead** — no EOF sentinel, blocks forever | `internal/media/playback.go` | **SHIPPED** |
-| **P0-3: Fix backward frame stepping** — Step() rejects negative `frames` | `internal/media/playback.go` | **ACTIVE** |
+| **P0-3: Fix backward frame stepping** — Step() rejects negative `frames` | `internal/media/playback.go` | **SHIPPED** |
 | **P0-4: Replace lastError with error ring buffer** — single slot, never read | `internal/media/errors.go`, `internal/media/engine.go` | **SHIPPED** |
 | **P0-5: Add OpenAuto() with Open→OpenDVD fallback** | `internal/media/engine.go`, `internal/ui/inline_player.go` | Planned |
 | **P1-1: Network/URL streaming** — AVDictionary options, OpenURL, LoadURL | `internal/media/engine.go`, `internal/ui/inline_player.go` | **ACTIVE** |
