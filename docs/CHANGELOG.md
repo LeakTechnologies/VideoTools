@@ -2,6 +2,11 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### ASS Subtitle Format Fixes
+
+- **`formatASSTime` centiseconds bug** — `int(d.Milliseconds()) / 10` used total milliseconds, producing values like `372345` instead of `45`. Fixed to `(int(d.Milliseconds()) % 1000) / 10` to isolate the sub-second component before dividing.
+- **`escapeASSText` closing-brace over-escape** — `}` was being escaped to `\}`, producing `\{bold\}` instead of `\{bold}`. In ASS format only `{` (tag opener) needs escaping; `}` alone is not a special character. Removed the `}` replacement.
+
 ### P1-5: A-B Loop
 
 - **`Engine.SetLoopPoints(a, b float64)` / `SetABLoopEnabled(bool)`** — stores loopA and loopB PTS thresholds; when enabled, `NextFrame` checks PTS after each decoded frame and seeks back to loopA when PTS >= loopB. Loop-back scheduled via `abLoopPending` flag on next `NextFrame` call, returning the frame at B first.
