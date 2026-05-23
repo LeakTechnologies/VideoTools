@@ -165,13 +165,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
+		headerBg := canvas.NewRectangle(upscaleColor)
+		headerBg.CornerRadius = 10
+		headerBg.SetMinSize(fyne.NewSize(0, 34))
+		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
+		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
+		headerTitle.TextSize = 12
+		header := container.NewMax(
+			headerBg,
+			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
 		)
-		body := container.NewBorder(header, nil, nil, nil, content)
+		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
 		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, body)
 		return container.NewMax(layers...)
 	}
 
@@ -1235,7 +1241,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return spacer
 	}
 
-	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200))
+	var leftSplit *container.Split
+
+	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200), upscaleColor, func(open bool) {
+		if open {
+			leftSplit.SetOffset(0.60)
+		} else {
+			leftSplit.SetOffset(0.97)
+		}
+	})
 
 	// Dual before/after panes when both player builders are available.
 	var videoArea fyne.CanvasObject
@@ -1264,7 +1278,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoArea)
 	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
 	metaScroll := ui.NewFastVScroll(metaPanel)
-	leftSplit := container.NewVSplit(videoBox, metaScroll)
+	leftSplit = container.NewVSplit(videoBox, metaScroll)
 	leftSplit.SetOffset(0.60)
 	leftPanel := leftSplit
 
@@ -1344,22 +1358,19 @@ type VideoSource struct {
 	Duration          float64
 }
 
-func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.CanvasObject {
+func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size, moduleColor color.Color, onToggle func(bool)) fyne.CanvasObject {
 	outer := canvas.NewRectangle(navyBlue)
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
 	outer.StrokeWidth = 1
 
-	header := widget.NewLabelWithStyle("Source Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	hdr, _ := ui.BuildCollapsibleHeader("Source Metadata", moduleColor, onToggle)
 
 	if src == nil {
-		body := container.NewVBox(
-			header,
-			widget.NewSeparator(),
-			widget.NewLabel("Load a video to inspect its technical details."),
-		)
+		body := container.NewBorder(hdr, nil, nil, nil,
+			container.NewPadded(widget.NewLabel("Load a video to inspect its technical details.")))
 		layers := ui.NoisyBackgroundObjects(outer)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, body)
 		return container.NewMax(layers...)
 	}
 
@@ -1444,9 +1455,9 @@ func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.Can
 	)
 
 	grid := container.NewGridWithColumns(2, col1, col2)
-	body := container.NewVBox(header, widget.NewSeparator(), grid)
+	body := container.NewBorder(hdr, nil, nil, nil, container.NewPadded(grid))
 	layers := ui.NoisyBackgroundObjects(outer)
-	layers = append(layers, container.NewPadded(body))
+	layers = append(layers, body)
 	return container.NewMax(layers...)
 }
 

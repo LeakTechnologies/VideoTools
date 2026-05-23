@@ -104,7 +104,7 @@ type Options struct {
 	// can rebuild and apply the filter pipeline to the preview player.
 	OnFilterChanged func()
 	OnGetModuleFooter func(color.Color, fyne.CanvasObject, *ui.ConversionStatsBar) fyne.CanvasObject
-	BuildMetadataPane func() fyne.CanvasObject
+	BuildMetadataPane func(onToggle func(bool)) fyne.CanvasObject
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -202,13 +202,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
+		headerBg := canvas.NewRectangle(filtersColor)
+		headerBg.CornerRadius = 10
+		headerBg.SetMinSize(fyne.NewSize(0, 34))
+		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
+		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
+		headerTitle.TextSize = 12
+		header := container.NewMax(
+			headerBg,
+			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
 		)
-		body := container.NewBorder(header, nil, nil, nil, content)
+		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
 		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, body)
 		return container.NewMax(layers...)
 	}
 
@@ -544,26 +550,38 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
+	var leftSplit *container.Split
+
 	var metaPane fyne.CanvasObject
 	if opts.BuildMetadataPane != nil {
-		metaPane = opts.BuildMetadataPane()
+		metaPane = opts.BuildMetadataPane(func(open bool) {
+			if open {
+				leftSplit.SetOffset(0.65)
+			} else {
+				leftSplit.SetOffset(0.97)
+			}
+		})
 	} else {
 		outer := canvas.NewRectangle(navyBlue)
 		outer.CornerRadius = 8
 		outer.StrokeColor = gridColor
 		outer.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle("Source Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			widget.NewLabel("Load a video to inspect its technical details."),
-		)
+		hdr, _ := ui.BuildCollapsibleHeader("Source Metadata", filtersColor, func(open bool) {
+			if open {
+				leftSplit.SetOffset(0.65)
+			} else {
+				leftSplit.SetOffset(0.97)
+			}
+		})
+		body := container.NewBorder(hdr, nil, nil, nil,
+			container.NewPadded(widget.NewLabel("Load a video to inspect its technical details.")))
 		layers := ui.NoisyBackgroundObjects(outer)
-		layers = append(layers, container.NewPadded(body))
+		layers = append(layers, body)
 		metaPane = container.NewMax(layers...)
 	}
 
 	metaScroll := ui.NewFastVScroll(metaPane)
-	leftSplit := container.NewVSplit(container.NewPadded(videoArea), metaScroll)
+	leftSplit = container.NewVSplit(container.NewPadded(videoArea), metaScroll)
 	leftSplit.SetOffset(0.65)
 
 	settingsPanel := container.NewVBox(
