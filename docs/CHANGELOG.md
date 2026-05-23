@@ -2,6 +2,11 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### HW Decode Default-On + Error Concealment
+
+- **`hwDecodeEnabled` default flipped to `true`** (`internal/media/hwdecode.go`) — D3D11VA/VAAPI/QSV now active by default. All FFmpeg call sites in the video decode path are wrapped in `safe_bridge.c` SEH `__try` guards. `DegradeToSoftware()` is wired into the decode loop and falls back to SW on the first HW failure. Previously held at `false` pending SEH coverage; coverage was confirmed complete.
+- **Error concealment — last-good-frame** (`internal/media/engine.go`, `internal/media/playback.go`) — `Engine.lastGoodFrame atomic.Pointer[image.RGBA]` stores the most recently displayed frame. `Engine.decodeErrored atomic.Bool` is set on fatal decode errors (SEH exception or already-degraded SW failure). On decode-error EOF, `NextFrame` returns the frozen last frame exactly once via `CompareAndSwap(true, false)` instead of going black, then propagates `io.EOF`. Natural EOF (file ends cleanly) is unaffected.
+
 ### ASS Subtitle Format Fixes
 
 - **`formatASSTime` centiseconds bug** — `int(d.Milliseconds()) / 10` used total milliseconds, producing values like `372345` instead of `45`. Fixed to `(int(d.Milliseconds()) % 1000) / 10` to isolate the sub-second component before dividing.

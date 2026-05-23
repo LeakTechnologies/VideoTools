@@ -262,6 +262,16 @@ type Engine struct {
 	seekGen          atomic.Uint64 // incremented on each Seek(); frames carry the gen at decode time
 	lastVideoPTSBits atomic.Uint64 // math.Float64bits of the last video PTS handed to the display
 	audioDelayBits   atomic.Uint64 // math.Float64bits; A/V offset in seconds (see SetAudioDelay)
+
+	// lastGoodFrame holds the most recently displayed video frame.  When a decode
+	// error causes videoDecodeLoop to exit early (SEH, HW fatal), NextFrame returns
+	// this frozen frame instead of immediately returning io.EOF, preventing the
+	// display from going black on transient decode failures.
+	lastGoodFrame  atomic.Pointer[image.RGBA]
+	// decodeErrored is set by videoDecodeLoop on fatal decode errors (SEH or
+	// HW-after-degrade).  NextFrame reads it to distinguish error-EOF from
+	// natural stream EOF — error-EOF returns the last good frame once.
+	decodeErrored  atomic.Bool
 }
 
 type PlaybackFrameCache struct {
