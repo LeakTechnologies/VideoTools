@@ -834,6 +834,12 @@ func (v *VideoPlayer) updateChapterMarkers() {
 // region of dst using nearest-neighbour sampling.  Both images must be *image.RGBA
 // so the inner loop can copy raw Pix bytes directly — avoiding the per-pixel
 // interface dispatch and RGBA() uint32 conversion of the image.Image path.
+//
+// This is the final canvas-positioning step only. The actual colour conversion
+// and dimension scaling are done by FFmpeg sws_scale with SWS_BICUBIC (see
+// engine.go openFinalize) — that is where the visual quality is determined.
+// Nearest-neighbour here is a performance choice for the last-mile canvas
+// blit and has negligible visual impact at typical display scales.
 func (v *VideoPlayer) scaleNearest(src *image.RGBA, dst *image.RGBA, srcW, srcH, dstW, dstH, offsetX, offsetY int) {
 	if dstW == 0 || dstH == 0 {
 		return
