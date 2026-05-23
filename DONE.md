@@ -2,6 +2,9 @@
 
 ## Version 0.1.1-dev49 (in progress)
 
+### Select / Dropdown — Active Item Text Colour Fix
+- **Active menu item text colour fixed** (`_fyne/widget/menu_item.go`): `refreshText()` now uses `ColorNameForegroundOnPrimary` when the item is active (sitting on a `ColorNameFocus`/VT_Green background). `VTTheme` maps `ForegroundOnPrimary` to `BgBase` (#0B0F1A, near-black), giving high contrast against VT_Green (#22c55e). Previously `ColorNameForeground` (light #E1EEFF) was always used, making active dropdown rows illegible regardless of background colour.
+
 ### Media Engine — Seek Corruption Fix & Player Consolidation
 - **Seek corruption root cause found & fixed**: `Engine.Seek()` accurate fallback used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, landing the format context mid-GOP. `avcodec_flush_buffers` destroyed decoder reference state, causing the first P/B-frame after seek to produce garbage. Fixed by adding `AVSEEK_FLAG_BACKWARD` so the fallback lands at the keyframe immediately before the target.
 - **Verbose seek logging added**: Human-readable seek flags, accurate fallback confirmation with position, clock reset target (including audio offset), stale frame queue drain count, seekGen change detection in videoDecodeLoop with frame format/dimensions/PTS logging, InlineVideoPlayer level seek completion logging.
