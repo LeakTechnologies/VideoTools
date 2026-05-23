@@ -692,6 +692,17 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		e.lockMu()
 		paused := e.paused
 		hasAudio := e.hasAudio
+
+		// Handle pending A-B loop: seek back to loopA before reading more frames.
+		if e.abLoopPending {
+			e.abLoopPending = false
+			a := e.loopA
+			e.unlockMu()
+			if err := e.Seek(a); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		e.unlockMu()
 
 		var df decodedFrame
@@ -770,6 +781,15 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			if sub != nil {
 				img = e.RenderSubtitles(img, pts)
 			}
+		}
+
+		// A-B loop trigger: if enabled and pts reached loopB, schedule a
+		// loop-back on the next NextFrame call. The current frame at B is
+		// returned so the user sees the loop-end point.
+		if e.IsABLoopEnabled() && e.loopB > 0 && pts >= e.loopB {
+			e.lockMu()
+			e.abLoopPending = true
+			e.unlockMu()
 		}
 
 		return img, nil

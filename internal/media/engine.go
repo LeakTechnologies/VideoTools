@@ -212,6 +212,10 @@ type Engine struct {
 
 	looping     bool
 	growingFile bool
+	abLoopEnabled bool
+	loopA         float64
+	loopB         float64
+	abLoopPending bool
 	hasAudio    bool
 
 	numThreads int
@@ -583,6 +587,34 @@ func (e *Engine) IsGrowingFile() bool {
 	e.lockMu()
 	defer e.unlockMu()
 	return e.growingFile
+}
+
+func (e *Engine) SetABLoopEnabled(enabled bool) {
+	e.lockMu()
+	defer e.unlockMu()
+	e.abLoopEnabled = enabled
+	if !enabled {
+		e.abLoopPending = false
+	}
+}
+
+func (e *Engine) IsABLoopEnabled() bool {
+	e.lockMu()
+	defer e.unlockMu()
+	return e.abLoopEnabled
+}
+
+func (e *Engine) SetLoopPoints(a, b float64) {
+	e.lockMu()
+	defer e.unlockMu()
+	e.loopA = a
+	e.loopB = b
+}
+
+func (e *Engine) LoopPoints() (float64, float64) {
+	e.lockMu()
+	defer e.unlockMu()
+	return e.loopA, e.loopB
 }
 
 func (e *Engine) SetFilterPipeline(pipeline *filters.FilterPipeline) {

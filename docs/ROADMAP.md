@@ -30,6 +30,8 @@ timeline
     v0.1.1-dev50 (Current) : P1-4 Speed+pitch correction (atempo filter) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
     v0.1.1-dev50 (Current) : P1-10 Growing-file support (poll + reload on growth) : P1-7 Bilinear scaling (SWS_BICUBIC confirmed, docs only)
     v0.1.1-dev50 (Current) : P1-11 Clock drift correction (SetTime underrun recovery)
+    v0.1.1-dev50 (Current) : P1-5 A-B loop (SetLoopPoints, SetABLoopEnabled, NextFrame seek-back)
+    v0.1.1-dev50 (Current) : P1-8 Frame timing overlay (per-frame PTS/delta/gap, SetFrameTimingOverlayVisible toggle)
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
     v0.1.1-dev50 (Current) : ASS subtitle format bugs (formatASSTime centisecs, escapeASSText double-escape)
     v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
@@ -58,46 +60,23 @@ timeline
 
 - Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
 - Native Go DVD authoring engine with full M1-M7 menu system.
-- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe, bwdif deinterlace, PTS-driven frame timing.
+- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe, bwdif deinterlace, PTS-driven frame timing, A-B loop, frame timing overlay.
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA, menu preservation, main/extra naming.
 - Theme system, PillButton/PillIconButton, text primitives, VTTheme, collapsible section headers — all migrations shipped.
 - Process management: Windows Job Object (crash-safe FFmpeg cleanup), Linux Pdeathsig, NoInheritHandles, Queue.Stop cancellation.
 - PAL/NTSC full-disc conversion with IFO regeneration.
 - Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated + auto-translit).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
-- **dev50 focuses on player stability (error recovery, HW decode evaluation, frame bounds), view.go split, ASS subtitle fixes, UDF hardening.**
+- **All 11 Phase 1 items shipped. Phase 2 begins.**
 
-## Now (dev50 focus)
+## Now (dev50 Done — Phase 1 Complete)
 
 - **Phase 0 complete** — All five P0 critical fixes shipped: error ring buffer (P0-4), HW→SW degradation (P0-1), NextFrame hang (P0-2), backward step (P0-3), OpenAuto disc fallback (P0-5). Per-codec HW blacklist and platform `AudioBufferLatency` deferred to Phase 3.
-- **P1-1: Network/URL streaming shipped** — `Engine.OpenURL(url, opts)` with AVDictionary defaults (60s timeout, reconnect). `InlineVideoPlayer.LoadURL()` exposed. Supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP.
-- **P1-2: Resume/watch-later shipped** — `InlineVideoPlayer` auto-saves position every 5s during playback, restores on load, marks completed on EOF. Shared `ResumeState` wired to both player singletons via `initNativeMediaAssets`.
-- **P1-3: Audio delay shipped** — `Engine.audioDelayBits` (atomic); `WaitForPTS(pts + avDelay)` in NextFrame audio path. Settings → Player "A/V Offset (ms)" entry, persists in `PrefsConfig.AVOffset`. `setPlayerAVOffset()` applies mid-session.
-- **P1-4: Speed + pitch correction shipped** — `AudioFilterGraph.Process()` implemented with `vt_atempo_process` C helper (AVFrame push/drain through atempo filter graph). `AudioPlayer.filterGraph` lazy-initialized in `SetSpeed()`. `Read()` routes chunks through atempo; leftover path skips re-processing when filter is active.
-- **P1-6 + P1-9: Settings Player tab shipped** — SeekAccuracy dropdown (Fast/Fastest/Precise), HW decode section moved from Hardware card to Player card. `PrefsConfig.SeekAccuracy` persisted. `setPlayerSeekAccuracy()` applies mid-session.
-- **P1-11: Clock drift shipped** — `MasterClock.SetTime()` monotonic ratchet now allows backward reset when the backward jump > 1s and no PTS anchor arrived in the last 500ms. Handles audio underrun recovery without requiring explicit `ResetTime()` call.
-- **P1-7: Bilinear scaling shipped (docs-only)** — `sws_scale` at `engine.go:1445` and `framepool.go:36` confirmed using `SWS_BICUBIC`. The `scaleNearest` docstring in `view.go:833` now clarifies that the FFmpeg swscale pipeline (not the canvas blit) determines visual quality.
-- **P1-10: Growing-file support shipped** — `InlineVideoPlayer.growingFileWatcher()` polls file size every 2s on EOF. When size grows, re-opens via `Load()`, seeks to last position, resumes playback. Toggle via `SetGrowingFile(bool)` on Engine, wired through InlineVideoPlayer.
-- **HW decode default-on evaluation** — Re-evaluate D3D11VA default with VEH/SEH bridge and `STATUS_STACK_OVERFLOW` recovery in place; add per-codec HW blacklist for problem codecs.
-- **Frame cache memory bounds** — Byte-aware frame pool eviction, memory-pressure callback, pool size distribution logging.
-- **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
-- **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` enabling mock-based unit tests.
-- **ASS subtitle format bugs** — `formatASSTime` outputs wrong centiseconds format; `escapeASSText` double-escapes closing brace.
-- **UDF reader robustness** — Fallback AVDP scanning for non-standard discs; format validation on all descriptors; multi-extent file support; ISO 9660 bridge.
+- **All 11 Phase 1 items shipped**: P1-1 (Network streaming), P1-2 (Resume), P1-3 (A/V offset), P1-4 (Speed+pitch), P1-5 (A-B loop), P1-6 (SeekAccuracy UI), P1-7 (Bilinear scaling), P1-8 (Frame timing overlay), P1-9 (Player Tuning UI), P1-10 (Growing-file), P1-11 (Clock drift).
+- **Phase 1 gap closure complete** — Every missing player feature catalogued in the gap analysis is now implemented.
+- **Carry-forward deferred work**: view.go component split, Player interface extraction, HW decode default-on evaluation, ASS subtitle format bugs, UDF reader robustness, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup.
 
-## Remaining dev50 work (carry-forward from dev49)
-
-- **Burn multi-drive batch** — Queue multiple ISOs across available burners.
-  See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
-
-- **IMAPI2 COM** — Replace isoburn.exe on Windows for proper progress callbacks.
-  See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
-
-- **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
-
-- **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
-
-## Next
+## Next (Phase 2 — post-dev50)
 
 - **Enhancement module** — DEPENDS ON PLAYER
   - Open-source AI model integration (BasicVSR, RIFE, RealCUGan)
@@ -113,6 +92,17 @@ timeline
   - Seamless module chaining (Player ↔ Enhancement ↔ Trim)
   - Batch processing through queue
   - Hardware-accelerated enhancement pipeline
+
+- **Deferred dev50 carry-forward:**
+  - view.go component split
+  - Player interface extraction
+  - HW decode default-on evaluation
+  - ASS subtitle format bugs
+  - UDF reader robustness
+  - Burn multi-drive batch
+  - IMAPI2 COM replacement
+  - Main Menu refactor
+  - Linux CI speedup
 
 ## Localization
 

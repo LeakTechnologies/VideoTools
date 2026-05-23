@@ -309,6 +309,11 @@ type VideoPlayer struct {
 	osdText  *canvas.Text
 	osdTimer *time.Timer
 
+	// Frame timing diagnostics overlay (P1-8)
+	frameTimingBg   *canvas.Rectangle
+	frameTimingText *canvas.Text
+	showFrameTiming bool
+
 	raster        *canvas.Raster
 	currentWidth  int
 	currentHeight int
@@ -478,6 +483,15 @@ func (v *VideoPlayer) buildControls() {
 	v.osdText.Alignment = fyne.TextAlignCenter
 	v.osdBg.Hide()
 	v.osdText.Hide()
+
+	// Frame timing overlay: semi-transparent bg + monospace text top-right.
+	v.frameTimingBg = canvas.NewRectangle(color.NRGBA{R: 0, G: 0, B: 0, A: 160})
+	v.frameTimingBg.CornerRadius = 4
+	v.frameTimingText = canvas.NewText("", color.NRGBA{G: 220, A: 255})
+	v.frameTimingText.TextSize = 11
+	v.frameTimingText.TextStyle = fyne.TextStyle{Monospace: true}
+	v.frameTimingBg.Hide()
+	v.frameTimingText.Hide()
 }
 
 func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
@@ -1307,6 +1321,20 @@ func (v *VideoPlayer) IdleAspectRatio() float64 {
 	return v.idleAspectRatio
 }
 
+func (v *VideoPlayer) SetFrameTimingVisible(visible bool) {
+	v.showFrameTiming = visible
+	if !visible {
+		v.frameTimingBg.Hide()
+		v.frameTimingText.Hide()
+	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) SetFrameTimingText(text string) {
+	v.frameTimingText.Text = text
+	v.Refresh()
+}
+
 func formatVideoTime(seconds float64) string {
 	t := time.Duration(seconds * float64(time.Second))
 	h := int(t.Hours())
@@ -1329,6 +1357,8 @@ func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
 		r.VideoPlayer.controls,
 		r.VideoPlayer.osdBg,
 		r.VideoPlayer.osdText,
+		r.VideoPlayer.frameTimingBg,
+		r.VideoPlayer.frameTimingText,
 	}
 }
 
@@ -1363,6 +1393,26 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 	r.VideoPlayer.osdBg.Move(fyne.NewPos(osdX, osdY))
 	r.VideoPlayer.osdText.Resize(fyne.NewSize(osdW, osdH))
 	r.VideoPlayer.osdText.Move(fyne.NewPos(osdX, osdY+6))
+
+	// Frame timing overlay: top-right corner, auto-sized to text.
+	if r.VideoPlayer.showFrameTiming {
+		ftText := r.VideoPlayer.frameTimingText
+		ftBg := r.VideoPlayer.frameTimingBg
+		textSize := fyne.MeasureText(ftText.Text, ftText.TextSize, ftText.TextStyle)
+		bgW := textSize.Width + 16
+		bgH := textSize.Height + 12
+		bgX := size.Width - bgW - 8
+		bgY := float32(8)
+		ftBg.Resize(fyne.NewSize(bgW, bgH))
+		ftBg.Move(fyne.NewPos(bgX, bgY))
+		ftBg.Show()
+		ftText.Resize(fyne.NewSize(bgW, bgH))
+		ftText.Move(fyne.NewPos(bgX+6, bgY+4))
+		ftText.Show()
+	} else {
+		r.VideoPlayer.frameTimingBg.Hide()
+		r.VideoPlayer.frameTimingText.Hide()
+	}
 }
 
 func (r *videoPlayerRenderer) Refresh() {
