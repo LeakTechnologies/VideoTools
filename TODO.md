@@ -49,6 +49,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 
+### Error Resilience
+
+- [x] **Error resilience flags** — `setVideoCodecErrorFlags()`: explicit `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2` on both video codec init paths.
+
 ### Mid-Playback Track Switching
 
 - [x] **Mid-playback audio track switching** — `SelectAudioTrack` fixed: close player first, reinit codec (thread_count=1), seek to current PTS, resume if playing.

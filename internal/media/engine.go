@@ -863,6 +863,18 @@ func (e *Engine) GetVideoTracks() []StreamInfo {
 	return result
 }
 
+// setVideoCodecErrorFlags configures error concealment and resilience on a
+// freshly allocated AVCodecContext before avcodec_open2.  Must be called after
+// avcodec_parameters_to_context (which may reset defaults) and before open.
+func setVideoCodecErrorFlags(ctx *C.AVCodecContext) {
+	if ctx == nil {
+		return
+	}
+	// Explicit concealment: motion-vector extrapolation for missing macroblocks
+	// (GUESS_MVS) and deblocking filter on concealed regions (DEBLOCK).
+	ctx.error_concealment = C.FF_EC_GUESS_MVS | C.FF_EC_DEBLOCK
+}
+
 func (e *Engine) SelectVideoTrack(trackIndex int) error {
 	if e.formatCtx == nil || e.info == nil {
 		return fmt.Errorf("no media opened")
@@ -901,6 +913,7 @@ func (e *Engine) SelectVideoTrack(trackIndex int) error {
 	if e.numThreads > 0 {
 		e.videoCodecCtx.thread_count = C.int(e.numThreads)
 	}
+	setVideoCodecErrorFlags(e.videoCodecCtx)
 
 	if C.avcodec_open2(e.videoCodecCtx, codec, nil) < 0 {
 		C.avcodec_free_context(&e.videoCodecCtx)
@@ -1247,6 +1260,7 @@ func (e *Engine) openFinalize() error {
 	// (preDecodeFrames) already hides single-thread I-frame latency.
 	e.videoCodecCtx.thread_count = 1
 	logging.Info(logging.CatPlayer, "SW video decode: thread_count=1 (single-threaded, seek-safe)")
+	setVideoCodecErrorFlags(e.videoCodecCtx)
 
 	logging.Info(logging.CatPlayer, "Opening video codec: %s %dx%d pix_fmt=%d", e.info.CodecName, e.info.Width, e.info.Height, e.videoCodecCtx.pix_fmt)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
