@@ -53,9 +53,9 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | **P0-5: Add OpenAuto() with Open→OpenDVD fallback** | `internal/media/engine.go`, `internal/ui/inline_player.go` | **SHIPPED** |
 | **P1-1: Network/URL streaming** — AVDictionary options, OpenURL, LoadURL | `internal/media/engine.go`, `internal/ui/inline_player.go` | **SHIPPED** |
 | **P1-2: Resume/watch-later outside Trim module** | `internal/media/state/resume.go`, `internal/ui/inline_player.go` | **SHIPPED** |
-| **P1-3: Audio delay adjustment** — no lip-sync correction exists | `internal/media/engine.go`, `internal/media/playback.go`, `internal/ui/inline_player.go` | Planned |
-| **P1-6: SeekAccuracy Settings UI** — locked to Keyframe, Frame/Accurate unreachable | `internal/app/modules/settings/tabs.go`, `types.go` | Planned |
-| **P1-9: Player Tuning Settings UI** — HW toggle, buffer size, thread count, etc. | `internal/app/modules/settings/tabs.go`, `types.go` | Planned |
+| **P1-3: Audio delay adjustment** — no lip-sync correction exists | `internal/media/engine.go`, `internal/media/playback.go`, `internal/ui/inline_player.go` | **SHIPPED** |
+| **P1-6: SeekAccuracy Settings UI** — locked to Keyframe, Frame/Accurate unreachable | `internal/app/modules/settings/tabs.go`, `types.go` | **SHIPPED** |
+| **P1-9: Player Tuning Settings UI** — HW toggle, buffer size, thread count, etc. | `internal/app/modules/settings/tabs.go`, `types.go` | **SHIPPED** |
 | Split 1438-line view.go (VideoPlayer widget) into components | `internal/media/view.go` | Planned (deferred) |
 | Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned (deferred) |
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned (deferred) |
@@ -541,8 +541,13 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 
 ## Next Steps (dev50 — remaining Phase 1)
 
-1. **P1-6 + P1-9 (Claude active):** Build Settings → Player tab with SeekAccuracy dropdown + HW decode toggle + buffer size + thread count controls. Persist in `PrefsConfig`. Wire into `loadViaOpen` (P1-6) and engine init (P1-9).
-2. **P1-2:** Resume/watch-later — extend `ResumeState` from Trim-only to `InlineVideoPlayer`.
-3. **P1-3:** Audio delay adjustment — add `AudioDelay` field, offset clock target in Seek/WaitForPTS.
-4. **P1-4:** Speed + pitch correction — libavfilter atempo for pitch-preserving speed change.
-5. Remaining P1 items: A-B loop (P1-5), bilinear scaling (P1-7), frame timing diagnostics overlay (P1-8), growing-file support (P1-10), clock drift correction (P1-11).
+All 11 Phase 1 items are scoped. 6 shipped so far (P1-1 through P1-4, P1-6, P1-9).
+Remaining:
+
+| Item | Description | Complexity |
+|------|-------------|------------|
+| P1-5 | A-B loop — `SetLoopPoints(a,b)`, wire into NextFrame: after B seek back to A | Medium |
+| P1-7 | Bilinear scaling — swsCtx already uses `SWS_BICUBIC`; nearest-neighbour label in view.go is misleading | Low (docs-only?) |
+| P1-8 | Frame timing diagnostics overlay — ring buffer of per-frame PTS/clock/drop stats, hotkey toggle | Medium |
+| P1-10 | Growing-file — goroutine watches file size, re-probes format context on growth | Medium |
+| P1-11 | Clock drift — background goroutine every 250ms compares clock to wall-time, snaps on no-advance | Low |
