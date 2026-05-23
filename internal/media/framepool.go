@@ -69,7 +69,7 @@ func (e *Engine) toRGBA(src *C.AVFrame) (img *image.RGBA) {
 
 	w, h := int(e.videoCodecCtx.width), int(e.videoCodecCtx.height)
 
-	e.framepoolMu.Lock()
+	e.lockFramepoolMu()
 	if len(e.framePool) > 0 {
 		buf := e.framePool[len(e.framePool)-1]
 		e.framePool = e.framePool[:len(e.framePool)-1]
@@ -81,7 +81,7 @@ func (e *Engine) toRGBA(src *C.AVFrame) (img *image.RGBA) {
 			}
 		}
 	}
-	e.framepoolMu.Unlock()
+	e.unlockFramepoolMu()
 
 	if img == nil {
 		img = image.NewRGBA(image.Rect(0, 0, w, h))
@@ -96,8 +96,8 @@ func (e *Engine) ReleaseFrame(img *image.RGBA) {
 		return
 	}
 
-	e.framepoolMu.Lock()
-	defer e.framepoolMu.Unlock()
+	e.lockFramepoolMu()
+	defer e.unlockFramepoolMu()
 
 	if len(e.framePool) < 4 {
 		buf := make([]byte, len(img.Pix))
@@ -107,8 +107,8 @@ func (e *Engine) ReleaseFrame(img *image.RGBA) {
 }
 
 func (e *Engine) GetFramePoolSize() int {
-	e.framepoolMu.Lock()
-	defer e.framepoolMu.Unlock()
+	e.lockFramepoolMu()
+	defer e.unlockFramepoolMu()
 	return len(e.framePool)
 }
 

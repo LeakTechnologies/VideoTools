@@ -48,6 +48,12 @@ func (e *Engine) ClearError() {
 	e.lastError = nil
 }
 
+// DegradeToSoftware permanently switches from HW to SW decoding.
+// Acquires mu → videoCodecMu — must NOT be called while already holding
+// videoCodecMu (reverse-order deadlock).  Currently unused (dead code);
+// HW→SW fallback happens inline in GrabFrame / videoDecodeLoop instead.
+// When wiring up, ensure callers are outside the videoCodecMu critical
+// section, or use a goroutine (go e.DegradeToSoftware()).
 func (e *Engine) DegradeToSoftware() {
 	if e.hwDevice == HWDeviceNone {
 		return
@@ -55,10 +61,10 @@ func (e *Engine) DegradeToSoftware() {
 
 	logging.Warning(logging.CatPlayer, "Degrading from HW to software decoding")
 
-	e.mu.Lock()
+	e.lockMu()
 	e.hwDegraded = true
 
-	e.videoCodecMu.Lock()
+	e.lockVideoCodecMu()
 	if e.hwFramesCtx != nil {
 		C.av_buffer_unref(&e.hwFramesCtx)
 		e.hwFramesCtx = nil
@@ -72,19 +78,19 @@ func (e *Engine) DegradeToSoftware() {
 		e.videoCodecCtx.hw_frames_ctx = nil
 	}
 	e.hwDevice = HWDeviceNone
-	e.videoCodecMu.Unlock()
+	e.unlockVideoCodecMu()
 
 	e.lastError = &PlaybackError{
 		Code:    ErrCodeHWAccel,
 		Message: "Fell back to software decoding",
 		Retry:   false,
 	}
-	e.mu.Unlock()
+	e.unlockMu()
 }
 
 func (e *Engine) ShouldDegrade() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if e.hwDegraded {
 		return false
@@ -97,13 +103,13 @@ func (e *Engine) ShouldDegrade() bool {
 }
 
 func (e *Engine) RecordHWFailure() {
-	e.mu.Lock()
+	e.lockMu()
 	e.hwFailCount++
-	e.mu.Unlock()
+	e.unlockMu()
 }
 
 func (e *Engine) ResetHWFailureCount() {
-	e.mu.Lock()
+	e.lockMu()
 	e.hwFailCount = 0
-	e.mu.Unlock()
+	e.unlockMu()
 }

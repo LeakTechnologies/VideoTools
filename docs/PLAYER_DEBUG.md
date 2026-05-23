@@ -178,6 +178,30 @@ Close() / Load()-into-existing-player
 
 ---
 
+## Lock Hierarchy
+
+All Engine mutexes follow a strict acquisition order to prevent deadlocks:
+
+| Level | Mutex | Protects | Acquired by |
+|-------|-------|----------|-------------|
+| 1 | `mu` | General engine state: running, paused, loading, looping, deinterlaceEnabled, filterPipeline, bufferMode, decodeTimes, chapters, hwDegraded | Getter/setter methods (SetBufferMode, IsPaused, SetLooping, etc.) |
+| 2 | `formatMu` | av_read_frame vs avformat_seek_file — AVFormatContext is NOT thread-safe | demuxerLoop, Seek, Duration |
+| 3 | `videoCodecMu` | avcodec_send_packet / avcodec_receive_frame on videoCodecCtx | GrabFrame, videoDecodeLoop, Seek, ResetAfterGrab, Close |
+| 4 | `framepoolMu` | framePool byte-slice reuse pool | toRGBA, ReleaseFrame, GetFramePoolSize |
+
+**Rules:**
+1. Always acquire in ascending level order. Violations are reverse-order deadlocks.
+2. Lock-free fields: `seekFlushBefore`, `seekGen`, `lastVideoPTSBits` use `atomic.Uint64` — avoids `videoCodecMu → mu` reverse-order deadlock.
+3. `Close()` is the only exception: releases `mu` before acquiring `videoCodecMu`. Safe because `running=false` is set under `mu` before release, and stop+drain barriers prevent concurrent access.
+4. `DegradeToSoftware()` acquires `mu → videoCodecMu` — must NOT be called while holding `videoCodecMu`. Currently unused (HW→SW fallback happens inline).
+
+**Lockdep:** compile with `-tags lockdep` to enable goroutine-local lock ordering verification. Every `lock*Mu()` / `unlock*Mu()` call checks that no lower-level lock is held by the current goroutine, panicking on violation.
+
+**Files with lock helpers:**
+- `internal/media/lock.go` — level constants, `lockMu`/`lockFormatMu`/`lockVideoCodecMu`/`lockFramepoolMu` helpers, hierarchy comments
+- `internal/media/lockdep_on.go` — `//go:build lockdep`, actual goroutine-local tracking + assertion
+- `internal/media/lockdep_off.go` — `//go:build !lockdep`, no-op stubs
+
 ## Relevant Files
 
 | File | Role |
@@ -187,6 +211,7 @@ Close() / Load()-into-existing-player
 | `internal/media/audio.go` | AudioPlayer — oto v3 backend, codec decode, clock driver |
 | `internal/media/scrub.go` | SmoothScrubbing — seek pre-decode with private AVFrame/swsCtx |
 | `internal/media/queue.go` | PacketQueue — cond-var queue with Put/Get/TryGet/Flush/Close |
+| `internal/media/lock.go` | Lock level constants and ordering helpers |
 | `internal/ui/inline_player.go` | InlineVideoPlayer API — Load/Play/Pause/Seek/Close, playbackLoop, seekLoop |
 | `native_media.go` | Player singleton getters, HasNativeMediaPlayer |
 | `docs/NATIVE_PLAYER.md` | Architecture reference — read before touching player code |

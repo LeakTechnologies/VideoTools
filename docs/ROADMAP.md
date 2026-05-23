@@ -87,7 +87,7 @@ timeline
 - **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
 - **Player interface** — Extract formal Go `Player` interface from `InlineVideoPlayer` for mock testing.
 - **HW decode default-on** — Re-evaluate D3D11VA default with VEH/SEH bridge coverage; add per-codec HW blacklist.
-- **Thread safety formalisation** — Document lock hierarchy, add lockdep assertions, eliminate reverse-order paths.
+- **Thread safety formalisation — SHIPPED** — Formal lock hierarchy (`mu → formatMu → videoCodecMu → framepoolMu`), named helper wrappers across ~60 call sites, lockdep build-tag runtime verification with goroutine-local tracking, `DegradeToSoftware` safety docs, `docs/PLAYER_DEBUG.md` lock hierarchy section.
 - **UDF thread safety & progress** — Mutex-guarded Reader, extraction progress callbacks, temp file cleanup.
 
 ## Remaining dev49 work

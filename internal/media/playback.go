@@ -34,14 +34,14 @@ import (
 )
 
 func (e *Engine) Start() {
-	e.mu.Lock()
+	e.lockMu()
 	if e.running {
-		e.mu.Unlock()
+		e.unlockMu()
 		return
 	}
 	e.running = true
 	e.paused = true
-	e.mu.Unlock()
+	e.unlockMu()
 
 	logging.Info(logging.CatPlayer, "Engine.Start: starting demuxerLoop")
 	// Clock stays paused here — Resume() unpauses it on the first Play().
@@ -86,9 +86,9 @@ func (e *Engine) demuxerLoop() {
 
 		// Serialise av_read_frame against avformat_seek_file — AVFormatContext
 		// is not thread-safe; concurrent access from Seek() causes hard crashes.
-		e.formatMu.Lock()
+		e.lockFormatMu()
 		ret := C.av_read_frame(e.formatCtx, pkt)
-		e.formatMu.Unlock()
+		e.unlockFormatMu()
 
 		if firstPkt {
 			firstPkt = false
@@ -125,8 +125,8 @@ func (e *Engine) Seek(seconds float64) error {
 	}
 	logging.Info(logging.CatPlayer, "Seeking to %.2f seconds (accuracy: %v)", seconds, e.seekAcc)
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if e.formatCtx == nil || e.videoStreamIdx < 0 {
 		return fmt.Errorf("no media opened")
@@ -159,7 +159,7 @@ func (e *Engine) Seek(seconds float64) error {
 	}
 	logging.Info(logging.CatPlayer, "Seek: flags=%s target=%.2f minTS=%d maxTS=%d", flagsDesc, seconds, int64(minTS), int64(maxTS))
 
-	e.formatMu.Lock()
+	e.lockFormatMu()
 	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
 
 	if seekRet >= 0 && e.seekAcc == SeekAccuracyKeyframe {
@@ -197,7 +197,7 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 	}
 
-	e.formatMu.Unlock()
+	e.unlockFormatMu()
 	if seekRet < 0 {
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d 0x%08X)", seconds, seekRet, uint32(seekRet))
 		return fmt.Errorf("seek failed")
@@ -226,11 +226,11 @@ func (e *Engine) Seek(seconds float64) error {
 	e.seekFlushBefore.Store(math.Float64bits(seconds - 0.15))
 
 	if e.videoCodecCtx != nil && e.videoDecoded {
-		e.videoCodecMu.Lock()
+		e.lockVideoCodecMu()
 		if _, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
 			logging.Error(logging.CatPlayer, "Seek: flush send failed (exc=0x%08X)", sendExc)
 			e.videoDecodeDead = true
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			return fmt.Errorf("flush send failed")
 		}
 		flushed := 0
@@ -243,7 +243,7 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.seekGen.Add(1)
-		e.videoCodecMu.Unlock()
+		e.unlockVideoCodecMu()
 		logging.Info(logging.CatPlayer, "Seek: flushed %d frames", flushed)
 	} else {
 		logging.Info(logging.CatPlayer, "Seek: skipping video codec flush (no frames decoded yet), flushing audio codec")
@@ -292,8 +292,8 @@ func (e *Engine) ResetAfterGrab() {
 	}()
 
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: flushing queues and resetting clock")
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if e.formatCtx == nil {
 		return
@@ -307,7 +307,7 @@ func (e *Engine) ResetAfterGrab() {
 	}
 
 	if e.videoCodecCtx != nil && e.videoDecoded {
-		e.videoCodecMu.Lock()
+		e.lockVideoCodecMu()
 		SafeSendPacket(e.videoCodecCtx, nil)
 		for {
 			ret, _ := SafeReceiveFrame(e.videoCodecCtx, e.frame)
@@ -316,7 +316,7 @@ func (e *Engine) ResetAfterGrab() {
 			}
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
-		e.videoCodecMu.Unlock()
+		e.unlockVideoCodecMu()
 		logging.Info(logging.CatPlayer, "ResetAfterGrab: video codec flushed (B-frame drain)")
 	}
 
@@ -372,17 +372,17 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 		}
 
 		logging.Info(logging.CatPlayer, "GrabFrame: sending packet to video codec")
-		e.videoCodecMu.Lock()
+		e.lockVideoCodecMu()
 		sendRet, excCode := SafeSendPacket(e.videoCodecCtx, pkt)
 		C.av_packet_free(&pkt)
 		if excCode != 0 {
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			logging.Error(logging.CatPlayer, "GrabFrame: avcodec_send_packet SEH exception (exc=0x%08X) — disabling video decode", excCode)
 			e.videoDecodeDead = true
 			return nil, fmt.Errorf("video decode access violation: 0x%08X", excCode)
 		}
 		if sendRet != 0 {
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			logging.Info(logging.CatPlayer, "GrabFrame: avcodec_send_packet returned %d, skipping", int(sendRet))
 			continue
 		}
@@ -393,7 +393,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 			if recvExc != 0 {
 				logging.Error(logging.CatPlayer, "GrabFrame: avcodec_receive_frame SEH exception (exc=0x%08X) — disabling video decode", recvExc)
 				e.videoDecodeDead = true
-				e.videoCodecMu.Unlock()
+				e.unlockVideoCodecMu()
 				return nil, fmt.Errorf("video decode access violation: 0x%08X", recvExc)
 			}
 			if recvRet != 0 {
@@ -418,7 +418,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
 					if e.frame.hw_frames_ctx != nil {
 						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
-						e.videoCodecMu.Unlock()
+						e.unlockVideoCodecMu()
 						continue
 					}
 					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
@@ -446,10 +446,10 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 					img = e.toRGBA(nil)
 				}
 			}
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			return img, nil
 		}
-		e.videoCodecMu.Unlock()
+		e.unlockVideoCodecMu()
 	}
 
 	return nil, fmt.Errorf("timed out waiting for first video frame")
@@ -464,9 +464,9 @@ func (e *Engine) sendToFrameQueue(df decodedFrame) bool {
 		case <-e.decodeLoopStop:
 			return false
 		case <-time.After(5 * time.Millisecond):
-			e.mu.Lock()
+			e.lockMu()
 			paused := e.paused
-			e.mu.Unlock()
+			e.unlockMu()
 			if paused {
 				pauseRetries++
 				if pauseRetries >= 3 {
@@ -498,9 +498,9 @@ func (e *Engine) videoDecodeLoop() {
 		default:
 		}
 
-		e.mu.Lock()
+		e.lockMu()
 		paused := e.paused
-		e.mu.Unlock()
+		e.unlockMu()
 
 		if paused {
 			if len(e.frameQueue) >= 1 {
@@ -512,13 +512,13 @@ func (e *Engine) videoDecodeLoop() {
 		rawPkt, ok := e.videoQueue.TryGet()
 		if !ok {
 			if e.videoQueue.IsClosedOrEOF() {
-				e.mu.Lock()
+				e.lockMu()
 				sent := e.decodeEOFSent
-				e.mu.Unlock()
+				e.unlockMu()
 				if !sent {
-					e.mu.Lock()
+					e.lockMu()
 					e.decodeEOFSent = true
-					e.mu.Unlock()
+					e.unlockMu()
 					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 				}
 			}
@@ -526,24 +526,24 @@ func (e *Engine) videoDecodeLoop() {
 			continue
 		}
 
-		e.videoCodecMu.Lock()
+		e.lockVideoCodecMu()
 		sendRet, excCode := SafeSendPacket(e.videoCodecCtx, rawPkt)
 		C.av_packet_free(&rawPkt)
 		if excCode != 0 {
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_send_packet SEH exception (exc=0x%08X) — stopping decode", excCode)
 			e.videoDecodeDead = true
 			return
 		}
 		if sendRet != 0 {
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 			continue
 		}
 
 		for {
 			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
 			if recvExc != 0 {
-				e.videoCodecMu.Unlock()
+				e.unlockVideoCodecMu()
 				logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_receive_frame SEH exception (exc=0x%08X) — stopping decode", recvExc)
 				e.videoDecodeDead = true
 				return
@@ -568,9 +568,9 @@ func (e *Engine) videoDecodeLoop() {
 
 			flushBefore := math.Float64frombits(e.seekFlushBefore.Load())
 			if flushBefore > 0 && pts < flushBefore {
-				e.videoCodecMu.Unlock()
+				e.unlockVideoCodecMu()
 				runtime.Gosched()
-				e.videoCodecMu.Lock()
+				e.lockVideoCodecMu()
 				continue
 			}
 			if flushBefore > 0 {
@@ -583,12 +583,12 @@ func (e *Engine) videoDecodeLoop() {
 				img, err = e.retrieveHWFrame()
 				if err != nil {
 					if e.videoDecodeDead {
-						e.videoCodecMu.Unlock()
+						e.unlockVideoCodecMu()
 						return
 					}
 					logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW retrieve failed: %v", err)
 					if e.frame.hw_frames_ctx != nil {
-						e.videoCodecMu.Unlock()
+						e.unlockVideoCodecMu()
 						continue
 					}
 					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
@@ -618,15 +618,15 @@ func (e *Engine) videoDecodeLoop() {
 			}
 
 			gen = e.seekGen.Load()
-			e.videoCodecMu.Unlock()
+			e.unlockVideoCodecMu()
 
 			if !e.sendToFrameQueue(decodedFrame{img: img, pts: pts, gen: gen}) {
 				return
 			}
 
-			e.videoCodecMu.Lock()
+			e.lockVideoCodecMu()
 		}
-		e.videoCodecMu.Unlock()
+		e.unlockVideoCodecMu()
 	}
 }
 
@@ -643,10 +643,10 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 	verbose := nf <= 20
 
 	for {
-		e.mu.Lock()
+		e.lockMu()
 		paused := e.paused
 		hasAudio := e.hasAudio
-		e.mu.Unlock()
+		e.unlockMu()
 
 		var df decodedFrame
 		select {
@@ -729,20 +729,20 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 }
 
 func (e *Engine) IsPaused() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.paused
 }
 
 func (e *Engine) Pause() {
-	e.mu.Lock()
+	e.lockMu()
 	if !e.running || e.paused {
-		e.mu.Unlock()
+		e.unlockMu()
 		return
 	}
 	e.paused = true
 	e.clock.SetPaused(true)
-	e.mu.Unlock()
+	e.unlockMu()
 
 	if e.audioPlayer != nil {
 		e.audioPlayer.Pause()
@@ -767,14 +767,14 @@ func (e *Engine) WaitForFrame(timeout time.Duration) bool {
 }
 
 func (e *Engine) Resume() {
-	e.mu.Lock()
+	e.lockMu()
 	if !e.running {
-		e.mu.Unlock()
+		e.unlockMu()
 		logging.Info(logging.CatPlayer, "Engine.Resume: not running, returning")
 		return
 	}
 	if !e.paused {
-		e.mu.Unlock()
+		e.unlockMu()
 		logging.Info(logging.CatPlayer, "Engine.Resume: not paused, returning")
 		return
 	}
@@ -786,7 +786,7 @@ func (e *Engine) Resume() {
 		e.decodeLoopWg.Add(1)
 		go e.videoDecodeLoop()
 	}
-	e.mu.Unlock()
+	e.unlockMu()
 
 	if e.audioPlayer != nil {
 		e.audioPlayer.Resume()
@@ -803,8 +803,8 @@ func (e *Engine) TogglePause() {
 }
 
 func (e *Engine) Duration() float64 {
-	e.formatMu.Lock()
-	defer e.formatMu.Unlock()
+	e.lockFormatMu()
+	defer e.unlockFormatMu()
 	if e.formatCtx == nil {
 		return 0
 	}
@@ -831,14 +831,14 @@ func (e *Engine) GetLastAudioPTS() float64 {
 }
 
 func (e *Engine) Close() {
-	e.mu.Lock()
+	e.lockMu()
 	if !e.running {
-		e.mu.Unlock()
+		e.unlockMu()
 		return
 	}
 	e.running = false
 	e.paused = false
-	e.mu.Unlock()
+	e.unlockMu()
 
 	close(e.stop)
 
@@ -867,7 +867,7 @@ closeDrainDone:
 		e.audioPlayer = nil
 	}
 
-	e.videoCodecMu.Lock()
+	e.lockVideoCodecMu()
 	if e.swsCtx != nil {
 		C.sws_freeContext(e.swsCtx)
 		e.swsCtx = nil
@@ -907,7 +907,7 @@ closeDrainDone:
 		C.av_frame_free(&e.hwRgbaFrame)
 		e.hwRgbaFrame = nil
 	}
-	e.videoCodecMu.Unlock()
+	e.unlockVideoCodecMu()
 
 	if e.audioCodecCtx != nil {
 		C.avcodec_free_context(&e.audioCodecCtx)
@@ -929,8 +929,8 @@ closeDrainDone:
 }
 
 func (e *Engine) IsRunning() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.running
 }
 

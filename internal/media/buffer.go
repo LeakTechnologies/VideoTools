@@ -9,20 +9,20 @@ import (
 )
 
 func (e *Engine) SetBufferMode(mode BufferMode) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	e.bufferMode = mode
 }
 
 func (e *Engine) GetBufferMode() BufferMode {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 	return e.bufferMode
 }
 
 func (e *Engine) GetAdaptiveBufferSize() int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	switch e.bufferMode {
 	case BufferModeMinimal:
@@ -37,8 +37,8 @@ func (e *Engine) GetAdaptiveBufferSize() int {
 }
 
 func (e *Engine) recordDecodeTime(duration time.Duration) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	e.decodeTimes = append(e.decodeTimes, duration)
 	if len(e.decodeTimes) > 30 {
@@ -48,8 +48,8 @@ func (e *Engine) recordDecodeTime(duration time.Duration) {
 }
 
 func (e *Engine) GetDecodeTimeTrend() float64 {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if len(e.decodeTimes) < 5 {
 		return 0
@@ -81,8 +81,8 @@ func (e *Engine) GetDecodeTimeTrend() float64 {
 func (e *Engine) AdjustBufferForPerformance() {
 	trend := e.GetDecodeTimeTrend()
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if trend > 0.3 {
 		newSize := e.frameCache.Size() + 10
@@ -104,8 +104,8 @@ func (e *Engine) AdjustBufferForPerformance() {
 }
 
 func (e *Engine) GetAverageDecodeTime() time.Duration {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.lockMu()
+	defer e.unlockMu()
 
 	if len(e.decodeTimes) == 0 {
 		return 0
