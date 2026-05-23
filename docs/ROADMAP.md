@@ -27,7 +27,7 @@ timeline
     v0.1.1-dev49 (Shipped) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)
     v0.1.1-dev50 (Current) : Player error recovery overhaul : HW decode default-on evaluation : Frame cache memory bounds
     v0.1.1-dev50 (Current) : P1-1 Network streaming (Engine.OpenURL, LoadURL) : P1-2 Resume/watch-later : P1-3 A/V Offset (audio delay)
-    v0.1.1-dev50 (Current) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
+    v0.1.1-dev50 (Current) : P1-4 Speed+pitch correction (atempo filter) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
     v0.1.1-dev50 (Current) : ASS subtitle format bugs (formatASSTime centisecs, escapeASSText double-escape)
     v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
@@ -71,6 +71,7 @@ timeline
 - **P1-1: Network/URL streaming shipped** — `Engine.OpenURL(url, opts)` with AVDictionary defaults (60s timeout, reconnect). `InlineVideoPlayer.LoadURL()` exposed. Supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP.
 - **P1-2: Resume/watch-later shipped** — `InlineVideoPlayer` auto-saves position every 5s during playback, restores on load, marks completed on EOF. Shared `ResumeState` wired to both player singletons via `initNativeMediaAssets`.
 - **P1-3: Audio delay shipped** — `Engine.audioDelayBits` (atomic); `WaitForPTS(pts + avDelay)` in NextFrame audio path. Settings → Player "A/V Offset (ms)" entry, persists in `PrefsConfig.AVOffset`. `setPlayerAVOffset()` applies mid-session.
+- **P1-4: Speed + pitch correction shipped** — `AudioFilterGraph.Process()` implemented with `vt_atempo_process` C helper (AVFrame push/drain through atempo filter graph). `AudioPlayer.filterGraph` lazy-initialized in `SetSpeed()`. `Read()` routes chunks through atempo; leftover path skips re-processing when filter is active.
 - **P1-6 + P1-9: Settings Player tab shipped** — SeekAccuracy dropdown (Fast/Fastest/Precise), HW decode section moved from Hardware card to Player card. `PrefsConfig.SeekAccuracy` persisted. `setPlayerSeekAccuracy()` applies mid-session.
 - **HW decode default-on evaluation** — Re-evaluate D3D11VA default with VEH/SEH bridge and `STATUS_STACK_OVERFLOW` recovery in place; add per-codec HW blacklist for problem codecs.
 - **Frame cache memory bounds** — Byte-aware frame pool eviction, memory-pressure callback, pool size distribution logging.

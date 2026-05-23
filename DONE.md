@@ -2,6 +2,15 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-4: Speed + Pitch Correction (atempo filter)
+
+- **`AudioFilterGraph.Process()` implemented** in `internal/media/audio_filter.go`: real `vt_atempo_process` C helper replaces the stub. Pushes S16 stereo PCM through the atempo filter graph via `av_buffersrc_add_frame_flags(KEEP_REF)`, drains output frames with `av_buffersink_get_frame`, accumulates into a `malloc`'d buffer returned via `C.GoBytes`. Returns `nil, nil` when still buffering.
+- **`AudioFilterGraph.sampleRate int`** stored during `Init()` for use by `Process()`.
+- **`AudioPlayer.filterGraph *AudioFilterGraph`** lazy-initialized in `SetSpeed()` when speed ≠ 1.0. Init uses `TargetSampleRate`/`TargetChannels`. `SetTempo(speed)` clamps to 0.25–2.0.
+- **`AudioPlayer.Read()`**: uses `fg.Process(chunk.data)` when filterGraph active; returns silence on empty output (filter buffering); leftover path skips `adjustSamplesForSpeed` when fg is active.
+- **`AudioPlayer.Close()`**: releases filterGraph after oto teardown.
+- New CGo headers: `stdlib.h`, `string.h`, `libavutil/frame.h`, `libavutil/channel_layout.h`.
+
 ### P1-3: Audio Delay (A/V Offset)
 
 - **`audioDelayBits atomic.Uint64`** added to `Engine` struct in `internal/media/engine.go`. `SetAudioDelay(d float64)` / `GetAudioDelay() float64` use `math.Float64bits` for lock-free hot-path read. `defaultAudioDelayBits` package-level atomic with `DefaultAudioDelay()` / `SetDefaultAudioDelay()` for global default (default 0).
