@@ -2,7 +2,18 @@
 
 ## v0.1.1-dev50 (June 2026)
 
-*(Cycle opened — entries will appear here as work lands)*
+### Comprehensive Media Engine Gap Analysis
+
+- **Full audit of every missing player feature** vs. production players (VLC/MPV). 20+ gaps catalogued across 4 phases.
+- **DegradeToSoftware confirmed dead code** (`errors.go:57`): HW→SW fallback is inline per-frame, retrying HW on every decode until `videoDecodeDead=true` kills decoding permanently. `DegradeToSoftware()`, `ShouldDegrade()`, `RecordHWFailure()`, `ResetHWFailureCount()` are all unreachable.
+- **NextFrame hang after HW crash** (`playback.go:662`): When SEH fires in videoDecodeLoop, remaining frame queue drains then NextFrame blocks forever receiving from a channel that will never get an EOF sentinel.
+- **Backward frame stepping broken** (`playback.go:335-338`): `Step(frames)` rejects negative values — all `StepFrame(-1)` callers silently fail.
+- **lastError is orphaned dead data** (`engine.go:205`, `errors.go:17-48`): Single `*PlaybackError` pointer written only in dead code, `GetLastError()`/`ClearError()` never called by any module.
+- **No network streaming**: `avformat_open_input` gets `nil, nil` — no AVDictionary options for timeout, reconnect, protocol whitelist. FFmpeg natively supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP but VT has no URL opening path.
+- **SeekAccuracy locked to Keyframe**: All 3 callers hardcode `SeekAccuracyKeyframe` — Frame and Accurate modes defined but unreachable.
+- **Resume/watch-later only in Trim module**: `internal/media/state/resume.go` used exclusively by trim/view.go.
+- **No audio delay, speed+pitch correction, A-B loop, bilinear scaling, frame timing overlay, clock drift correction, or growing-file support**.
+- **Design document**: `docs/MEDIA_ENGINE_GAP_ANALYSIS.md` with tiered list, file:line references, effort estimates, and VLC/MPV comparison.
 
 ---
 

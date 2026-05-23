@@ -869,7 +869,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			discInfoLabel.Show()
 			return
 		}
-		discInfoLabel.Hide()
+		discInfoLabel.SetText("⏺  Scanning…")
+		discInfoLabel.Show()
 
 		vs.sourcePath = path
 		sourceEntry.SetText(path)
@@ -890,21 +891,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if strings.HasSuffix(strings.ToLower(path), ".iso") {
 			go func() {
 				result, scanErr := scanISOViaUDF(path)
-				if scanErr != nil {
-					logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
-					return
-				}
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					vs.scanResult = result
-					if len(result.Titles) > 0 {
-						vs.selectedTitles = make(map[int]bool)
-						for _, dt := range result.Titles {
-							vs.selectedTitles[dt.Number] = true
+					if scanErr != nil {
+						logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
+						discInfoLabel.SetText("⏺  Could not read disc info")
+						discInfoLabel.Show()
+					} else {
+						vs.scanResult = result
+						if len(result.Titles) > 0 {
+							vs.selectedTitles = make(map[int]bool)
+							for _, dt := range result.Titles {
+								vs.selectedTitles[dt.Number] = true
+							}
+							go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
 						}
-						go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
+						rebuildTitleNav()
+						rebuildEnrich()
 					}
-					rebuildTitleNav()
-					rebuildEnrich()
 				}, false)
 			}()
 		} else {
@@ -912,12 +915,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 				vtsp, _, err := ResolveVideoTSPath(path)
 				if err != nil {
 					logging.Warning(logging.CatDVD, "ResolveVideoTSPath failed: %v", err)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						discInfoLabel.SetText("⏺  Could not locate VIDEO_TS")
+						discInfoLabel.Show()
+					}, false)
 					return
 				}
 				result, scanErr := ScanDisc(vtsp)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
+						discInfoLabel.SetText("⏺  Could not read disc info")
+						discInfoLabel.Show()
 					} else {
 						vs.scanResult = result
 						vs.videoTSPath = vtsp
@@ -930,8 +939,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 							go func() { _ = dvdPlayer.LoadDVD(discRoot, result.Titles[0].Number) }()
 						}
 						rebuildTitleNav()
+						rebuildEnrich()
 					}
-					rebuildEnrich()
 				}, false)
 			}()
 		}
