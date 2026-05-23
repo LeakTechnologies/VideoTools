@@ -202,7 +202,9 @@ type Engine struct {
 
 	frameCache *PlaybackFrameCache
 
-	lastError *PlaybackError
+	errorRing     [errorRingSize]ErrorRecord
+	errorRingNext int
+	errorMu       sync.Mutex
 
 	gpuTexUpload interface{}
 
@@ -355,7 +357,7 @@ func NewEngine() *Engine {
 		seekAcc:           SeekAccuracyKeyframe,
 		numThreads:        0,
 		framePool:         make([][]byte, 0, 4),
-		lastError:         nil,
+		errorRingNext:     0,
 		hwDegraded:        false,
 		hwFailCount:       0,
 		frameQueue:        make(chan decodedFrame, preDecodeFrames),

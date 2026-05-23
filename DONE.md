@@ -2,6 +2,21 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P0-4: Error Ring Buffer (replaces single-slot lastError)
+
+- **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer (`errorRing [16]ErrorRecord` + `errorRingNext int`) in `internal/media/errors.go`.
+- **Added `ErrorRecord` struct** with `Timestamp time.Time`, `Code`, `Message`, `Retry` fields — each entry captures when the error occurred.
+- **Added `SetError(code, message, retry)`** — thread-safe method that writes into the ring buffer at the next slot (wrapping around). Uses a dedicated `errorMu sync.Mutex` independent of the engine lock hierarchy.
+- **Wired `SetError` into all SEH catch paths:**
+  - `GrabFrame` — `avcodec_send_packet` / `avcodec_receive_frame` SEH exceptions
+  - `videoDecodeLoop` — `avcodec_send_packet` / `avcodec_receive_frame` SEH exceptions
+  - `retrieveHWFrame` — `av_hwframe_transfer_data` / `sws_scale` SEH exceptions
+  - `DegradeToSoftware()` — HW→SW fallback event (previously assigned `lastError` directly)
+- **`GetLastError()`** preserved as backward-compat: returns most recent record as `*PlaybackError` (or nil if empty).
+- **`ClearError()` / `ClearErrorHistory()`** reset the ring buffer.
+- **`GetErrorHistory() []ErrorRecord`** returns all entries in chronological order, oldest first.
+- Build verified, all media package tests pass (2 pre-existing ASS subtitle failures unaffected).
+
 ### Comprehensive Media Engine Gap Analysis
 
 - **Full audit of every missing player feature** conducted against `internal/media/` — catalogued 20+ gaps across 4 phases: Critical Stability (5 items), Player Completeness (11 items), ISO Engine (3 items), Polish & Diagnostics (4 items).
