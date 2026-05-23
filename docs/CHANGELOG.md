@@ -2,6 +2,14 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### Playlist / Sequential Playback
+
+- **`InlineVideoPlayer.Enqueue(path string)`** — appends a file path to the internal playlist. When the current item reaches clean end-of-stream, `playbackLoop` auto-advances to the next queued item: loads it (via `loadViaOpen` with `resetPlaylist=false`) then calls `Play()` immediately.
+- **`InlineVideoPlayer.ClearPlaylist()`** — empties the queued items without affecting the currently playing item.
+- **`InlineVideoPlayer.PlaylistLen() int`** — returns the number of items remaining in the queue (items not yet played).
+- **Auto-reset on manual load** — calling `Load`, `LoadDVD`, or `LoadURL` directly resets `playlist` and `playlistIdx` to zero so a new user-initiated load starts fresh, independent of any previously queued items.
+- **`InlineVideoPlayer` struct** — added `playlist []string` and `playlistIdx int` (both protected by `mu`).
+
 ### HDR Tone-Mapping
 
 - **`internal/media/hdr.go`** — new CGo file (build tag `native_media`) following the `deinterlace.go` pattern. C preamble implements three helpers: `frame_is_hdr` (checks `color_trc` for `AVCOL_TRC_SMPTE2084`/`AVCOL_TRC_ARIB_STD_B67`), `create_hdr_tonemap_filter` (builds libavfilter graph: `buffer → zscale(t=linear,npl=1000) → format(gbrpf32le) → tonemap(hable,desat=0.5) → zscale(t=bt709,m=bt709) → format(yuv420p) → buffersink`), `run_hdr_tonemap` (pushes a frame through and returns an SDR `yuv420p` output). Color metadata (TRC, primaries, matrix, range) is forwarded to the `buffersrc` args so zscale correctly identifies the input transfer characteristic.
