@@ -2,6 +2,10 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### HDR Tone-Mapping
+
+- **`internal/media/hdr.go`** — `isFrameHDR` checks `frame->color_trc` (AVCOL_TRC_SMPTE2084 / AVCOL_TRC_ARIB_STD_B67). `renderSWFrame` in `playback.go` calls `applyHDRTonemap(e.frame)` before `ensureSwsCtx`+`toRGBA`. Filter graph: `zscale(t=linear,npl=1000)→format(gbrpf32le)→tonemap(hable,desat=0.5)→zscale(t=bt709,m=bt709)→format(yuv420p)`. `hdrTonemapUnsupported` flag prevents retry when libzimg/zscale are unavailable. Applied in all four SW decode sites (GrabFrame SW, GrabFrame HW→SW fallback, videoDecodeLoop SW, videoDecodeLoop HW→SW fallback). Engine struct: `hdrFilterGraph`, `hdrBuffersrc`, `hdrBuffersink`, `hdrInputPixFmt`, `hdrTonemapUnsupported`. `freeHDRFilter()` called from `Close()`.
+
 ### Per-Codec HW Decode Deny-List
 
 - **`media.SetHWCodecDenyList(s)`** — comma-separated codec names forced to SW decode. `codecCanUseHWDevice` checks deny-list first. `PrefsConfig.HWCodecDenyList` persists. Settings → Player text entry. Loaded at startup.
