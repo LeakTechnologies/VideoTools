@@ -245,6 +245,7 @@ var frCA = Strings{
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "Appliquez des filtres et des corrections de couleur à votre vidéo. Prévisualisez les changements en temps réel.",
+	FiltersSettingsPanel:     "Paramètres",
 	FiltersVideoPreview:      "Aperçu vidéo",
 	FiltersSectionBrightness: "Ajuster la luminosité, le contraste et la saturation",
 	FiltersBrightness:        "Luminosité :",
@@ -702,6 +703,7 @@ var frCA = Strings{
 	UpscaleClassicDesc:     "Méthodes d'agrandissement classiques — toujours disponibles",
 	UpscaleOptionalBlur:    "Flou optionnel",
 	UpscaleFilterIntHint:   "Les filtres du module Filtres sont appliqués avant l'agrandissement.",
+	UpscaleSettingsPanel:   "Paramètres",
 	UpscaleVideoBox:        "Vidéo",
 	UpscaleTargetResBox:    "Résolution cible",
 	UpscaleEncodingBox:     "Encodage vidéo",

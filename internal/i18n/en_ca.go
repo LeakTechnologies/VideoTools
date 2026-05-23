@@ -246,6 +246,7 @@ var enCA = Strings{
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "Apply filters and color corrections to your video. Preview changes in real-time.",
+	FiltersSettingsPanel:     "Settings",
 	FiltersVideoPreview:      "Video preview",
 	FiltersSectionBrightness: "Adjust brightness, contrast, and saturation",
 	FiltersBrightness:        "Brightness:",
@@ -717,6 +718,7 @@ var enCA = Strings{
 	UpscaleClassicDesc:     "Classic upscaling methods - always available",
 	UpscaleOptionalBlur:    "Optional blur",
 	UpscaleFilterIntHint:   "Filters from the Filters module are applied before upscaling.",
+	UpscaleSettingsPanel:   "Settings",
 	UpscaleVideoBox:        "Video",
 	UpscaleTargetResBox:    "Target Resolution",
 	UpscaleEncodingBox:     "Video Encoding",
