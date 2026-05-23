@@ -14,6 +14,7 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
 	mediafilters "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/filters"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/state"
 )
 
 type InlineVideoPlayer struct {
@@ -29,6 +30,8 @@ type InlineVideoPlayer struct {
 	onLoad      func(LoadEvent)  // fired on main goroutine at each load milestone
 	seekCh      chan float64     // capacity-1 channel; seekLoop drains it serially
 	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
+	resumeState *state.ResumeState  // persisted playback position (optional)
+	lastSave    time.Time           // throttle for resume auto-save
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -160,6 +163,16 @@ func (v *InlineVideoPlayer) SetSeekAccuracy(acc media.SeekAccuracy) {
 	if v.engine != nil {
 		v.engine.SetSeekAccuracy(acc)
 	}
+}
+
+// SetResumeState attaches a persisted playback-position store. When set, the
+// player automatically saves position during playback and restores on load.
+// Pass nil to disable.
+func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
+	v.mu.Lock()
+	v.resumeState = s
+	v.lastSave = time.Time{}
+	v.mu.Unlock()
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
@@ -316,6 +329,18 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.E
 	v.mu.Unlock()
 
 	scrubber.Start()
+
+	// Auto-restore saved playback position (P1-2).
+	// Falls through to the SMPTE-bars placeholder if no saved position exists.
+	if v.resumeState != nil {
+		if saved, ok := v.resumeState.GetPosition(displayPath); ok && v.resumeState.ShouldResume(saved) {
+			logging.Info(logging.CatPlayer, "InlineVideoPlayer: resuming at %.2fs for %s", saved.Position, displayPath)
+			eng.Seek(saved.Position)
+			if img, err := eng.NextFrame(); err == nil {
+				firstFrame = img
+			}
+		}
+	}
 
 	eng.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
 		v.player.AddThumbnailFrame(t, img)
@@ -747,6 +772,8 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		playing := v.playing
 		onProg := v.onProgress
 		onFrm := v.onFrame
+		path := v.currentPath
+		rs := v.resumeState
 		v.mu.Unlock()
 
 		if !playing || eng == nil {
@@ -764,6 +791,12 @@ func (v *InlineVideoPlayer) playbackLoop() {
 				endFn := v.onEnd
 				reloadPath := v.currentPath
 				v.mu.Unlock()
+
+				// Mark completed in resume state.
+				if rs != nil && path != "" {
+					rs.MarkCompleted(path)
+				}
+
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					v.player.SetPlaying(false)
 					if endFn != nil {
@@ -804,6 +837,19 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		}, false)
 		if onProg != nil {
 			onProg(t)
+		}
+
+		// Auto-save position for resume (throttled to every 5s).
+		if rs != nil && t > 0 {
+			v.mu.Lock()
+			if time.Since(v.lastSave) >= 5*time.Second {
+				v.lastSave = time.Now()
+				dur := eng.Duration()
+				v.mu.Unlock()
+				rs.SavePosition(path, t, dur)
+			} else {
+				v.mu.Unlock()
+			}
 		}
 	}
 }

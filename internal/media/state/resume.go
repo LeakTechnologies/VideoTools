@@ -1,5 +1,3 @@
-//go:build native_media
-
 package state
 
 import (

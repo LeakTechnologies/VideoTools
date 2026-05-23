@@ -2,12 +2,12 @@
 
 ## v0.1.1-dev50 (June 2026)
 
-### P1-6 + P1-9: SeekAccuracy Settings UI + Player Tuning Settings UI
+### P1-2: Resume/Watch-Later
 
-- **Seek Accuracy dropdown** added to Settings → Player card: Fast (Keyframe), Fastest (Frame), Precise (Slow). Persists as `"keyframe"` / `"frame"` / `"accurate"` in `PrefsConfig.SeekAccuracy`. Default is keyframe (existing behaviour unchanged).
-- **`InlineVideoPlayer.loadViaOpen`** now picks up `media.DefaultSeekAccuracy()` instead of always using `SeekAccuracyKeyframe`.
-- **HW decode controls** (header, detection status label, auto-detect checkbox) moved from the Hardware card into the Player card. Hardware card now shows encode acceleration settings only.
-- **`setPlayerSeekAccuracy(accuracy string)`** in `native_media.go` updates the engine global and applies the change live to `primaryInlinePlayer` and `previewPlayer`.
+- **`InlineVideoPlayer` auto-saves playback position** — `resumeState` field + `SetResumeState(s)` method. During `playbackLoop`, saves position every 5s (throttled) via `state.ResumeState.SavePosition()`. On EOF, calls `rs.MarkCompleted()`. On load, auto-restores via `GetPosition()` + `ShouldResume()`.
+- **`state/resume.go` build constraint removed** — the `//go:build native_media` tag was unnecessary (pure Go with no CGo/FFmpeg deps), allowing `inline_player_stub.go` to import the package without a matching stub type.
+- **Shared ResumeState wired in `initNativeMediaAssets`** — created from `filepath.Join(defaultVideoToolsRoot(), "state")` and set on both `primaryInlinePlayer` and `previewPlayer`. Every module using the shared singletons gets resume for free.
+- Trim module retains its independent `ResumeState` (created with empty configDir) for backward compatibility — no functional overlap since it uses a separate state file.
 
 ### P1-1: Network/URL Streaming
 

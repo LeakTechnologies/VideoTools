@@ -3,6 +3,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
 	mediafilters "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/filters"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/state"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
@@ -289,6 +291,14 @@ func initNativeMediaAssets(s *appState) {
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)
+
+	// Initialise shared resume-state store for the player singletons.
+	if rs, err := state.NewResumeState(filepath.Join(defaultVideoToolsRoot(), "state")); err != nil {
+		logging.Warning(logging.CatPlayer, "Failed to init ResumeState: %v", err)
+	} else {
+		primaryInlinePlayer.SetResumeState(rs)
+		previewPlayer.SetResumeState(rs)
+	}
 }
 
 func (s *appState) loadVideoNative(path string) {
