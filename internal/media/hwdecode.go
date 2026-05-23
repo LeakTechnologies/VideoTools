@@ -224,6 +224,59 @@ func (e *Engine) GetHWDevice() HWDeviceType {
 	return e.hwDevice
 }
 
+// hwCodecDenyList is a set of FFmpeg codec names that must always use SW decode
+// regardless of the global HW decode setting.  Populated from PrefsConfig at
+// startup and updated when the user changes Settings → Player → HW Deny-List.
+// Access is intentionally unsynchronised — it is written once at startup and
+// read-only at decode time.
+var hwCodecDenyList = map[string]struct{}{}
+
+// SetHWCodecDenyList replaces the global deny-list with the codec names in
+// s (comma-separated, e.g. "vc1,wmv3,mpeg2video").
+func SetHWCodecDenyList(s string) {
+	m := map[string]struct{}{}
+	for _, codec := range splitCommaList(s) {
+		if codec != "" {
+			m[codec] = struct{}{}
+		}
+	}
+	hwCodecDenyList = m
+}
+
+func GetHWCodecDenyList() map[string]struct{} {
+	return hwCodecDenyList
+}
+
+// splitCommaList splits a comma-separated string into trimmed tokens.
+func splitCommaList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := make([]string, 0)
+	for start := 0; start < len(s); {
+		end := start
+		for end < len(s) && s[end] != ',' {
+			end++
+		}
+		token := trim(s[start:end])
+		if token != "" {
+			parts = append(parts, token)
+		}
+		start = end + 1
+	}
+	return parts
+}
+
+func trim(s string) string {
+	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t') {
+		s = s[1:]
+	}
+	for len(s) > 0 && (s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
 // codecCanUseHWDevice returns true only for codecs that are known to work
 // correctly with hw_device_ctx and no get_format callback.
 //
@@ -238,9 +291,16 @@ func (e *Engine) GetHWDevice() HWDeviceType {
 //
 //	h264, hevc, vp9, av1, vp8
 //
+// User-configured deny-list entries (hwCodecDenyList) always override the
+// built-in allowlist — they force SW decode even for allowlisted codecs.
+//
 // Everything else falls back to software decode.
 func (e *Engine) codecCanUseHWDevice(codec *C.AVCodec) bool {
 	name := C.GoString((*C.char)(unsafe.Pointer(codec.name)))
+	if _, denied := hwCodecDenyList[name]; denied {
+		logging.Info(logging.CatPlayer, "codecCanUseHWDevice: %s in deny-list — forcing SW decode", name)
+		return false
+	}
 	switch name {
 	case "h264", "hevc", "vp9", "av1", "vp8":
 	default:

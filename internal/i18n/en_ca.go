@@ -58,6 +58,8 @@ var enCA = Strings{
 	SettingsHWDecodeNotCompatible: "Not Compatible",
 	SettingsHWDecodeDetecting:   "Detecting...",
 	SettingsHWDecodeAutoHint:   "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails.",
+	SettingsHWDenyList:        "HW Decode Deny-List",
+	SettingsHWDenyListHint:    "Comma-separated FFmpeg codec names forced to SW decode (e.g. vc1,wmv3). Leave blank to use HW for all supported codecs.",
 	SettingsFont:              "Player Font",
 	SettingsFontHint:          "Font used in the player OSD and test pattern",
 	SettingsFontIBM:           "IBM Plex Mono",

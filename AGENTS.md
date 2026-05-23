@@ -60,6 +60,7 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned (deferred) |
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | **SHIPPED** |
 | **Error concealment (last-good-frame)** — `lastGoodFrame atomic.Pointer[image.RGBA]` + `decodeErrored atomic.Bool`; `NextFrame` returns frozen frame once on decode-error EOF | `internal/media/engine.go`, `internal/media/playback.go` | **SHIPPED** |
+| **Per-codec HW deny-list** — `hwCodecDenyList` + `SetHWCodecDenyList(s)`; `PrefsConfig.HWCodecDenyList`; Settings → Player text entry; loaded at startup | `internal/media/hwdecode.go`, `settings/types.go`, `settings/tabs.go`, `settings_module.go`, `native_media.go` | **SHIPPED** |
 | **Error resilience flags** — `setVideoCodecErrorFlags()`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicit before `avcodec_open2` on both video codec init paths | `internal/media/engine.go` | **SHIPPED** |
 | **Mid-playback audio track switching** — `SelectAudioTrack`: close old player first (use-after-free fix), reinit codec, seek to current PTS, resume if playing | `internal/media/engine.go` | **SHIPPED** |
 | **Mid-playback subtitle track switching** — `SelectSubtitleTrack`: flush queue, reinit codec, clear overlay; `subtitleCodecMu` added for thread safety | `internal/media/engine.go`, `internal/media/subtitle_engine.go`, `internal/media/playback.go` | **SHIPPED** |

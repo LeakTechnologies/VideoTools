@@ -49,6 +49,8 @@ type PreferencesCallbacks interface {
 	SetAutoDeinterlace(enabled bool)
 	HWDecodeEnabled() bool
 	SetHWDecodeEnabled(enabled bool)
+	HWCodecDenyList() string
+	SetHWCodecDenyList(s string)
 	VerboseDiscLogging() bool
 	SetVerboseDiscLogging(enabled bool)
 	LogFilePath() string
@@ -106,6 +108,7 @@ type PrefsConfig struct {
 	PlayerDefaultAspect      string `json:"PlayerDefaultAspect"`
 	SeekAccuracy             string `json:"SeekAccuracy"`
 	AVOffset                 int    `json:"AVOffset"`
+	HWCodecDenyList          string `json:"HWCodecDenyList"`
 }
 
 type Dependency struct {

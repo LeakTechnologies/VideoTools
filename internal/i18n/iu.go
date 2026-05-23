@@ -318,6 +318,8 @@ var iu = Strings{
 	SettingsHWDecodeNotCompatible: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                    // machine-generated, needs human review: Not Compatible
 	SettingsHWDecodeDetecting:    "ᓇᓗᓇᐃᖅᓯᓗᒍ...",                            // machine-generated, needs human review: Detecting...
 	SettingsHWDecodeAutoHint:       "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
+	SettingsHWDenyList:            "HW ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᑦ ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",               // machine-generated, needs human review: HW Decode Deny-List
+	SettingsHWDenyListHint:        "ᐊᑐᓕᖅᑎᑦᑎᔨᒃᑯᑦ ᑕᑯᒃᓴᐅᑎᑦᑎᓐᓇᓱᒃᑐᑦ.",                // machine-generated, needs human review
 	SettingsPlayerAspect:       "ᐊᓯᖏᑦ ᑕᑯᒃᓴᐅᑎᑦ ᐊᒥᓱᐊᒃᓴᖅ",            // machine-generated, needs human review: Idle Aspect Ratio
 	SettingsPlayerAspectHint:   "SMPTE ᐊᒥᓱᐊᒃᓴᑦ ᑕᑯᒃᓴᐅᑎᑦ ᑕᐃᒪᐃᓕᐅᕐᒥᔭᐅᔪᓐᓇᖅᑐᑦ.",  // machine-generated: Aspect ratio shown by SMPTE bars when idle
 	SettingsPlayerAspect4x3:    "4:3 (ᓴᓇᔭᐅᔪᑦ)",                    // machine-generated, needs human review: 4:3 (Standard)

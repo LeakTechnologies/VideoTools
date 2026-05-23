@@ -50,6 +50,8 @@ var frCA = Strings{
 	SettingsHWDecodeNotCompatible: "Non compatible",
 	SettingsHWDecodeDetecting:    "Detection...",
 	SettingsHWDecodeAutoHint:     "Detection automatique et decodage video accelere par GPU (D3D11VA/VAAPI). Desactiver si la lecture echoue.",
+	SettingsHWDenyList:        "Liste de refus decode HW",
+	SettingsHWDenyListHint:    "Noms de codecs FFmpeg forces en decode logiciel (ex. vc1,wmv3). Laisser vide pour utiliser HW pour tous les codecs compatibles.",
 	SettingsFont:         "Police du lecteur",
 	SettingsFontHint:     "Police utilisee dans l'interface du lecteur et le motif de test",
 	SettingsFontIBM:      "IBM Plex Mono",
