@@ -65,7 +65,7 @@ timeline
 
 ## Now (dev50 focus)
 
-- **Player error recovery overhaul** — Ring-buffer error history (P0-4, done), adaptive HW degradation (P0-1, done): `DegradeToSoftware` now wired into `videoDecodeLoop`; `vt_clear_hw_decode` C helper breaks the re-init cycle; `NextFrame` hang after HW crash fixed (P0-2, done) by sending EOF sentinel on all fatal decode-loop exits. Per-codec HW blacklist and platform `AudioBufferLatency` deferred.
+- **Phase 0 complete** — All five P0 critical fixes shipped: error ring buffer (P0-4), HW→SW degradation (P0-1), NextFrame hang (P0-2), backward step (P0-3), OpenAuto disc fallback (P0-5). Per-codec HW blacklist and platform `AudioBufferLatency` deferred to Phase 3.
 - **HW decode default-on evaluation** — Re-evaluate D3D11VA default with VEH/SEH bridge and `STATUS_STACK_OVERFLOW` recovery in place; add per-codec HW blacklist for problem codecs.
 - **Frame cache memory bounds** — Byte-aware frame pool eviction, memory-pressure callback, pool size distribution logging.
 - **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.

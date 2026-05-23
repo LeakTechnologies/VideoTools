@@ -155,7 +155,7 @@ func (v *InlineVideoPlayer) SetDeinterlaceEnabled(enabled bool) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
-	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.Open(path) })
+	return v.loadViaOpen(path, func(eng *media.Engine) error { return eng.OpenAuto(path) })
 }
 
 // LoadDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) in the
