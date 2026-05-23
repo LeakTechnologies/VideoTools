@@ -434,6 +434,7 @@ const roadmap = {
   Settings: {
     items: [
       { id: 'settings-ship', title: 'Settings Module', desc: 'Preferences panel: FFmpeg path, KeepIntermediate toggle, performance presets, dependency validation', status: 'shipped', cycle: 'dev47', files: ['settings_module.go'], deps: [], docs: ['docs/SETTINGS_EXTRACTION_PLAN.md'] },
+      { id: 'dropdown-active-text', title: 'Dropdown Active Item Text Fix', desc: '_fyne/widget/menu_item.go refreshText() now uses ColorNameForegroundOnPrimary (BgBase #0B0F1A, near-black) when the item isActive() instead of always using ColorNameForeground (light #E1EEFF). Active dropdown rows sit on the ColorNameFocus background (VT_Green #22c55e); the previous light text was illegible. Fixes all Select dropdowns app-wide. Previous partial fix (d9b6056b) only patched the select widget\'s own label, not the popup menu rows.', status: 'shipped', cycle: 'dev49', files: ['_fyne/widget/menu_item.go'], deps: [], docs: [] },
       { id: 'win-signing', title: 'Windows Code Signing', desc: 'Wire production signing cert into Forgejo secrets for signed release builds', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
       { id: 'msix-packaging', title: 'MSIX / Winget Packaging', desc: 'Keep Windows installer aligned with MSIX/WinGet production publishing path', status: 'planned', cycle: 'dev49', files: ['packaging/windows/'], deps: ['win-signing'], docs: ['docs/WINDOWS_PACKAGING.md'] },
       { id: 'dep-bootstrap', title: 'First-Run Dependency Bootstrap', desc: 'Validate FFmpeg bootstrap on clean Windows; modules unlock without restart', status: 'future', cycle: 'future', files: ['internal/app/appcfg/'], deps: [], docs: ['docs/INSTALL_WINDOWS.md'] },
@@ -771,6 +772,11 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev49', date: 'May 2026', tag: 'current', sections: [
+    { title: 'Select / Dropdown — Active Item Text Colour Fix', items: [
+      '_fyne/widget/menu_item.go refreshText(): uses ColorNameForegroundOnPrimary when isActive() — near-black BgBase (#0B0F1A) on VT_Green (#22c55e) focus background',
+      'Previous fix (d9b6056b) only patched the select widget\'s own label text; popup menu rows were not covered',
+      'Fixes all app-wide Select dropdowns: Settings, Convert, Rip, Filters, Upscale, etc.',
+    ]},
     { title: 'Rip Module — Menu Bleed, Chapters & Multi-Title', items: [
       'Menu VOB bleed: CollectVOBSets excludes VTS_XX_0.VOB from content title sets — fixes menu frames glitching into video and shifted chapter timestamps',
       'Chapter diagnostics: verbose logging of chapter count, first/last timestamps, embed/no-embed decision',
