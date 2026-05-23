@@ -4,10 +4,14 @@
 
 ### P1-10: Growing/In-Progress File Support
 
-- **`Engine.SetGrowingFile(bool)` / `IsGrowingFile()`** added to `internal/media/engine.go` — atomic toggle stored alongside `looping`. Wired through `InlineVideoPlayer.SetGrowingFile(bool)`.
-- **`InlineVideoPlayer.growingFileWatcher()`** (`internal/ui/inline_player.go`): goroutine that polls `os.Stat` every 2s. On first call, records the file size. On growth, calls `Load(path)` to re-open the now-larger file, `Seek(lastPos)` to restore position, and `Play()` to resume.
-- **EOF handler modified in `playbackLoop`**: when `eng.IsGrowingFile()` is true, skips the `onEnd` callback and `MarkCompleted` call, starts the watcher instead. The player pauses (no more frames) until the file grows, then seamlessly resumes.
-- Builds clean with `CGO_LDFLAGS_ALLOW`.
+- **`Engine.SetGrowingFile(bool)` / `IsGrowingFile()`** — atomic toggle alongside `looping`, wired through `InlineVideoPlayer.SetGrowingFile(bool)`.
+- **`InlineVideoPlayer.growingFileWatcher()`** — goroutine polls `os.Stat` every 2s; on growth, calls `Load(path)` to re-open, `Seek(lastPos)` to restore position, `Play()` to resume.
+- **EOF handler modified**: when `eng.IsGrowingFile()` is true, skips `onEnd` callback + `MarkCompleted`, starts watcher instead.
+
+### P1-7: Bilinear Scaling (docs-only)
+
+- **FFmpeg sws_scale confirmed using SWS_BICUBIC** at `engine.go:1445` (video decode → RGBA) and `framepool.go:36` (thumbnail pipeline). The actual colour conversion and dimension scaling have always been bicubic — no code change needed.
+- **`scaleNearest` docstring clarified** in `view.go:833` — documented that the nearest-neighbour canvas blit is purely a last-mile positioning step with negligible visual impact. The quality-determining FFmpeg swscale pipeline is and remains SWS_BICUBIC.
 
 ### P1-2: Resume/Watch-Later
 

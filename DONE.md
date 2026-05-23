@@ -2,6 +2,11 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-7: Bilinear Scaling (docs-only)
+
+- **Confirmed SWS_BICUBIC** at `internal/media/engine.go:1445` (video decode → RGBA sws_scale) and `framepool.go:36` (thumbnail pipeline). The FFmpeg swscale step that converts decoded frames to RGBA has always used bicubic interpolation — the most quality-determining step in the pipeline.
+- **`scaleNearest` docstring clarified** in `internal/media/view.go:833` — explicitly notes that this is only the final canvas-positioning blit. The heavy lifting (colour space conversion + dimension scaling) is done by FFmpeg's SWS_BICUBIC before the canvas render.
+
 ### P1-10: Growing/In-Progress File Support
 
 - **Engine-level toggle** — `Engine.SetGrowingFile(bool)` + `IsGrowingFile()` in `internal/media/engine.go`, implemented as simple locked accessors alongside `looping`. `InlineVideoPlayer.SetGrowingFile(bool)` wires through.
