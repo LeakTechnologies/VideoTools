@@ -2,6 +2,12 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-3: Audio Delay (A/V Offset)
+
+- **A/V Offset control** added to Settings → Player card. `widget.Entry` (milliseconds, ±5000 ms). Persists in `PrefsConfig.AVOffset`. Applied mid-session via `setPlayerAVOffset()` → `media.SetDefaultAudioDelay()` + `InlineVideoPlayer.SetAudioDelay()`.
+- **Engine-level audio delay**: `audioDelayBits atomic.Uint64` in `Engine`. `GetAudioDelay()` is a lock-free hot-path read. `NextFrame` calls `e.clock.WaitForPTS(pts + avDelay)` in the audio-present path; drift snap uses the same offset. No-audio path (PTS-based frame pacing) is unchanged.
+- Positive A/V offset: video shows later — use when audio arrives early (Bluetooth speaker latency). Negative: video shows sooner — use when audio arrives late (monitor audio lag).
+
 ### P1-2: Resume/Watch-Later
 
 - **`InlineVideoPlayer` auto-saves playback position** — `resumeState` field + `SetResumeState(s)` method. During `playbackLoop`, saves position every 5s (throttled) via `state.ResumeState.SavePosition()`. On EOF, calls `rs.MarkCompleted()`. On load, auto-restores via `GetPosition()` + `ShouldResume()`.

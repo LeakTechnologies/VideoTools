@@ -83,6 +83,8 @@ type Strings struct {
 	SettingsSeekKeyframe         string // "Fast (Keyframe)"
 	SettingsSeekFrame            string // "Fastest (Frame)"
 	SettingsSeekAccurate         string // "Precise (Slow)"
+	SettingsAVOffset             string // "A/V Offset (ms)"
+	SettingsAVOffsetHint         string // description of A/V offset
 
 	// Dialog Titles
 	DialogCompare            string

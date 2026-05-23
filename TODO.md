@@ -34,7 +34,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [x] **P1-1: Network/URL streaming** — `Engine.OpenURL(url, opts)` with AVDictionary options (60s timeout, reconnect). `InlineVideoPlayer.LoadURL()`. HTTP/HTTPS/HLS/DASH/RTSP/RTMP supported.
 - [x] **P1-2: Resume/watch-later** — InlineVideoPlayer auto-saves position every 5s during playback, restores on load, marks completed on EOF. Shared ResumeState wired to both player singletons.
-- [ ] **P1-3: Audio delay adjustment** — No lip-sync correction anywhere. Fix: add `AudioDelay` to Engine + InlineVideoPlayer, offset clock target in Seek/WaitForPTS. Persist in PrefsConfig.
+- [x] **P1-3: Audio delay adjustment** — `Engine.audioDelayBits` (atomic float64). `WaitForPTS(pts + avDelay)` in NextFrame audio path. Settings → Player "A/V Offset (ms)" entry; persists in `PrefsConfig.AVOffset`. `setPlayerAVOffset` applies mid-session.
 - [ ] **P1-4: Speed + pitch correction** — Speed change shifts pitch (chipmunk/baritone at non-1.0x). Fix: add scaletempo/rubberband via libavfilter (atempo filter) in audio pipeline.
 - [ ] **P1-5: A-B loop** — No repeat-section support for review/editing. Fix: `SetLoopPoints(a,b)`, `SetLoopEnabled(bool)`, wire into NextFrame: after B seek back to A.
 - [x] **P1-6: SeekAccuracy Settings UI** — Dropdown in Settings → Player (Fast/Keyframe, Fastest/Frame, Precise/Slow). Persists in `PrefsConfig.SeekAccuracy`. `loadViaOpen` uses `media.DefaultSeekAccuracy()` instead of hardcoded keyframe. `setPlayerSeekAccuracy()` applies mid-session.

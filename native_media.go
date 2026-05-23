@@ -98,6 +98,17 @@ func setPlayerSeekAccuracy(accuracy string) {
 	}
 }
 
+func setPlayerAVOffset(ms int) {
+	d := float64(ms) / 1000.0
+	media.SetDefaultAudioDelay(d)
+	players := []*ui.InlineVideoPlayer{primaryInlinePlayer, previewPlayer}
+	for _, p := range players {
+		if p != nil {
+			p.SetAudioDelay(d)
+		}
+	}
+}
+
 // parseAspectRatio converts "W:H" to a float ratio. Returns 0 on parse failure.
 func parseAspectRatio(s string) float64 {
 	parts := strings.Split(s, ":")
@@ -288,6 +299,7 @@ func initNativeMediaAssets(s *appState) {
 	media.WarmHWDeviceCache()
 	setAutoDeinterlace(s.prefs.AutoDeinterlace)
 	setPlayerSeekAccuracy(s.prefs.SeekAccuracy)
+	setPlayerAVOffset(s.prefs.AVOffset)
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)

@@ -165,6 +165,17 @@ func (v *InlineVideoPlayer) SetSeekAccuracy(acc media.SeekAccuracy) {
 	}
 }
 
+// SetAudioDelay sets the A/V offset in seconds on the live engine.
+// Positive = delay video (compensates for early-arriving audio).
+// Negative = advance video (compensates for late-arriving audio).
+func (v *InlineVideoPlayer) SetAudioDelay(d float64) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.engine != nil {
+		v.engine.SetAudioDelay(d)
+	}
+}
+
 // SetResumeState attaches a persisted playback-position store. When set, the
 // player automatically saves position during playback and restores on load.
 // Pass nil to disable.
@@ -256,6 +267,7 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.E
 	// v.mu is held only briefly at the end to swap in the live engine/scrubber.
 	eng := media.NewEngine()
 	eng.SetSeekAccuracy(media.DefaultSeekAccuracy())
+	eng.SetAudioDelay(media.DefaultAudioDelay())
 	eng.SetDropFrames(true)
 	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
 		eng.SetHWDevice(hw)

@@ -2,6 +2,17 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-3: Audio Delay (A/V Offset)
+
+- **`audioDelayBits atomic.Uint64`** added to `Engine` struct in `internal/media/engine.go`. `SetAudioDelay(d float64)` / `GetAudioDelay() float64` use `math.Float64bits` for lock-free hot-path read. `defaultAudioDelayBits` package-level atomic with `DefaultAudioDelay()` / `SetDefaultAudioDelay()` for global default (default 0).
+- **`NextFrame` patched** in `internal/media/playback.go`: audio-present path calls `e.clock.WaitForPTS(pts + avDelay)` and adjusts the drift snap. No-audio path unchanged. Positive delay: video shows later (compensates for early-arriving audio, e.g. Bluetooth). Negative: video shows sooner (late-arriving audio).
+- **`InlineVideoPlayer.SetAudioDelay(d float64)`** added to `internal/ui/inline_player.go`; `loadViaOpen` picks up `media.DefaultAudioDelay()` on each new engine open.
+- **2 new i18n strings** (`SettingsAVOffset`, `SettingsAVOffsetHint`) in `strings.go`, `en_ca.go`, `fr_ca.go`.
+- **`PrefsConfig.AVOffset int`** (milliseconds) added to `types.go`. New interface methods: `PlayerAVOffset() int` / `SetPlayerAVOffset(ms int)`.
+- **Settings → Player card**: `widget.Entry` for A/V Offset (ms) added between Seek Accuracy and HW decode. `OnChanged` parses int, clamps ±5000 ms, calls `SetPlayerAVOffset`.
+- **`setPlayerAVOffset(ms int)`** in `native_media.go`, stub in `native_media_stub.go`, adapter in `settings_module.go`. Called from `initNativeMediaAssets`.
+- Build clean; no regressions.
+
 ### P1-2: Resume/Watch-Later
 
 - **`InlineVideoPlayer` fields** — `resumeState *state.ResumeState` and `lastSave time.Time` added to the struct. `SetResumeState(s)` allows any caller to attach a persisted playback-position store.
