@@ -2,6 +2,11 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### ASS Subtitle Format Fixes
+
+- **`formatASSTime`** (`internal/media/subtitle.go`): `(int(d.Milliseconds()) % 1000) / 10` — was dividing total ms by 10, giving wrong centiseconds. `% 1000` isolates sub-second part first.
+- **`escapeASSText`**: Removed `strings.ReplaceAll(text, "}", "\\}")` — `}` is not a special character in ASS when unmatched; only `{` needs escaping.
+
 ### P1-5: A-B Loop
 
 - **`Engine.SetLoopPoints(a, b float64)` / `SetABLoopEnabled(bool)`** — stores loopA and loopB PTS thresholds; when enabled, `NextFrame` checks PTS after each decoded frame and seeks back to loopA when PTS >= loopB via `abLoopPending` flag signal on the next `NextFrame` call.

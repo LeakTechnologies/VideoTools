@@ -33,7 +33,7 @@ timeline
     v0.1.1-dev50 (Current) : P1-5 A-B loop (SetLoopPoints, SetABLoopEnabled, NextFrame seek-back)
     v0.1.1-dev50 (Current) : P1-8 Frame timing overlay (per-frame PTS/delta/gap, SetFrameTimingOverlayVisible toggle)
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
-    v0.1.1-dev50 (Current) : ASS subtitle format bugs (formatASSTime centisecs, escapeASSText double-escape)
+    v0.1.1-dev50 (Current) : ASS subtitle format fixes (formatASSTime centisecs, escapeASSText closing-brace)
     v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
     v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)

@@ -51,8 +51,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### ASS Subtitle Fixes
 
-- [ ] **`formatASSTime` centisecs bug** — Outputs `1:02:03.372345` instead of `1:02:03.45`; centiseconds not clamped/divided correctly.
-- [ ] **`escapeASSText` double-escape** — Closing brace `}` double-escaped when input already contains escaped sequences.
+- [x] **`formatASSTime` centisecs bug** — Fixed: `(int(d.Milliseconds()) % 1000) / 10`.
+- [x] **`escapeASSText` closing-brace over-escape** — Fixed: removed `}` → `\}` replacement; `}` is not special in ASS.
 
 ### VT ISO Engine (separate project — Media Engine opens ISOs as files)
 

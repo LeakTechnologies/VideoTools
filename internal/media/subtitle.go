@@ -410,14 +410,13 @@ func formatASSTime(d time.Duration) string {
 	hours := int(d.Hours())
 	minutes := int(d.Minutes()) % 60
 	seconds := int(d.Seconds()) % 60
-	centis := int(d.Milliseconds()) / 10
+	centis := (int(d.Milliseconds()) % 1000) / 10
 	return fmt.Sprintf("%d:%02d:%02d.%02d", hours, minutes, seconds, centis)
 }
 
 func escapeASSText(text string) string {
 	text = strings.ReplaceAll(text, "\\", "\\\\")
 	text = strings.ReplaceAll(text, "{", "\\{")
-	text = strings.ReplaceAll(text, "}", "\\}")
 	text = strings.ReplaceAll(text, "\n", "\\N")
 	return text
 }
