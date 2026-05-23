@@ -165,6 +165,13 @@ func (v *InlineVideoPlayer) LoadDVD(devicePath string, title int) (err error) {
 	return v.loadViaOpen(devicePath, func(eng *media.Engine) error { return eng.OpenDVD(devicePath, title) })
 }
 
+// LoadURL opens a network stream or URL. opts may be nil to use sensible
+// defaults (60s timeout, reconnect on error). Supported schemes: http,
+// https, hls, dash, rtsp, rtmp, mms, tcp, udp.
+func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) (err error) {
+	return v.loadViaOpen(url, func(eng *media.Engine) error { return eng.OpenURL(url, opts) })
+}
+
 // loadViaOpen is the shared implementation of Load and LoadDVD. openFn is
 // called after the engine is created and configured; it should open the source.
 func (v *InlineVideoPlayer) loadViaOpen(displayPath string, openFn func(*media.Engine) error) (err error) {

@@ -2,6 +2,13 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-1: Network/URL Streaming
+
+- **`Engine.OpenURL(url string, opts map[string]string) error`** added to `internal/media/engine.go`: creates AVDictionary with `timeout=60000000` (60s), `reconnect_streamed=1`, `reconnect_on_network_error=1`, `reconnect_delay_max=5`. User-provided `opts` merge over defaults (caller wins). Passes `&dict` to `avformat_open_input` which enables any FFmpeg-supported network protocol (HTTP, HTTPS, HLS, DASH, RTSP, RTMP, RTMPS, MMS, TCP, UDP) without format hacks.
+- **`InlineVideoPlayer.LoadURL(url string, opts map[string]string) error`** added to `internal/ui/inline_player.go`: delegates to `loadViaOpen(url, func(eng) error { return eng.OpenURL(url, opts) })`. Stub in `inline_player_stub.go` returns nil for non-native builds.
+- **AVDictionary cleanup** — deferred `C.av_dict_free(&dict)` covers all paths including `avformat_open_input` failure (FFmpeg consumes the dict on success; our defer is a no-op in that case).
+- Builds clean with `CGO_LDFLAGS_ALLOW`.
+
 ### P0-5: OpenAuto — Open→OpenDVD Fallback
 
 - **`Engine.OpenAuto(path string) error`** added to `internal/media/engine.go`: calls `Open(path)` first; on failure retries with `OpenDVD(path, 0)` (title 0 = longest/main-feature title). `avformat_open_input` sets `formatCtx` to NULL on failure so no cleanup is needed before the retry.
