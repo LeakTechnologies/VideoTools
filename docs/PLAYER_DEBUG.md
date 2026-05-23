@@ -45,7 +45,7 @@ Update this file whenever a player issue is found or fixed.
 | VFR (variable frame rate) | ⚠️ PTS-based timing handles it in principle; not stress-tested |
 | Error resilience (libavcodec) | ✅ `setVideoCodecErrorFlags`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicit on both video codec init paths |
 | Playlist / sequential play | ❌ Not implemented |
-| Per-codec HW blacklist UI | ❌ Allowlist hardcoded (h264/hevc/vp9/av1/vp8) |
+| Per-codec HW blacklist UI | ✅ `PrefsConfig.HWCodecDenyList` + Settings → Player text field; `SetHWCodecDenyList` wires into `codecCanUseHWDevice` |
 
 ---
 
@@ -61,7 +61,7 @@ Update this file whenever a player issue is found or fixed.
 ### P2 — Quality / performance
 
 - [x] **Error resilience not set** — Fixed: `setVideoCodecErrorFlags()` called before `avcodec_open2` on both video codec init paths (`SelectVideoTrack` and `openFinalize` SW/HW paths). Sets `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicitly so motion-vector extrapolation and deblocking are applied to concealed macroblocks on corrupt or streamed content.
-- [ ] **Per-codec HW blacklist hardcoded** — `codecCanUseHWDevice()` allows only h264/hevc/vp9/av1/vp8. User cannot override. Consider PrefsConfig deny-list.
+- [x] **Per-codec HW blacklist hardcoded** — Fixed: `hwCodecDenyList` package-level map populated by `SetHWCodecDenyList(s)`. `codecCanUseHWDevice` checks deny-list first. `PrefsConfig.HWCodecDenyList` persists across sessions. Settings → Player shows "HW Decode Deny-List" text entry (comma-separated codec names, e.g. `vc1,wmv3`). Loaded at startup via `initNativeMediaAssets`.
 - [ ] **No playlist / sequential playback** — `InlineVideoPlayer.Enqueue(path)` not implemented. Files must be loaded one at a time.
 - [ ] **QSV (Intel Quick Sync) less tested** — Detection works; frame transfer and decode path not specifically validated.
 
@@ -69,6 +69,7 @@ Update this file whenever a player issue is found or fixed.
 
 ## Fixed (dev50)
 
+- [x] **Per-codec HW deny-list** — `hwCodecDenyList` map + `SetHWCodecDenyList(s)`. `codecCanUseHWDevice` checks deny-list before allowlist. `PrefsConfig.HWCodecDenyList` (JSON) + Settings → Player text field. Loaded at startup.
 - [x] **Error resilience flags** — `setVideoCodecErrorFlags()`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` set explicitly before `avcodec_open2` on both video codec init paths (`SelectVideoTrack`, `openFinalize`).
 - [x] **Mid-playback audio track switching** — `SelectAudioTrack`: close old `AudioPlayer` before `avcodec_free_context` (was use-after-free); reinit codec `thread_count=1`; seek to current video PTS; resume if playing. Restores speed/volume/muted on new player.
 - [x] **Mid-playback subtitle track switching** — `SelectSubtitleTrack`: flush `subtitleQueue`, free old `subtitleCodecCtx` under `subtitleCodecMu`, call `initSubtitleDecoder` for new stream, clear stale overlay. Added `subtitleCodecMu` to Engine; all subtitle codec access (demuxerLoop, NextFrame, decodeSubtitle, Close) guarded.

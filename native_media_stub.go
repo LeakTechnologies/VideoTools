@@ -17,6 +17,7 @@ func autoDeinterlaceEnabled() bool { return false }
 func setAutoDeinterlace(bool)      {}
 func hwDecodeEnabled() bool        { return false }
 func setHWDecodeEnabled(bool)      {}
+func setHWCodecDenyList(string)    {}
 func setPlayerSeekAccuracy(string) {}
 func setPlayerAVOffset(int)       {}
 func applyPlayerDefaultAspect(string) {}

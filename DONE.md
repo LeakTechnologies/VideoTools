@@ -2,6 +2,10 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### Per-Codec HW Decode Deny-List
+
+- **`media.SetHWCodecDenyList(s)`** — comma-separated codec names forced to SW decode. `codecCanUseHWDevice` checks deny-list first. `PrefsConfig.HWCodecDenyList` persists. Settings → Player text entry. Loaded at startup.
+
 ### Error Resilience
 
 - **`setVideoCodecErrorFlags()`** — sets `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2` on both video codec init paths. Explicit assignment guards against `avcodec_parameters_to_context` resetting the default.

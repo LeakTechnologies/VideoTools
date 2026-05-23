@@ -1828,6 +1828,18 @@ func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) HWCodecDenyList() string {
+	return a.s.prefs.HWCodecDenyList
+}
+
+func (a *preferencesAdapter) SetHWCodecDenyList(s string) {
+	setHWCodecDenyList(s)
+	a.s.prefs.HWCodecDenyList = s
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetHWCodecDenyList save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) PlayerSeekAccuracy() string {
 	return a.s.prefs.SeekAccuracy
 }

@@ -319,6 +319,8 @@ var iuLatn = Strings{
 	SettingsHWDecodeNotCompatible: "Saqquiilugu Saqqutuqtuinnatillugu",                    // machine-generated, needs human review: Not Compatible
 	SettingsHWDecodeDetecting:    "Nalunaiqsilugu...",                                  // machine-generated, needs human review: Detecting...
 	SettingsHWDecodeAutoHint:       "GPU niruqtilliqaugaqtuq. Saqqutuqtuinnatillugu.",       // machine-generated, needs human review
+	SettingsHWDenyList:            "HW Uqqumaijariaksaliurniup Akiliit",                     // machine-generated, needs human review: HW Decode Deny-List
+	SettingsHWDenyListHint:        "FFmpeg codec atii, saqqutilik sanigijarialikpallajuq.",   // machine-generated, needs human review
 	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                          // Master Settings
 	SettingsHardwareAccel:        "Sanajaksanik Sukkaivagunnarqtut",                       // Hardware Acceleration (Global)
 	SettingsDetect:               "Nalunaiqsilugu",                                        // Detect

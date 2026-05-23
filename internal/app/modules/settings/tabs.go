@@ -392,6 +392,13 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		cb.SetPlayerAVOffset(ms)
 	}
 
+	hwDenyListEntry := widget.NewEntry()
+	hwDenyListEntry.SetPlaceHolder("e.g. vc1,wmv3,mpeg2video")
+	hwDenyListEntry.SetText(prefs.HWCodecDenyList)
+	hwDenyListEntry.OnChanged = func(s string) {
+		cb.SetHWCodecDenyList(s)
+	}
+
 	playerCard := settingsCard(t.ModulePlayer,
 		autoDeintCheck,
 		hint(t.SettingsAutoDeinterlaceHint),
@@ -406,6 +413,8 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwDecodeStatus,
 		hwDecodeAutoCheck,
 		hint(t.SettingsHWDecodeAutoHint),
+		settingsRow(t.SettingsHWDenyList, hwDenyListEntry),
+		hint(t.SettingsHWDenyListHint),
 	)
 
 	// ── Hardware ──────────────────────────────────────────────────────────────

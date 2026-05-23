@@ -76,6 +76,10 @@ func setHWDecodeEnabled(enabled bool) {
 	media.SetHWDecodeEnabled(enabled)
 }
 
+func setHWCodecDenyList(s string) {
+	media.SetHWCodecDenyList(s)
+}
+
 func seekAccuracyFromString(s string) media.SeekAccuracy {
 	switch s {
 	case "frame":
@@ -300,6 +304,7 @@ func initNativeMediaAssets(s *appState) {
 	setAutoDeinterlace(s.prefs.AutoDeinterlace)
 	setPlayerSeekAccuracy(s.prefs.SeekAccuracy)
 	setPlayerAVOffset(s.prefs.AVOffset)
+	setHWCodecDenyList(s.prefs.HWCodecDenyList)
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)

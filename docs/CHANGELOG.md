@@ -2,6 +2,12 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### Per-Codec HW Decode Deny-List
+
+- **`media.SetHWCodecDenyList(s string)` / `GetHWCodecDenyList()`** — package-level API in `hwdecode.go`. Populates `hwCodecDenyList map[string]struct{}` from a comma-separated string of FFmpeg codec names. `codecCanUseHWDevice` checks the deny-list before the built-in allowlist, unconditionally falling back to SW decode for listed codecs.
+- **`PrefsConfig.HWCodecDenyList string`** — persisted in `settings.json` (JSON key `HWCodecDenyList`). Loaded by `initNativeMediaAssets` at startup via `setHWCodecDenyList(s.prefs.HWCodecDenyList)`. Updated by adapter method `SetHWCodecDenyList`.
+- **Settings → Player — "HW Decode Deny-List" text entry** — `hwDenyListEntry` placed below the HW decode auto-detect section. Placeholder: `e.g. vc1,wmv3,mpeg2video`. Changes are applied immediately and saved. Uses `t.SettingsHWDenyList` / `t.SettingsHWDenyListHint` i18n keys (all 4 locales).
+
 ### Error Resilience — Explicit `FF_EC_GUESS_MVS | FF_EC_DEBLOCK`
 
 - **`setVideoCodecErrorFlags(ctx *C.AVCodecContext)`** — package-level helper in `engine.go` that sets `ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2`. Called on both video codec init paths: `SelectVideoTrack` and `openFinalize` SW decode path. FFmpeg's default for this field already matches, but `avcodec_parameters_to_context` can reset it; explicit assignment makes the intent clear and guards against future FFmpeg default changes. Motion-vector extrapolation (GUESS_MVS) and deblocking (DEBLOCK) are now guaranteed active on corrupt or streamed content.
