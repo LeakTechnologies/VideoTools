@@ -20,7 +20,41 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
 - [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
-## Dev49 Scope (current)
+## Dev50 Scope (current)
+
+### Player Stability Hardening
+
+- [ ] **Error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed `AudioBufferLatency`. Wire `DegradeToSoftware` and `ShouldDegrade`/`RecordHWFailure` into the decode loop so HW→SW fallback actually triggers.
+- [ ] **HW decode default-on evaluation** — Re-evaluate D3D11VA default now that VEH/SEH bridge covers `STATUS_STACK_OVERFLOW`; add per-codec HW blacklist for known-bad codecs.
+- [ ] **Frame cache memory bounds** — Byte-aware eviction from frame pool, memory-pressure callback, pool size distribution logging.
+
+### Player Refactoring
+
+- [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
+- [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
+
+### ASS Subtitle Fixes
+
+- [ ] **`formatASSTime` centisecs bug** — Outputs `1:02:03.372345` instead of `1:02:03.45`; centiseconds not clamped/divided correctly.
+- [ ] **`escapeASSText` double-escape** — Closing brace `}` double-escaped when input already contains escaped sequences.
+
+### VT ISO Engine (carry-forward from dev49)
+
+- [ ] **UDF reader robustness** — Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge.
+- [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup.
+- [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
+- [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
+
+### Carry-forward from dev49
+
+- [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
+- [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
+- [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
+- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
+
+---
+
+## Dev49 Scope (closed)
 
 ### Rip Module Fixes & Enhancements
 - [x] **Menu VOB bleed** — `CollectVOBSets` excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Fixes menu frames glitching into output video and shifted chapter timestamps.
@@ -67,27 +101,9 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Player singleton consolidation** — All 10 per-module singletons consolidated into 2 shared instances: `GetPrimaryPlayer()` and `GetPreviewPlayer()`. Per-module getters (`GetConvertPlayer`, `GetTrimPlayer`, `GetInspectPlayer`, etc.) now forward to these.
 - [x] **Verbose seek logging** — Human-readable seek flags, accurate fallback confirmation, clock reset with audio offset, frame queue drain count, seekGen change detection in videoDecodeLoop, first frame after seek diagnostics.
 - [x] **Engine-level bwdif deinterlace** — `internal/media/deinterlace.go` with libavfilter filter graph; applied in `videoDecodeLoop` when `AV_FRAME_FLAG_INTERLACED` set; Settings toggle in Player section (default on); `toRGBA(src *C.AVFrame)` extended signature
-- [ ] **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go
-- [ ] **Player interface extraction** — Formal Go `Player` interface from InlineVideoPlayer enabling mock-based unit tests
-- [ ] **HW decode default-on evaluation** — With VEH/SEH bridge catching AV + stack overflow, re-enable D3D11VA by default; add per-codec HW blacklist
 - [x] **Thread safety formalisation** — Lock hierarchy docs, lockdep assertions, eliminate reverse-order paths like DegradeToSoftware
-- [ ] **Error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed AudioBufferLatency
-- [ ] **Frame cache memory bounds** — Byte-aware eviction, frame pool size distribution, memory-pressure callback
-- [ ] **ASS subtitle format bugs** — `formatASSTime` outputs `1:02:03.372345` instead of `1:02:03.45` (centisecs not handled); `escapeASSText` double-escapes closing brace
 
-### VT ISO Engine Refactoring (HIGH — UDF reader hardening)
-
-- [ ] **UDF reader robustness** — Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge
-- [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup
-- [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing
-- [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation
-
-### Carry-forward from dev48
-
-- [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
-- [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
-- [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
-- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
+*Remaining open items carried forward to Dev50 — see Dev50 Scope above.*
 
 ## Dev42 Scope (closed)
 

@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## v0.1.1-dev50 (June 2026)
+
+*(Cycle opened — entries will appear here as work lands)*
+
+---
+
 ## v0.1.1-dev49 (May 2026)
 
 ### Select / Dropdown — Active Item Text Colour Fix
