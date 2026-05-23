@@ -60,6 +60,8 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned (deferred) |
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | **SHIPPED** |
 | **Error concealment (last-good-frame)** — `lastGoodFrame atomic.Pointer[image.RGBA]` + `decodeErrored atomic.Bool`; `NextFrame` returns frozen frame once on decode-error EOF | `internal/media/engine.go`, `internal/media/playback.go` | **SHIPPED** |
+| **Mid-playback audio track switching** — `SelectAudioTrack`: close old player first (use-after-free fix), reinit codec, seek to current PTS, resume if playing | `internal/media/engine.go` | **SHIPPED** |
+| **Mid-playback subtitle track switching** — `SelectSubtitleTrack`: flush queue, reinit codec, clear overlay; `subtitleCodecMu` added for thread safety | `internal/media/engine.go`, `internal/media/subtitle_engine.go`, `internal/media/playback.go` | **SHIPPED** |
 | Thread safety formalisation (lock hierarchy, lockdep, named helpers) | `internal/media/engine.go` | **SHIPPED** |
 | **P1-4: Speed + pitch correction** — `AudioFilterGraph.Process()` C helper + `AudioPlayer.filterGraph` lazy-init | `internal/media/audio_filter.go`, `internal/media/audio.go` | **SHIPPED** |
 | **P1-5: A-B loop** — SetLoopPoints, SetABLoopEnabled, NextFrame seek-back | `internal/media/playback.go`, `internal/media/engine.go`, `internal/ui/inline_player.go` | **SHIPPED** |

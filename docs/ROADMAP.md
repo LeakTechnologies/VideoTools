@@ -78,6 +78,8 @@ timeline
 - **HW decode default-on** — `hwDecodeEnabled = true`; SEH coverage confirmed complete; `DegradeToSoftware()` wired into decode loop.
 - **Error concealment (last-good-frame)** — `NextFrame` returns frozen frame once on decode-error EOF; black-screen on corrupt/HW-failed streams eliminated.
 - **ASS subtitle format bugs fixed** — `formatASSTime` centiseconds correct; `escapeASSText` closing-brace over-escape removed.
+- **Mid-playback audio track switching** — `SelectAudioTrack` use-after-free fixed; codec reinit with seek-to-PTS resync; resume if playing.
+- **Mid-playback subtitle track switching** — `SelectSubtitleTrack` now reinits codec; `subtitleCodecMu` guards all subtitle codec access.
 - **Carry-forward deferred work**: view.go component split, Player interface extraction, UDF reader robustness, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup.
 
 ## Next (Phase 2 — post-dev50)
