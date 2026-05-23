@@ -124,12 +124,13 @@ const (
 )
 
 // hwDecodeEnabled controls whether hardware-accelerated video decoding is used.
-// D3D11VA crashes in avcodec_send_packet are C-level access violations that
-// Go's recover() cannot catch, killing the process instantly.  Until the
-// C bridge (safe_bridge.c) wraps FFmpeg calls in SEH/__try, HW decode is
-// disabled to guarantee process stability.  SW decode handles 720p/1080p
-// H.264/HEVC reliably on any modern CPU.
-var hwDecodeEnabled = false
+// D3D11VA/VAAPI/QSV are enabled by default.  All FFmpeg call sites in the video
+// decode path (avcodec_send_packet, avcodec_receive_frame, av_hwframe_transfer_data,
+// sws_scale) are wrapped in safe_bridge.c SEH/__try guards, so C-level access
+// violations are caught and converted to recoverable Go errors rather than
+// killing the process.  DegradeToSoftware() is wired into the decode loop and
+// will fall back to SW decode on the first HW failure.
+var hwDecodeEnabled = true
 
 // SetHWDecodeEnabled allows the caller (e.g. Settings) to opt in to HW
 // decode.  The default is off because D3D11VA crashes cannot be caught by Go.

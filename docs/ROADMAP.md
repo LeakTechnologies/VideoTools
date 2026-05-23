@@ -34,6 +34,7 @@ timeline
     v0.1.1-dev50 (Current) : P1-8 Frame timing overlay (per-frame PTS/delta/gap, SetFrameTimingOverlayVisible toggle)
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
     v0.1.1-dev50 (Current) : ASS subtitle format fixes (formatASSTime centisecs, escapeASSText closing-brace)
+    v0.1.1-dev50 (Current) : HW decode default-on (hwDecodeEnabled=true, SEH coverage confirmed) : Error concealment last-good-frame (frozen frame on decode error)
     v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
     v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
@@ -74,7 +75,10 @@ timeline
 - **Phase 0 complete** — All five P0 critical fixes shipped: error ring buffer (P0-4), HW→SW degradation (P0-1), NextFrame hang (P0-2), backward step (P0-3), OpenAuto disc fallback (P0-5). Per-codec HW blacklist and platform `AudioBufferLatency` deferred to Phase 3.
 - **All 11 Phase 1 items shipped**: P1-1 (Network streaming), P1-2 (Resume), P1-3 (A/V offset), P1-4 (Speed+pitch), P1-5 (A-B loop), P1-6 (SeekAccuracy UI), P1-7 (Bilinear scaling), P1-8 (Frame timing overlay), P1-9 (Player Tuning UI), P1-10 (Growing-file), P1-11 (Clock drift).
 - **Phase 1 gap closure complete** — Every missing player feature catalogued in the gap analysis is now implemented.
-- **Carry-forward deferred work**: view.go component split, Player interface extraction, HW decode default-on evaluation, ASS subtitle format bugs, UDF reader robustness, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup.
+- **HW decode default-on** — `hwDecodeEnabled = true`; SEH coverage confirmed complete; `DegradeToSoftware()` wired into decode loop.
+- **Error concealment (last-good-frame)** — `NextFrame` returns frozen frame once on decode-error EOF; black-screen on corrupt/HW-failed streams eliminated.
+- **ASS subtitle format bugs fixed** — `formatASSTime` centiseconds correct; `escapeASSText` closing-brace over-escape removed.
+- **Carry-forward deferred work**: view.go component split, Player interface extraction, UDF reader robustness, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup.
 
 ## Next (Phase 2 — post-dev50)
 

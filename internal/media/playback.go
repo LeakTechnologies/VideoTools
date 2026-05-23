@@ -563,6 +563,7 @@ func (e *Engine) videoDecodeLoop() {
 			logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_send_packet SEH exception (exc=0x%08X) — stopping decode", excCode)
 			e.SetError(ErrCodeDecode, fmt.Sprintf("videoDecodeLoop send_packet SEH 0x%08X", excCode), false)
 			e.videoDecodeDead = true
+			e.decodeErrored.Store(true)
 			e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 			return
 		}
@@ -578,6 +579,7 @@ func (e *Engine) videoDecodeLoop() {
 				logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_receive_frame SEH exception (exc=0x%08X) — stopping decode", recvExc)
 				e.SetError(ErrCodeDecode, fmt.Sprintf("videoDecodeLoop receive_frame SEH 0x%08X", recvExc), false)
 				e.videoDecodeDead = true
+				e.decodeErrored.Store(true)
 				e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 				return
 			}
@@ -629,6 +631,7 @@ func (e *Engine) videoDecodeLoop() {
 							continue
 						}
 						// Already degraded: SW decode is also failing; give up.
+						e.decodeErrored.Store(true)
 						e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 						return
 					}
@@ -729,6 +732,15 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 				}
 				continue
 			}
+			// On a decode error (SEH/HW fatal), return the last good frame once
+			// so the display freezes rather than going black.  Natural stream EOF
+			// passes through immediately.
+			if e.decodeErrored.CompareAndSwap(true, false) {
+				if lgf := e.lastGoodFrame.Load(); lgf != nil {
+					logging.Info(logging.CatPlayer, "NextFrame: decode error — returning frozen last-good-frame")
+					return lgf, nil
+				}
+			}
 			return nil, io.EOF
 		}
 
@@ -775,6 +787,7 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		logging.PlayerFrameTrace(nf, pts, clockNow, traceAction, (clockNow-pts)*1000)
 
 		e.lastVideoPTSBits.Store(math.Float64bits(pts))
+		e.lastGoodFrame.Store(img)
 
 		if e.subtitleCodecCtx != nil {
 			sub := e.decodeSubtitle(pts)

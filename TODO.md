@@ -49,6 +49,11 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 
+### HW Decode + Error Concealment
+
+- [x] **HW decode default-on** — `hwDecodeEnabled = true` in `hwdecode.go`. SEH coverage confirmed complete. `DegradeToSoftware()` wired.
+- [x] **Error concealment (last-good-frame)** — `lastGoodFrame atomic.Pointer[image.RGBA]` + `decodeErrored atomic.Bool`. `NextFrame` returns frozen frame exactly once on decode-error EOF, then `io.EOF`.
+
 ### ASS Subtitle Fixes
 
 - [x] **`formatASSTime` centisecs bug** — Fixed: `(int(d.Milliseconds()) % 1000) / 10`.

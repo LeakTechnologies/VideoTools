@@ -2,6 +2,11 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### HW Decode Default-On + Error Concealment
+
+- **`hwDecodeEnabled = true`** (`internal/media/hwdecode.go`) — D3D11VA/VAAPI/QSV enabled by default. All FFmpeg decode call sites are SEH-wrapped in `safe_bridge.c`. `DegradeToSoftware()` wired into decode loop.
+- **`Engine.lastGoodFrame` + `decodeErrored`** (`internal/media/engine.go`, `internal/media/playback.go`) — `atomic.Pointer[image.RGBA]` stores most recently displayed frame; `atomic.Bool` set on fatal decode errors. `NextFrame` returns frozen frame once on decode-error EOF via `CompareAndSwap`, preventing black-screen on corrupt/HW-failed streams.
+
 ### ASS Subtitle Format Fixes
 
 - **`formatASSTime`** (`internal/media/subtitle.go`): `(int(d.Milliseconds()) % 1000) / 10` — was dividing total ms by 10, giving wrong centiseconds. `% 1000` isolates sub-second part first.
