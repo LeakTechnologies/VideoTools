@@ -28,7 +28,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **P0-2: Fix NextFrame hang after videoDecodeDead** — `playback.go`: All three fatal return paths in `videoDecodeLoop` (SafeSendPacket SEH, SafeReceiveFrame SEH, and post-DegradeToSoftware already-degraded path) now send `decodeEOFPTS` sentinel into `frameQueue` before returning, so `NextFrame` unblocks and returns `io.EOF` instead of hanging forever.
 - [x] **P0-3: Fix backward frame stepping** — `playback.go:335-338`: `Step()` rejects `frames <= 0` with error. All `StepFrame(-1)` callers silently fail. Fix: add true backward step — seek back 2 keyframes, decode forward to target frame.
 - [x] **P0-4: Replace lastError with error ring buffer** — `errors.go:17-48`, `engine.go:205`: single `*PlaybackError` overwritten, `GetLastError()`/`ClearError()` never called. Fix: 16-entry ring buffer with timestamp+code+message, `SetError()` wired into all error paths (SEH catch in GrabFrame, videoDecodeLoop, retrieveHWFrame + DegradeToSoftware), exposed via `Engine.GetErrorHistory()`.
-- [ ] **P0-5: Add OpenAuto() with Open→OpenDVD fallback** — `engine.go:843`, `inline_player.go:157-165`: Load calls `Open()` only, LoadDVD calls `OpenDVD()` only. No auto-detection of disc structures. Fix: `Engine.OpenAuto(path)` tries Open, then OpenDVD on failure. Wire into Load().
+- [x] **P0-5: Add OpenAuto() with Open→OpenDVD fallback** — `engine.go` / `inline_player.go`: `Engine.OpenAuto(path)` tries `Open()`, falls back to `OpenDVD(path, 0)` on failure. `InlineVideoPlayer.Load()` now uses `OpenAuto` instead of `Open` directly — ISOs and VIDEO_TS directories load automatically in any module that calls `Load()`.
 
 ### Phase 1 — Player Completeness (missing basic features)
 

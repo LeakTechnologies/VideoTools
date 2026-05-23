@@ -2,6 +2,10 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P0-5: OpenAuto — Open→OpenDVD Fallback
+
+- **`Engine.OpenAuto(path string) error`** — tries `Open()` (generic avformat), falls back to `OpenDVD(path, 0)` (dvdvideo demuxer, longest title) on failure. `InlineVideoPlayer.Load()` now calls `OpenAuto` instead of `Open`, so ISOs and VIDEO_TS directories load automatically in Convert, Inspect, Filters, Upscale, Trim, Audio, and Subtitles modules without explicit disc-aware callers.
+
 ### P0-1 + P0-2: HW→SW Decoder Degradation + NextFrame Hang Fix
 
 - **`vt_clear_hw_decode` C helper** (`errors.go`): unrefs `hw_device_ctx` from the codec context, resets the `get_format` callback and `opaque` pointer to NULL, and re-enables `FF_THREAD_SLICE` threading. Prevents the codec from attempting HW pixel-format negotiation after degradation.

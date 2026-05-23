@@ -865,6 +865,18 @@ func (e *Engine) Open(path string) error {
 	return e.openFinalize()
 }
 
+// OpenAuto tries Open first, then falls back to OpenDVD(path, 0) on failure.
+// This handles ISOs and VIDEO_TS directories that avformat_open_input rejects
+// when passed nil format — the dvdvideo demuxer is required for those sources.
+// Title 0 selects the longest (main-feature) title automatically.
+func (e *Engine) OpenAuto(path string) error {
+	if err := e.Open(path); err == nil {
+		return nil
+	}
+	logging.Info(logging.CatPlayer, "OpenAuto: Open failed, retrying as DVD/ISO via OpenDVD(title=0)")
+	return e.OpenDVD(path, 0)
+}
+
 // openFinalize runs after avformat_open_input succeeds: probes streams, allocates
 // codec contexts, and sets up frame buffers. Called by both Open and OpenDVD.
 func (e *Engine) openFinalize() error {

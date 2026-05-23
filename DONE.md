@@ -2,6 +2,11 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P0-5: OpenAuto — Open→OpenDVD Fallback
+
+- **`Engine.OpenAuto(path string) error`** added to `internal/media/engine.go`: calls `Open(path)` first; on failure retries with `OpenDVD(path, 0)` (title 0 = longest/main-feature title). `avformat_open_input` sets `formatCtx` to NULL on failure so no cleanup is needed before the retry.
+- **`InlineVideoPlayer.Load()`** now uses `eng.OpenAuto(path)` instead of `eng.Open(path)`. All modules that call `Load()` (Convert, Filters, Upscale, Inspect, Trim, Audio, Subtitles) transparently handle ISOs and VIDEO_TS directories. `LoadDVD(path, title)` remains for explicit title-numbered disc access.
+
 ### P0-1 + P0-2: HW→SW Decoder Degradation + NextFrame Hang Fix
 
 - **`vt_clear_hw_decode` C helper** added to `errors.go` CGo preamble: unrefs and NULLs `hw_device_ctx` from the codec context, resets `get_format` callback and `opaque` to NULL (so FFmpeg won't re-negotiate HW pixel format on the next flush+decode cycle), and re-enables `FF_THREAD_SLICE` threading that was disabled for HW compatibility.
