@@ -21,6 +21,11 @@
   `NextFrame` unblocks and returns `io.EOF` instead of hanging forever at `df = <-e.frameQueue`.
 - Build clean.
 
+### P0-5: OpenAuto with Open→OpenDVD Fallback
+
+- **`Engine.OpenAuto(path string) error`** added to `internal/media/engine.go`: attempts `Open(path)` first; if it fails, retries with `OpenDVD(path, 0)` (title 0 = longest title). This lets ISOs and VIDEO_TS directories load seamlessly through the same `Load()` call as regular files.
+- **`InlineVideoPlayer.Load(path)`** now calls `OpenAuto` instead of `Open` directly. All modules that use `Load()` (Convert, Trim, Inspect, Filters, Upscale, Audio, Subtitles) can now open disc structures without calling `LoadDVD()` explicitly.
+
 ### P0-3: Backward Frame Stepping (un-break StepFrame(-1))
 
 - **`Engine.Step(frames int)`** at `playback.go:335-338` previously rejected `frames <= 0` with `"invalid frame count"` — all `StepFrame(-1)` callers (main.go, convert_player_native.go, trim/view.go) silently failed to step backward.
