@@ -42,7 +42,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **P1-8: Frame timing diagnostics overlay** — No Ctrl+J equivalent. Fix: ring buffer of per-frame PTS/clock/drop/display-time, hotkey to toggle overlay.
 - [x] **P1-9: Settings UI for player tuning** — HW decode toggle moved from Hardware card into Player card. Seek accuracy dropdown added (P1-6). Thread count locked to 1 (stability) and buffer size (`preDecodeFrames`) are constants — not user-configurable. Scale mode, audio buffer latency, and max drift threshold deferred.
 - [x] **P1-10: Growing/in-progress file support** — InlineVideoPlayer poll-based growing-file watcher. On EOF with growing-file mode, polls file size every 2s; re-opens + seeks + resumes on growth.
-- [ ] **P1-11: Clock drift correction goroutine** — Audio underrun causes clock to drift forever. Fix: background goroutine every 250ms compares clock to wall-time, snaps to anchor on no-advance.
+- [x] **P1-11: Clock drift correction** — MasterClock.SetTime monotonic ratchet allows backward reset when jump > 1s and no PTS anchor in last 500ms (underrun recovery).
 
 ### Player Refactoring (deferred — non-blocking)
 

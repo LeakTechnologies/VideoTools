@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev50` — **Media Engine gap closure: comprehensive gap analysis completed (20+ gaps across 4 phases). Phase 0 critical fixes shipped. P1-1 network streaming, P1-2 resume, P1-3 audio delay (A/V offset), P1-4 speed+pitch correction (atempo), P1-6+P1-9 SeekAccuracy+Player Tuning Settings, P1-10 growing-file, P1-7 bilinear scaling (SWS_BICUBIC confirmed, docs clarified). Remaining Phase 1 items: A-B loop (P1-5), frame timing overlay (P1-8), clock drift (P1-11). view.go split + ASS subtitle fixes deferred.** Priorities below.
+- Current cycle: `v0.1.1-dev50` — **Media Engine gap closure: comprehensive gap analysis completed (20+ gaps across 4 phases). Phase 0 critical fixes shipped. P1-1 network streaming, P1-2 resume, P1-3 audio delay (A/V offset), P1-4 speed+pitch correction (atempo), P1-6+P1-9 SeekAccuracy+Player Tuning Settings, P1-10 growing-file, P1-7 bilinear scaling (SWS_BICUBIC confirmed, docs clarified), P1-11 clock drift correction (SetTime underrun recovery). Remaining Phase 1 items: A-B loop (P1-5), frame timing overlay (P1-8). view.go split + ASS subtitle fixes deferred.** Priorities below.
 - Public/stable baseline: `v0.1.1`.
 - `dev49` shipped: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS; WaitVsync removed from playbackLoop. Player default aspect ratio setting (4:3/16:9/5:3/21:9/9:16 idle SMPTE bars). Seek corruption fix: accurate fallback uses AVSEEK_FLAG_BACKWARD. Player singleton consolidation: 10 per-module singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Engine-level bwdif deinterlace (libavfilter, Settings toggle default on). Thread safety formalisation (mu→formatMu→videoCodecMu→framepoolMu hierarchy, named helpers, lockdep build-tag). Rip module: menu VOB bleed fixed, chapter diagnostics, menu preservation, main/extra title naming, disc info to Source section, single browse button, format validation. C disc debug utility. Inuktitut transliteration package (internal/i18n/translit/) with iutools algorithm. Rip/Convert layout: buildRipBox sections, BuildCollapsibleHeader component, collapsible metadata/settings/log panels. Queue: blocking dialog removed, goroutine self-exit fixed. Log session rotation + Clear/Open in Settings. Dropdown active item text: ForegroundOnPrimary on VT_Green. Process management: NoInheritHandles (file-in-use fix), Queue.Stop() cancellation (zombie fix), Windows Job Object KILL_ON_JOB_CLOSE, Linux Pdeathsig:SIGKILL.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton. VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
@@ -61,9 +61,8 @@ All items in `internal/media/` and `internal/ui/inline_player.go`.
 | Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned (deferred) |
 | Thread safety formalisation (lock hierarchy, lockdep, named helpers) | `internal/media/engine.go` | **SHIPPED** |
 | **P1-4: Speed + pitch correction** — `AudioFilterGraph.Process()` C helper + `AudioPlayer.filterGraph` lazy-init | `internal/media/audio_filter.go`, `internal/media/audio.go` | **SHIPPED** |
-| **P1-5: A-B loop, P1-8: Frame timing overlay, P1-11: Clock drift** | Various | Future |
-| **P1-7: Bilinear scaling** — confirmed SWS_BICUBIC in swscale; docs-only | `internal/media/view.go` | **SHIPPED** |
-| **P1-10: Growing-file support** — poll + reload on growth | `internal/ui/inline_player.go` | **SHIPPED** |
+| **P1-5: A-B loop, P1-8: Frame timing overlay** | Various | Future |
+| **P1-11: Clock drift correction** — SetTime underrun recovery | `internal/media/clock.go` | **SHIPPED** |
 
 ### VT ISO Engine Refactoring (HIGH)
 
@@ -543,11 +542,10 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 
 ## Next Steps (dev50 — remaining Phase 1)
 
-All 11 Phase 1 items are scoped. 8 shipped so far (P1-1 through P1-4, P1-6, P1-9, P1-10, P1-7).
+All 11 Phase 1 items are scoped. 10 shipped so far (P1-1 through P1-4, P1-6, P1-9, P1-10, P1-7, P1-11).
 Remaining:
 
 | Item | Description | Complexity |
 |------|-------------|------------|
 | P1-5 | A-B loop — `SetLoopPoints(a,b)`, wire into NextFrame: after B seek back to A | Medium |
 | P1-8 | Frame timing diagnostics overlay — ring buffer of per-frame PTS/clock/drop stats, hotkey toggle | Medium |
-| P1-11 | Clock drift — background goroutine every 250ms compares clock to wall-time, snaps on no-advance | Low |

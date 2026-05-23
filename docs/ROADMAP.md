@@ -29,6 +29,7 @@ timeline
     v0.1.1-dev50 (Current) : P1-1 Network streaming (Engine.OpenURL, LoadURL) : P1-2 Resume/watch-later : P1-3 A/V Offset (audio delay)
     v0.1.1-dev50 (Current) : P1-4 Speed+pitch correction (atempo filter) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
     v0.1.1-dev50 (Current) : P1-10 Growing-file support (poll + reload on growth) : P1-7 Bilinear scaling (SWS_BICUBIC confirmed, docs only)
+    v0.1.1-dev50 (Current) : P1-11 Clock drift correction (SetTime underrun recovery)
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
     v0.1.1-dev50 (Current) : ASS subtitle format bugs (formatASSTime centisecs, escapeASSText double-escape)
     v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
@@ -74,6 +75,7 @@ timeline
 - **P1-3: Audio delay shipped** — `Engine.audioDelayBits` (atomic); `WaitForPTS(pts + avDelay)` in NextFrame audio path. Settings → Player "A/V Offset (ms)" entry, persists in `PrefsConfig.AVOffset`. `setPlayerAVOffset()` applies mid-session.
 - **P1-4: Speed + pitch correction shipped** — `AudioFilterGraph.Process()` implemented with `vt_atempo_process` C helper (AVFrame push/drain through atempo filter graph). `AudioPlayer.filterGraph` lazy-initialized in `SetSpeed()`. `Read()` routes chunks through atempo; leftover path skips re-processing when filter is active.
 - **P1-6 + P1-9: Settings Player tab shipped** — SeekAccuracy dropdown (Fast/Fastest/Precise), HW decode section moved from Hardware card to Player card. `PrefsConfig.SeekAccuracy` persisted. `setPlayerSeekAccuracy()` applies mid-session.
+- **P1-11: Clock drift shipped** — `MasterClock.SetTime()` monotonic ratchet now allows backward reset when the backward jump > 1s and no PTS anchor arrived in the last 500ms. Handles audio underrun recovery without requiring explicit `ResetTime()` call.
 - **P1-7: Bilinear scaling shipped (docs-only)** — `sws_scale` at `engine.go:1445` and `framepool.go:36` confirmed using `SWS_BICUBIC`. The `scaleNearest` docstring in `view.go:833` now clarifies that the FFmpeg swscale pipeline (not the canvas blit) determines visual quality.
 - **P1-10: Growing-file support shipped** — `InlineVideoPlayer.growingFileWatcher()` polls file size every 2s on EOF. When size grows, re-opens via `Load()`, seeks to last position, resumes playback. Toggle via `SetGrowingFile(bool)` on Engine, wired through InlineVideoPlayer.
 - **HW decode default-on evaluation** — Re-evaluate D3D11VA default with VEH/SEH bridge and `STATUS_STACK_OVERFLOW` recovery in place; add per-codec HW blacklist for problem codecs.

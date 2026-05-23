@@ -2,6 +2,10 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P1-11: Clock Drift Correction
+
+- **`MasterClock.SetTime()` underrun recovery** at `internal/media/clock.go:58-66`: the monotonic ratchet now allows a backward reset when `backwardJump > 1s` AND `time.Since(c.ptsTime) > 500ms`. This detects the "audio was silent, clock coasted on wall-time, audio recovered with a stale PTS" scenario. Without it, the clock would drift permanently forward and subsequent video frames at the correct PTS would be rejected as too late.
+
 ### P1-10: Growing/In-Progress File Support
 
 - **`Engine.SetGrowingFile(bool)` / `IsGrowingFile()`** — atomic toggle alongside `looping`, wired through `InlineVideoPlayer.SetGrowingFile(bool)`.

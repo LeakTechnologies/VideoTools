@@ -2,6 +2,11 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### P1-11: Clock Drift Correction
+
+- **`MasterClock.SetTime()` underrun recovery exception** at `internal/media/clock.go:58-66`: the monotonic ratchet that prevents backward clock jumps now carves out a special case — if the backward jump exceeds 1s and no PTS anchor has arrived in the last 500ms, it's treated as an audio underrun recovery. The clock resets to the incoming PTS instead of staying frozen at the drifted value.
+- **Targeted, no-regression fix**: preserves the original ratchet behavior for all normal cases (small jitter, pre-buffered audio). Only large jumps with stale anchors bypass the guard.
+
 ### P1-7: Bilinear Scaling (docs-only)
 
 - **Confirmed SWS_BICUBIC** at `internal/media/engine.go:1445` (video decode → RGBA sws_scale) and `framepool.go:36` (thumbnail pipeline). The FFmpeg swscale step that converts decoded frames to RGBA has always used bicubic interpolation — the most quality-determining step in the pipeline.
