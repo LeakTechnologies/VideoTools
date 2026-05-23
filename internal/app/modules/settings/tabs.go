@@ -319,6 +319,17 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hint(t.SettingsPlayerAspectHint),
 	)
 
+	// ── Player ────────────────────────────────────────────────────────────────
+	autoDeintCheck := widget.NewCheck(t.SettingsAutoDeinterlace, func(enabled bool) {
+		cb.SetAutoDeinterlace(enabled)
+	})
+	autoDeintCheck.SetChecked(prefs.AutoDeinterlace)
+
+	playerCard := settingsCard(t.ModulePlayer,
+		autoDeintCheck,
+		hint(t.SettingsAutoDeinterlaceHint),
+	)
+
 	// ── Hardware ──────────────────────────────────────────────────────────────
 	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi"}, func(selected string) {
 		cb.SetConvertHardwareAccel(selected)
@@ -536,6 +547,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		updatesCard,
 		langCard,
 		appearanceCard,
+		playerCard,
 		hwCard,
 		modulesCard,
 		queueCard,

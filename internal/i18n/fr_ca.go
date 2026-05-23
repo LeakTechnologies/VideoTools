@@ -40,6 +40,9 @@ var frCA = Strings{
 	ModuleSettings:    "Paramètres",
 
 	SettingsShowTooltips: "Afficher les info-bulles",
+	SettingsAutoDeinterlace:      "Desentrelacement auto",
+	SettingsAutoDeinterlaceHint:  "Desentrelacement automatique des videos entrelacees via le filtre bwdif",
+
 	SettingsHWDecode:             "Decodage video materiel",
 	SettingsHWDecodeAuto:         "Detection auto",
 	SettingsHWDecodeAvailable:    "Disponible",

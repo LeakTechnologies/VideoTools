@@ -44,7 +44,7 @@ func (e *Engine) ensureSwsCtx(fmt C.enum_AVPixelFormat) {
 	}
 }
 
-func (e *Engine) toRGBA() (img *image.RGBA) {
+func (e *Engine) toRGBA(src *C.AVFrame) (img *image.RGBA) {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "toRGBA panic: %v", r)
@@ -52,8 +52,12 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 		}
 	}()
 
+	if src == nil {
+		src = e.frame
+	}
+
 	logging.Debug(logging.CatPlayer, "toRGBA: entering sws_scale, swsCtx=%v", e.swsCtx != nil)
-	swsRet, swsExc := SafeSwsScaleFrame(e.swsCtx, e.frame, 0, int(e.videoCodecCtx.height), e.rgbaFrame)
+	swsRet, swsExc := SafeSwsScaleFrame(e.swsCtx, src, 0, int(e.videoCodecCtx.height), e.rgbaFrame)
 	if swsRet < 0 {
 		if swsExc != 0 {
 			logging.Error(logging.CatPlayer, "toRGBA: sws_scale SEH exception (exc=0x%08X)", swsExc)

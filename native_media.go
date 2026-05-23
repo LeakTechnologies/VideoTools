@@ -52,6 +52,20 @@ func init() {
 	primaryInlinePlayer.SetPeer(previewPlayer)
 }
 
+func autoDeinterlaceEnabled() bool {
+	return media.GetDefaultDeinterlaceEnabled()
+}
+
+func setAutoDeinterlace(enabled bool) {
+	media.SetDefaultDeinterlaceEnabled(enabled)
+	players := []*ui.InlineVideoPlayer{primaryInlinePlayer, previewPlayer}
+	for _, p := range players {
+		if p != nil {
+			p.SetDeinterlaceEnabled(enabled)
+		}
+	}
+}
+
 func hwDecodeEnabled() bool {
 	return media.HWDecodeEnabled()
 }
@@ -248,6 +262,7 @@ func initNativeMediaAssets(s *appState) {
 	// from a background goroutine.  WarmHWDeviceCache() caches the result so
 	// all subsequent Load() calls return immediately without touching COM.
 	media.WarmHWDeviceCache()
+	setAutoDeinterlace(s.prefs.AutoDeinterlace)
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 	applyPlayerDefaultAspect(s.prefs.PlayerDefaultAspect)

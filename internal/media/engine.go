@@ -13,6 +13,7 @@ package media
 #include <libavutil/imgutils.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/dict.h>
+#include <libavfilter/avfilter.h>
 
 static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     if (fmtCtx == NULL || index < 0 || index >= fmtCtx->nb_chapters) {
@@ -63,6 +64,16 @@ const (
 	// a Seek-to-start / loop).
 	decodeEOFPTS = -1.0
 )
+
+var defaultDeinterlaceEnabled = true
+
+func SetDefaultDeinterlaceEnabled(enabled bool) {
+	defaultDeinterlaceEnabled = enabled
+}
+
+func GetDefaultDeinterlaceEnabled() bool {
+	return defaultDeinterlaceEnabled
+}
 
 type SeekAccuracy int
 
@@ -206,6 +217,12 @@ type Engine struct {
 	decodeLoopWg    sync.WaitGroup
 	decodeLoopActive bool    // true while videoDecodeLoop goroutine is alive
 	decodeEOFSent       bool    // true once the EOF sentinel has been enqueued
+	// Deinterlace (bwdif) filter graph — lazily created on first interlaced frame.
+	deinterlaceEnabled bool
+	deintFilterGraph   *C.AVFilterGraph
+	deintBuffersrc     *C.AVFilterContext
+	deintBuffersink    *C.AVFilterContext
+
 	// seekFlushBefore is read/written by both Seek() and videoDecodeLoop.
 	// Seek() holds e.mu; videoDecodeLoop holds videoCodecMu at the read site.
 	// Acquiring e.mu inside videoCodecMu creates a lock-order deadlock with
@@ -319,9 +336,10 @@ func (c *PlaybackFrameCache) MaxSize() int {
 
 func NewEngine() *Engine {
 	return &Engine{
-		videoStreamIdx:    -1,
-		audioStreamIdx:    -1,
-		subtitleStreamIdx: -1,
+		deinterlaceEnabled: defaultDeinterlaceEnabled,
+		videoStreamIdx:     -1,
+		audioStreamIdx:     -1,
+		subtitleStreamIdx:  -1,
 		// Smaller queue caps reduce demuxer blocking time and shrink the audio
 		// tail after video EOF.  videoQueue at 50 packets gives ~1.7s of
 		// encoded-packet headroom (enough for one GOP boundary) without letting
@@ -475,6 +493,21 @@ func (e *Engine) SetSeekAccuracy(acc SeekAccuracy) {
 
 func (e *Engine) GetSeekAccuracy() SeekAccuracy {
 	return e.seekAcc
+}
+
+func (e *Engine) SetDeinterlaceEnabled(enabled bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.deinterlaceEnabled = enabled
+	if !enabled {
+		e.freeDeinterlaceFilter()
+	}
+}
+
+func (e *Engine) IsDeinterlaceEnabled() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.deinterlaceEnabled
 }
 
 func (e *Engine) SetDropFrames(enabled bool) {

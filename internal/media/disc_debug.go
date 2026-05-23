@@ -3,8 +3,8 @@
 package media
 
 /*
+#include <stdlib.h>
 #include "disc_debug.h"
-#include "disc_debug.c"
 */
 import "C"
 import (
