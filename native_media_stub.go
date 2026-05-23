@@ -13,8 +13,10 @@ func HasNativeMediaPlayer() bool {
 	return false
 }
 
-func hwDecodeEnabled() bool   { return false }
-func setHWDecodeEnabled(bool) {}
+func autoDeinterlaceEnabled() bool { return false }
+func setAutoDeinterlace(bool)      {}
+func hwDecodeEnabled() bool        { return false }
+func setHWDecodeEnabled(bool)      {}
 func applyPlayerDefaultAspect(string) {}
 
 func initNativeMediaAssets(_ *appState) {}

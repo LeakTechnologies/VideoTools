@@ -5,6 +5,16 @@
 ### Select / Dropdown — Active Item Text Colour Fix
 - **Active menu item text colour fixed** (`_fyne/widget/menu_item.go`): `refreshText()` now uses `ColorNameForegroundOnPrimary` when the item is active (sitting on a `ColorNameFocus`/VT_Green background). `VTTheme` maps `ForegroundOnPrimary` to `BgBase` (#0B0F1A, near-black), giving high contrast against VT_Green (#22c55e). Previously `ColorNameForeground` (light #E1EEFF) was always used, making active dropdown rows illegible regardless of background colour.
 
+### Engine-Level bwdif Deinterlace
+- **`internal/media/deinterlace.go`** (new): libavfilter-based bwdif filter graph. `create_bwdif_filter()` allocates `[buffersrc → bwdif=mode=0:parity=-1:deint=0 → buffersink]`. `run_bwdif()` pushes frames with `AV_BUFFERSRC_FLAG_KEEP_REF` (no data steal) and pulls deinterlaced output. `frame_is_interlaced()` uses the portable `AV_FRAME_FLAG_INTERLACED` flag check (works on FFmpeg 7.x+ where `interlaced_frame` field was removed).
+- **`Engine` struct**: Added `deinterlaceEnabled` (default `true`), `deintFilterGraph`, `deintBuffersrc`, `deintBuffersink` fields. `SetDeinterlaceEnabled()`/`IsDeinterlaceEnabled()` getter/setter with mutex guard. `applyDeinterlace()` lazily creates filter graph on first use; returns `*C.AVFrame` caller must free. `freeDeinterlaceFilter()` called from `Close()`.
+- **`toRGBA()` signature**: Now `toRGBA(src *C.AVFrame)` — `nil` means use `e.frame`. Deinterlace produces a separate frame; passed directly to `SafeSwsScaleFrame`, then freed.
+- **Integration points**: Applied in `videoDecodeLoop` SW path (both normal decode and HW fallback) and `GrabFrame` SW path. Gated on `e.deinterlaceEnabled && isFrameInterlaced(e.frame)`.
+- **Global default**: `media.SetDefaultDeinterlaceEnabled()` / `GetDefaultDeinterlaceEnabled()` — `NewEngine` reads this so all created engines respect the user's saved preference.
+- **Settings UI**: `AutoDeinterlace` field in `PrefsConfig`, `PreferencesCallbacks` interface methods, `settings_module.go` adapter, `tabs.go` Player section checkbox with `SettingsAutoDeinterlace` / `SettingsAutoDeinterlaceHint` i18n keys.
+- **Bridge**: `setAutoDeinterlace()` in `native_media.go` sets the global default AND updates all running player engines. `autoDeinterlaceEnabled()` reads the global default. `initNativeMediaAssets()` applies pref at startup.
+- **disc_debug.c double-include fix**: Removed `#include "disc_debug.c"` from preamble — CGo auto-compiles `.c` separately, causing duplicate symbols at link time. Added `#include <stdlib.h>` for `C.free`.
+
 ### Media Engine — Seek Corruption Fix & Player Consolidation
 - **Seek corruption root cause found & fixed**: `Engine.Seek()` accurate fallback used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, landing the format context mid-GOP. `avcodec_flush_buffers` destroyed decoder reference state, causing the first P/B-frame after seek to produce garbage. Fixed by adding `AVSEEK_FLAG_BACKWARD` so the fallback lands at the keyframe immediately before the target.
 - **Verbose seek logging added**: Human-readable seek flags, accurate fallback confirmation with position, clock reset target (including audio offset), stale frame queue drain count, seekGen change detection in videoDecodeLoop with frame format/dimensions/PTS logging, InlineVideoPlayer level seek completion logging.

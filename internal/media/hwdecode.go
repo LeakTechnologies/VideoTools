@@ -315,7 +315,7 @@ func (e *Engine) getHWPixelFormat(hwType C.enum_AVHWDeviceType) C.enum_AVPixelFo
 
 func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	if e.frame.hw_frames_ctx == nil {
-		return e.toRGBA(), nil
+		return e.toRGBA(nil), nil
 	}
 
 	swFrame := C.av_frame_alloc()

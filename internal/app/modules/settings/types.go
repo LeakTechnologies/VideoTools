@@ -45,6 +45,8 @@ type PreferencesCallbacks interface {
 	SavePrefsConfig() error
 	PrefsConfig() PrefsConfig
 	SetShowTooltips(enabled bool)
+	AutoDeinterlace() bool
+	SetAutoDeinterlace(enabled bool)
 	HWDecodeEnabled() bool
 	SetHWDecodeEnabled(enabled bool)
 	VerboseDiscLogging() bool
@@ -91,7 +93,8 @@ type PrefsConfig struct {
 	QueuePlayBehavior       string `json:"QueuePlayBehavior"`
 	DefaultOutputDir        string `json:"DefaultOutputDir"`
 	ShowTooltips            bool   `json:"ShowTooltips"`
-	HWDecodeEnabled          bool   `json:"HWDecodeEnabled"`
+	AutoDeinterlace           bool   `json:"AutoDeinterlace"`
+	HWDecodeEnabled           bool   `json:"HWDecodeEnabled"`
 	PlayerFont               string `json:"PlayerFont"`
 	FontSize                 string `json:"FontSize"`
 	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`

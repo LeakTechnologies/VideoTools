@@ -308,6 +308,9 @@ var iuLatn = Strings{
 	SettingsScriptSyllabics:      "Qaniujaaqpait",                                         // Traditional Syllabics
 	SettingsScriptLatin:          "Qaliujaaqpait",                                         // Latin
 	SettingsAppPreferences:       "Atuqnirmut Aaqiksuiniq",                                // Application Preferences
+	SettingsAutoDeinterlace:      "Atulatautitaulugu",                                      // machine-generated, needs human review: Auto deinterlace
+	SettingsAutoDeinterlaceHint:  "Atulatautitaulugu bwdif kuupitikkut",                     // machine-generated: Auto deinterlace via bwdif filter
+
 	SettingsHWDecode:             "Sanajaksanik Takujautiit Niruqtillugu",                 // Hardware Video Decode
 	SettingsHWDecodeAuto:         "Nalunaiqsilugu Atulatautitaulugu",                     // machine-generated, needs human review: Auto-detect
 	SettingsHWDecodeAvailable:    "Saqquiilugu",                                        // machine-generated, needs human review: Available

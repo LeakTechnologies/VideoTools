@@ -307,6 +307,9 @@ var iu = Strings{
 	SettingsScriptSyllabics:      "ᖃᓂᐅᔮᖅᐸᐃᑦ",                                 // Traditional Syllabics
 	SettingsScriptLatin:          "ᓚᑎᓐ",                                      // Latin
 	SettingsAppPreferences:       "ᐊᑐᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                          // Application Preferences
+	SettingsAutoDeinterlace:      "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                          // machine-generated, needs human review: Auto deinterlace
+	SettingsAutoDeinterlaceHint:  "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ bwdif ᑲᒻᐳᑎᒃᑯᑦ",             // machine-generated: Auto deinterlace via bwdif filter
+
 	SettingsHWDecode:             "ᓴᓇᒐᒃᓴᓂᒃ ᑕᒃᔪᐊᑎᑦ ᓂᕈᖅᑎᓪᓗᒍ",                   // Hardware Video Decode
 	SettingsHWDecodeAuto:         "ᓇᓗᓇᐃᖅᓯᓗᒍ ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                   // machine-generated, needs human review: Auto-detect
 	SettingsHWDecodeAvailable:    "ᓴᖅᑮᓗᒍ",                                  // machine-generated, needs human review: Available

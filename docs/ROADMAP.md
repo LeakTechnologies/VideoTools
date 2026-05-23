@@ -21,6 +21,7 @@ timeline
     v0.1.1-dev49 (Current) : Player idle aspect ratio setting : 4:3/16:9/5:3/21:9/9:16 SMPTE bars
     v0.1.1-dev49 (Current) : C disc debug utility (hex dump, dir listing, stat)
     v0.1.1-dev49 (Current) : Seek corruption fix (accurate fallback) : Player singleton consolidation (10→2) : Verbose seek logging : Media Engine architecture doc
+    v0.1.1-dev49 (Current) : Engine-level bwdif deinterlace (libavfilter) : Settings toggle : disc_debug.c double-include fix
     v0.1.1-dev49 (Current) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
     v0.1.1-dev49 (Current) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
     v0.1.1-dev49 (Current) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)

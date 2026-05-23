@@ -422,11 +422,29 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 						continue
 					}
 					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-					img = e.toRGBA()
+					if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
+						if filtered := e.applyDeinterlace(); filtered != nil {
+							img = e.toRGBA(filtered)
+							C.av_frame_free(&filtered)
+						} else {
+							img = e.toRGBA(nil)
+						}
+					} else {
+						img = e.toRGBA(nil)
+					}
 				}
 			} else {
 				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-				img = e.toRGBA()
+				if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
+					if filtered := e.applyDeinterlace(); filtered != nil {
+						img = e.toRGBA(filtered)
+						C.av_frame_free(&filtered)
+					} else {
+						img = e.toRGBA(nil)
+					}
+				} else {
+					img = e.toRGBA(nil)
+				}
 			}
 			e.videoCodecMu.Unlock()
 			return img, nil
@@ -574,11 +592,29 @@ func (e *Engine) videoDecodeLoop() {
 						continue
 					}
 					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-					img = e.toRGBA()
+					if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
+						if filtered := e.applyDeinterlace(); filtered != nil {
+							img = e.toRGBA(filtered)
+							C.av_frame_free(&filtered)
+						} else {
+							img = e.toRGBA(nil)
+						}
+					} else {
+						img = e.toRGBA(nil)
+					}
 				}
 			} else {
 				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-				img = e.toRGBA()
+				if e.deinterlaceEnabled && isFrameInterlaced(e.frame) {
+					if filtered := e.applyDeinterlace(); filtered != nil {
+						img = e.toRGBA(filtered)
+						C.av_frame_free(&filtered)
+					} else {
+						img = e.toRGBA(nil)
+					}
+				} else {
+					img = e.toRGBA(nil)
+				}
 			}
 
 			gen = e.seekGen.Load()
@@ -881,6 +917,8 @@ closeDrainDone:
 		C.avcodec_free_context(&e.subtitleCodecCtx)
 		e.subtitleCodecCtx = nil
 	}
+
+	e.freeDeinterlaceFilter()
 
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)

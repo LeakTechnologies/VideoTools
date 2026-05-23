@@ -1800,6 +1800,18 @@ func (a *preferencesAdapter) SetShowTooltips(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) AutoDeinterlace() bool {
+	return a.s.prefs.AutoDeinterlace
+}
+
+func (a *preferencesAdapter) SetAutoDeinterlace(enabled bool) {
+	setAutoDeinterlace(enabled)
+	a.s.prefs.AutoDeinterlace = enabled
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetAutoDeinterlace save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) HWDecodeEnabled() bool {
 	return a.s.prefs.HWDecodeEnabled
 }

@@ -56,6 +56,8 @@ type Strings struct {
 
 	// Settings
 	SettingsShowTooltips    string // "Show tooltips"
+	SettingsAutoDeinterlace    string // "Auto deinterlace"
+	SettingsAutoDeinterlaceHint string // "Automatically deinterlace interlaced video using the bwdif filter"
 	SettingsHWDecode           string // "Hardware Video Decode"
 	SettingsHWDecodeAuto   string // "Auto-detect"
 	SettingsHWDecodeAvailable   string // "Available"

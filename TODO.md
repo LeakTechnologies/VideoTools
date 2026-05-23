@@ -66,6 +66,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Seek corruption fix** — Accurate fallback in `Engine.Seek()` now includes `AVSEEK_FLAG_BACKWARD` so the format context lands at a keyframe before the target PTS. Previously used `AVSEEK_FLAG_ACCURATE` alone, landing mid-GOP, and `avcodec_flush_buffers` destroyed decoder reference state, producing garbled frames for 1-3s after seek.
 - [x] **Player singleton consolidation** — All 10 per-module singletons consolidated into 2 shared instances: `GetPrimaryPlayer()` and `GetPreviewPlayer()`. Per-module getters (`GetConvertPlayer`, `GetTrimPlayer`, `GetInspectPlayer`, etc.) now forward to these.
 - [x] **Verbose seek logging** — Human-readable seek flags, accurate fallback confirmation, clock reset with audio offset, frame queue drain count, seekGen change detection in videoDecodeLoop, first frame after seek diagnostics.
+- [x] **Engine-level bwdif deinterlace** — `internal/media/deinterlace.go` with libavfilter filter graph; applied in `videoDecodeLoop` when `AV_FRAME_FLAG_INTERLACED` set; Settings toggle in Player section (default on); `toRGBA(src *C.AVFrame)` extended signature
 - [ ] **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go
 - [ ] **Player interface extraction** — Formal Go `Player` interface from InlineVideoPlayer enabling mock-based unit tests
 - [ ] **HW decode default-on evaluation** — With VEH/SEH bridge catching AV + stack overflow, re-enable D3D11VA by default; add per-codec HW blacklist

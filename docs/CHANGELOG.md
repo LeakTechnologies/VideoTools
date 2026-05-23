@@ -5,6 +5,14 @@
 ### Select / Dropdown — Active Item Text Colour Fix
 - **`_fyne/widget/menu_item.go`**: `refreshText()` now uses `ColorNameForegroundOnPrimary` (mapped to `BgBase` #0B0F1A in `VTTheme` — near-black) when the menu item is active, instead of always using `ColorNameForeground` (light text). Active dropdown items render on the `ColorNameFocus` background (VT_Green #22c55e); the previous light text was illegible. Fixes all dropdowns app-wide: Settings, Convert, Filters, Upscale, Rip, etc.
 
+### Media Engine — bwdif Deinterlace
+- **Engine-level bwdif deinterlace**: New `internal/media/deinterlace.go` with libavfilter-based bwdif filter graph. Applied in `videoDecodeLoop` and `GrabFrame` when `AV_FRAME_FLAG_INTERLACED` is set on the decoded frame. bwdif parameters `mode=0:parity=-1:deint=0` (full-rate output, auto field-order detection, only intervene on flagged frames). Filter graph created lazily on first interlaced frame, cached per video, freed on `Close()`.
+- **`toRGBA()` signature extended**: Now accepts optional `*C.AVFrame` parameter (`nil` = use `e.frame`). Deinterlaced frames are passed directly to sws_scale without copying data back to `e.frame`.
+- **`AV_FRAME_FLAG_INTERLACED` check**: Uses the flags-based API (`frame->flags & AV_FRAME_FLAG_INTERLACED`) which is the only portable check across FFmpeg 6.x and 7.x+ (the deprecated `interlaced_frame` field was removed in FFmpeg 7.0).
+- **Settings toggle**: "Auto deinterlace" checkbox in Settings → Preferences → Player section, default on. Preference persisted to `PrefsConfig.AutoDeinterlace`. Wired through `InlineVideoPlayer.SetDeinterlaceEnabled()` → `Engine.SetDeinterlaceEnabled()`. Global default via `media.SetDefaultDeinterlaceEnabled()` ensures newly created engines respect the saved preference.
+- **i18n**: `SettingsAutoDeinterlace` / `SettingsAutoDeinterlaceHint` keys in all four locale files (en_ca, fr_ca, iu, iu_latin).
+- **disc_debug.c double-include fix**: Removed `#include "disc_debug.c"` from `disc_debug.go` C preamble — CGo auto-compiles `.c` files, causing duplicate symbol linker errors. Added `#include <stdlib.h>` for `C.free`.
+
 ### Media Engine — Seek Corruption Fix & Player Consolidation
 - **Accurate fallback seek corruption fixed**: `Engine.Seek()` (playback.go:179-181) used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, causing the format context to land mid-GOP. After `avcodec_flush_buffers` destroyed the decoder reference state, the first decoded P/B-frame had no reference I-frame, producing garbled output for 1-3 seconds after every seek that triggered the adaptive accuracy fallback. Fixed by adding `AVSEEK_FLAG_BACKWARD`.
 - **Verbose seek logging**: Added human-readable seek flags (`Seek: flags=`), accurate fallback confirmation, clock reset target with audio offset, frame queue drain count, and videoDecodeLoop seekGen change detection logging the first decoded frame's format/dimensions/PTS after each seek.

@@ -48,6 +48,9 @@ var enCA = Strings{
 	TooltipConvertStart:              "Start conversion",
 
 	SettingsShowTooltips:    "Show tooltips",
+	SettingsAutoDeinterlace:      "Auto deinterlace",
+	SettingsAutoDeinterlaceHint:  "Automatically deinterlace interlaced video using the bwdif filter",
+
 	SettingsHWDecode:            "Hardware Video Decode",
 	SettingsHWDecodeAuto:        "Auto-detect",
 	SettingsHWDecodeAvailable:   "Available",
