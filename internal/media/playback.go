@@ -378,6 +378,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 		if excCode != 0 {
 			e.unlockVideoCodecMu()
 			logging.Error(logging.CatPlayer, "GrabFrame: avcodec_send_packet SEH exception (exc=0x%08X) — disabling video decode", excCode)
+			e.SetError(ErrCodeDecode, fmt.Sprintf("avcodec_send_packet SEH 0x%08X", excCode), false)
 			e.videoDecodeDead = true
 			return nil, fmt.Errorf("video decode access violation: 0x%08X", excCode)
 		}
@@ -392,6 +393,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
 			if recvExc != 0 {
 				logging.Error(logging.CatPlayer, "GrabFrame: avcodec_receive_frame SEH exception (exc=0x%08X) — disabling video decode", recvExc)
+				e.SetError(ErrCodeDecode, fmt.Sprintf("avcodec_receive_frame SEH 0x%08X", recvExc), false)
 				e.videoDecodeDead = true
 				e.unlockVideoCodecMu()
 				return nil, fmt.Errorf("video decode access violation: 0x%08X", recvExc)
@@ -532,7 +534,9 @@ func (e *Engine) videoDecodeLoop() {
 		if excCode != 0 {
 			e.unlockVideoCodecMu()
 			logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_send_packet SEH exception (exc=0x%08X) — stopping decode", excCode)
+			e.SetError(ErrCodeDecode, fmt.Sprintf("videoDecodeLoop send_packet SEH 0x%08X", excCode), false)
 			e.videoDecodeDead = true
+			e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 			return
 		}
 		if sendRet != 0 {
@@ -545,7 +549,9 @@ func (e *Engine) videoDecodeLoop() {
 			if recvExc != 0 {
 				e.unlockVideoCodecMu()
 				logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_receive_frame SEH exception (exc=0x%08X) — stopping decode", recvExc)
+				e.SetError(ErrCodeDecode, fmt.Sprintf("videoDecodeLoop receive_frame SEH 0x%08X", recvExc), false)
 				e.videoDecodeDead = true
+				e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 				return
 			}
 			if recvRet != 0 {
@@ -584,6 +590,19 @@ func (e *Engine) videoDecodeLoop() {
 				if err != nil {
 					if e.videoDecodeDead {
 						e.unlockVideoCodecMu()
+						if !e.hwDegraded {
+							// HW frame-transfer SEH: degrade to SW decode for the
+							// remainder of this session.  DegradeToSoftware resets
+							// the codec's get_format callback and flushes buffered
+							// HW frames so the loop can continue with SW safely.
+							logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW fatal — degrading to software decode")
+							e.RecordHWFailure()
+							e.DegradeToSoftware()
+							e.videoDecodeDead = false
+							continue
+						}
+						// Already degraded: SW decode is also failing; give up.
+						e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 						return
 					}
 					logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW retrieve failed: %v", err)

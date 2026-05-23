@@ -328,6 +328,7 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	if transferRet != 0 {
 		if transferExc != 0 {
 			logging.Error(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data SEH exception (exc=0x%08X) — disabling HW decode", transferExc)
+			e.SetError(ErrCodeHWAccel, fmt.Sprintf("av_hwframe_transfer_data SEH 0x%08X", transferExc), false)
 			e.videoDecodeDead = true
 		} else {
 			logging.Warning(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data failed")
@@ -378,6 +379,7 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	if scaleRet < 0 {
 		if scaleExc != 0 {
 			logging.Error(logging.CatPlayer, "retrieveHWFrame: sws_scale SEH exception (exc=0x%08X) — disabling HW decode", scaleExc)
+			e.SetError(ErrCodeHWAccel, fmt.Sprintf("sws_scale SEH 0x%08X", scaleExc), false)
 			e.videoDecodeDead = true
 		} else {
 			logging.Warning(logging.CatPlayer, "retrieveHWFrame: sws_scale failed")

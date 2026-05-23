@@ -2,6 +2,13 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### P0-4: Error Ring Buffer (replaces single-slot lastError)
+
+- **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer. New `ErrorRecord` struct includes `Timestamp time.Time` so every error carries a temporal trace. Thread-safe via dedicated `errorMu`.
+- **`SetError()` wired into all SEH catch paths**: `GrabFrame` send_packet/receive_frame, `videoDecodeLoop` send_packet/receive_frame, `retrieveHWFrame` hwframe_transfer/sws_scale — every CGo crash route now writes to the ring buffer. `DegradeToSoftware()` also uses `SetError()` instead of direct `lastError` assignment.
+- **`GetErrorHistory() []ErrorRecord`** returns all entries in chronological order. `GetLastError()` preserved as backward-compat wrapper. `ClearError()` / `ClearErrorHistory()` reset the ring.
+- Build clean, 31/31 media tests pass (2 pre-existing ASS subtitle failures unaffected).
+
 ### Comprehensive Media Engine Gap Analysis
 
 - **Full audit of every missing player feature** vs. production players (VLC/MPV). 20+ gaps catalogued across 4 phases.
