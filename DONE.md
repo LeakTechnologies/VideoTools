@@ -2,6 +2,12 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### Mid-Playback Audio and Subtitle Track Switching
+
+- **`SelectAudioTrack` use-after-free fixed** — Close old `AudioPlayer` before freeing `audioCodecCtx`. Restores speed/volume/muted. Seeks to current PTS for A/V resync. Resumes if playing.
+- **`SelectSubtitleTrack` codec reinit** — Flushes queue, frees old codec ctx, calls `initSubtitleDecoder` for new stream, clears stale overlay.
+- **`Engine.subtitleCodecMu`** — New mutex protecting all `subtitleCodecCtx` access: demuxerLoop, NextFrame, decodeSubtitle, SelectSubtitleTrack, DisableSubtitles, Close.
+
 ### HW Decode Default-On + Error Concealment
 
 - **`hwDecodeEnabled = true`** (`internal/media/hwdecode.go`) — D3D11VA/VAAPI/QSV enabled by default. All FFmpeg decode call sites are SEH-wrapped in `safe_bridge.c`. `DegradeToSoftware()` wired into decode loop.

@@ -112,8 +112,13 @@ func (e *Engine) demuxerLoop() {
 			// queue.  A skipped AAC frame (23 ms) is inaudible compared to
 			// a several-second video freeze.
 			e.audioQueue.TryPut(pkt)
-		} else if streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil {
-			e.subtitleQueue.TryPut(pkt)
+		} else {
+			e.subtitleCodecMu.Lock()
+			isSubStream := streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil
+			e.subtitleCodecMu.Unlock()
+			if isSubStream {
+				e.subtitleQueue.TryPut(pkt)
+			}
 		}
 		C.av_packet_unref(pkt)
 	}
@@ -789,7 +794,10 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		e.lastVideoPTSBits.Store(math.Float64bits(pts))
 		e.lastGoodFrame.Store(img)
 
-		if e.subtitleCodecCtx != nil {
+		e.subtitleCodecMu.Lock()
+		hasSubCtx := e.subtitleCodecCtx != nil
+		e.subtitleCodecMu.Unlock()
+		if hasSubCtx {
 			sub := e.decodeSubtitle(pts)
 			if sub != nil {
 				img = e.RenderSubtitles(img, pts)
@@ -994,10 +1002,12 @@ closeDrainDone:
 		C.avcodec_free_context(&e.audioCodecCtx)
 		e.audioCodecCtx = nil
 	}
+	e.subtitleCodecMu.Lock()
 	if e.subtitleCodecCtx != nil {
 		C.avcodec_free_context(&e.subtitleCodecCtx)
 		e.subtitleCodecCtx = nil
 	}
+	e.subtitleCodecMu.Unlock()
 
 	e.freeDeinterlaceFilter()
 

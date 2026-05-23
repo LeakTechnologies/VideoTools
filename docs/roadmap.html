@@ -844,6 +844,8 @@ const changelogData = [
       'Player interface extraction: formal Go Player interface from InlineVideoPlayer for mock testing (deferred)',
       'HW decode default-on: hwDecodeEnabled=true — SEH bridge coverage confirmed complete; DegradeToSoftware() wired into decode loop; D3D11VA/VAAPI/QSV active by default',
       'Error concealment (last-good-frame): Engine.lastGoodFrame atomic.Pointer[image.RGBA] + decodeErrored atomic.Bool; NextFrame returns frozen frame exactly once on decode-error EOF via CompareAndSwap, preventing black screen on corrupt/HW-failed streams',
+      'Mid-playback audio track switching: SelectAudioTrack use-after-free fixed (close AudioPlayer before avcodec_free_context); codec reinit thread_count=1; seek to current video PTS for A/V resync; resume if engine was playing; restores speed/volume/muted',
+      'Mid-playback subtitle track switching: SelectSubtitleTrack flushes subtitleQueue, frees old codec ctx, calls initSubtitleDecoder, clears stale overlay; subtitleCodecMu (level 3.5) guards demuxerLoop/NextFrame/decodeSubtitle/Close',
       'Thread safety formalisation: formal lock hierarchy mu(1)→formatMu(2)→videoCodecMu(3)→framepoolMu(4); named lock/unlock wrapper helpers across ~60 call sites in 6 engine files; lockdep build-tag runtime verification with goroutine-local tracking; DegradeToSoftware safety docs; framepoolMu incorrect comment fixed; PLAYER_DEBUG.md lock hierarchy section',
     ]},
     { title: 'VT ISO Engine Refactoring', items: [

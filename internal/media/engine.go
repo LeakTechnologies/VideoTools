@@ -183,10 +183,11 @@ type Engine struct {
 	audioTimeBase    float64
 	subtitleTimeBase float64
 
-	mu           sync.Mutex // general engine state (level 1 — see lock.go for hierarchy)
-	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file (level 2)
-	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame (level 3)
-	demuxerWg    sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
+	mu             sync.Mutex // general engine state (level 1 — see lock.go for hierarchy)
+	formatMu       sync.Mutex // serialises av_read_frame vs avformat_seek_file (level 2)
+	videoCodecMu   sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame (level 3)
+	subtitleCodecMu sync.Mutex // serialises subtitleCodecCtx access (level 3.5)
+	demuxerWg      sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
 	paused       bool
 	stop         chan struct{}
@@ -722,7 +723,6 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 	if e.formatCtx == nil || e.info == nil {
 		return fmt.Errorf("no media opened")
 	}
-
 	if trackIndex < 0 || trackIndex >= len(e.info.AudioTracks) {
 		return fmt.Errorf("invalid audio track index: %d", trackIndex)
 	}
@@ -735,8 +735,24 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 		return fmt.Errorf("no decoder found for audio stream")
 	}
 
-	e.audioQueue.Flush()
+	// Snapshot playback state before touching any shared fields.
+	e.lockMu()
+	wasPlaying := e.running && !e.paused
+	speed := e.speed
+	vol := e.volume
+	muted := e.muted
+	e.unlockMu()
 
+	// Close the old AudioPlayer FIRST — stops audioDecodeLoop which uses
+	// audioCodecCtx.  Freeing the codec context before the goroutine exits
+	// is a use-after-free.
+	if e.audioPlayer != nil {
+		e.audioPlayer.Close()
+		e.audioPlayer = nil
+	}
+
+	// Safe to flush and free now that the decode goroutine is gone.
+	e.audioQueue.Flush()
 	if e.audioCodecCtx != nil {
 		C.avcodec_free_context(&e.audioCodecCtx)
 		e.audioCodecCtx = nil
@@ -746,18 +762,15 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 	if e.audioCodecCtx == nil {
 		return fmt.Errorf("failed to allocate audio codec context")
 	}
-
 	C.avcodec_parameters_to_context(e.audioCodecCtx, streams[streamIdx].codecpar)
 	e.audioTimeBase = float64(streams[streamIdx].time_base.num) / float64(streams[streamIdx].time_base.den)
+	e.audioCodecCtx.thread_count = 1
+	e.audioCodecCtx.thread_type = 0
 
 	if C.avcodec_open2(e.audioCodecCtx, codec, nil) < 0 {
 		C.avcodec_free_context(&e.audioCodecCtx)
 		e.audioCodecCtx = nil
 		return fmt.Errorf("failed to open audio codec")
-	}
-
-	if e.audioPlayer != nil {
-		e.audioPlayer.Close()
 	}
 
 	ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue, e.clock, e.audioTimeBase)
@@ -766,14 +779,29 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 		e.audioCodecCtx = nil
 		return fmt.Errorf("failed to create audio player: %w", err)
 	}
+	ap.SetVolume(vol)
+	ap.SetMuted(muted)
+	if speed != 1.0 {
+		ap.SetSpeed(speed)
+	}
 
 	e.audioPlayer = ap
-	e.audioPlayer.SetVolume(e.volume)
-	e.audioPlayer.SetMuted(e.muted)
 	e.audioStreamIdx = streamIdx
 	e.hasAudio = true
 
-	logging.Info(logging.CatPlayer, "Selected audio track %d", trackIndex)
+	// Seek to current position so the new track starts in sync with video.
+	currentPTS := math.Float64frombits(e.lastVideoPTSBits.Load())
+	if e.running && currentPTS > 0 {
+		if err := e.Seek(currentPTS); err != nil {
+			logging.Warning(logging.CatPlayer, "SelectAudioTrack: seek to %.2f failed: %v", currentPTS, err)
+		}
+	}
+
+	if wasPlaying {
+		ap.Resume()
+	}
+
+	logging.Info(logging.CatPlayer, "Selected audio track %d (stream %d)", trackIndex, streamIdx)
 	return nil
 }
 
@@ -790,22 +818,39 @@ func (e *Engine) SelectSubtitleTrack(trackIndex int) error {
 	if e.formatCtx == nil || e.info == nil {
 		return fmt.Errorf("no media opened")
 	}
-
 	if trackIndex < 0 || trackIndex >= len(e.info.SubtitleTracks) {
 		return fmt.Errorf("invalid subtitle track index: %d", trackIndex)
 	}
 
-	e.subtitleStreamIdx = e.info.SubtitleTracks[trackIndex].Index
-	logging.Info(logging.CatPlayer, "Selected subtitle track %d", trackIndex)
+	newStreamIdx := e.info.SubtitleTracks[trackIndex].Index
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
+
+	// Tear down old subtitle codec under the lock so decodeSubtitle
+	// (called from NextFrame on the playback goroutine) doesn't race.
+	e.subtitleCodecMu.Lock()
+	e.subtitleStreamIdx = newStreamIdx
+	e.subtitleQueue.Flush()
+	if e.subtitleCodecCtx != nil {
+		C.avcodec_free_context(&e.subtitleCodecCtx)
+		e.subtitleCodecCtx = nil
+	}
+	e.currentSubtitle = nil
+	e.initSubtitleDecoder(streams)
+	e.subtitleCodecMu.Unlock()
+
+	logging.Info(logging.CatPlayer, "Selected subtitle track %d (stream %d)", trackIndex, newStreamIdx)
 	return nil
 }
 
 func (e *Engine) DisableSubtitles() {
+	e.subtitleCodecMu.Lock()
 	e.subtitleStreamIdx = -1
 	if e.subtitleCodecCtx != nil {
 		C.avcodec_free_context(&e.subtitleCodecCtx)
 		e.subtitleCodecCtx = nil
 	}
+	e.currentSubtitle = nil
+	e.subtitleCodecMu.Unlock()
 	logging.Info(logging.CatPlayer, "Subtitles disabled")
 }
 

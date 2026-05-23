@@ -49,6 +49,11 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 
+### Mid-Playback Track Switching
+
+- [x] **Mid-playback audio track switching** — `SelectAudioTrack` fixed: close player first, reinit codec (thread_count=1), seek to current PTS, resume if playing.
+- [x] **Mid-playback subtitle track switching** — `SelectSubtitleTrack` fixed: flush queue, reinit codec, clear overlay. `subtitleCodecMu` guards all subtitle codec access.
+
 ### HW Decode + Error Concealment
 
 - [x] **HW decode default-on** — `hwDecodeEnabled = true` in `hwdecode.go`. SEH coverage confirmed complete. `DegradeToSoftware()` wired.

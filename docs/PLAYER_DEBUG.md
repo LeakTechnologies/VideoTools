@@ -40,8 +40,8 @@ Update this file whenever a player issue is found or fixed.
 | HW sws context cached | ✅ Keyed on (format, width, height) |
 | Duration() lock safety | ✅ formatMu held |
 | HDR tone-mapping | ❌ Not implemented — HDR content washed-out on SDR displays |
-| Mid-playback audio track switching | ❌ Track locked at open time |
-| Mid-playback subtitle track switching | ❌ Track locked at open time |
+| Mid-playback audio track switching | ✅ SelectAudioTrack: close player first, reinit codec, seek to current PTS, resume if playing |
+| Mid-playback subtitle track switching | ✅ SelectSubtitleTrack: subtitleCodecMu, flush queue, reinit codec, clear stale overlay |
 | VFR (variable frame rate) | ⚠️ PTS-based timing handles it in principle; not stress-tested |
 | Error resilience (libavcodec) | ❌ Not set; FF_EC_GUESS_MVS/FF_EC_DEBLOCK not enabled |
 | Playlist / sequential play | ❌ Not implemented |
@@ -54,8 +54,8 @@ Update this file whenever a player issue is found or fixed.
 ### P1 — Playback correctness
 
 - [ ] **HDR content washed-out on SDR displays** — No `AV_FRAME_DATA_MASTERING_DISPLAY_METADATA` / `AV_FRAME_DATA_CONTENT_LIGHT_LEVEL` detection. No tone-mapping via libavfilter `zscale` or `tonemap`. All HDR10/HLG sources render without tone-mapping.
-- [ ] **Audio track cannot be switched mid-playback** — `audioStreamIdx` is set in `openFinalize()`. Switching requires flushing the audio codec, creating a new `AudioPlayer`, and re-wiring the clock. No API or UI for this yet.
-- [ ] **Subtitle track cannot be switched mid-playback** — Same constraint as audio. `subtitleStreamIdx` fixed at open time.
+- [x] **Audio track cannot be switched mid-playback** — Fixed: `SelectAudioTrack` now closes the old `AudioPlayer` before freeing `audioCodecCtx` (was a use-after-free); reinits codec with `thread_count=1`; seeks to current video PTS; resumes if engine was playing.
+- [x] **Subtitle track cannot be switched mid-playback** — Fixed: `SelectSubtitleTrack` flushes `subtitleQueue`, frees old `subtitleCodecCtx` under `subtitleCodecMu`, calls `initSubtitleDecoder` for the new stream, and clears the stale overlay. `decodeSubtitle` and the `demuxerLoop` check are also guarded by `subtitleCodecMu`.
 - [ ] **VFR not stress-tested** — PTS-based WaitForPTS should handle variable frame rates correctly in theory. Needs testing with screen recordings and web video.
 
 ### P2 — Quality / performance
@@ -69,6 +69,8 @@ Update this file whenever a player issue is found or fixed.
 
 ## Fixed (dev50)
 
+- [x] **Mid-playback audio track switching** — `SelectAudioTrack`: close old `AudioPlayer` before `avcodec_free_context` (was use-after-free); reinit codec `thread_count=1`; seek to current video PTS; resume if playing. Restores speed/volume/muted on new player.
+- [x] **Mid-playback subtitle track switching** — `SelectSubtitleTrack`: flush `subtitleQueue`, free old `subtitleCodecCtx` under `subtitleCodecMu`, call `initSubtitleDecoder` for new stream, clear stale overlay. Added `subtitleCodecMu` to Engine; all subtitle codec access (demuxerLoop, NextFrame, decodeSubtitle, Close) guarded.
 - [x] **HW decode default-on** — `hwDecodeEnabled` flipped to `true`. All FFmpeg call sites in the video decode path are SEH-wrapped. DegradeToSoftware() wired in.
 - [x] **Error concealment (last-good-frame)** — `Engine.lastGoodFrame` stores the most recently displayed frame. On decode error EOF, NextFrame returns the frozen frame once instead of going black.
 - [x] **ASS subtitle centiseconds wrong** — `formatASSTime`: `(int(d.Milliseconds()) % 1000) / 10`.

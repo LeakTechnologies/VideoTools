@@ -81,7 +81,10 @@ func (e *Engine) initSubtitleDecoder(streams *[1 << 30]*C.AVStream) {
 }
 
 func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
-	if e.subtitleCodecCtx == nil {
+	e.subtitleCodecMu.Lock()
+	ctx := e.subtitleCodecCtx
+	e.subtitleCodecMu.Unlock()
+	if ctx == nil {
 		return nil
 	}
 
@@ -95,7 +98,15 @@ func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
 		var sub C.AVSubtitle
 		var gotSub C.int
 
-		if C.avcodec_decode_subtitle2(e.subtitleCodecCtx, &sub, &gotSub, pkt) >= 0 && gotSub == 1 {
+		e.subtitleCodecMu.Lock()
+		ctx = e.subtitleCodecCtx
+		var decoded bool
+		if ctx != nil {
+			decoded = C.avcodec_decode_subtitle2(ctx, &sub, &gotSub, pkt) >= 0 && gotSub == 1
+		}
+		e.subtitleCodecMu.Unlock()
+
+		if decoded {
 			rect := C.vt_sub_rect0(&sub)
 			if rect != nil && C.vt_sub_rect_type(rect) == 2 {
 				text := C.GoString(rect.text)

@@ -2,6 +2,12 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### Mid-Playback Audio and Subtitle Track Switching
+
+- **`Engine.SelectAudioTrack` use-after-free fixed** — Previous implementation freed `audioCodecCtx` while the `audioDecodeLoop` goroutine (running inside the old `AudioPlayer`) was still using it. Fixed ordering: close `AudioPlayer` first (stops goroutine), then flush queue, then free codec, then open new codec. New `AudioPlayer` has `thread_count=1` (matching `openFinalize`), restores speed/volume/muted state, seeks to current video PTS for A/V resync, and resumes if engine was playing.
+- **`Engine.SelectSubtitleTrack` codec reinit** — Previously only updated `subtitleStreamIdx` without reinitialising the codec context, causing the old stream's codec to decode packets from the new stream. Fixed: flushes `subtitleQueue`, frees old `subtitleCodecCtx`, calls `initSubtitleDecoder` for the new stream index, clears stale on-screen subtitle.
+- **`Engine.subtitleCodecMu`** — New `sync.Mutex` (level 3.5) protects all `subtitleCodecCtx` access. Guards: `demuxerLoop` stream routing check, `NextFrame` subtitle decode branch, `decodeSubtitle` per-packet decode call, `SelectSubtitleTrack` reinit, `DisableSubtitles`, and `Close`. Eliminates data race between the playback goroutine and UI-initiated track switches.
+
 ### HW Decode Default-On + Error Concealment
 
 - **`hwDecodeEnabled` default flipped to `true`** (`internal/media/hwdecode.go`) — D3D11VA/VAAPI/QSV now active by default. All FFmpeg call sites in the video decode path are wrapped in `safe_bridge.c` SEH `__try` guards. `DegradeToSoftware()` is wired into the decode loop and falls back to SW on the first HW failure. Previously held at `false` pending SEH coverage; coverage was confirmed complete.
