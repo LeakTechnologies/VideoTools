@@ -2,6 +2,10 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### Error Resilience
+
+- **`setVideoCodecErrorFlags()`** — sets `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2` on both video codec init paths. Explicit assignment guards against `avcodec_parameters_to_context` resetting the default.
+
 ### Mid-Playback Audio and Subtitle Track Switching
 
 - **`SelectAudioTrack` use-after-free fixed** — Close old `AudioPlayer` before freeing `audioCodecCtx`. Restores speed/volume/muted. Seeks to current PTS for A/V resync. Resumes if playing.

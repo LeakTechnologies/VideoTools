@@ -2,6 +2,10 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### Error Resilience — Explicit `FF_EC_GUESS_MVS | FF_EC_DEBLOCK`
+
+- **`setVideoCodecErrorFlags(ctx *C.AVCodecContext)`** — package-level helper in `engine.go` that sets `ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2`. Called on both video codec init paths: `SelectVideoTrack` and `openFinalize` SW decode path. FFmpeg's default for this field already matches, but `avcodec_parameters_to_context` can reset it; explicit assignment makes the intent clear and guards against future FFmpeg default changes. Motion-vector extrapolation (GUESS_MVS) and deblocking (DEBLOCK) are now guaranteed active on corrupt or streamed content.
+
 ### Mid-Playback Audio and Subtitle Track Switching
 
 - **`Engine.SelectAudioTrack` use-after-free fixed** — Previous implementation freed `audioCodecCtx` while the `audioDecodeLoop` goroutine (running inside the old `AudioPlayer`) was still using it. Fixed ordering: close `AudioPlayer` first (stops goroutine), then flush queue, then free codec, then open new codec. New `AudioPlayer` has `thread_count=1` (matching `openFinalize`), restores speed/volume/muted state, seeks to current video PTS for A/V resync, and resumes if engine was playing.
