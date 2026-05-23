@@ -735,9 +735,11 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 
 		traceAction := "display"
 		if hasAudio {
-			e.clock.WaitForPTS(pts)
-			if e.clock.GetTime()-pts >= MaxDriftThreshold {
-				e.clock.ResetTime(pts)
+			avDelay := e.GetAudioDelay()
+			target := pts + avDelay
+			e.clock.WaitForPTS(target)
+			if e.clock.GetTime()-target >= MaxDriftThreshold {
+				e.clock.ResetTime(target)
 				traceAction = "snap"
 			}
 		} else {

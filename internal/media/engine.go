@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -91,6 +92,18 @@ func DefaultSeekAccuracy() SeekAccuracy {
 
 func SetDefaultSeekAccuracy(acc SeekAccuracy) {
 	defaultSeekAccuracy = acc
+}
+
+// defaultAudioDelay is the A/V offset applied to every newly opened engine.
+// Stored in seconds; positive = video is delayed (audio appears early).
+var defaultAudioDelayBits atomic.Uint64 // math.Float64bits; 0 = no delay
+
+func DefaultAudioDelay() float64 {
+	return math.Float64frombits(defaultAudioDelayBits.Load())
+}
+
+func SetDefaultAudioDelay(d float64) {
+	defaultAudioDelayBits.Store(math.Float64bits(d))
 }
 
 type BufferMode int
@@ -243,6 +256,7 @@ type Engine struct {
 	seekFlushBefore  atomic.Uint64 // math.Float64bits; 0 = guard inactive
 	seekGen          atomic.Uint64 // incremented on each Seek(); frames carry the gen at decode time
 	lastVideoPTSBits atomic.Uint64 // math.Float64bits of the last video PTS handed to the display
+	audioDelayBits   atomic.Uint64 // math.Float64bits; A/V offset in seconds (see SetAudioDelay)
 }
 
 type PlaybackFrameCache struct {
@@ -505,6 +519,19 @@ func (e *Engine) SetSeekAccuracy(acc SeekAccuracy) {
 
 func (e *Engine) GetSeekAccuracy() SeekAccuracy {
 	return e.seekAcc
+}
+
+// SetAudioDelay sets the A/V offset in seconds. Positive values delay video
+// presentation relative to the audio clock, compensating for audio that
+// arrives early at the listener (e.g. Bluetooth speaker latency). Negative
+// values advance video, compensating for audio that arrives late.
+// Changes take effect immediately on the next decoded frame.
+func (e *Engine) SetAudioDelay(d float64) {
+	e.audioDelayBits.Store(math.Float64bits(d))
+}
+
+func (e *Engine) GetAudioDelay() float64 {
+	return math.Float64frombits(e.audioDelayBits.Load())
 }
 
 func (e *Engine) SetDeinterlaceEnabled(enabled bool) {

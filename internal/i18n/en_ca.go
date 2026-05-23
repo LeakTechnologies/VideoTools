@@ -76,6 +76,8 @@ var enCA = Strings{
 	SettingsSeekKeyframe:          "Fast (Keyframe)",
 	SettingsSeekFrame:             "Fastest (Frame)",
 	SettingsSeekAccurate:          "Precise (Slow)",
+	SettingsAVOffset:              "A/V Offset (ms)",
+	SettingsAVOffsetHint:          "Positive values delay video — use when audio arrives early (e.g. Bluetooth latency). Negative values advance video — use when audio arrives late.",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",

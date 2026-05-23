@@ -68,6 +68,8 @@ var frCA = Strings{
 	SettingsSeekKeyframe:     "Rapide (trame clé)",
 	SettingsSeekFrame:        "Le plus rapide (trame)",
 	SettingsSeekAccurate:     "Précis (lent)",
+	SettingsAVOffset:         "Décalage A/V (ms)",
+	SettingsAVOffsetHint:     "Valeurs positives : retarder la vidéo (audio arrive tôt, ex. latence Bluetooth). Valeurs négatives : avancer la vidéo (audio arrive tard).",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",

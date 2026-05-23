@@ -62,6 +62,8 @@ type PreferencesCallbacks interface {
 	SetPlayerDefaultAspect(aspect string)
 	PlayerSeekAccuracy() string
 	SetPlayerSeekAccuracy(accuracy string)
+	PlayerAVOffset() int
+	SetPlayerAVOffset(ms int)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -103,6 +105,7 @@ type PrefsConfig struct {
 	VerboseDiscLogging       bool   `json:"VerboseDiscLogging"`
 	PlayerDefaultAspect      string `json:"PlayerDefaultAspect"`
 	SeekAccuracy             string `json:"SeekAccuracy"`
+	AVOffset                 int    `json:"AVOffset"`
 }
 
 type Dependency struct {

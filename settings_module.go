@@ -1840,6 +1840,18 @@ func (a *preferencesAdapter) SetPlayerSeekAccuracy(accuracy string) {
 	}
 }
 
+func (a *preferencesAdapter) PlayerAVOffset() int {
+	return a.s.prefs.AVOffset
+}
+
+func (a *preferencesAdapter) SetPlayerAVOffset(ms int) {
+	setPlayerAVOffset(ms)
+	a.s.prefs.AVOffset = ms
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetPlayerAVOffset save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) VerboseDiscLogging() bool {
 	return a.s.prefs.VerboseDiscLogging
 }

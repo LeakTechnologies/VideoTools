@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -374,12 +375,32 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}, false)
 	}()
 
+	avOffsetEntry := widget.NewEntry()
+	avOffsetEntry.SetPlaceHolder("0")
+	avOffsetEntry.SetText(strconv.Itoa(prefs.AVOffset))
+	avOffsetEntry.OnChanged = func(s string) {
+		ms, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			return
+		}
+		if ms < -5000 {
+			ms = -5000
+		}
+		if ms > 5000 {
+			ms = 5000
+		}
+		cb.SetPlayerAVOffset(ms)
+	}
+
 	playerCard := settingsCard(t.ModulePlayer,
 		autoDeintCheck,
 		hint(t.SettingsAutoDeinterlaceHint),
 		widget.NewSeparator(),
 		settingsRow(t.SettingsSeekAccuracy, seekSelect),
 		hint(t.SettingsSeekAccuracyHint),
+		widget.NewSeparator(),
+		settingsRow(t.SettingsAVOffset, avOffsetEntry),
+		hint(t.SettingsAVOffsetHint),
 		widget.NewSeparator(),
 		hwDecodeHeader,
 		hwDecodeStatus,
