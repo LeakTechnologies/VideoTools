@@ -9,6 +9,10 @@
 - **`videoDecodeLoop` degradation wired in**: when `retrieveHWFrame` sets `videoDecodeDead=true` (SEH in `av_hwframe_transfer_data` or `sws_scale`), the decode loop now calls `RecordHWFailure()` + `DegradeToSoftware()`, clears the dead flag, and continues. The next iteration runs the SW decode branch (`hwDevice == HWDeviceNone`). If degradation was already attempted and SW is also failing, sends EOF sentinel and exits.
 - **EOF sentinel sent on all fatal `videoDecodeLoop` exit paths** (P0-2): `SafeSendPacket` SEH, `SafeReceiveFrame` SEH, and already-degraded fatal path all now send `decodeEOFPTS` into `frameQueue` before returning. `NextFrame` unblocks and returns `io.EOF` instead of hanging forever.
 
+### P0-3: Backward Frame Stepping (un-break StepFrame(-1))
+
+- **`Engine.Step(frames int)`** at `playback.go:335-338` previously rejected `frames <= 0` — all `StepFrame(-1)` callers silently failed. Now handles negative values: seeks back ~2 safety-seconds before the target frame's PTS, then decodes forward `abs(frames)` frames and returns the last one. Uses `GetFrameRate()` to calculate per-frame duration; falls back to position 0 if target < 0.
+
 ### P0-4: Error Ring Buffer (replaces single-slot lastError)
 
 - **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer. New `ErrorRecord` struct includes `Timestamp time.Time` so every error carries a temporal trace. Thread-safe via dedicated `errorMu`.

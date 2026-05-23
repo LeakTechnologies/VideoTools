@@ -333,8 +333,35 @@ func (e *Engine) ResetAfterGrab() {
 }
 
 func (e *Engine) Step(frames int) (*image.RGBA, error) {
-	if frames <= 0 {
-		return nil, fmt.Errorf("invalid frame count")
+	if frames == 0 {
+		return nil, fmt.Errorf("invalid frame count: %d", frames)
+	}
+
+	if frames < 0 {
+		fps := e.GetFrameRate()
+		if fps <= 0 {
+			return nil, fmt.Errorf("cannot step backward: unknown frame rate")
+		}
+		frameDur := 1.0 / fps
+		current := e.CurrentTime()
+		seekTo := current + float64(frames)*frameDur - 2.0
+		if seekTo < 0 {
+			seekTo = 0
+		}
+		if err := e.Seek(seekTo); err != nil {
+			return nil, fmt.Errorf("backward seek failed: %w", err)
+		}
+		// Drain stale frames from the queue + decode forward to target.
+		n := -frames
+		var lastFrame *image.RGBA
+		for i := 0; i < n; i++ {
+			var err error
+			lastFrame, err = e.NextFrame()
+			if err != nil {
+				return nil, err
+			}
+		}
+		return lastFrame, nil
 	}
 
 	var lastFrame *image.RGBA
