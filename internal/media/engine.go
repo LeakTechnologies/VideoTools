@@ -210,8 +210,9 @@ type Engine struct {
 	videoDecodeDead bool  // set true when SEH catches access violation in video decode
 	hwFailCount    int
 
-	looping  bool
-	hasAudio bool
+	looping     bool
+	growingFile bool
+	hasAudio    bool
 
 	numThreads int
 
@@ -570,6 +571,18 @@ func (e *Engine) IsLooping() bool {
 	e.lockMu()
 	defer e.unlockMu()
 	return e.looping
+}
+
+func (e *Engine) SetGrowingFile(growing bool) {
+	e.lockMu()
+	defer e.unlockMu()
+	e.growingFile = growing
+}
+
+func (e *Engine) IsGrowingFile() bool {
+	e.lockMu()
+	defer e.unlockMu()
+	return e.growingFile
 }
 
 func (e *Engine) SetFilterPipeline(pipeline *filters.FilterPipeline) {

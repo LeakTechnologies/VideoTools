@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -162,6 +163,14 @@ func (v *InlineVideoPlayer) SetSeekAccuracy(acc media.SeekAccuracy) {
 	defer v.mu.Unlock()
 	if v.engine != nil {
 		v.engine.SetSeekAccuracy(acc)
+	}
+}
+
+func (v *InlineVideoPlayer) SetGrowingFile(growing bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.engine != nil {
+		v.engine.SetGrowingFile(growing)
 	}
 }
 
@@ -774,6 +783,43 @@ func (v *InlineVideoPlayer) Close() {
 	}()
 }
 
+// growingFileWatcher polls path for size growth every 2s. When the file
+// grows, it re-opens, seeks to lastPos, and resumes playback. Called as
+// a goroutine from playbackLoop when growing-file mode is active on EOF.
+func (v *InlineVideoPlayer) growingFileWatcher(path string, lastPos float64) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		logging.Warning(logging.CatPlayer, "growingFileWatcher: stat failed: %v", err)
+		return
+	}
+	lastSize := fi.Size()
+	logging.Info(logging.CatPlayer, "growingFileWatcher: polling %s (size=%d)", path, lastSize)
+
+	for range ticker.C {
+		fi, err := os.Stat(path)
+		if err != nil {
+			logging.Warning(logging.CatPlayer, "growingFileWatcher: stat failed: %v", err)
+			continue
+		}
+		if fi.Size() > lastSize && fi.Size() > 0 {
+			logging.Info(logging.CatPlayer, "growingFileWatcher: file grew %d→%d, reloading", lastSize, fi.Size())
+			if err := v.Load(path); err != nil {
+				logging.Error(logging.CatPlayer, "growingFileWatcher: Load failed: %v", err)
+				continue
+			}
+			if lastPos > 0 {
+				v.Seek(lastPos)
+			}
+			v.Play()
+			return
+		}
+		lastSize = fi.Size()
+	}
+}
+
 func (v *InlineVideoPlayer) playbackLoop() {
 	defer logging.RecoverPanic()
 
@@ -797,16 +843,24 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		if err != nil {
 			logging.Info(logging.CatPlayer, "playbackLoop: NextFrame returned err=%v", err)
 			if errors.Is(err, io.EOF) {
-				// Clean end of stream — reset state and notify the UI.
+				// Clean end of stream.
 				v.mu.Lock()
 				v.playing = false
 				endFn := v.onEnd
 				reloadPath := v.currentPath
+				isGrowing := eng.IsGrowingFile()
 				v.mu.Unlock()
 
-				// Mark completed in resume state.
-				if rs != nil && path != "" {
+				// Mark completed in resume state (unless growing file).
+				if !isGrowing && rs != nil && path != "" {
 					rs.MarkCompleted(path)
+				}
+
+				// Growing file: don't fire end-of-stream yet — poll for growth.
+				if isGrowing && reloadPath != "" {
+					logging.Info(logging.CatPlayer, "playbackLoop: growing-file EOF, polling for growth")
+					go v.growingFileWatcher(reloadPath, t)
+					return
 				}
 
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
