@@ -1302,17 +1302,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
+	var mainSplit *container.Split
+
+	settingsHdr, _ := ui.BuildCollapsibleHeader(t.UpscaleSettingsPanel, upscaleColor, func(open bool) {
+		if open {
+			settingsScroll.Show()
+			mainSplit.SetOffset(0.65)
+		} else {
+			settingsScroll.Hide()
+			mainSplit.SetOffset(0.95)
+		}
+	})
+	settingsPane := container.NewBorder(settingsHdr, nil, nil, nil, settingsScroll)
+
 	leftMin := canvas.NewRectangle(color.Transparent)
 	leftMin.SetMinSize(fyne.NewSize(680, 0))
 	leftWrapped := container.NewMax(leftMin, leftPanel)
 
 	rightMin := canvas.NewRectangle(color.Transparent)
 	rightMin.SetMinSize(fyne.NewSize(400, 0))
-	rightWrapped := container.NewMax(rightMin, settingsScroll)
+	rightWrapped := container.NewMax(rightMin, settingsPane)
 
-	split := container.NewHSplit(leftWrapped, rightWrapped)
-	split.Offset = 0.65
-	mainContent := split
+	mainSplit = container.NewHSplit(leftWrapped, rightWrapped)
+	mainSplit.Offset = 0.65
+	mainContent := mainSplit
 
 	content := container.NewMax(
 		append(ui.NoisyBackgroundObjects(canvas.NewRectangle(mediumBlue)), container.NewPadded(mainContent))...,

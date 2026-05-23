@@ -196,6 +196,7 @@ var iuLatn = Strings{
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "Asikkaarutaujunik atuliqlugu tarvijaksaqmut. Takujautiit uqausiirmut nutaarviggilugu.", // Apply filters
+	FiltersSettingsPanel:     "Miksaunait",                                                                            // Settings
 	FiltersVideoPreview:      "Tarvijaksaq Takujautiit",                                                               // Video preview
 	FiltersSectionBrightness: "Qalamik, attunginnginnik, timmiujuniklu aaqiksuiluggit",                                // Adjust brightness etc.
 	FiltersBrightness:        "Qalamik:",                                                                              // Brightness:
@@ -648,6 +649,7 @@ var iuLatn = Strings{
 	UpscaleClassicDesc:     "Atuqniimut sanajjutit - tamainni tunijaujannarqtut",                                          // Classic desc
 	UpscaleOptionalBlur:    "Attuninga Atuqtaujuksaq",                                                                     // Optional blur
 	UpscaleFilterIntHint:   "Asikkaarutaujut pivaalliqtitininnganut ilaanik atuliqlugit.",                                 // Filter hint
+	UpscaleSettingsPanel:   "Miksaunait",                                                                                  // Settings
 	UpscaleVideoBox:        "Tarvijaksaq",                                                                                 // Video
 	UpscaleTargetResBox:    "Tikiivik Nalunairrutauninnga",                                                                // Target Resolution
 	UpscaleEncodingBox:     "Tarvijaksaq Titiraqsimaninga",                                                                // Video Encoding

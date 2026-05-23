@@ -254,6 +254,7 @@ type Strings struct {
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions      string // "Apply filters and color corrections..."
 	FiltersVideoPreview      string // "Video preview"
+	FiltersSettingsPanel     string // "Settings"
 	FiltersSectionBrightness string // "Adjust brightness, contrast, and saturation"
 	FiltersBrightness        string // "Brightness:"
 	FiltersContrast          string // "Contrast:"
@@ -729,6 +730,7 @@ type Strings struct {
 	UpscaleClassicDesc     string
 	UpscaleOptionalBlur    string
 	UpscaleFilterIntHint   string
+	UpscaleSettingsPanel   string
 	UpscaleVideoBox        string
 	UpscaleTargetResBox    string
 	UpscaleEncodingBox     string

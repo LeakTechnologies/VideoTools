@@ -195,6 +195,7 @@ var iu = Strings{
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "ᐊᓯᒃᑳᕈᑕᐅᔪᓂᒃ ᐊᑐᓕᖅᑎᑦᑎᓗᒍ ᑕᕐᕆᔭᒐᒃᓴᒧᑦ. ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐅᖃᐅᓯᕐᒧᑦ ᓄᑖᕐᕕᒋᓗᒍ.", // Apply filters and color corrections
+	FiltersSettingsPanel:     "ᒥᒃᓵᓄᑦ",                                                          // Settings
 	FiltersVideoPreview:      "ᑕᕐᕆᔭᒐᒃᓴᖅ ᑕᑯᒃᓴᑦᑎᐊᕈᑎᖓ",                                         // Video preview
 	FiltersSectionBrightness: "ᕿᓚᒥᒃ, ᐊᑦᑐᐃᓂᖏᑦ, ᐊᒻᒪ ᑎᑭᒃᑯᑦ ᐋᖅᑭᒃᓱᐃᓗᒋᑦ",                          // Adjust brightness, contrast, and saturation
 	FiltersBrightness:        "ᕿᓚᒥᒃ:",                                                       // Brightness:
@@ -655,6 +656,7 @@ var iu = Strings{
 	UpscaleClassicDesc:     "ᐊᑐᕐᓂᒧᑦ ᓴᓇᔾᔪᑎᑦ - ᑕᒪᐃᓐᓂ ᑐᓂᔭᐅᔪᓐᓇᖅᑐᑦ",                            // Classic desc
 	UpscaleOptionalBlur:    "ᐊᑦᑐᐃᓂᖓ ᐊᑐᖅᑕᐅᔪᒃᓴᖅ",                                            // Optional blur
 	UpscaleFilterIntHint:   "ᐊᓯᒃᑳᕈᑕᐅᔪᑦ ᐱᕚᓪᓕᖅᑎᑦᑎᓂᕐᒧᑦ ᐃᓗᐊᓂ ᐊᑐᓕᖅᑎᑦᑎᔭᐅᔪᑦ.",                    // Filter hint
+	UpscaleSettingsPanel:   "ᒥᒃᓵᓄᑦ",                                                        // Settings
 	UpscaleVideoBox:        "ᑕᕐᕆᔭᒐᒃᓴᖅ",                                                    // Video
 	UpscaleTargetResBox:    "ᑎᑭᕕᒃ ᓇᓗᓇᐃᕈᑕᐅᓂᖓ",                                              // Target Resolution
 	UpscaleEncodingBox:     "ᑕᕐᕆᔭᒐᒃᓴᖅ ᑎᑎᕋᖅᓯᒪᔭᖓ",                                           // Video Encoding
