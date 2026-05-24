@@ -14,12 +14,16 @@ import (
 
 // Reader provides methods to read files from a UDF 1.02 ISO image.
 type Reader struct {
-	rs io.ReadSeeker
+	rs                io.ReadSeeker
+	partitionStartAbs uint32 // absolute sector where the UDF partition starts (from PD)
 }
 
 // NewReader creates a new UDF reader.
 func NewReader(rs io.ReadSeeker) *Reader {
-	return &Reader{rs: rs}
+	return &Reader{
+		rs:                rs,
+		partitionStartAbs: partitionStart, // default fallback
+	}
 }
 
 // DiscType represents the detected format of the disc.
@@ -204,8 +208,11 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 		case TagIDPD:
 			pd := &PartitionDescriptor{}
 			if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, pd); err == nil {
-				logging.Debug(logging.CatDVD, "VDS sector %d (abs %d): PD start=%d len=%d",
-					i, sector, pd.PartitionStartingLocation, pd.PartitionLength)
+				if pd.PartitionStartingLocation > 0 {
+					r.partitionStartAbs = pd.PartitionStartingLocation
+					logging.Debug(logging.CatDVD, "VDS sector %d (abs %d): PD start=%d len=%d",
+						i, sector, pd.PartitionStartingLocation, pd.PartitionLength)
+				}
 			} else {
 				logging.Debug(logging.CatDVD, "VDS sector %d (abs %d): PD (parse err %v)", i, sector, err)
 			}
@@ -231,7 +238,7 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 func (r *Reader) findFSD(lvd *LogicalVolumeDescriptor) (*FileSetDescriptor, error) {
 	// FSD is normally at partition LBN 0 (absolute sector partitionStart = 257).
 	// Try both the standard location and decode the LogicalVolumeContentsUse LongAd.
-	sectorsToTry := []uint32{257}
+	sectorsToTry := []uint32{r.partitionStartAbs}
 
 	// Decode LogicalVolumeContentsUse which contains a LongAd pointing to FSD.
 	// UDF 2.60+ uses different encoding, but for UDF 1.02 it's a single LongAd.
@@ -272,7 +279,7 @@ func (r *Reader) findFSD(lvd *LogicalVolumeDescriptor) (*FileSetDescriptor, erro
 }
 
 func (r *Reader) extractRecursively(icb LongAd, targetDir, destPath string) error {
-	tagID, data, err := r.ReadDescriptor(icb.Location)
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
 	if err != nil || tagID != TagIDICB {
 		return fmt.Errorf("failed to read ICB at %d (tag=%d, err=%v)", icb.Location, tagID, err)
 	}
@@ -283,7 +290,7 @@ func (r *Reader) extractRecursively(icb LongAd, targetDir, destPath string) erro
 	logging.Debug(logging.CatDVD, "ICB at %d: fileType=%d", icb.Location, entry.ICBTag.FileType)
 
 	if entry.ICBTag.FileType == 1 { // Directory
-		fids, err := r.readFIDs(entry)
+		fids, err := r.readFIDs(entry, data)
 		if err != nil {
 			return err
 		}
@@ -329,21 +336,72 @@ type fidInfo struct {
 	ICB   LongAd
 }
 
-func (r *Reader) readFIDs(entry *FileEntryICB) ([]fidInfo, error) {
-	// For DVD-Video compliance, directory data usually follows ICB or is in next sector
-	// Simplified contiguous read for initial implementation
-	if _, err := r.rs.Seek(int64(entry.Tag.TagLocation+1)*SectorSize, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek to FID sector at %d: %w", entry.Tag.TagLocation+1, err)
-	}
-
+// readSector reads raw SectorSize bytes from an absolute sector.
+func (r *Reader) readSector(sector uint32) ([]byte, error) {
 	buf := make([]byte, SectorSize)
-	if _, err := io.ReadFull(r.rs, buf); err != nil {
-		return nil, fmt.Errorf("read FID sector at %d: %w", entry.Tag.TagLocation+1, err)
+	if _, err := r.rs.Seek(int64(sector)*SectorSize, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seek to sector %d: %w", sector, err)
 	}
+	if _, err := io.ReadFull(r.rs, buf); err != nil {
+		return nil, fmt.Errorf("read sector %d: %w", sector, err)
+	}
+	return buf, nil
+}
+
+func (r *Reader) readFIDs(entry *FileEntryICB, rawICBData []byte) ([]fidInfo, error) {
+	// First try: use the ICB's allocation descriptors to find the directory data.
+	// Parse ShortAd (8-byte) allocation descriptors that follow the FileEntryICB struct.
+	feSize := binary.Size(FileEntryICB{})
+	allocStart := feSize + int(entry.LengthOfExtendedAttributes)
+	allocLen := int(entry.LengthOfAllocationDescriptors)
 
 	var fids []fidInfo
+	if allocLen > 0 && allocStart+allocLen <= len(rawICBData) {
+		allocData := rawICBData[allocStart : allocStart+allocLen]
+
+		// Collect data from all extents into one buffer.
+		var dirBuf bytes.Buffer
+		for off := 0; off+8 <= allocLen; off += 8 {
+			adLen := binary.LittleEndian.Uint32(allocData[off : off+4])
+			adPos := binary.LittleEndian.Uint32(allocData[off+4 : off+8])
+			if adLen == 0 {
+				continue
+			}
+			absSector := adPos + r.partitionStartAbs
+			numSectors := (adLen + SectorSize - 1) / SectorSize
+			for i := uint32(0); i < numSectors; i++ {
+				sectorData, err := r.readSector(absSector + i)
+				if err != nil {
+					logging.Debug(logging.CatDVD, "readFIDs: read sector %d: %v", absSector+i, err)
+					continue
+				}
+				dirBuf.Write(sectorData)
+			}
+		}
+
+		if dirBuf.Len() > 0 {
+			fids = parseFIDs(dirBuf.Bytes())
+		}
+	}
+
+	// Fallback: TagLocation+1 heuristic for poorly mastered ISOs.
+	if len(fids) == 0 {
+		sectorData, err := r.readSector(entry.Tag.TagLocation + 1)
+		if err != nil {
+			return nil, fmt.Errorf("fallback read FID sector at %d: %w", entry.Tag.TagLocation+1, err)
+		}
+		fids = parseFIDs(sectorData)
+	}
+
+	logging.Debug(logging.CatDVD, "readFIDs at ICB sector %d: found %d entries", entry.Tag.TagLocation, len(fids))
+	return fids, nil
+}
+
+// parseFIDs parses File Identifier Descriptor entries from raw directory data.
+func parseFIDs(buf []byte) []fidInfo {
+	var fids []fidInfo
 	offset := 0
-	for offset < SectorSize-38 {
+	for offset < len(buf)-38 {
 		tagID := binary.LittleEndian.Uint16(buf[offset : offset+2])
 		if tagID != TagIDFID {
 			break
@@ -351,7 +409,6 @@ func (r *Reader) readFIDs(entry *FileEntryICB) ([]fidInfo, error) {
 
 		charLen := int(buf[offset+19])
 		if charLen == 0 {
-			// Root or dot entry
 			offset += 38
 			offset = (offset + 3) & ^3
 			continue
@@ -372,13 +429,36 @@ func (r *Reader) readFIDs(entry *FileEntryICB) ([]fidInfo, error) {
 		offset += 38 + charLen
 		offset = (offset + 3) & ^3
 	}
-
-	logging.Debug(logging.CatDVD, "readFIDs at ICB sector %d: found %d entries", entry.Tag.TagLocation, len(fids))
-	return fids, nil
+	return fids
 }
 
 func (r *Reader) extractFile(icb LongAd, destPath string) error {
-	logging.Debug(logging.CatDVD, "Extracting file to %s (location %d, len %d)", destPath, icb.Location, icb.Len)
+	logging.Debug(logging.CatDVD, "Extracting file to %s (ICB loc=%d)", destPath, icb.Location)
+
+	// Read the File Entry (ICB) descriptor.
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
+	if err != nil || tagID != TagIDICB {
+		return fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
+	}
+	entry := &FileEntryICB{}
+	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, entry); err != nil {
+		return fmt.Errorf("parse file ICB: %w", err)
+	}
+
+	if entry.ICBTag.FileType != 2 { // Not a file
+		return fmt.Errorf("expected file but found type %d", entry.ICBTag.FileType)
+	}
+
+	fileLen := int64(entry.InformationLength)
+	if fileLen == 0 {
+		logging.Debug(logging.CatDVD, "extractFile: zero-length file %s", destPath)
+		f, err := os.Create(destPath)
+		if err != nil {
+			return fmt.Errorf("create file %s: %w", destPath, err)
+		}
+		f.Close()
+		return nil
+	}
 
 	f, err := os.Create(destPath)
 	if err != nil {
@@ -386,14 +466,44 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 	}
 	defer f.Close()
 
-	if _, err := r.rs.Seek(int64(icb.Location)*SectorSize, io.SeekStart); err != nil {
-		return fmt.Errorf("seek to file data at %d: %w", icb.Location, err)
+	// Read allocation descriptors from ICB data.
+	feSize := binary.Size(FileEntryICB{})
+	allocStart := feSize + int(entry.LengthOfExtendedAttributes)
+	allocLen := int(entry.LengthOfAllocationDescriptors)
+
+	if allocLen == 0 || allocStart+allocLen > len(data) {
+		return fmt.Errorf("invalid allocation descriptors: start=%d len=%d dataLen=%d",
+			allocStart, allocLen, len(data))
 	}
 
-	_, err = io.CopyN(f, r.rs, int64(icb.Len))
-	if err != nil {
-		return fmt.Errorf("copy file data (loc=%d len=%d): %w", icb.Location, icb.Len, err)
+	allocData := data[allocStart : allocStart+allocLen]
+	var written int64
+
+	for off := 0; off+8 <= allocLen && written < fileLen; off += 8 {
+		adLen := binary.LittleEndian.Uint32(allocData[off : off+4])
+		adPos := binary.LittleEndian.Uint32(allocData[off+4 : off+8])
+		if adLen == 0 {
+			continue
+		}
+		readLen := int64(adLen)
+		if written+readLen > fileLen {
+			readLen = fileLen - written
+		}
+		absSector := adPos + r.partitionStartAbs
+		if _, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart); err != nil {
+			return fmt.Errorf("seek to file extent at %d: %w", absSector, err)
+		}
+		if _, err := io.CopyN(f, r.rs, readLen); err != nil {
+			return fmt.Errorf("copy file extent at %d: %w", absSector, err)
+		}
+		written += readLen
 	}
+
+	if written < fileLen {
+		return fmt.Errorf("short read: wrote %d of %d bytes for %s", written, fileLen, destPath)
+	}
+
+	logging.Debug(logging.CatDVD, "Extracted %s: %d bytes from %d extents", destPath, written, (allocLen+7)/8)
 	return nil
 }
 
@@ -446,9 +556,9 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 	// Walk from root ICB through each path component.
 	icb := fsd.RootDirectoryICB
 	for _, part := range parts {
-		tagID, data, err := r.ReadDescriptor(icb.Location)
+		tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
 		if err != nil || tagID != TagIDICB {
-			return nil, fmt.Errorf("read ICB at %d: tag=%d err=%v", icb.Location, tagID, err)
+			return nil, fmt.Errorf("read ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
 		}
 		entry := &FileEntryICB{}
 		binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
@@ -457,7 +567,7 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 			return nil, fmt.Errorf("expected directory at component %q", part)
 		}
 
-		fids, err := r.readFIDs(entry)
+		fids, err := r.readFIDs(entry, data)
 		if err != nil {
 			return nil, fmt.Errorf("read FIDs: %w", err)
 		}
@@ -479,10 +589,10 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 		}
 	}
 
-	// Read file data
-	tagID, data, err := r.ReadDescriptor(icb.Location)
+	// Read file data from the ICB's allocation descriptors.
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
 	if err != nil || tagID != TagIDICB {
-		return nil, fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location, tagID, err)
+		return nil, fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
 	}
 	entry := &FileEntryICB{}
 	binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
@@ -491,14 +601,40 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 		return nil, fmt.Errorf("expected file but found type %d", entry.ICBTag.FileType)
 	}
 
-	buf := make([]byte, icb.Len)
-	if _, err := r.rs.Seek(int64(icb.Location)*SectorSize, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek to file data: %w", err)
+	fileLen := int64(entry.InformationLength)
+	buf := bytes.NewBuffer(make([]byte, 0, fileLen))
+
+	feSize := binary.Size(FileEntryICB{})
+	allocStart := feSize + int(entry.LengthOfExtendedAttributes)
+	allocLen := int(entry.LengthOfAllocationDescriptors)
+
+	if allocLen > 0 && allocStart+allocLen <= len(data) {
+		allocData := data[allocStart : allocStart+allocLen]
+		for off := 0; off+8 <= allocLen && int64(buf.Len()) < fileLen; off += 8 {
+			adLen := binary.LittleEndian.Uint32(allocData[off : off+4])
+			adPos := binary.LittleEndian.Uint32(allocData[off+4 : off+8])
+			if adLen == 0 {
+				continue
+			}
+			readLen := int64(adLen)
+			if int64(buf.Len())+readLen > fileLen {
+				readLen = fileLen - int64(buf.Len())
+			}
+			absSector := adPos + r.partitionStartAbs
+			if _, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart); err != nil {
+				return nil, fmt.Errorf("seek to file extent at %d: %w", absSector, err)
+			}
+			if _, err := io.CopyN(buf, r.rs, readLen); err != nil {
+				return nil, fmt.Errorf("read file extent at %d: %w", absSector, err)
+			}
+		}
 	}
-	if _, err := io.ReadFull(r.rs, buf); err != nil {
-		return nil, fmt.Errorf("read file data: %w", err)
+
+	if int64(buf.Len()) < fileLen {
+		return nil, fmt.Errorf("short read for %s: got %d of %d bytes", udfPath, buf.Len(), fileLen)
 	}
-	return buf, nil
+
+	return buf.Bytes(), nil
 }
 
 // GetVolumeLabel returns the disc label from the PVD.
