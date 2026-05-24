@@ -404,10 +404,18 @@ jobs:
           $dllDest = "C:\ffmpeg-shared\dll"
           $existing = Get-ChildItem -Path $dllDest -Filter "avcodec*.dll" -ErrorAction SilentlyContinue
           $ffmpegExePresent = Test-Path "C:\ffmpeg-shared\bin\ffmpeg.exe"
-          if ($existing -and $ffmpegExePresent) {
+          # Also require liblzma-5.dll — a transitive dep of avformat.dll that older
+          # cached DLL sets may be missing (cache was only av*.dll / sw*.dll before).
+          $liblzmaPresent = Test-Path "C:\ffmpeg-shared\dll\liblzma-5.dll"
+          if ($existing -and $ffmpegExePresent -and $liblzmaPresent) {
             $count = (Get-ChildItem -Path $dllDest -Filter "*.dll").Count
             Write-Host "[INFO] FFmpeg shared DLLs ($count) and CLI executables already present - skipping download"
             exit 0
+          }
+          if ($existing -and -not $liblzmaPresent) {
+            Write-Host "[INFO] Stale DLL cache detected (liblzma-5.dll missing) — forcing re-download"
+            Remove-Item -Recurse -Force $dllDest -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force "C:\ffmpeg-shared\bin" -ErrorAction SilentlyContinue
           }
           New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
           $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
