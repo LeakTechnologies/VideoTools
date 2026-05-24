@@ -858,11 +858,13 @@ const changelogData = [
       'UDF reader: extractFile/ReadFileData read file data from allocation descriptors using InformationLength from ICB',
       'Thread safety & progress: mutex-guarded Reader, extraction progress callbacks, temp file cleanup tracking',
     ]},
-    { title: 'Collapsible Player Panel (Convert + Filters + Upscale)', items: [
+    { title: 'Collapsible Player Panel (all 5 player modules)', items: [
       'BuildCollapsibleHeader wraps videoPanel in Convert; toggle sets leftColumn.SetOffset(0.5 open / 0.03 collapsed)',
       'ConvertSectionPlayer i18n key (Player / Lecteur) in all 4 locales',
       'Filters module: resolveOffset() tracks playerOpen+metaOpen; both open=0.65, player closed=0.03, meta closed=0.97',
       'Upscale module: same resolveOffset pattern; both open=0.60, player closed=0.03, meta closed=0.97; buildUpscaleBox replaced with BuildCollapsibleHeader for video section',
+      'Inspect module: GridWithColumns(2) → container.NewHSplit; playerHdr drives mainSplit.SetOffset(0.5/0.03); tabbed info panel expands when player folded',
+      'Trim module: leftSide Border → container.NewVSplit (leftVSplit 0.65); player collapses to 0.03; timeline+toolbar+in-out controls always visible in lower half',
     ]},
     { title: 'Logging + Updater + CI Hardening', items: [
       'logging.Clear() Windows fix: close→O_TRUNC→O_APPEND — avoids Access Denied on O_APPEND handle',

@@ -36,7 +36,7 @@ timeline
     v0.1.1-dev50 (Current) : ASS subtitle format fixes (formatASSTime centisecs, escapeASSText closing-brace)
     v0.1.1-dev50 (Current) : HW decode default-on (hwDecodeEnabled=true, SEH coverage confirmed) : Error concealment last-good-frame (frozen frame on decode error)
     v0.1.1-dev50 (Current) : UDF reader robustness (ShortAd parsing, partition offset, extractFile from allocation descriptors)
-    v0.1.1-dev50 (Current) : Collapsible player panel in Convert + Filters + Upscale (resolveOffset playerOpen/metaOpen) : Logging Windows clear fix (O_TRUNC) : version in session header
+    v0.1.1-dev50 (Current) : Collapsible player panel in all five player modules — Convert/Filters/Upscale/Inspect/Trim : Logging Windows clear fix (O_TRUNC) : version in session header
     v0.1.1-dev50 (Current) : Updater sidecar refresh (DLL + ffmpeg/ffprobe extracted from update zip) : CI stale DLL cache detection (liblzma-5.dll guard)
     v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)

@@ -490,8 +490,17 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		actionButtons = container.NewHBox(loadBtn, copyBtn, exportJSONBtn, viewLogBtn, clearBtn)
 	}
 
+	var mainSplit *container.Split
+	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, inspectColor, func(open bool) {
+		if open {
+			mainSplit.SetOffset(0.5)
+		} else {
+			mainSplit.SetOffset(0.03)
+		}
+	})
+
 	leftColumn := container.NewBorder(
-		fileLabel,
+		container.NewVBox(playerHdr, fileLabel),
 		nil, nil, nil,
 		videoContainer,
 	)
@@ -683,10 +692,12 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	rightColumn := buildInspectBox("Information", tabContainer)
 
+	mainSplit = container.NewHSplit(leftColumn, rightColumn)
+	mainSplit.SetOffset(0.5)
 	content := container.NewBorder(
 		container.NewVBox(instructionsRow, actionButtons, widget.NewSeparator()),
 		nil, nil, nil,
-		container.NewGridWithColumns(2, leftColumn, rightColumn),
+		mainSplit,
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)

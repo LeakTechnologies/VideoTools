@@ -46,7 +46,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Collapsible Player Panel (Filters + Upscale)
 
-- [x] **Collapsible player panel in Filters + Upscale** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` wraps video area in both modules; `resolveOffset()` tracks `playerOpen`+`metaOpen`; offset matrix: both open=0.65/0.60, player closed=0.03, meta closed=0.97; collapses player to show full metadata section.
+- [x] **Collapsible player panel in all five player modules** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` consistent across Convert, Filters, Upscale, Inspect, and Trim. Inspect: fixed GridWithColumns → HSplit; Trim: leftSide Border → VSplit so timeline stays visible when player collapses.
 
 ### Player Refactoring (deferred — non-blocking)
 
