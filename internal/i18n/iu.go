@@ -540,6 +540,7 @@ var iu = Strings{
 	ConvertSectionManualCRF:          "Manual CRF",                                                                           // machine-generated
 	ConvertSectionMetadata:           "Metadata",                                                                             // machine-generated
 	ConvertSectionSettings:           "Settings",                                                                             // machine-generated
+	ConvertSectionPlayer:             "Player",                                                                               // machine-generated
 	ConvertSectionOutputFilename:     "Output Filename",                                                                      // machine-generated
 	ConvertSectionOutputFolder:       "Output Folder",                                                                        // machine-generated
 	ConvertSectionOutputOptions:      "Output Options",                                                                       // machine-generated

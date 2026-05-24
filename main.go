@@ -9123,9 +9123,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Video pane uses VSplit with metadata at 50% - use moderate minimum for scaling.
 	videoPanel := buildVideoPane(state, fyne.NewSize(480, 270), src, updateCover)
 
-	// leftColumn declared here so the metadata onToggle callback can capture it
-	// before the split container is created further down.
+	// leftColumn declared here so both the player and metadata onToggle callbacks
+	// can capture it before the split container is created further down.
 	var leftColumn *container.Split
+
+	playerHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
+		if open {
+			leftColumn.SetOffset(0.5)
+		} else {
+			leftColumn.SetOffset(0.03)
+		}
+	})
+	videoPanelWithHeader := container.NewBorder(playerHeader, nil, nil, nil, videoPanel)
 
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
 		if open {
@@ -12640,11 +12649,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
 	// Left column: use VSplit to give 50% vertical space to video and metadata each.
-	// videoPanel uses container.NewMax internally so it fills all space given to it.
+	// videoPanelWithHeader wraps the player canvas in a collapsible header bar so
+	// the user can collapse the player to give the full column to the metadata panel.
 	// Do NOT wrap in VBox — VBox only gives children their minimum height, leaving
 	// the rest of the VSplit's allocated space as an empty dark gap.
 	metaPanelScroll := ui.NewFastVScroll(metaPanel)
-	leftColumn = container.NewVSplit(videoPanel, metaPanelScroll)
+	leftColumn = container.NewVSplit(videoPanelWithHeader, metaPanelScroll)
 	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
