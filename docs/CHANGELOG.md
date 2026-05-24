@@ -2,10 +2,11 @@
 
 ## v0.1.1-dev50 (June 2026)
 
-### Convert Module — Collapsible Player Panel
+### Collapsible Player Panel (Convert, Filters, Upscale)
 
 - **`BuildCollapsibleHeader` for player panel** in Convert module — `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.
 - **`ConvertSectionPlayer string`** i18n key added to `internal/i18n/strings.go` and all four locale files.
+- **Filters + Upscale collapsible player** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` wraps the video area in both modules. `resolveOffset()` tracks `playerOpen` + `metaOpen` state: both open → 0.65/0.60; player closed → 0.03; meta closed → 0.97. Metadata toggle callbacks updated to use `resolveOffset` so collapsing the player then re-opening metadata stays consistent. Upscale drops the old `buildUpscaleBox` wrapper for the video section in favour of the collapsible header.
 
 ### Updater — Sidecar File Refresh (DLL + ffmpeg/ffprobe)
 

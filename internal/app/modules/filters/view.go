@@ -550,16 +550,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
+	playerOpen := true
+	metaOpen := true
 	var leftSplit *container.Split
+
+	resolveOffset := func() float64 {
+		if playerOpen && metaOpen {
+			return 0.65
+		} else if !playerOpen {
+			return 0.03
+		}
+		return 0.97
+	}
+
+	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, filtersColor, func(open bool) {
+		playerOpen = open
+		leftSplit.SetOffset(resolveOffset())
+	})
+	videoAreaWithHeader := container.NewBorder(playerHdr, nil, nil, nil, videoArea)
 
 	var metaPane fyne.CanvasObject
 	if opts.BuildMetadataPane != nil {
 		metaPane = opts.BuildMetadataPane(func(open bool) {
-			if open {
-				leftSplit.SetOffset(0.65)
-			} else {
-				leftSplit.SetOffset(0.97)
-			}
+			metaOpen = open
+			leftSplit.SetOffset(resolveOffset())
 		})
 	} else {
 		outer := canvas.NewRectangle(navyBlue)
@@ -567,11 +581,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		outer.StrokeColor = gridColor
 		outer.StrokeWidth = 1
 		hdr, _ := ui.BuildCollapsibleHeader("Source Metadata", filtersColor, func(open bool) {
-			if open {
-				leftSplit.SetOffset(0.65)
-			} else {
-				leftSplit.SetOffset(0.97)
-			}
+			metaOpen = open
+			leftSplit.SetOffset(resolveOffset())
 		})
 		body := container.NewBorder(hdr, nil, nil, nil,
 			container.NewPadded(widget.NewLabel("Load a video to inspect its technical details.")))
@@ -581,8 +592,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	metaScroll := ui.NewFastVScroll(metaPane)
-	leftSplit = container.NewVSplit(container.NewPadded(videoArea), metaScroll)
-	leftSplit.SetOffset(0.65)
+	leftSplit = container.NewVSplit(container.NewPadded(videoAreaWithHeader), metaScroll)
+	leftSplit.SetOffset(resolveOffset())
 
 	settingsPanel := container.NewVBox(
 		colorSection,
