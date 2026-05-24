@@ -35,7 +35,9 @@ timeline
     v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
     v0.1.1-dev50 (Current) : ASS subtitle format fixes (formatASSTime centisecs, escapeASSText closing-brace)
     v0.1.1-dev50 (Current) : HW decode default-on (hwDecodeEnabled=true, SEH coverage confirmed) : Error concealment last-good-frame (frozen frame on decode error)
-    v0.1.1-dev50 (Current) : UDF reader robustness (fallback AVDP, multi-extent, ISO 9660 bridge)
+    v0.1.1-dev50 (Current) : UDF reader robustness (ShortAd parsing, partition offset, extractFile from allocation descriptors)
+    v0.1.1-dev50 (Current) : Convert collapsible player panel (BuildCollapsibleHeader, leftColumn offset 0.5/0.03) : Logging Windows clear fix (O_TRUNC) : version in session header
+    v0.1.1-dev50 (Current) : Updater sidecar refresh (DLL + ffmpeg/ffprobe extracted from update zip) : CI stale DLL cache detection (liblzma-5.dll guard)
     v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow

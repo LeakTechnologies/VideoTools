@@ -853,8 +853,20 @@ const changelogData = [
       'Thread safety formalisation: formal lock hierarchy mu(1)→formatMu(2)→videoCodecMu(3)→framepoolMu(4); named lock/unlock wrapper helpers across ~60 call sites in 6 engine files; lockdep build-tag runtime verification with goroutine-local tracking; DegradeToSoftware safety docs; framepoolMu incorrect comment fixed; PLAYER_DEBUG.md lock hierarchy section',
     ]},
     { title: 'VT ISO Engine Refactoring', items: [
-      'UDF reader robustness: fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge',
+      'UDF reader: readFIDs parses ShortAd allocation descriptors from ICB data; multi-extent directories concatenated',
+      'UDF reader: partitionStartAbs applied to all LBN reads in findFSD/extractRecursively/extractFile/ReadFileData',
+      'UDF reader: extractFile/ReadFileData read file data from allocation descriptors using InformationLength from ICB',
       'Thread safety & progress: mutex-guarded Reader, extraction progress callbacks, temp file cleanup tracking',
+    ]},
+    { title: 'Convert — Collapsible Player Panel', items: [
+      'BuildCollapsibleHeader wraps videoPanel in Convert; toggle sets leftColumn.SetOffset(0.5 open / 0.03 collapsed)',
+      'ConvertSectionPlayer i18n key (Player / Lecteur) in all 4 locales',
+    ]},
+    { title: 'Logging + Updater + CI Hardening', items: [
+      'logging.Clear() Windows fix: close→O_TRUNC→O_APPEND — avoids Access Denied on O_APPEND handle',
+      'logging.SetVersion(v) + sessionHeader(): version string embedded in all startup and clear log headers',
+      'updateSidecars(): in-place update now extracts DLL/*.dll, ffmpeg.exe, ffprobe.exe from update zip',
+      'CI: liblzma-5.dll added to skip-download guard; stale DLL cache auto-wiped if liblzma missing',
     ]},
     { title: 'Rip Module — Layout Alignment & Source Rework', items: [
       'Player panel HSplit 0.40→0.65: player now takes two-thirds of module width, matching Convert layout',

@@ -82,7 +82,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### VT ISO Engine (separate project — Media Engine opens ISOs as files)
 
-- [ ] **UDF reader robustness** — Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge.
+- [x] **UDF reader robustness** — ShortAd allocation descriptor parsing; partition offset applied to all LBN reads; `extractFile`/`ReadFileData` use `InformationLength` from ICB. Multi-extent directory concatenation.
 - [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup.
 - [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
 - [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
