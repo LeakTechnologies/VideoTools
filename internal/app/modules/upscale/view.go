@@ -1241,14 +1241,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return spacer
 	}
 
+	playerOpen := true
+	metaOpen := true
 	var leftSplit *container.Split
 
-	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200), upscaleColor, func(open bool) {
-		if open {
-			leftSplit.SetOffset(0.60)
-		} else {
-			leftSplit.SetOffset(0.97)
+	resolveOffset := func() float64 {
+		if playerOpen && metaOpen {
+			return 0.60
+		} else if !playerOpen {
+			return 0.03
 		}
+		return 0.97
+	}
+
+	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200), upscaleColor, func(open bool) {
+		metaOpen = open
+		leftSplit.SetOffset(resolveOffset())
 	})
 
 	// Dual before/after panes when both player builders are available.
@@ -1275,11 +1283,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		videoArea = videoContainer
 	}
 
+	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, upscaleColor, func(open bool) {
+		playerOpen = open
+		leftSplit.SetOffset(resolveOffset())
+	})
 	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoArea)
-	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
+	videoAreaWithHeader := container.NewBorder(playerHdr, nil, nil, nil, videoBoxContent)
 	metaScroll := ui.NewFastVScroll(metaPanel)
-	leftSplit = container.NewVSplit(videoBox, metaScroll)
-	leftSplit.SetOffset(0.60)
+	leftSplit = container.NewVSplit(videoAreaWithHeader, metaScroll)
+	leftSplit.SetOffset(resolveOffset())
 	leftPanel := leftSplit
 
 	settingsPanel := container.NewVBox(

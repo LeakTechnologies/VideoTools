@@ -2,9 +2,10 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
-### Convert Module — Collapsible Player Panel
+### Collapsible Player Panel (Convert, Filters, Upscale)
 
 - **Collapsible player panel** in Convert module — `BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, ...)` wraps `videoPanel`; toggle sets `leftColumn.SetOffset(0.5)` (open) or `0.03` (collapsed). `ConvertSectionPlayer` i18n key in all 4 locales.
+- **Filters + Upscale collapsible player** — same `BuildCollapsibleHeader` wraps the video area in both modules; `resolveOffset()` tracks `playerOpen`+`metaOpen` so each toggle is additive; offset matrix: both open=0.65/0.60, player closed=0.03, meta closed=0.97.
 
 ### Updater — Sidecar File Refresh
 

@@ -44,6 +44,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **P1-10: Growing/in-progress file support** — InlineVideoPlayer poll-based growing-file watcher. On EOF with growing-file mode, polls file size every 2s; re-opens + seeks + resumes on growth.
 - [x] **P1-11: Clock drift correction** — MasterClock.SetTime monotonic ratchet allows backward reset when jump > 1s and no PTS anchor in last 500ms (underrun recovery).
 
+### Collapsible Player Panel (Filters + Upscale)
+
+- [x] **Collapsible player panel in Filters + Upscale** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` wraps video area in both modules; `resolveOffset()` tracks `playerOpen`+`metaOpen`; offset matrix: both open=0.65/0.60, player closed=0.03, meta closed=0.97; collapses player to show full metadata section.
+
 ### Player Refactoring (deferred — non-blocking)
 
 - [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
