@@ -107,7 +107,7 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **GitHub mirror setup** — Push mirror via Forgejo built-in; issue migration script at `scripts/github-mirror/migrate-issues.ps1`. GitHub Actions release workflow at `.github/workflows/release.yml` (Windows ZIP + DLLs, Linux tarball, auto-release on `v*` tags). See `scripts/github-mirror/README.md`.
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
-- **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
+- **Main Menu refactor** — *(LOW PRIORITY — deferred until engine is stable)* Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
 ### Recently Shipped (dev49)
@@ -552,6 +552,12 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
-## Next Steps (dev50 — Phase 1 complete)
+## Next Steps (dev50 — engine stabilisation)
 
-All 11 Phase 1 items shipped. Phase 2 begins with deferred carry-forward work from dev50 and the next set of player/engine enhancements.
+All 11 Phase 1 media engine items shipped. **Current priority: bring the VT Media Engine to 100% completeness and stability.** All player/metadata features must be applied consistently across every module. Refactoring is secondary unless it is critical for engine correctness. Main Menu refactor and similar housekeeping are explicitly deferred until the engine is fully stable.
+
+Open engine items (in priority order):
+1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
+2. **view.go component split** — break 1438-line `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (deferred but needed before any new overlay features)
+3. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
+4. **Inspect + Trim collapsible player panel** — carry the player-collapse pattern to the remaining two player modules for UI consistency
