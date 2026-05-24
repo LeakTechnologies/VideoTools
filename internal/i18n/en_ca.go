@@ -578,6 +578,7 @@ var enCA = Strings{
 	ConvertSectionBitrateSimple:    "Bitrate (simple presets)",
 	ConvertSectionMetadata:         "Metadata",
 	ConvertSectionSettings:         "Settings",
+	ConvertSectionPlayer:           "Player",
 
 	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
 	ConvertSectionVideoEncoding:   "Video Encoding",

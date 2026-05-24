@@ -612,6 +612,7 @@ type Strings struct {
 	ConvertSectionBitrateSimple    string // "Bitrate (simple presets)"
 	ConvertSectionMetadata         string // "Metadata"
 	ConvertSectionSettings         string // "Settings"
+	ConvertSectionPlayer           string // "Player"
 	ConvertSectionEncoderTune      string // "Tune"
 
 	// ── Convert Preset Panels ────────────────────────────────────────────────
