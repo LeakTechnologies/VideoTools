@@ -2,6 +2,32 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### Convert Module — Collapsible Player Panel
+
+- **`BuildCollapsibleHeader` for player panel** in Convert module — `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.
+- **`ConvertSectionPlayer string`** i18n key added to `internal/i18n/strings.go` and all four locale files.
+
+### Updater — Sidecar File Refresh (DLL + ffmpeg/ffprobe)
+
+- **`updateSidecars(zipPath, exeDir string)`** added to `settings_module.go` — after extracting `VideoTools.exe` from the update zip, iterates all zip entries and extracts: any `DLL/*.dll` file (into `<exeDir>/DLL/`) and `ffmpeg.exe`/`ffprobe.exe` (into `<exeDir>/`). Uses `extractZipEntry(f *zip.File, destPath string)` which renames over the destination atomically. Ensures in-place updates via the built-in updater refresh all side-car binaries so DLL mismatches can't persist across updates.
+- **Root cause addressed** — previous updater only extracted `VideoTools.exe`, leaving `ffmpeg.exe`, `ffprobe.exe`, and `DLL/` from the original install permanently stale. Any DLL added after first install (e.g. `liblzma-5.dll`) would only appear on a fresh download, not on an in-place update.
+
+### Logging — Windows Log-Clear Fix + Version Header
+
+- **`logging.Clear()` Windows fix** — `file.Truncate(0)` on a file opened with `O_APPEND` returns "Access is denied" on Windows. Fixed by: closing the append handle → reopening with `O_WRONLY|O_CREATE|O_TRUNC` → writing the cleared-at timestamp + session header → closing → reopening with `O_WRONLY|O_APPEND`. All three steps use the internal `fileMu` lock so no log writes race the truncate.
+- **`logging.SetVersion(v string)`** — sets `sessionVersion` package-level var. Called from `main.go` before `logging.Init()`. Version string is embedded into the session header printed at startup and on every `Clear()` call, so logs are always self-identifying even when sent as a fragment.
+- **`sessionHeader()` helper** — formats a two-line block: `=== VideoTools <version> session started at <RFC3339> ===` + `Platform: <GOOS>/<GOARCH>`. Used by both `Init()` and `Clear()`.
+
+### CI — Stale DLL Cache Detection
+
+- **`liblzmaPresent` check** in `.forgejo/workflows/dev-packages.yml` — skip-download guard now requires both `avcodec*.dll` AND `liblzma-5.dll`. If the cache directory exists but `liblzma-5.dll` is missing, the script logs `"Stale DLL cache detected"` then wipes `C:\ffmpeg-shared\dll` and `C:\ffmpeg-shared\bin` before re-downloading. Prevents the persistent runner reusing a cache built before `liblzma-5.dll` was a required DLL (introduced transitively by `avformat.dll` in recent BtbN builds).
+
+### UDF Reader — Allocation Descriptor Parsing + Partition Offset
+
+- **`readFIDs` ShortAd parsing** (`internal/dvd/udf/reader.go`) — previously assumed directory data resided at `TagLocation+1`; now parses `ShortAd` allocation descriptors from ICB data, concatenating all extents for multi-extent directories.
+- **Partition offset applied universally** — all `LongAd` locations are partition-relative LBNs. `partitionStartAbs` (from `PartitionDescriptor`, default 257) is now added to every ICB read and data seek in `findFSD`, `extractRecursively`, `extractFile`, and `ReadFileData`. Previously LBNs were treated as absolute, causing reads from wrong disc sectors.
+- **`extractFile` / `ReadFileData` data source** — file data is now read using allocation descriptors with `InformationLength` from the ICB, not from `icb.Location`/`Len` (which point to the descriptor itself, not the payload). Fixes reading empty or corrupted data for most files extracted from DVD ISOs.
+
 ### Playlist / Sequential Playback
 
 - **`InlineVideoPlayer.Enqueue(path string)`** — appends a file path to the internal playlist. When the current item reaches clean end-of-stream, `playbackLoop` auto-advances to the next queued item: loads it (via `loadViaOpen` with `resetPlaylist=false`) then calls `Play()` immediately.

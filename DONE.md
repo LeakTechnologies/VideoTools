@@ -2,6 +2,29 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### Convert Module — Collapsible Player Panel
+
+- **Collapsible player panel** in Convert module — `BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, ...)` wraps `videoPanel`; toggle sets `leftColumn.SetOffset(0.5)` (open) or `0.03` (collapsed). `ConvertSectionPlayer` i18n key in all 4 locales.
+
+### Updater — Sidecar File Refresh
+
+- **`updateSidecars()`** in `settings_module.go` — in-place update now extracts `DLL/*.dll`, `ffmpeg.exe`, `ffprobe.exe` from the zip alongside `VideoTools.exe`. Fixes stale DLLs after in-place updates.
+
+### Logging — Windows Log-Clear Fix + Version Header
+
+- **`logging.Clear()` Windows O_APPEND truncate fix** — close → reopen O_TRUNC → write header → close → reopen O_APPEND. Resolves "Access is denied" on Windows.
+- **`logging.SetVersion(v)` + `sessionHeader()`** — version string embedded in startup and clear log headers.
+
+### CI — Stale DLL Cache Detection
+
+- **Forgejo CI runner DLL cache fix** — skip-download now also checks for `liblzma-5.dll`; auto-wipes stale cache if missing.
+
+### UDF Reader — Allocation Descriptor Parsing + Partition Offset
+
+- **`readFIDs` ShortAd parsing** — parse allocation descriptors from ICB data; multi-extent directory support.
+- **Partition offset applied universally** in `findFSD`, `extractRecursively`, `extractFile`, `ReadFileData` — all LBNs now correctly offset by `partitionStartAbs`.
+- **`extractFile` / `ReadFileData`** — read from allocation descriptor payload using `InformationLength`, not ICB location.
+
 ### Playlist / Sequential Playback
 
 - **`InlineVideoPlayer.Enqueue(path)`** — appends to internal playlist. On clean EOF, `playbackLoop` advances to the next item, loads it, and auto-plays. `ClearPlaylist()` empties queue; `PlaylistLen()` reports remaining items. Direct `Load`/`LoadDVD`/`LoadURL` resets playlist. `playlist []string` + `playlistIdx int` fields in struct.
