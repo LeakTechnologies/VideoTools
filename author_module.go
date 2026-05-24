@@ -2337,6 +2337,9 @@ func extractChaptersFromFile(path string) ([]authorChapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("ffprobe produced no output for chapter extraction")
+	}
 
 	var result struct {
 		Chapters []struct {

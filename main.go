@@ -16863,9 +16863,17 @@ func probeVideo(path string) (*videoSource, error) {
 		"-show_chapters",
 		path,
 	)
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
 	out, err := cmd.Output()
 	if err != nil {
+		if detail := strings.TrimSpace(stderrBuf.String()); detail != "" {
+			return nil, fmt.Errorf("%w\n%s", err, detail)
+		}
 		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("ffprobe produced no output for %q — check that ffprobe.exe and its DLLs are present", filepath.Base(path))
 	}
 
 	var result struct {
