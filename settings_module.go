@@ -1445,6 +1445,69 @@ func downloadToTemp(url string, progressFn func(downloaded, total int64)) (strin
 }
 
 // extractFileFromZip extracts a single named entry from a zip archive to destPath.
+// updateSidecars extracts DLL/*.dll, ffmpeg.exe, and ffprobe.exe from the
+// update ZIP into exeDir.  This keeps the installation consistent with the
+// new binary — previously only VideoTools.exe was replaced, leaving old
+// ffmpeg.exe / DLLs from the original installation indefinitely.
+// Errors are logged but not fatal; the exe update proceeds regardless.
+func updateSidecars(zipPath, exeDir string) {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		logging.Warning(logging.CatSystem, "update sidecars: open zip: %v", err)
+		return
+	}
+	defer r.Close()
+
+	dllDir := filepath.Join(exeDir, "DLL")
+	updated, failed := 0, 0
+
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		// Normalise to forward slashes so matching works on both platforms.
+		name := strings.ReplaceAll(f.Name, "\\", "/")
+		base := filepath.Base(name)
+
+		var destPath string
+		switch {
+		case strings.HasPrefix(name, "DLL/") && strings.HasSuffix(base, ".dll"):
+			if err := os.MkdirAll(dllDir, 0755); err != nil {
+				failed++
+				continue
+			}
+			destPath = filepath.Join(dllDir, base)
+		case base == "ffmpeg.exe" || base == "ffprobe.exe":
+			destPath = filepath.Join(exeDir, base)
+		default:
+			continue
+		}
+
+		if err := extractZipEntry(f, destPath); err != nil {
+			logging.Warning(logging.CatSystem, "update sidecars: %s: %v", name, err)
+			failed++
+		} else {
+			updated++
+		}
+	}
+	logging.Info(logging.CatSystem, "update sidecars: updated=%d failed=%d", updated, failed)
+}
+
+func extractZipEntry(f *zip.File, destPath string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, rc)
+	return err
+}
+
 func extractFileFromZip(zipPath, entryName, destPath string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -1620,6 +1683,9 @@ func applyUpdate(state *appState, tag string) {
 				}, false)
 				return
 			}
+			// Also update DLLs, ffmpeg.exe, ffprobe.exe from the same zip so
+			// the installation stays consistent with the new binary.
+			updateSidecars(tmpZip, filepath.Dir(exePath))
 		} else {
 			// Direct asset (AppImage).
 			tmpPath, err := downloadToTemp(downloadURL, updateLabel)
