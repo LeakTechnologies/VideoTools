@@ -2,11 +2,13 @@
 
 ## v0.1.1-dev50 (June 2026)
 
-### Collapsible Player Panel (Convert, Filters, Upscale)
+### Collapsible Player Panel (Convert, Filters, Upscale, Inspect, Trim)
 
 - **`BuildCollapsibleHeader` for player panel** in Convert module — `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.
 - **`ConvertSectionPlayer string`** i18n key added to `internal/i18n/strings.go` and all four locale files.
 - **Filters + Upscale collapsible player** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` wraps the video area in both modules. `resolveOffset()` tracks `playerOpen` + `metaOpen` state: both open → 0.65/0.60; player closed → 0.03; meta closed → 0.97. Metadata toggle callbacks updated to use `resolveOffset` so collapsing the player then re-opening metadata stays consistent. Upscale drops the old `buildUpscaleBox` wrapper for the video section in favour of the collapsible header.
+- **Inspect collapsible player** — fixed `GridWithColumns(2)` replaced with `container.NewHSplit` (`mainSplit`). `BuildCollapsibleHeader` wraps the video column; toggle drives `mainSplit.SetOffset(0.5 / 0.03)`, expanding the tabbed Metadata/Chapters/Sync panel when the player is folded.
+- **Trim collapsible player** — `leftSide` Border replaced with `container.NewVSplit` (`leftVSplit`): top = `playerHdr + videoContainer` at 65%; bottom = `timeline + toolbar + in/out controls` always visible. Collapsing drives `leftVSplit.SetOffset(0.03)` so the timeline and controls take the full left-panel height.
 
 ### Updater — Sidecar File Refresh (DLL + ffmpeg/ffprobe)
 

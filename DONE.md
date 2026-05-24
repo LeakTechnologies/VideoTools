@@ -6,6 +6,8 @@
 
 - **Collapsible player panel** in Convert module — `BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, ...)` wraps `videoPanel`; toggle sets `leftColumn.SetOffset(0.5)` (open) or `0.03` (collapsed). `ConvertSectionPlayer` i18n key in all 4 locales.
 - **Filters + Upscale collapsible player** — same `BuildCollapsibleHeader` wraps the video area in both modules; `resolveOffset()` tracks `playerOpen`+`metaOpen` so each toggle is additive; offset matrix: both open=0.65/0.60, player closed=0.03, meta closed=0.97.
+- **Inspect collapsible player** — fixed `GridWithColumns(2)` → `container.NewHSplit`; `BuildCollapsibleHeader` drives `mainSplit.SetOffset(0.5 / 0.03)`; tabbed info panel expands when player is folded.
+- **Trim collapsible player** — `leftSide` Border → `container.NewVSplit` (`leftVSplit` at 0.65); player collapses to 0.03, timeline + toolbar + in/out controls always remain visible in the lower half.
 
 ### Updater — Sidecar File Refresh
 

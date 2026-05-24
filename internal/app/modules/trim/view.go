@@ -344,21 +344,27 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 	}
 
-	// Left: video + timeline + toolbar + selection labels
-	leftSide := container.NewBorder(
-		nil,
-		container.NewVBox(
-			ts.timeline,
-			toolbar,
-			buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
-				ts.inPointLabel,
-				ts.outPointLabel,
-				ts.durationLabel,
-			)),
-		),
-		nil, nil,
-		videoContainer,
+	// Left: collapsible player above always-visible timeline + toolbar + selection labels
+	var leftVSplit *container.Split
+	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, trimColor, func(open bool) {
+		if open {
+			leftVSplit.SetOffset(0.65)
+		} else {
+			leftVSplit.SetOffset(0.03)
+		}
+	})
+	videoWithHeader := container.NewBorder(playerHdr, nil, nil, nil, videoContainer)
+	controlsBox := container.NewVBox(
+		ts.timeline,
+		toolbar,
+		buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
+			ts.inPointLabel,
+			ts.outPointLabel,
+			ts.durationLabel,
+		)),
 	)
+	leftVSplit = container.NewVSplit(videoWithHeader, controlsBox)
+	leftVSplit.SetOffset(0.65)
 
 	// Right: settings + actions
 	rightSide := container.NewVBox(
@@ -376,7 +382,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		container.NewHBox(clearBtn, layout.NewSpacer(), ts.addBtn),
 	)
 
-	content := container.NewHSplit(leftSide, container.NewPadded(rightSide))
+	content := container.NewHSplit(leftVSplit, container.NewPadded(rightSide))
 	content.Offset = 0.72
 
 	if initialPath != "" {
