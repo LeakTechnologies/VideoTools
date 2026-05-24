@@ -8042,6 +8042,7 @@ func main() {
 		}
 	}
 	logging.SetLogsDir(getLogsDir())
+	logging.SetVersion(fullVersion())
 	logging.Init()
 	defer logging.Close()
 	defer logging.RecoverPanic() // Catch and log any panics with stack trace

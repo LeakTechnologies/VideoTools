@@ -30,6 +30,10 @@ var (
 	suppressLastMsg  = make(map[string]time.Time)
 	suppressThrottle = 5 * time.Second
 
+	// sessionVersion is set by SetVersion (called from main before Init) and
+	// written into every session / clear header so the log is self-describing.
+	sessionVersion string
+
 	// playerTraceMu guards traceFile and traceEnabled.
 	playerTraceMu      sync.Mutex
 	traceFile          *os.File
@@ -60,6 +64,25 @@ const (
 type Category string
 
 const sessionMarker = "=== VideoTools session started"
+
+// SetVersion stores the application version string (e.g. "v0.1.1-dev50-abc1234")
+// so that Init and Clear can write it into the session header.
+// Must be called before Init for the startup header to include the version.
+func SetVersion(v string) {
+	fileMu.Lock()
+	sessionVersion = v
+	fileMu.Unlock()
+}
+
+// sessionHeader returns the single-line session marker written at the start of
+// every session and after a clear.  Includes the version when available.
+func sessionHeader() string {
+	ts := time.Now().Format(time.RFC3339)
+	if sessionVersion != "" {
+		return fmt.Sprintf("%s at %s — version %s\n", sessionMarker, ts, sessionVersion)
+	}
+	return fmt.Sprintf("%s at %s\n", sessionMarker, ts)
+}
 
 // rotateLog keeps at most 2 sessions in the log file.
 // It reads the existing content, finds session markers, and trims everything
@@ -128,7 +151,7 @@ func Init() {
 	file = f
 
 	// Write session boundary so rotateLog can find it next run.
-	fmt.Fprintf(file, "\n%s at %s\n", sessionMarker, time.Now().Format(time.RFC3339))
+	fmt.Fprintf(file, "\n%s", sessionHeader())
 
 	// Enable per-frame playback trace when the env var is set.
 	if os.Getenv("VIDEOTOOLS_PLAYER_TRACE") != "" {
@@ -355,25 +378,43 @@ func Reopen() {
 }
 
 // Clear truncates the active log file and writes a fresh session header.
-// Safe to call while the app is running — holds fileMu for the truncation.
+// Safe to call while the app is running — holds fileMu for the operation.
+//
+// On Windows, Truncate(0) on a file opened O_APPEND fails with "Access is
+// denied".  The workaround is to close the handle and reopen with O_TRUNC,
+// which Windows allows unconditionally.
 func Clear() error {
 	fileMu.Lock()
 	defer fileMu.Unlock()
 
-	if file == nil || filePath == "" {
+	if filePath == "" {
 		return fmt.Errorf("log file not open")
 	}
 
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("truncate log: %w", err)
-	}
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("seek log: %w", err)
+	// Flush and close the current handle before truncating.
+	if file != nil {
+		_ = file.Sync()
+		_ = file.Close()
+		file = nil
 	}
 
-	header := fmt.Sprintf("=== Log cleared at %s ===\n", time.Now().Format(time.RFC3339))
-	_, err := fmt.Fprint(file, header)
-	return err
+	// Reopen with O_TRUNC — this works on Windows where Truncate(0) on an
+	// O_APPEND handle is refused.
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("clear log: reopen: %w", err)
+	}
+	ts := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(f, "=== Log cleared at %s ===\n", ts)
+	fmt.Fprintf(f, "%s", sessionHeader())
+	_ = f.Close()
+
+	// Reopen in append mode so subsequent writes land after the header.
+	file, err = os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("clear log: reopen append: %w", err)
+	}
+	return nil
 }
 
 // SetDebug enables or disables debug logging.
