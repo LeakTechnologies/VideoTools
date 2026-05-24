@@ -27,10 +27,9 @@ import (
 )
 
 // settingsRow places a label immediately before a control with no spacer between
-// them. The control renders at its natural (MinSize) width. The centeredPanel in
-// view.go constrains total width so labels and controls stay close together.
+// them. The control fills remaining width so text entries are properly sized.
 func settingsRow(label string, control fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewHBox(widget.NewLabel(label), control)
+	return container.NewBorder(nil, nil, widget.NewLabel(label), nil, control)
 }
 
 // settingsCard wraps a group of controls in a titled dark-background section card.
