@@ -135,7 +135,8 @@ Format: %s
 
 // ResolveVideoTSPath returns the VIDEO_TS (or BDMV) directory from a source path.
 // For ISO files it extracts to a temp dir; cleanup must be called when done.
-func ResolveVideoTSPath(path string) (string, func(), error) {
+// ctx is forwarded to the UDF extractor and may be used to cancel ISO extraction.
+func ResolveVideoTSPath(ctx context.Context, path string) (string, func(), error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return "", nil, fmt.Errorf("source not found: %w", err)
@@ -151,7 +152,7 @@ func ResolveVideoTSPath(path string) (string, func(), error) {
 		return "", nil, fmt.Errorf("no VIDEO_TS folder found in %s", path)
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".iso") {
-		return resolveFromISO(path)
+		return resolveFromISO(ctx, path)
 	}
 	// User may have selected an IFO/VOB file from within a VIDEO_TS directory via
 	// the file browser (file dialogs return files, not folders). Resolve to the
@@ -167,9 +168,7 @@ func ResolveVideoTSPath(path string) (string, func(), error) {
 	return "", nil, fmt.Errorf("unsupported source: %s", path)
 }
 
-func resolveFromISO(isoPath string) (string, func(), error) {
-	// Import here to avoid pulling udf into the executor if not needed.
-	// We keep the import at the top of executor.go via the helpers file.
+func resolveFromISO(ctx context.Context, isoPath string) (string, func(), error) {
 	logging.Info(logging.CatDVD, "Using native Go UDF reader for extraction: %s", isoPath)
 
 	tempDir, err := os.MkdirTemp(utils.TempDir(), "videotools-iso-")
@@ -185,9 +184,7 @@ func resolveFromISO(isoPath string) (string, func(), error) {
 	}
 	defer f.Close()
 
-	// Import udf via indirect call to avoid circular imports; caller passes resolver.
-	// Here we call the udf package directly — it's allowed since executor is in internal/.
-	return resolveISOWithUDF(f, isoPath, tempDir, cleanup)
+	return resolveISOWithUDF(ctx, f, isoPath, tempDir, cleanup)
 }
 
 // VobSet represents a group of VOB files from a single title set.
@@ -474,7 +471,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	appendLog(fmt.Sprintf("Output: %s", outputPath))
 	appendLog(fmt.Sprintf("Format: %s", format))
 
-	videoTSPath, cleanup, err := ResolveVideoTSPath(sourcePath)
+	videoTSPath, cleanup, err := ResolveVideoTSPath(ctx, sourcePath)
 	if err != nil {
 		appendLog(fmt.Sprintf("Error resolving source path: %v", err))
 		return fmt.Errorf("resolve source: %w", err)

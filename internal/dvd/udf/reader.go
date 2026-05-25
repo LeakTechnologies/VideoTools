@@ -2,20 +2,29 @@ package udf
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
+// extentChunk is the read granularity for file extent copies.
+// Reading in chunks keeps the mutex hold time bounded even for large VOB extents.
+const extentChunk = 1 << 20 // 1 MB
+
 // Reader provides methods to read files from a UDF 1.02 ISO image.
+// All exported methods are safe for concurrent use.
 type Reader struct {
+	mu                sync.Mutex
 	rs                io.ReadSeeker
 	partitionStartAbs uint32 // absolute sector where the UDF partition starts (from PD)
+	tempFiles         []string
 }
 
 // NewReader creates a new UDF reader.
@@ -23,6 +32,19 @@ func NewReader(rs io.ReadSeeker) *Reader {
 	return &Reader{
 		rs:                rs,
 		partitionStartAbs: partitionStart, // default fallback
+	}
+}
+
+// Cleanup removes any temp files created during a partial or cancelled ExtractDirectory.
+// Safe to call even if extraction completed successfully (files tracked by the
+// caller's cleanup supersede these).
+func (r *Reader) Cleanup() {
+	r.mu.Lock()
+	files := r.tempFiles
+	r.tempFiles = nil
+	r.mu.Unlock()
+	for _, f := range files {
+		os.Remove(f)
 	}
 }
 
@@ -39,15 +61,15 @@ const (
 func (r *Reader) DetectDiscType() (DiscType, error) {
 	logging.Info(logging.CatDVD, "Detecting disc type via metadata scan...")
 
-	buf := make([]byte, 1024*1024) // 1MB buffer
-	if _, err := r.rs.Seek(0, io.SeekStart); err != nil {
-		return DiscTypeUnknown, err
+	buf := make([]byte, 1024*1024)
+	r.mu.Lock()
+	_, err := r.rs.Seek(0, io.SeekStart)
+	if err == nil {
+		_, err = io.ReadFull(r.rs, buf)
 	}
-
-	if _, err := io.ReadFull(r.rs, buf); err != nil {
-		if err != io.EOF && err != io.ErrUnexpectedEOF {
-			return DiscTypeUnknown, err
-		}
+	r.mu.Unlock()
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return DiscTypeUnknown, err
 	}
 
 	content := string(buf)
@@ -77,17 +99,19 @@ func IdentifyDiscFormat(path string) (DiscType, error) {
 }
 
 // ExtractDirectory extracts a directory (like VIDEO_TS) from the ISO to a local path.
-func (r *Reader) ExtractDirectory(targetDir, destPath string) error {
+// ctx may be used to cancel mid-flight; call Cleanup() afterwards to remove any
+// partially written files.
+func (r *Reader) ExtractDirectory(ctx context.Context, targetDir, destPath string) error {
 	logging.Info(logging.CatDVD, "Extracting directory %s from ISO to %s", targetDir, destPath)
 
-	// Log the total ISO size for diagnostics
 	if seeker, ok := r.rs.(io.Seeker); ok {
-		size, err := seeker.Seek(0, io.SeekEnd)
-		if err == nil {
+		r.mu.Lock()
+		size, sizeErr := seeker.Seek(0, io.SeekEnd)
+		r.mu.Unlock()
+		if sizeErr == nil {
 			logging.Info(logging.CatDVD, "ISO total size: %d bytes (%.1f MB, %d sectors)",
 				size, float64(size)/(1024*1024), size/int64(SectorSize))
 		}
-		seeker.Seek(0, io.SeekStart)
 	}
 
 	avdp, err := r.readAVDP()
@@ -104,7 +128,6 @@ func (r *Reader) ExtractDirectory(targetDir, destPath string) error {
 
 	lvd, err := r.findLVD(avdp.MainVolumeDescriptorSeq)
 	if err != nil {
-		// Try the reserve VDS before giving up
 		if avdp.ReserveVolumeDescriptorSeq.Len > 0 {
 			logging.Info(logging.CatDVD, "Main VDS failed, trying reserve VDS at sector %d",
 				avdp.ReserveVolumeDescriptorSeq.Location)
@@ -128,17 +151,17 @@ func (r *Reader) ExtractDirectory(targetDir, destPath string) error {
 		return fmt.Errorf("create dest dir: %w", err)
 	}
 
-	return r.extractRecursively(fsd.RootDirectoryICB, targetDir, destPath)
+	return r.extractRecursively(ctx, fsd.RootDirectoryICB, targetDir, destPath)
 }
 
 func (r *Reader) readAVDP() (*AnchorVolumeDescriptorPointer, error) {
 	// UDF 1.02 spec: AVDP should be at sector 256, but also check 512 and N-256.
-	// Try the primary location first.
 	sectorsToTry := []uint32{256, 512}
 
-	// Get ISO size to compute N-256 location
 	if seeker, ok := r.rs.(io.Seeker); ok {
+		r.mu.Lock()
 		size, err := seeker.Seek(0, io.SeekEnd)
+		r.mu.Unlock()
 		if err == nil {
 			numSectors := uint32(size / SectorSize)
 			if numSectors > 256 {
@@ -146,7 +169,6 @@ func (r *Reader) readAVDP() (*AnchorVolumeDescriptorPointer, error) {
 				sectorsToTry = append(sectorsToTry, numSectors)
 			}
 		}
-		seeker.Seek(0, io.SeekStart)
 	}
 
 	var lastErr error
@@ -240,8 +262,6 @@ func (r *Reader) findFSD(lvd *LogicalVolumeDescriptor) (*FileSetDescriptor, erro
 	// Try both the standard location and decode the LogicalVolumeContentsUse LongAd.
 	sectorsToTry := []uint32{r.partitionStartAbs}
 
-	// Decode LogicalVolumeContentsUse which contains a LongAd pointing to FSD.
-	// UDF 2.60+ uses different encoding, but for UDF 1.02 it's a single LongAd.
 	if lvd.LogicalVolumeContentsUse[0] != 0 || lvd.LogicalVolumeContentsUse[1] != 0 {
 		fsdLen := binary.LittleEndian.Uint32(lvd.LogicalVolumeContentsUse[0:4])
 		fsdLoc := binary.LittleEndian.Uint32(lvd.LogicalVolumeContentsUse[4:8])
@@ -278,7 +298,11 @@ func (r *Reader) findFSD(lvd *LogicalVolumeDescriptor) (*FileSetDescriptor, erro
 	return nil, fmt.Errorf("FSD not found (tried sectors %v, last err: %v)", sectorsToTry, lastErr)
 }
 
-func (r *Reader) extractRecursively(icb LongAd, targetDir, destPath string) error {
+func (r *Reader) extractRecursively(ctx context.Context, icb LongAd, targetDir, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
 	if err != nil || tagID != TagIDICB {
 		return fmt.Errorf("failed to read ICB at %d (tag=%d, err=%v)", icb.Location, tagID, err)
@@ -305,7 +329,7 @@ func (r *Reader) extractRecursively(icb LongAd, targetDir, destPath string) erro
 			if targetDir != "" {
 				if strings.EqualFold(fid.Name, targetDir) {
 					logging.Info(logging.CatDVD, "Found target directory '%s' at ICB %d", targetDir, fid.ICB.Location)
-					if err := r.extractRecursively(fid.ICB, "", destPath); err != nil {
+					if err := r.extractRecursively(ctx, fid.ICB, "", destPath); err != nil {
 						return err
 					}
 				}
@@ -315,12 +339,12 @@ func (r *Reader) extractRecursively(icb LongAd, targetDir, destPath string) erro
 			subDest := filepath.Join(destPath, fid.Name)
 			if fid.IsDir {
 				os.MkdirAll(subDest, 0755)
-				if err := r.extractRecursively(fid.ICB, "", subDest); err != nil {
+				if err := r.extractRecursively(ctx, fid.ICB, "", subDest); err != nil {
 					return err
 				}
 			} else {
 				logging.Debug(logging.CatDVD, "Extracting file: %s (loc=%d, len=%d)", fid.Name, fid.ICB.Location, fid.ICB.Len)
-				if err := r.extractFile(fid.ICB, subDest); err != nil {
+				if err := r.extractFile(ctx, fid.ICB, subDest); err != nil {
 					return err
 				}
 			}
@@ -339,10 +363,13 @@ type fidInfo struct {
 // readSector reads raw SectorSize bytes from an absolute sector.
 func (r *Reader) readSector(sector uint32) ([]byte, error) {
 	buf := make([]byte, SectorSize)
-	if _, err := r.rs.Seek(int64(sector)*SectorSize, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek to sector %d: %w", sector, err)
+	r.mu.Lock()
+	_, err := r.rs.Seek(int64(sector)*SectorSize, io.SeekStart)
+	if err == nil {
+		_, err = io.ReadFull(r.rs, buf)
 	}
-	if _, err := io.ReadFull(r.rs, buf); err != nil {
+	r.mu.Unlock()
+	if err != nil {
 		return nil, fmt.Errorf("read sector %d: %w", sector, err)
 	}
 	return buf, nil
@@ -432,7 +459,7 @@ func parseFIDs(buf []byte) []fidInfo {
 	return fids
 }
 
-func (r *Reader) extractFile(icb LongAd, destPath string) error {
+func (r *Reader) extractFile(ctx context.Context, icb LongAd, destPath string) error {
 	logging.Debug(logging.CatDVD, "Extracting file to %s (ICB loc=%d)", destPath, icb.Location)
 
 	// Read the File Entry (ICB) descriptor.
@@ -457,6 +484,9 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 			return fmt.Errorf("create file %s: %w", destPath, err)
 		}
 		f.Close()
+		r.mu.Lock()
+		r.tempFiles = append(r.tempFiles, destPath)
+		r.mu.Unlock()
 		return nil
 	}
 
@@ -464,6 +494,9 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("create file %s: %w", destPath, err)
 	}
+	r.mu.Lock()
+	r.tempFiles = append(r.tempFiles, destPath)
+	r.mu.Unlock()
 	defer f.Close()
 
 	// Read allocation descriptors from ICB data.
@@ -480,6 +513,9 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 	var written int64
 
 	for off := 0; off+8 <= allocLen && written < fileLen; off += 8 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		adLen := binary.LittleEndian.Uint32(allocData[off : off+4])
 		adPos := binary.LittleEndian.Uint32(allocData[off+4 : off+8])
 		if adLen == 0 {
@@ -490,13 +526,32 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 			readLen = fileLen - written
 		}
 		absSector := adPos + r.partitionStartAbs
-		if _, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart); err != nil {
-			return fmt.Errorf("seek to file extent at %d: %w", absSector, err)
+		absOff := int64(absSector) * SectorSize
+		remaining := readLen
+
+		// Read in extentChunk-sized slices so the mutex hold is bounded.
+		for remaining > 0 {
+			chunk := int64(extentChunk)
+			if chunk > remaining {
+				chunk = remaining
+			}
+			chunkBuf := make([]byte, chunk)
+			r.mu.Lock()
+			_, readErr := r.rs.Seek(absOff, io.SeekStart)
+			if readErr == nil {
+				_, readErr = io.ReadFull(r.rs, chunkBuf)
+			}
+			r.mu.Unlock()
+			if readErr != nil {
+				return fmt.Errorf("read file extent at sector %d: %w", absSector, readErr)
+			}
+			if _, writeErr := f.Write(chunkBuf); writeErr != nil {
+				return fmt.Errorf("write file extent at sector %d: %w", absSector, writeErr)
+			}
+			absOff += chunk
+			remaining -= chunk
+			written += chunk
 		}
-		if _, err := io.CopyN(f, r.rs, readLen); err != nil {
-			return fmt.Errorf("copy file extent at %d: %w", absSector, err)
-		}
-		written += readLen
 	}
 
 	if written < fileLen {
@@ -508,29 +563,32 @@ func (r *Reader) extractFile(icb LongAd, destPath string) error {
 }
 
 // ReadDescriptor reads a UDF descriptor from a specific sector.
+// The Seek and both ReadFull calls are performed under a single mutex hold
+// to prevent interleaving with concurrent callers.
 func (r *Reader) ReadDescriptor(sector uint32) (uint16, []byte, error) {
-	if _, err := r.rs.Seek(int64(sector)*SectorSize, io.SeekStart); err != nil {
-		return 0, nil, err
-	}
-
 	header := make([]byte, 16)
-	if _, err := io.ReadFull(r.rs, header); err != nil {
+	r.mu.Lock()
+	_, err := r.rs.Seek(int64(sector)*SectorSize, io.SeekStart)
+	if err != nil {
+		r.mu.Unlock()
 		return 0, nil, err
 	}
-
+	if _, err = io.ReadFull(r.rs, header); err != nil {
+		r.mu.Unlock()
+		return 0, nil, err
+	}
 	tagID := binary.LittleEndian.Uint16(header[0:2])
 	dataLen := binary.LittleEndian.Uint16(header[12:14])
-
 	if dataLen > SectorSize-16 {
 		dataLen = SectorSize - 16
 	}
-
 	data := make([]byte, dataLen)
-	if _, err := io.ReadFull(r.rs, data); err != nil {
+	_, err = io.ReadFull(r.rs, data)
+	r.mu.Unlock()
+	if err != nil {
 		return 0, nil, fmt.Errorf("read descriptor data at sector %d (tag=%d, dataLen=%d): %w",
 			sector, tagID, dataLen, err)
 	}
-
 	return tagID, data, nil
 }
 
@@ -621,12 +679,17 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 				readLen = fileLen - int64(buf.Len())
 			}
 			absSector := adPos + r.partitionStartAbs
-			if _, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart); err != nil {
-				return nil, fmt.Errorf("seek to file extent at %d: %w", absSector, err)
+			chunkBuf := make([]byte, readLen)
+			r.mu.Lock()
+			_, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart)
+			if err == nil {
+				_, err = io.ReadFull(r.rs, chunkBuf)
 			}
-			if _, err := io.CopyN(buf, r.rs, readLen); err != nil {
+			r.mu.Unlock()
+			if err != nil {
 				return nil, fmt.Errorf("read file extent at %d: %w", absSector, err)
 			}
+			buf.Write(chunkBuf)
 		}
 	}
 

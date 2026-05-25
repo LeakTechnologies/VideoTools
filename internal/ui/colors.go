@@ -41,6 +41,12 @@ var (
 	ColorMPEG4 = utils.MustHex("#EF4444") // Red - Legacy
 )
 
+// Professional / Intermediate Codecs
+var (
+	ColorProRes = utils.MustHex("#A855F7") // Purple - Apple ProRes ecosystem
+	ColorDNx    = utils.MustHex("#3B82F6") // Blue - Avid DNxHR/DNxHD
+)
+
 // Audio Codec Colors (Secondary but Distinct)
 var (
 	ColorOpus   = utils.MustHex("#EC4899") // Pink - Modern audio
@@ -49,6 +55,9 @@ var (
 	ColorMP3    = utils.MustHex("#EF4444") // Red - Legacy audio
 	ColorAC3    = utils.MustHex("#F59E0B") // Amber - Surround audio
 	ColorVorbis = utils.MustHex("#22C55E") // Green - Open codec
+	ColorPCM    = utils.MustHex("#94A3B8") // Slate - Uncompressed audio
+	ColorDTS    = utils.MustHex("#F97316") // Orange - DTS audio
+	ColorTrueHD = utils.MustHex("#14B8A6") // Teal - Dolby TrueHD
 )
 
 // Pixel Format / Colour Data (Technical Metadata)
@@ -93,10 +102,14 @@ func GetVideoCodecColor(codec string) color.Color {
 		return ColorVP9
 	case "h264", "avc", "h.264":
 		return ColorH264
-	case "mpeg2":
+	case "mpeg2", "mpeg2video":
 		return ColorMPEG2
 	case "divx", "xvid", "mpeg4":
 		return ColorDivX
+	case "prores":
+		return ColorProRes
+	case "dnxhd", "dnxhr":
+		return ColorDNx
 	default:
 		return color.RGBA{100, 100, 100, 255} // Default grey
 	}
@@ -113,10 +126,16 @@ func GetAudioCodecColor(codec string) color.Color {
 		return ColorFLAC
 	case "mp3":
 		return ColorMP3
-	case "ac3":
+	case "ac3", "eac3":
 		return ColorAC3
 	case "vorbis":
 		return ColorVorbis
+	case "truehd":
+		return ColorTrueHD
+	case "dts":
+		return ColorDTS
+	case "pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le", "pcm_u8":
+		return ColorPCM
 	default:
 		return color.RGBA{100, 100, 100, 255} // Default grey
 	}
