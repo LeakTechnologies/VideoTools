@@ -1,6 +1,7 @@
 package rip
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,7 @@ import (
 )
 
 // resolveISOWithUDF extracts VIDEO_TS (or BDMV) from an ISO using the native UDF reader.
-func resolveISOWithUDF(f io.ReadSeeker, isoPath, tempDir string, cleanup func()) (string, func(), error) {
+func resolveISOWithUDF(ctx context.Context, f io.ReadSeeker, isoPath, tempDir string, cleanup func()) (string, func(), error) {
 	reader := udf.NewReader(f)
 
 	// Determine target directory (VIDEO_TS for DVD, BDMV for Blu-ray)
@@ -20,7 +21,8 @@ func resolveISOWithUDF(f io.ReadSeeker, isoPath, tempDir string, cleanup func())
 		targetDir = "BDMV"
 	}
 
-	if err := reader.ExtractDirectory(targetDir, tempDir); err != nil {
+	if err := reader.ExtractDirectory(ctx, targetDir, tempDir); err != nil {
+		reader.Cleanup()
 		cleanup()
 		return "", nil, fmt.Errorf("native extraction failed: %w", err)
 	}

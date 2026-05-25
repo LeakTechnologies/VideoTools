@@ -1,6 +1,7 @@
 package rip
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image/color"
@@ -912,7 +913,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}()
 		} else {
 			go func() {
-				vtsp, _, err := ResolveVideoTSPath(path)
+				vtsp, _, err := ResolveVideoTSPath(context.Background(), path)
 				if err != nil {
 					logging.Warning(logging.CatDVD, "ResolveVideoTSPath failed: %v", err)
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
