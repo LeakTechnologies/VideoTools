@@ -2,6 +2,14 @@
 
 ## v0.1.1-dev50 (June 2026)
 
+### DLL Startup Validation + CGo Consolidation
+
+- **`ValidateFFmpegDLLs()` in `internal/app/appcfg/ffmpeg_bootstrap.go`** — runs `ffprobe.exe -version` as a live smoke test after adding DLLs to PATH. Checks every expected FFmpeg ABI DLL exists. On failure, displays a non-blocking Fyne error dialog at startup with actionable guidance, rather than a silent log warning that users never see.
+- **`--dllcheck` CLI flag** — prints full DLL diagnostics (directory, all files with sizes, expected DLLs, PATH entries, ffprobe presence, smoke test result) and exits. Exit code 1 on validation failure. Designed for tester debugging without needing to launch the GUI.
+- **`DiagnoseDLLSetup()` helper** — multi-line diagnostic string covering DLL directory, every file found, expected-but-missing DLLs, PATH entries containing "ffmpeg"/"dll", and bundled executable status.
+- **CGo directive consolidation** — all 15 duplicate `#cgo windows CFLAGS/LDFLAGS` blocks removed from `engine.go`, `playback.go`, `hdr.go`, `hwdecode.go`, `subtitle_engine.go`, `subtitle.go`, `audio.go`, `audio_filter.go`, `errors.go`, `scrub.go`, `framepool.go`, `deinterlace.go`, `seh_wrapper.go`, `queue.go`, `thumbnail.go`. Consolidated into a single `internal/media/cgo_preamble.go` with a single set of build directives and a clear comment explaining the CI/local-dev path story.
+- **`docs/DLL_BOOTSTRAP.md`** — new documentation covering the full DLL pipeline: why DLLs are needed (shared-linked ffmpeg.exe/ffprobe.exe, not VideoTools.exe itself), DLL/ folder structure, search order, startup validation flow, common issues with fixes, `--dllcheck` usage, and developer setup instructions.
+
 ### Collapsible Player Panel (Convert, Filters, Upscale, Inspect, Trim)
 
 - **`BuildCollapsibleHeader` for player panel** in Convert module — `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.

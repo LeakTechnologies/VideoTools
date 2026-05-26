@@ -90,6 +90,7 @@ type Module struct {
 
 var (
 	debugFlag = flag.Bool("debug", false, "enable verbose logging (env: VIDEOTOOLS_DEBUG=1)")
+	dllCheck  = flag.Bool("dllcheck", false, "run FFmpeg DLL diagnostics and exit")
 
 	backgroundColor = ui.BgBase
 	gridColor       = ui.BorderDim
@@ -8052,6 +8053,22 @@ func main() {
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
 	logging.Info(logging.CatSystem, "starting VideoTools %s at %s", fullVersion(), time.Now().Format(time.RFC3339))
 
+	// —dllcheck: run DLL diagnostics and exit
+	if *dllCheck {
+		if HasNativeMediaPlayer() {
+			appcfg.AddFFmpegDllsToPath()
+			fmt.Println(appcfg.DiagnoseDLLSetup())
+			if err := appcfg.ValidateFFmpegDLLs(); err != nil {
+				fmt.Fprintln(os.Stderr, "\nVALIDATION:", err)
+				os.Exit(1)
+			}
+			fmt.Println("\nVALIDATION: OK")
+		} else {
+			fmt.Println("Native media player not compiled in (build without native_media tag).")
+		}
+		os.Exit(0)
+	}
+
 	// Detect platform and configure paths
 	cfg := DetectPlatform()                               // Detect and initialize platform paths locally
 	utils.SetFFmpegPaths(cfg.FFmpegPath, cfg.FFprobePath) // Set global paths in utils package
@@ -8111,6 +8128,18 @@ func failGUIStartup(reason interface{}) {
 		_, _ = bufio.NewReader(os.Stdin).ReadByte()
 	}
 	os.Exit(1)
+}
+
+// showDLLWarning displays a non-blocking error dialog about FFmpeg DLL
+// configuration issues.  Called during startup after the Fyne window exists.
+func showDLLWarning(w fyne.Window, title, msg string) {
+	go func() {
+		// Small delay so the window can finish initialising before the dialog
+		// appears.  This is purely cosmetic; fyne.Dialog works as soon as the
+		// window has been allocated.
+		time.Sleep(200 * time.Millisecond)
+		dialog.ShowError(fmt.Errorf("%s\n\n%s", title, msg), w)
+	}()
 }
 
 func preflightOpenGL() {
@@ -8225,8 +8254,31 @@ func runGUI() {
 	if HasNativeMediaPlayer() {
 		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
 			logging.Warning(logging.CatSystem, "FFmpeg DLLs not found — video player will be unavailable: %v", err)
+			// Show a one-time warning dialog so the user isn't surprised when
+			// player features don't work.  Only when the window is available.
+			showDLLWarning(w, "FFmpeg DLLs Not Found",
+				"The FFmpeg shared libraries required for video playback and encoding "+
+					"could not be found.\n\n"+
+					"Expected location:\n  "+appcfg.FFmpegDllDir()+"\n\n"+
+					"If you extracted the ZIP manually, ensure the DLL/ folder is "+
+					"present next to VideoTools.exe.\n\n"+
+					"Re-installing from the latest release package should resolve this.")
 		} else {
-			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
+			logging.Info(logging.CatSystem, "FFmpeg DLLs added to PATH")
+			// Validate the DLLs actually load by running a quick smoke test.
+			if err := appcfg.ValidateFFmpegDLLs(); err != nil {
+				logging.Warning(logging.CatSystem, "FFmpeg DLL validation failed: %v", err)
+				showDLLWarning(w, "FFmpeg DLL Load Error",
+					"The FFmpeg shared libraries were found but could not be loaded "+
+						"correctly.\n\n"+
+						"Diagnostics:\n  "+strings.ReplaceAll(err.Error(), "\n", "\n  ")+"\n\n"+
+						"This usually means the DLLs are from a different FFmpeg version "+
+						"than VideoTools expects.\n\n"+
+						"Try re-installing from the latest release package. If the issue "+
+						"persists, run with --dllcheck for detailed diagnostics.")
+			} else {
+				logging.Info(logging.CatSystem, "FFmpeg DLL smoke test passed")
+			}
 			// Pre-warm the shared audio context during startup so the first video
 			// load doesn't block on WASAPI/oto initialisation.
 			go func() {

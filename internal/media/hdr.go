@@ -3,10 +3,6 @@
 package media
 
 /*
-#cgo !windows pkg-config: libavcodec libavformat libswscale libavutil libavfilter
-#cgo windows CFLAGS: -IC:/ffmpeg/include
-#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32 -Wl,--stack,4194304
-
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersrc.h>
 #include <libavfilter/buffersink.h>

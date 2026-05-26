@@ -556,8 +556,9 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 
 All 11 Phase 1 media engine items shipped. **Current priority: bring the VT Media Engine to 100% completeness and stability.** All player/metadata features must be applied consistently across every module. Refactoring is secondary unless it is critical for engine correctness. Main Menu refactor and similar housekeeping are explicitly deferred until the engine is fully stable.
 
+**Recently shipped:** DLL startup validation — live `ffprobe.exe -version` smoke test on boot, `--dllcheck` CLI diagnostics flag, non-blocking Fyne error dialog on DLL failure, all 15 duplicate Windows CGo directives consolidated into `cgo_preamble.go`, and `docs/DLL_BOOTSTRAP.md` pipeline documentation.
+
 Open engine items (in priority order):
 1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
 2. **view.go component split** — break 1438-line `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (deferred but needed before any new overlay features)
 3. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
-4. **Inspect + Trim collapsible player panel** — carry the player-collapse pattern to the remaining two player modules for UI consistency

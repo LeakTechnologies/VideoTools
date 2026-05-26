@@ -84,6 +84,14 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **`formatASSTime` centisecs bug** — Fixed: `(int(d.Milliseconds()) % 1000) / 10`.
 - [x] **`escapeASSText` closing-brace over-escape** — Fixed: removed `}` → `\}` replacement; `}` is not special in ASS.
 
+### DLL Startup Validation + CGo Consolidation
+
+- [x] **`ValidateFFmpegDLLs()` smoke test** — runs `ffprobe.exe -version` at startup to verify DLLs actually load.
+- [x] **`--dllcheck` CLI flag** — standalone DLL diagnostics tool; prints DLL dir, files, PATH, expected DLLs, smoke test.
+- [x] **Non-blocking Fyne error dialog** — shown at startup when DLLs are missing or fail validation, with actionable guidance.
+- [x] **CGo directive consolidation** — all 15 duplicate `#cgo windows CFLAGS/LDFLAGS` merged into `internal/media/cgo_preamble.go`.
+- [x] **`docs/DLL_BOOTSTRAP.md`** — pipeline docs, common issues, troubleshooting, developer setup.
+
 ### VT ISO Engine (separate project — Media Engine opens ISOs as files)
 
 - [x] **UDF reader robustness** — ShortAd allocation descriptor parsing; partition offset applied to all LBN reads; `extractFile`/`ReadFileData` use `InformationLength` from ICB. Multi-extent directory concatenation.

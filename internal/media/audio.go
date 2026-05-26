@@ -3,9 +3,6 @@
 package media
 
 /*
-#cgo !windows pkg-config: libavcodec libswresample libavutil
-#cgo windows CFLAGS: -IC:/ffmpeg/include
-#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavutil -lswresample
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include <libavutil/avutil.h>
