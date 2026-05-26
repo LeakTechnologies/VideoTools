@@ -2,6 +2,16 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### DLL Startup Validation + CGo Consolidation
+
+- **`ValidateFFmpegDLLs()` in `ffmpeg_bootstrap.go`** — after `AddFFmpegDllsToPath()` prepends the DLL dir to PATH, runs a live smoke test: bundles `ffprobe.exe -version` and checks every expected DLL exists. Failure shows a non-blocking Fyne error dialog at startup with clear instructions, instead of a silent log warning.
+- **`--dllcheck` CLI flag** — standalone DLL diagnostics without launching GUI: prints DLL directory, all found DLLs with sizes, PATH inspection, expected DLL set, and ffprobe.exe presence/smoke test. Exit code 1 on validation failure.
+- **`DiagnoseDLLSetup()`** — returns a multi-line diagnostic string for error dialogs and logging.
+- **`ExpectedFFmpegDLLs()`** — canonical list of FFmpeg ABI DLLs the runtime expects.
+- **CGo directive consolidation** — all 15 duplicate `#cgo windows CFLAGS/LDFLAGS` directives moved from individual source files into a single `internal/media/cgo_preamble.go`. Linux/macOS already uses pkg-config (unchanged). Windows hardcoded path kept as local-dev fallback, with a clear comment that CI overrides via environment variables.
+- **`docs/DLL_BOOTSTRAP.md`** — comprehensive documentation: DLL pipeline, search order, startup validation, common issues and fixes, developer setup.
+- **Goal:** zero-touch boot — VT always starts even if DLLs are missing or broken, with a clear error message instead of a crash or silent failure.
+
 ### Collapsible Player Panel (Convert, Filters, Upscale)
 
 - **Collapsible player panel** in Convert module — `BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, ...)` wraps `videoPanel`; toggle sets `leftColumn.SetOffset(0.5)` (open) or `0.03` (collapsed). `ConvertSectionPlayer` i18n key in all 4 locales.

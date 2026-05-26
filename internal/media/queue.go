@@ -3,9 +3,6 @@
 package media
 
 /*
-#cgo !windows pkg-config: libavcodec libavformat
-#cgo windows CFLAGS: -IC:/ffmpeg/include
-#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavformat
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>

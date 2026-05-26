@@ -540,6 +540,7 @@ const roadmap = {
       { id: 'memory-mgmt', title: 'Frame Cache Memory Bounds', desc: 'Add byte-aware eviction to PlaybackFrameCache (not just count-based); frame pool size distribution; memory-pressure signal callback', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'subtitle-renderer', title: 'Subtitle Renderer Upgrade', desc: 'Replace custom bitmap font with proper text rendering; expand charset coverage; add anti-aliasing', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
       { id: 'ass-format-bugs', title: 'ASS Subtitle Format Fixes', desc: 'formatASSTime: (int(d.Milliseconds()) % 1000) / 10 — was dividing total ms by 10, producing wrong centiseconds. escapeASSText: removed } escape — closing brace is not special in ASS; only { needs escaping.', status: 'done', cycle: 'dev50', files: ['internal/media/subtitle.go'], deps: ['subtitle-renderer'], docs: [] },
+      { id: 'dll-startup-validation', title: 'DLL Startup Validation + Diagnostics', desc: 'Adds ValidateFFmpegDLLs() smoke test at startup (runs ffprobe.exe -version to verify DLLs load correctly). Adds --dllcheck CLI flag for standalone diagnostics. Consolidates all 15 duplicate Windows #cgo CFLAGS/LDFLAGS directives into single cgo_preamble.go. Adds non-blocking Fyne error dialog when DLLs are missing or fail to load, so users see a clear action message instead of a silent failure. Full docs at docs/DLL_BOOTSTRAP.md.', status: 'done', cycle: 'dev50', files: ['internal/app/appcfg/ffmpeg_bootstrap.go', 'internal/media/cgo_preamble.go', 'internal/media/*.go', 'docs/DLL_BOOTSTRAP.md'], deps: ['dll-bootstrap'], docs: ['docs/DLL_BOOTSTRAP.md'] },
     ]
   },
 
@@ -866,11 +867,15 @@ const changelogData = [
       'Inspect module: GridWithColumns(2) → container.NewHSplit; playerHdr drives mainSplit.SetOffset(0.5/0.03); tabbed info panel expands when player folded',
       'Trim module: leftSide Border → container.NewVSplit (leftVSplit 0.65); player collapses to 0.03; timeline+toolbar+in-out controls always visible in lower half',
     ]},
-    { title: 'Logging + Updater + CI Hardening', items: [
+    { title: 'CI + Logging + Updater', items: [
       'logging.Clear() Windows fix: close→O_TRUNC→O_APPEND — avoids Access Denied on O_APPEND handle',
       'logging.SetVersion(v) + sessionHeader(): version string embedded in all startup and clear log headers',
       'updateSidecars(): in-place update now extracts DLL/*.dll, ffmpeg.exe, ffprobe.exe from update zip',
-      'CI: liblzma-5.dll added to skip-download guard; stale DLL cache auto-wiped if liblzma missing',
+      'CI cache guard: require ffmpeg.exe + liblzma-5.dll present before skipping BtbN download (stale cache auto-wipe)',
+      'DLL startup validation: ValidateFFmpegDLLs() runs ffprobe.exe -version smoke test at boot; non-blocking Fyne error dialog on failure',
+      '--dllcheck CLI flag: standalone DLL diagnostics (existence, versions, PATH, smoke test) without launching GUI',
+      'CGo directive consolidation: all 15 duplicate Windows #cgo CFLAGS/LDFLAGS moved to single cgo_preamble.go',
+      'docs/DLL_BOOTSTRAP.md: full pipeline docs, common issues, troubleshooting, developer setup',
     ]},
     { title: 'Rip Module — Layout Alignment & Source Rework', items: [
       'Player panel HSplit 0.40→0.65: player now takes two-thirds of module width, matching Convert layout',
