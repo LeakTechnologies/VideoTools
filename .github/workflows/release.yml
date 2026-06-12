@@ -138,7 +138,7 @@ jobs:
           ./configure \
             --prefix=/c/ffmpeg-shared \
             --enable-shared --disable-static \
-            --enable-doc --enable-programs \
+            --disable-doc --enable-programs \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
             --disable-vaapi --disable-iconv \
