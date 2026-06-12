@@ -20,6 +20,7 @@ type SourceModule struct {
 type Visibility struct {
 	ShowUpscale bool
 	ShowDisc    bool
+	IsDevBuild  bool
 }
 
 func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo {
@@ -28,8 +29,8 @@ func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo 
 		if !isVisibleByPreference(m.ID, vis) {
 			continue
 		}
-		// Modules without handlers (settings, burn, filemanager) are always enabled
-		enabled := m.ID == "settings" || m.ID == "burn" || m.ID == "filemanager" || (m.HasHandler && m.DepsAvailable)
+		// Settings is always enabled; burn and filemanager only appear in dev builds
+		enabled := m.ID == "settings" || (m.HasHandler && m.DepsAvailable)
 		missingDeps := m.HasHandler && !m.DepsAvailable && m.ID != "settings"
 		out = append(out, ui.ModuleInfo{
 			ID:                  m.ID,
@@ -71,9 +72,13 @@ func BuildActiveJobs(queueList []*queue.Job) []ui.HistoryEntry {
 func isVisibleByPreference(moduleID string, vis Visibility) bool {
 	switch moduleID {
 	case "upscale":
-		return vis.ShowUpscale
+		// Gated behind settings preference in dev; hidden entirely in release.
+		return vis.IsDevBuild && vis.ShowUpscale
 	case "author", "rip":
 		return vis.ShowDisc
+	case "trim", "audio", "burn", "filemanager", "subtitles":
+		// Under development — visible in dev builds only.
+		return vis.IsDevBuild
 	default:
 		return true
 	}

@@ -31,8 +31,6 @@ func moduleLabel(id string) string {
 		return t.ModuleFilters
 	case "upscale":
 		return t.ModuleUpscale
-	case "enhancement":
-		return t.ModuleEnhancement
 	case "audio":
 		return t.ModuleAudio
 	case "author":
@@ -117,7 +115,13 @@ func (s *appState) showMainMenu() {
 	mods := mainmenumodule.BuildVisibleModules(sourceMods, mainmenumodule.Visibility{
 		ShowUpscale: s.convert.ShowUpscale,
 		ShowDisc:    s.convert.ShowDisc,
+		IsDevBuild:  isDevBuild(),
 	})
+	ids := make([]string, len(mods))
+	for i, m := range mods {
+		ids[i] = m.ID
+	}
+	s.visibleModuleIDs = ids
 
 	// In pipeline step2 mode: dim modules that cannot serve as step2 targets.
 	// Invalid step2 = anything that doesn't accept a single video as input and
