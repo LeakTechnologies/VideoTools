@@ -99,25 +99,37 @@ If VideoTools crashes before the GUI appears with an OpenGL or GPU-related error
 
 ## DLL Build Pipeline (CI)
 
-The DLLs bundled in a release come from the **Windows FFmpeg package build** in CI:
+All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub MSIX) follow the same architecture:
 
 ```
-Source build (static)         BtbN download (shared)
-  ┌──────────────┐             ┌──────────────────────┐
-  │ x264 → .a    │             │ ffmpeg-master-latest │
-  │ x265 → .a    │             │ -win64-lgpl-shared   │
-  │ FFmpeg → .a  │             │   → avcodec-61.dll   │
-  └──────┬───────┘             │   → ffmpeg.exe       │
-         │                     │   → ffprobe.exe      │
-         │ CGO_LDFLAGS         └──────────┬───────────┘
-         ▼                                 ▼
-  VideoTools.exe                   DLL/ + ffmpeg.exe
-  (statically linked)              (shared-linked CLI tools)
+Source build (static)              BtbN download (shared)
+  ┌──────────────┐                 ┌──────────────────────────┐
+  │ x264 → .a    │                 │ ffmpeg-master-latest      │
+  │ x265 → .a    │                 │ -win64-lgpl-shared       │
+  │ FFmpeg → .a  │                 │   → avcodec-61.dll etc.  │
+  └──────┬───────┘                 │   → ffmpeg.exe            │
+         │                         │   → ffprobe.exe           │
+         │ CGO_LDFLAGS             └──────────┬───────────────┘
+         ▼                                    ▼
+  VideoTools.exe                     DLL/ + ffmpeg.exe
+  (statically linked)               (shared-linked CLI tools)
 ```
 
 The static `.a` libs and the shared `.dll` files are built from **different FFmpeg source trees**. This is an inherent risk: if the BtbN master branch advances its ABI between CI runs, the DLLs can become incompatible with the statically-linked binary.
 
-**When this happens, re-download the latest CI release** — a fresh build always produces matching static and shared artifacts because they are built/pinned at the same CI run.
+**Mitigation**: The `ci-build.ps1` packaging step runs `objdump` on every DLL in the `DLL/` directory to detect transitive DLL dependencies, and copies any missing ones from `C:\msys64\ucrt64\bin\`. `ExpectedFFmpegDLLs()` also checks for `liblzma-5.dll` at runtime. The GitHub workflows now perform the same objdump scan.
+
+**Remaining risk (BUG-013)**: The BtbN download URL uses `latest`, which is a moving tag. When BtbN bumps a major FFmpeg version (changing e.g. `-61` to `-62`), the hardcoded ABI numbers in `ExpectedFFmpegDLLs()` and the DLL filenames will break. This should be pinned to a specific release tag.
+
+### CI Pipeline Details
+
+| Pipeline | Static FFmpeg | Shared DLLs | FFmpeg/ffprobe | Transitive deps |
+|----------|--------------|-------------|----------------|-----------------|
+| Forgejo dev-packages.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
+| GitHub release.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
+| GitHub windows-msix.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
+
+**Important**: The `VideoTools.exe` binary does NOT need the DLLs. It is fully statically linked. The DLLs are only needed by `ffmpeg.exe` and `ffprobe.exe` which are bundled for subprocess use.
 
 ## Zero-Touch Guarantee
 

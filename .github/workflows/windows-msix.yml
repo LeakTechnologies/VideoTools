@@ -19,6 +19,9 @@ on:
       - "internal/**/*_windows.go"
       - "main.go"
 
+env:
+  FFMPEG_VERSION: "8.1"
+
 jobs:
   build-msix:
     runs-on: windows-latest
@@ -36,73 +39,176 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install MinGW-w64 (standalone, no MSYS2)
+      - name: Install MSYS2 toolchain and codec deps
         shell: pwsh
         run: |
-          # winlibs standalone GCC — just a zip, no installer, no MSYS2
-          $url = "https://github.com/brechtsanders/winlibs_mingw/releases/download/14.3.0posix-12.0.0-ucrt-r1/winlibs-x86_64-posix-seh-gcc-14.3.0-mingw-w64ucrt-12.0.0-r1.zip"
-          $zip = "C:\mingw.zip"
-          Write-Host "Downloading MinGW..."
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          Write-Host "Extracting..."
-          Expand-Archive -Path $zip -DestinationPath "C:\mingw-extract" -Force
-          # The zip contains a single top-level folder (mingw64)
-          $inner = Get-ChildItem "C:\mingw-extract" -Directory | Select-Object -First 1
-          Move-Item $inner.FullName "C:\mingw64" -Force
-          Remove-Item $zip, "C:\mingw-extract" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "GCC: $((& 'C:\mingw64\bin\gcc.exe' --version)[0])"
+          $ErrorActionPreference = 'Continue'
+          if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
+            Write-Error "MSYS2 not found at C:\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
+            exit 1
+          }
+          Write-Host "[INFO] MSYS2 present"
+          $bashPath = "C:\msys64\usr\bin\bash.exe"
+          function Invoke-Bash([string]$cmd) {
+            & $bashPath -lc "( $cmd ) 2>&1" | ForEach-Object { Write-Host "$_" }
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "bash command failed (exit $LASTEXITCODE): $cmd"
+              exit 1
+            }
+          }
+          if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
+            Write-Host "[INFO] Installing ucrt64 toolchain..."
+            Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
+          } else {
+            Write-Host "[INFO] ucrt64 toolchain present"
+          }
+          Write-Host "[INFO] Installing nasm and cmake..."
+          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
+          Write-Host "[INFO] Build tools ready"
 
-      - name: Setup FFmpeg dev libs (BtbN shared → C:\ffmpeg)
+      - name: Cache static FFmpeg (Windows)
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-static
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v1
+
+      - name: Setup static FFmpeg (Windows)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
+        run: |
+          ver="${{ env.FFMPEG_VERSION }}"
+          mkdir -p /c/ffmpeg-static/lib/pkgconfig
+          mkdir -p /c/ffmpeg-static/include
+
+          echo "[INFO] Building x264 from source (static only)..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
+          rm -rf /tmp/x264-src
+
+          echo "[INFO] Building x265 from source (static only)..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G 'MSYS Makefiles' \
+                -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../x265-src/source
+          make -j$(nproc) && make install
+
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
+
+          echo "[INFO] Building FFmpeg ${ver} from source..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=/c/ffmpeg-static \
+            --enable-static --disable-shared --enable-pic \
+            --disable-doc --disable-programs --disable-debug \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          echo "[INFO] FFmpeg ${ver} Windows build complete"
+
+      - name: Download FFmpeg shared DLLs (runtime)
         shell: pwsh
         run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
-          $zip = "C:\ffmpeg-shared.zip"
-          Write-Host "Downloading FFmpeg shared build..."
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          Write-Host "Extracting..."
-          Expand-Archive -Path $zip -DestinationPath "C:\ffmpeg-extract" -Force
-          $inner = Get-ChildItem "C:\ffmpeg-extract" -Directory | Select-Object -First 1
-          New-Item -ItemType Directory -Force "C:\ffmpeg" | Out-Null
-          Get-ChildItem $inner.FullName | Move-Item -Destination "C:\ffmpeg" -Force
-          Remove-Item $zip, "C:\ffmpeg-extract" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "FFmpeg include: $(Test-Path 'C:\ffmpeg\include')"
-          Write-Host "FFmpeg lib:     $(Test-Path 'C:\ffmpeg\lib')"
-          Write-Host "FFmpeg bin:     $(Get-ChildItem 'C:\ffmpeg\bin\av*.dll' | Measure-Object | Select-Object -ExpandProperty Count) av*.dll files"
+          $ErrorActionPreference = 'Stop'
+          $dllDest = "C:\ffmpeg-shared\dll"
+          New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
+          $zipPath = "$env:TEMP\ffmpeg-shared.zip"
+          Write-Host "[INFO] Downloading BtbN FFmpeg shared DLLs..."
+          Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 300
+          $extractDir = "$env:TEMP\ffmpeg-shared-extract"
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+          $binDir = Get-ChildItem -Path $extractDir -Recurse -Directory | Where-Object { $_.Name -eq "bin" } | Select-Object -First 1
+          if (-not $binDir) { throw "BtbN archive missing bin/ directory" }
+          $copied = 0
+          Get-ChildItem -Path $binDir.FullName -Filter "*.dll" | ForEach-Object {
+            Copy-Item $_.FullName -Destination $dllDest -Force
+            $copied++
+          }
+          $exeDest = "C:\ffmpeg-shared\bin"
+          New-Item -ItemType Directory -Force -Path $exeDest | Out-Null
+          Copy-Item (Join-Path $binDir.FullName "ffmpeg.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Copy-Item (Join-Path $binDir.FullName "ffprobe.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Write-Host "[INFO] Copied ffmpeg.exe and ffprobe.exe to $exeDest"
+          Remove-Item $zipPath -Force
+          Remove-Item $extractDir -Recurse -Force
+          if ($copied -eq 0) { throw "No DLLs found in BtbN archive bin/" }
+          Write-Host "[INFO] Copied $copied FFmpeg DLLs to $dllDest"
 
       - name: Build Windows binary (native_media)
         shell: pwsh
         run: |
-          $env:GOOS                = "windows"
-          $env:GOARCH              = "amd64"
-          $env:CGO_ENABLED         = "1"
-          $env:CC                  = "C:\mingw64\bin\gcc.exe"
-          $env:CXX                 = "C:\mingw64\bin\g++.exe"
-          $env:PATH                = "C:\mingw64\bin;" + $env:PATH
-          # Allow -Wl,--stack,N in #cgo LDFLAGS (sets PE default thread stack to 4 MB)
-          $env:CGO_LDFLAGS_ALLOW   = "-Wl,--stack,.*"
+          $ErrorActionPreference = 'Continue'
+          & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\ci-build.ps1")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $buildVersion = git describe --tags --always 2>$null
-          $ldflags = "-s -w -H windowsgui -X main.BuildVersion=$buildVersion"
-
-          New-Item -ItemType Directory -Force dist\windows | Out-Null
-          go build -tags native_media -ldflags $ldflags -o dist\windows\VideoTools.exe
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          $size = [math]::Round((Get-Item dist\windows\VideoTools.exe).Length / 1MB, 1)
-          Write-Host "Build complete: ${size} MB"
-
-      - name: Bundle FFmpeg DLLs into dll\ subfolder
+      - name: Bundle FFmpeg DLLs and CLI tools into MSIX layout
         shell: pwsh
         run: |
-          # DLLs go in layout/dll/ — the app's bootstrap code checks <exe>/dll/ at startup
-          $dllDir = "dist\windows\msix\layout\dll"
-          New-Item -ItemType Directory -Force $dllDir | Out-Null
+          $layoutDllDir = "dist\windows\msix\layout\DLL"
+          New-Item -ItemType Directory -Force $layoutDllDir | Out-Null
 
-          Get-ChildItem "C:\ffmpeg\bin\av*.dll" | Copy-Item -Destination $dllDir -Force
-          Get-ChildItem "C:\ffmpeg\bin\sw*.dll" | Copy-Item -Destination $dllDir -Force
+          Get-ChildItem "C:\ffmpeg-shared\dll\*.dll" | Copy-Item -Destination $layoutDllDir -Force
 
-          $count = (Get-ChildItem $dllDir -Filter *.dll).Count
-          Write-Host "Bundled $count DLLs into dll\"
+          $objdumpExe = "C:\msys64\ucrt64\bin\objdump.exe"
+          if (Test-Path $objdumpExe) {
+            $deps = @{}
+            Get-ChildItem -Path $layoutDllDir -Filter "*.dll" | ForEach-Object {
+              & $objdumpExe -p $_.FullName 2>$null | Select-String "DLL Name" | ForEach-Object {
+                $dep = ($_ -split ':')[1].Trim()
+                if ($dep -notin @("KERNEL32.dll","USER32.dll","GDI32.dll","SHELL32.dll","ole32.dll","OLEAUT32.dll","ADVAPI32.dll","MSVCRT.dll","ntdll.dll","win32u.dll","SHLWAPI.dll","VERSION.dll","IMM32.dll","KERNELBASE.dll","WS2_32.dll","oleaut32.dll")) {
+                  $deps[$dep] = $true
+                }
+              }
+            }
+            $msys2Bin = "C:\msys64\ucrt64\bin"
+            $deps.Keys | ForEach-Object {
+              $depName = $_
+              $src = Join-Path $msys2Bin $depName
+              $dst = Join-Path $layoutDllDir $depName
+              if ((Test-Path $src) -and -not (Test-Path $dst)) {
+                Copy-Item $src $dst -Force
+                Write-Host "[INFO] Copied transitive dep: $depName"
+              }
+            }
+          }
+
+          $layoutDir = "dist\windows\msix\layout"
+          Copy-Item "C:\ffmpeg-shared\bin\ffmpeg.exe" -Destination $layoutDir -Force -ErrorAction SilentlyContinue
+          Copy-Item "C:\ffmpeg-shared\bin\ffprobe.exe" -Destination $layoutDir -Force -ErrorAction SilentlyContinue
+
+          $dllCount = (Get-ChildItem $layoutDllDir -Filter "*.dll").Count
+          Write-Host "Bundled $dllCount DLLs into DLL/"
 
       - name: Set version
         id: version

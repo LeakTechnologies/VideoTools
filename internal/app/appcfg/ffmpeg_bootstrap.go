@@ -78,7 +78,9 @@ func AddFFmpegDllsToPath() error {
 
 // ExpectedFFmpegDLLs returns the set of DLL basenames that the FFmpeg shared
 // build is expected to provide.  These are versioned by FFmpeg ABI — the list
-// is the union of what BtbN master builds and our source builds produce.
+// covers both the primary FFmpeg libraries and their transitive dependencies
+// (liblzma for avformat, etc.).  Missing any of these will cause ffmpeg.exe
+// and ffprobe.exe to fail to load at runtime.
 func ExpectedFFmpegDLLs() []string {
 	return []string{
 		"avcodec-61.dll",
@@ -87,6 +89,7 @@ func ExpectedFFmpegDLLs() []string {
 		"swscale-8.dll",
 		"swresample-5.dll",
 		"avfilter-10.dll",
+		"liblzma-5.dll",
 	}
 }
 
