@@ -128,7 +128,7 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **i18n script persistence** — Inuktitut syllabics/Latin preference survives app restarts via `ScriptPrefs` map in locale JSON.
 - **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 on every Windows build (non-fatal).
 - **VT_STARTUP_DEBUG** — crash diagnostics env var traces widget CreateRenderer to stderr. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection, not VT code.
-- **Windows CI FFmpeg shared cache** — `actions/cache` for `C:\ffmpeg-static`, matching the Linux cache. Both platforms skip the FFmpeg source build on cache hit.
+- **Windows CI FFmpeg shared cache** — `actions/cache` for `C:\ffmpeg-static` and `C:\ffmpeg-shared`, matching the Linux cache. Both platforms skip the FFmpeg source build on cache hit. The shared build now uses the same FFmpeg 8.1 source tarball and x264/x265 as the static build, eliminating BtbN entirely.
 - **Button straggler clean-up** — About dialog (2), compare fullscreen (2), settings tabs (2), command_editor (7) all migrated. utils.MakeIconButton return type fixed. 18 transport icon buttons remain (blocked: PillIconButton needs SetIcon).
 
 ## Commit Discipline
@@ -274,11 +274,11 @@ The following decisions were reached after multiple failed attempts and must not
 
 ### CI Toolchain — FFmpeg, x264, x265
 
-**FFmpeg must be built from source — never use BtbN pre-built packages.**
-BtbN Windows packages contain executables only, no static `.a` libraries.
-BtbN Linux packages do not bundle `libx264.a`/`libx265.a`.
-Both result in `cannot find -lx264/-lx265` linker errors in the CGO build.
-`unzip` is not available in the MSYS2 bash environment — a BtbN `.zip` approach also fails immediately.
+**FFmpeg must be built from source — for both static and shared builds.**
+All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub windows-msix) build FFmpeg 8.1 from source twice: once with `--enable-static --disable-shared` (for the CGo link into `VideoTools.exe`) and once with `--enable-shared --disable-static` (for runtime DLLs and `ffmpeg.exe`/`ffprobe.exe`). Both builds use the same x264/x265 static archives and the same FFmpeg source tarball. This eliminates the ABI drift risk that existed when BtbN `latest` was used for shared DLLs.
+
+**BtbN FFmpeg-Builds must NOT be used in CI.**
+BtbN Windows packages contain executables only, no static `.a` libraries — they cannot be used for the CGo link. BtbN `latest` is a moving tag whose ABI can change at any time, causing `ExpectedFFmpegDLLs()` validation failures and subprocess crashes. Previous CI pipelines that downloaded from BtbN have been replaced with source-built shared FFmpeg. Do not reintroduce BtbN downloads.
 
 **x264 and x265 must be built from source as static-only.**
 MSYS2's prebuilt x264/x265 packages install headers with `__declspec(dllimport)`,
@@ -288,7 +288,7 @@ in a static link.
 **x265.pc must be overwritten after cmake install.**
 CMake writes Windows-style paths and CRLF line endings that MSYS2 pkg-config cannot parse.
 It also omits the C++ runtime from Libs. The echo-command overwrite (LF, POSIX paths) is required.
-C++ deps (`-lstdc++ -lsupc++ -lm` on Windows / `-lstdc++ -lm` on Linux) must go in **`Libs`**
+C++ deps (`-lstdc++`/`-lsupc++`/`-lm` on Windows / `-lstdc++`/`-lm` on Linux) must go in **`Libs`**
 (not `Libs.private`) because FFmpeg configure calls `pkg-config --libs` without `--static`,
 so `Libs.private` is never included in the configure link test. On Linux, `-lstdc++` resolves
 to libstdc++.so.6 which exports operator new, RTTI vtables etc. On Windows, `-lstdc++` provides
@@ -297,6 +297,8 @@ archive (for operator new/delete, __cxa_guard, RTTI vtables).
 
 **cmake must be in the Linux apt-get install deps** (for x265 source build).
 **nasm and mingw-w64-ucrt-x86_64-cmake must be installed in the Windows MSYS2 step** (for x264/x265 source builds).
+
+**FFmpeg shared build must run `make install` with `--enable-doc --enable-programs`** so that `ffmpeg.exe` and `ffprobe.exe` are produced for the release bundle.
 
 If CI is failing, read the build log carefully before changing the FFmpeg setup strategy.
 Open an issue or ask before touching the "Setup static FFmpeg" steps.

@@ -109,34 +109,74 @@ jobs:
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           echo "[INFO] FFmpeg ${ver} Windows build complete"
 
-      - name: Download FFmpeg shared DLLs (runtime)
-        shell: pwsh
+      - name: Cache shared FFmpeg (Windows)
+        id: cache-ffmpeg-shared
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-shared
+          key: ffmpeg-shared-${{ env.FFMPEG_VERSION }}-windows-github-v1
+
+      - name: Build shared FFmpeg DLLs (Windows)
+        if: steps.cache-ffmpeg-shared.outputs.cache-hit != 'true'
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
         run: |
-          $ErrorActionPreference = 'Stop'
-          $dllDest = "C:\ffmpeg-shared\dll"
-          New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
-          $zipPath = "$env:TEMP\ffmpeg-shared.zip"
-          Write-Host "[INFO] Downloading BtbN FFmpeg shared DLLs..."
-          Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 300
-          $extractDir = "$env:TEMP\ffmpeg-shared-extract"
-          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
-          $binDir = Get-ChildItem -Path $extractDir -Recurse -Directory | Where-Object { $_.Name -eq "bin" } | Select-Object -First 1
-          if (-not $binDir) { throw "BtbN archive missing bin/ directory" }
-          $copied = 0
-          Get-ChildItem -Path $binDir.FullName -Filter "*.dll" | ForEach-Object {
-            Copy-Item $_.FullName -Destination $dllDest -Force
-            $copied++
-          }
-          $exeDest = "C:\ffmpeg-shared\bin"
-          New-Item -ItemType Directory -Force -Path $exeDest | Out-Null
-          Copy-Item (Join-Path $binDir.FullName "ffmpeg.exe") -Destination $exeDest -Force -ErrorAction Stop
-          Copy-Item (Join-Path $binDir.FullName "ffprobe.exe") -Destination $exeDest -Force -ErrorAction Stop
-          Write-Host "[INFO] Copied ffmpeg.exe and ffprobe.exe to $exeDest"
-          Remove-Item $zipPath -Force
-          Remove-Item $extractDir -Recurse -Force
-          if ($copied -eq 0) { throw "No DLLs found in BtbN archive bin/" }
-          Write-Host "[INFO] Copied $copied FFmpeg DLLs to $dllDest"
+          ver="${{ env.FFMPEG_VERSION }}"
+          # x264/x265 are already in /c/ffmpeg-static from the static step.
+          mkdir -p /c/ffmpeg-shared/lib/pkgconfig
+          mkdir -p /c/ffmpeg-shared/include
+          mkdir -p /c/ffmpeg-shared/bin
+          mkdir -p /c/ffmpeg-shared/dll
+
+          echo "[INFO] Building FFmpeg ${ver} shared (DLLs + executables)..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=/c/ffmpeg-shared \
+            --enable-shared --disable-static \
+            --enable-doc --enable-programs \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+
+          cp /c/ffmpeg-shared/bin/*.dll /c/ffmpeg-shared/dll/
+
+          objdumpExe="/ucrt64/bin/objdump.exe"
+          if [ -f "$objdumpExe" ]; then
+            echo "[INFO] Scanning DLLs for transitive dependencies..."
+            declare -A deps
+            for dll in /c/ffmpeg-shared/dll/*.dll; do
+              while IFS= read -r line; do
+                dep=$(echo "$line" | awk -F: '{print $2}' | xargs)
+                case "$dep" in
+                  KERNEL32.dll|USER32.dll|GDI32.dll|SHELL32.dll|ole32.dll|OLEAUT32.dll|ADVAPI32.dll|MSVCRT.dll|ntdll.dll|win32u.dll|SHLWAPI.dll|VERSION.dll|IMM32.dll|KERNELBASE.dll|WS2_32.dll|oleaut32.dll)
+                    continue ;;
+                esac
+                deps["$dep"]=1
+              done < <("$objdumpExe" -p "$dll" 2>/dev/null | grep "DLL Name")
+            done
+            for dep in "${!deps[@]}"; do
+              src="/ucrt64/bin/$dep"
+              dst="/c/ffmpeg-shared/dll/$dep"
+              if [ -f "$src" ] && [ ! -f "$dst" ]; then
+                cp "$src" "$dst"
+                echo "[INFO] Copied transitive dep: $dep"
+              fi
+            done
+          fi
+
+          echo "[INFO] FFmpeg ${ver} shared build complete"
+          dllCount=$(ls /c/ffmpeg-shared/dll/*.dll 2>/dev/null | wc -l)
+          echo "[INFO] ${dllCount} DLLs in /c/ffmpeg-shared/dll/"
 
       - name: Build Windows package
         shell: pwsh

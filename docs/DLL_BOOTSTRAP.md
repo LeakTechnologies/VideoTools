@@ -99,35 +99,30 @@ If VideoTools crashes before the GUI appears with an OpenGL or GPU-related error
 
 ## DLL Build Pipeline (CI)
 
-All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub MSIX) follow the same architecture:
+All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub MSIX) now build **both** static and shared FFmpeg from the **same source**. No BtbN downloads are used anywhere.
 
 ```
-Source build (static)              BtbN download (shared)
-  ┌──────────────┐                 ┌──────────────────────────┐
-  │ x264 → .a    │                 │ ffmpeg-master-latest      │
-  │ x265 → .a    │                 │ -win64-lgpl-shared       │
-  │ FFmpeg → .a  │                 │   → avcodec-61.dll etc.  │
-  └──────┬───────┘                 │   → ffmpeg.exe            │
-         │                         │   → ffprobe.exe           │
-         │ CGO_LDFLAGS             └──────────┬───────────────┘
-         ▼                                    ▼
-  VideoTools.exe                     DLL/ + ffmpeg.exe
-  (statically linked)               (shared-linked CLI tools)
+x264 → .a (static only)
+x265 → .a (static only)
+     ↓
+FFmpeg 8.1 → .a (static, for VideoTools.exe CGo link)
+FFmpeg 8.1 → .dll + ffmpeg.exe + ffprobe.exe (shared, for subprocess use)
+     ↓                    ↓
+VideoTools.exe         DLL/ + ffmpeg.exe + ffprobe.exe
+(statically linked)    (shared-linked CLI tools)
 ```
 
-The static `.a` libs and the shared `.dll` files are built from **different FFmpeg source trees**. This is an inherent risk: if the BtbN master branch advances its ABI between CI runs, the DLLs can become incompatible with the statically-linked binary.
+The static `.a` libs and the shared `.dll` files are built from the **same FFmpeg 8.1 source tarball** with the **same x264/x265**. This eliminates the ABI drift risk that existed when BtbN `latest` was used for the shared build.
 
-**Mitigation**: The `ci-build.ps1` packaging step runs `objdump` on every DLL in the `DLL/` directory to detect transitive DLL dependencies, and copies any missing ones from `C:\msys64\ucrt64\bin\`. `ExpectedFFmpegDLLs()` also checks for `liblzma-5.dll` at runtime. The GitHub workflows now perform the same objdump scan.
-
-**Remaining risk (BUG-013)**: The BtbN download URL uses `latest`, which is a moving tag. When BtbN bumps a major FFmpeg version (changing e.g. `-61` to `-62`), the hardcoded ABI numbers in `ExpectedFFmpegDLLs()` and the DLL filenames will break. This should be pinned to a specific release tag.
+Transitive DLL dependencies (e.g. `liblzma-5.dll` needed by `avformat`) are detected at CI time by running `objdump` on every bundled DLL and copying any missing non-system dependencies from the MSYS2 toolchain. `ExpectedFFmpegDLLs()` also uses glob patterns (`avcodec-*.dll` rather than `avcodec-61.dll`) so the validation does not break when FFmpeg bumps its ABI version.
 
 ### CI Pipeline Details
 
-| Pipeline | Static FFmpeg | Shared DLLs | FFmpeg/ffprobe | Transitive deps |
-|----------|--------------|-------------|----------------|-----------------|
-| Forgejo dev-packages.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
-| GitHub release.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
-| GitHub windows-msix.yml | Source-built (FFmpeg 8.1 + x264 + x265) | BtbN `latest` lgpl-shared | Bundled | objdump scan from MSYS2 |
+| Pipeline | Static FFmpeg | Shared DLLs | Transitive deps | Cache key |
+|----------|--------------|-------------|-----------------|-----------|
+| Forgejo dev-packages.yml | Source-built (FFmpeg 8.1) | Source-built (FFmpeg 8.1, same tree) | objdump scan from MSYS2 | `ffmpeg-static-v7` + `ffmpeg-shared-v1` |
+| GitHub release.yml | Source-built (FFmpeg 8.1) | Source-built (FFmpeg 8.1, same tree) | objdump scan from MSYS2 | `ffmpeg-static-github-v1` + `ffmpeg-shared-github-v1` |
+| GitHub windows-msix.yml | Source-built (FFmpeg 8.1) | Source-built (FFmpeg 8.1, same tree) | objdump scan from MSYS2 | `ffmpeg-static-msix-v1` + `ffmpeg-shared-msix-v1` |
 
 **Important**: The `VideoTools.exe` binary does NOT need the DLLs. It is fully statically linked. The DLLs are only needed by `ffmpeg.exe` and `ffprobe.exe` which are bundled for subprocess use.
 

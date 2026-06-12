@@ -77,19 +77,24 @@ func AddFFmpegDllsToPath() error {
 }
 
 // ExpectedFFmpegDLLs returns the set of DLL basenames that the FFmpeg shared
-// build is expected to provide.  These are versioned by FFmpeg ABI — the list
-// covers both the primary FFmpeg libraries and their transitive dependencies
-// (liblzma for avformat, etc.).  Missing any of these will cause ffmpeg.exe
-// and ffprobe.exe to fail to load at runtime.
+// build is expected to provide.  The list covers both the primary FFmpeg
+// libraries and their transitive dependencies (liblzma for avformat, etc.).
+// Missing any of these will cause ffmpeg.exe and ffprobe.exe to fail to load
+// at runtime.
+//
+// The primary libraries use glob-friendly basenames (avcodec-*.dll) rather
+// than hardcoded ABI versions so this list does not break when FFmpeg bumps
+// a major version (e.g. -61 → -62).  The validation in ValidateFFmpegDLLs
+// uses glob matching for these entries.
 func ExpectedFFmpegDLLs() []string {
 	return []string{
-		"avcodec-61.dll",
-		"avformat-61.dll",
-		"avutil-59.dll",
-		"swscale-8.dll",
-		"swresample-5.dll",
-		"avfilter-10.dll",
-		"liblzma-5.dll",
+		"avcodec-*.dll",
+		"avformat-*.dll",
+		"avutil-*.dll",
+		"swscale-*.dll",
+		"swresample-*.dll",
+		"avfilter-*.dll",
+		"liblzma-*.dll",
 	}
 }
 
@@ -103,11 +108,11 @@ func ValidateFFmpegDLLs() error {
 	dllDir := FFmpegDllDir()
 	var issues []string
 
-	// — exist / ABI check —
-	for _, name := range ExpectedFFmpegDLLs() {
-		path := filepath.Join(dllDir, name)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			issues = append(issues, fmt.Sprintf("missing: %s", name))
+	// — exist / ABI check — (glob patterns like avcodec-*.dll)
+	for _, pattern := range ExpectedFFmpegDLLs() {
+		matches, err := filepath.Glob(filepath.Join(dllDir, pattern))
+		if err != nil || len(matches) == 0 {
+			issues = append(issues, fmt.Sprintf("missing: %s (no file matching %s in %s)", pattern, pattern, dllDir))
 		}
 	}
 
@@ -165,11 +170,11 @@ func DiagnoseDLLSetup() string {
 		b.WriteString("ERROR: no avcodec*.dll files found\n")
 	}
 
-	// Expected DLLs
-	for _, name := range ExpectedFFmpegDLLs() {
-		path := filepath.Join(dllDir, name)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			b.WriteString(fmt.Sprintf("  MISSING (expected): %s\n", name))
+	// Expected DLLs (glob patterns)
+	for _, pattern := range ExpectedFFmpegDLLs() {
+		matches, err := filepath.Glob(filepath.Join(dllDir, pattern))
+		if err != nil || len(matches) == 0 {
+			b.WriteString(fmt.Sprintf("  MISSING (expected): %s\n", pattern))
 		}
 	}
 
