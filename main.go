@@ -146,6 +146,12 @@ var (
 	// platformConfig *PlatformConfig // Global platformConfig is now managed directly by utils.GetFFmpegPath and utils.GetFFprobePath
 )
 
+// isDevBuild reports whether the running binary is a development build.
+// Dev builds have "-dev" in appVersion and show all in-progress modules.
+func isDevBuild() bool {
+	return strings.Contains(appVersion, "-dev")
+}
+
 // moduleColor returns the color for a given module ID
 func moduleColor(id string) color.Color {
 	for _, m := range modulesList {
@@ -1194,6 +1200,7 @@ type appState struct {
 	navigationHistory         []string // Track module navigation history for back/forward buttons
 	navigationHistoryPosition int      // Current position in navigation history
 	navigationHistorySuppress bool     // Temporarily suppress history tracking during navigation
+	visibleModuleIDs          []string // Ordered IDs of modules currently shown in the main menu grid
 	source                    *videoSource
 	loadedVideos              []*videoSource // Multiple loaded videos for navigation
 	currentIndex              int            // Current video index in loadedVideos
@@ -2980,8 +2987,6 @@ func (s *appState) showModule(id string) {
 		s.showFiltersView()
 	case "upscale":
 		s.showUpscaleView()
-	// case "enhancement":
-	//	s.showEnhancementView() // TODO: Implement when enhancement module is complete
 	case "audio":
 		logging.Info(logging.CatModule, "showModule: entering audio module")
 		s.showAudioView()
@@ -8454,7 +8459,7 @@ func runGUI() {
 	state.showMainMenu()
 	startAutoUpdateChecker(state)
 	state.maybePromptWindowsDependencyBootstrap()
-	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
+	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(state.visibleModuleIDs))
 
 	// Start stats bar update loop on a timer
 	go func() {
@@ -14622,12 +14627,12 @@ func (s *appState) detectModuleTileAtPosition(pos fyne.Position) string {
 
 	// Calculate module index in grid (row * 3 + col)
 	moduleIndex := row*3 + col
-	if moduleIndex >= len(modulesList) {
-		logging.Debug(logging.CatUI, "module index %d out of range (total %d)", moduleIndex, len(modulesList))
+	if moduleIndex >= len(s.visibleModuleIDs) {
+		logging.Debug(logging.CatUI, "module index %d out of range (total %d)", moduleIndex, len(s.visibleModuleIDs))
 		return ""
 	}
 
-	moduleID := modulesList[moduleIndex].ID
+	moduleID := s.visibleModuleIDs[moduleIndex]
 	logging.Debug(logging.CatUI, "detected module: row=%d col=%d index=%d id=%s", row, col, moduleIndex, moduleID)
 
 	// Only return module ID if it's enabled (currently only "convert")
