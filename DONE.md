@@ -2,13 +2,16 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
-### Windows DLL Pipeline Overhaul (BUG-012)
+### Windows DLL Pipeline Overhaul (BUG-012 + BUG-013)
 
-- **GitHub `release.yml` rewritten** — replaced BtbN-for-everything approach with source-built FFmpeg 8.1 + x264 + x265 static link using MSYS2 ucrt64 toolchain. Added objdump transitive-DLL scan from MSYS2 `ucrt64/bin`. Bundles `ffmpeg.exe`, `ffprobe.exe`, and all DLLs including `liblzma-5.dll`. Previous workflow only copied `av*.dll` and `sw*.dll`, missing every transitive dependency.
-- **GitHub `windows-msix.yml` rewritten** — same source+shared pipeline pattern. MSIX layout now includes `DLL/` with full transitive-dep scan, plus `ffmpeg.exe`/`ffprobe.exe`.
-- **Forgejo `dev-packages.yml`** — already had source-built static + BtbN shared + objdump scan pattern; confirmed consistent.
-- **`ExpectedFFmpegDLLs()`** — added `liblzma-5.dll` to the expected DLL list. Runtime validation now checks the transitive dependency of `avformat`.
-- **`docs/DLL_BOOTSTRAP.md` pipeline table** — documented all three CI pipelines with static/shared/DLL strategies and known risks.
+- **All three CI pipelines now build FFmpeg shared from source** — Forgejo dev-packages.yml, GitHub release.yml, and GitHub windows-msix.yml all build FFmpeg 8.1 from the same source tarball twice: once static (for CGo link into VideoTools.exe) and once shared (for DLLs, ffmpeg.exe, ffprobe.exe). BtbN downloads completely eliminated. Shared build reuses the same x264/x265 static archives from the static build step. Cache keys versioned (`ffmpeg-shared-*-v1`).
+- **GitHub `release.yml` rewritten** — replaced BtbN-for-everything with MSYS2 ucrt64 toolchain, source-built static FFmpeg 8.1, source-built shared FFmpeg 8.1, objdump transitive-dep scan, `ffmpeg.exe`/`ffprobe.exe` bundled. Previous workflow used BtbN for CGo link (broken — no `.a` libs), only copied `av*.dll`+`sw*.dll`, never included CLI tools.
+- **GitHub `windows-msix.yml` rewritten** — same pipeline pattern. MSIX layout includes `DLL/` with full transitive-dep scan.
+- **Forgejo `dev-packages.yml` rewritten** — replaced BtbN download step with source-built shared FFmpeg step, matching the other two pipelines. Same objdump transitive-dep scan in bash.
+- **`ExpectedFFmpegDLLs()` uses glob patterns** — `avcodec-*.dll` instead of `avcodec-61.dll`. Prevents validation breakage when FFmpeg ABI version bumps. `ValidateFFmpegDLLs()` uses `filepath.Glob` instead of exact `os.Stat`.
+- **BUG-013 closed** — BtbN `latest` moving tag eliminated. All DLLs built from pinned FFmpeg 8.1 source.
+- **`AGENTS.md` settled decision updated** — clarified that "never use BtbN" means both static and shared builds. BtbN downloads removed from all CI pipelines.
+- **`docs/DLL_BOOTSTRAP.md` updated** — architecture diagram shows source-built shared DLLs, not BtbN download. Pipeline table updated for all three workflows.
 
 ### DLL Startup Validation + CGo Consolidation
 

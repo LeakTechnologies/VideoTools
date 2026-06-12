@@ -22,12 +22,14 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev50 Scope (current)
 
-### Windows DLL Pipeline Fix (BUG-012)
+### Windows DLL Pipeline Fix (BUG-012 + BUG-013)
 
 - [x] **GitHub release.yml rewritten** — source-built FFmpeg 8.1 + x264 + x265 (matching Forgejo CI), MSYS2 ucrt64 toolchain, objdump transitive-dep scan, ffmpeg.exe/ffprobe.exe bundled, all DLLs including liblzma-5.dll
 - [x] **GitHub windows-msix.yml rewritten** — same pipeline pattern, MSIX layout includes DLL/ with full dep scan
-- [x] **ExpectedFFmpegDLLs() updated** — added liblzma-5.dll to expected list
-- [ ] **BUG-013: Pin BtbN download URL** — BtbN `latest` tag is a moving target; pin to a specific release tag to prevent ABI drift
+- [x] **Forgejo dev-packages.yml rewritten** — replaced BtbN download with source-built shared FFmpeg, matching other two pipelines
+- [x] **ExpectedFFmpegDLLs() uses glob patterns** — `avcodec-*.dll` instead of `avcodec-61.dll`; prevents breakage on ABI bumps
+- [x] **BUG-013 closed** — BtbN `latest` moving tag eliminated from all CI pipelines; shared DLLs built from same FFmpeg 8.1 source
+- [x] **AGENTS.md settled decision updated** — clarified "never use BtbN" covers both static and shared builds
 
 ### Phase 0 — Critical Stability (fix first — hangs/crashes/dead-code)
 

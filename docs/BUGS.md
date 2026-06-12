@@ -33,15 +33,15 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
 - **Verified**: No (pipeline fix not yet tested in CI)
 
 ### BUG-013: BtbN "latest" shared DLLs can drift in ABI version
-- **Status**: 🟡 MEDIUM (architectural risk, not immediately broken)
+- **Status**: ✅ FIXED (2026-06-12)
 - **Reporter**: dev analysis
 - **Module**: All FFmpeg-dependent modules (Windows)
-- **Description**: The Forgejo and GitHub CI pipelines download BtbN `ffmpeg-master-latest-win64-lgpl-shared.zip` for runtime DLLs. The `latest` tag is a moving target — BtbN can push a new major FFmpeg version at any time, changing ABI numbers in DLL names (e.g. `avcodec-61.dll` → `avcodec-62.dll`). When this happens: (1) the hardcoded `ExpectedFFmpegDLLs()` list in `ffmpeg_bootstrap.go` will report missing DLLs, (2) `ffmpeg.exe`/`ffprobe.exe` from the newer BtbN build may have different internal requirements, (3) the DLLs may have different transitive dependencies.
-- **Impact**: Medium — works today, but will break silently the next time BtbN bumps a major version
-- **Root Cause**: Reliance on `https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/` which resolves to whatever `latest` means at download time
-- **Recommended Fix** (not yet implemented): Pin the BtbN download URL to a specific release tag (e.g. `ffmpeg-8.1-win64-lgpl-shared.zip`) or build the shared DLLs from the same FFmpeg 8.1 source used for the static link. The Forgejo ci-build.ps1 already has `build-ffmpeg-shared.ps1` for local dev — the CI pipeline should use it too.
-- **Assigned To**: Unassigned
-- **Verified**: No
+- **Description**: The CI pipelines downloaded BtbN `ffmpeg-master-latest-win64-lgpl-shared.zip` for runtime DLLs. The `latest` tag is a moving target — BtbN can push a new major FFmpeg version at any time, changing ABI numbers in DLL names (e.g. `avcodec-61.dll` → `avcodec-62.dll`), causing startup validation failures and subprocess crashes.
+- **Root Cause**: Dependency on an external moving-target download for runtime binaries
+- **Fix**: All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub MSIX) now build FFmpeg 8.1 from source **twice**: once static (for CGo link) and once shared (for DLLs + ffmpeg.exe + ffprobe.exe). Both use the same x264/x265 static archives and the same FFmpeg source tarball. BtbN downloads completely eliminated. `ExpectedFFmpegDLLs()` also changed to glob patterns (`avcodec-*.dll`) instead of hardcoded ABI versions so future FFmpeg major bumps don't break validation.
+- **Files Changed**: `.forgejo/workflows/dev-packages.yml`, `.github/workflows/release.yml`, `.github/workflows/windows-msix.yml`, `internal/app/appcfg/ffmpeg_bootstrap.go`, `AGENTS.md`
+- **Assigned To**: opencode
+- **Verified**: No (pipeline not yet tested in CI)
 
 ### BUG-005: CRF quality settings not showing when CRF mode is selected
 - **Status**: 🔴 OPEN
@@ -328,24 +328,23 @@ When you find a bug, add it here with:
 **Current Status**:
 - 🔴 Critical Open: 3 (BUG-005, BUG-006, BUG-012)
 - 🟠 High Priority Open: 0
-- 🟡 Medium Priority Open: 1 (BUG-013)
+- 🟡 Medium Priority Open: 0
 - 🟢 Low Priority Open: 0
-- ✅ Fixed (Last 7 Days): 7
+- ✅ Fixed (Last 7 Days): 8
 
 **Trends**:
+- 2026-06-12: BUG-013 (BtbN ABI drift) fixed — all CI pipelines now build shared FFmpeg from source
 - 2026-06-12: BUG-012 (DLL pipeline) opened — root cause identified, fix in progress
-- 2026-06-12: BUG-013 (BtbN ABI drift) opened — architectural risk
 - 2026-01-05: 3 bugs fixed, 1 new critical bug opened
 
 ---
 
 ## 🎯 Next Steps
 
-1. **BUG-012** (Critical): Fix Windows DLL pipeline — rewrote GitHub CI workflows, added transitive dep scanning
+1. **BUG-012** (Critical): Verify Windows DLL pipeline fix in CI — all three workflows need a real build run to confirm
 2. **BUG-006** (Critical): Windows mid-conversion crash — investigate logging and goroutine lifecycle
 3. **BUG-005** (Critical): Fix CRF quality settings visibility - Unassigned
-4. **BUG-013** (Medium): Pin BtbN shared DLL download to specific release tag instead of `latest`
-5. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Unassigned
+4. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Unassigned
 5. **ISSUE-003**: Complete ColoredSelect expansion (32 widgets) - Unassigned
 
 ---
