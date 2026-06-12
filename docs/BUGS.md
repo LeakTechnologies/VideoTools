@@ -2,11 +2,46 @@
 
 Track all bugs, issues, and behavioral problems here. Update this file whenever you discover or fix a bug.
 
-**Last Updated**: 2026-01-06 19:35 UTC
+**Last Updated**: 2026-06-12 UTC
 
 ---
 
 ## 🔴 Critical Bugs (Blocking Functionality)
+
+### BUG-012: Windows releases have missing/mismatched FFmpeg DLLs
+- **Status**: 🔴 OPEN (pipeline fix in progress)
+- **Reporter**: tester (recurring over multiple dev cycles)
+- **Module**: Convert / Audio / Thumbnail / Rip / all FFmpeg-dependent modules
+- **Description**: Windows users downloading VT from the website encounter FFmpeg DLL load failures. ffmpeg.exe and ffprobe.exe subprocesses cannot start, making all conversion, audio, thumbnail, and rip operations fail silently or crash.
+- **Steps to Reproduce**:
+  1. Download VT Windows ZIP from website
+  2. Extract and run VideoTools.exe
+  3. Startup validation shows DLL errors (missing DLLs, load failures)
+  4. Any FFmpeg-dependent operation fails
+- **Impact**: Critical — the entire point of the app is video processing; DLL failures make it unusable
+- **Root Cause** (three separate pipeline bugs):
+  - **GitHub release.yml** (website downloads): Downloaded BtbN `gpl-shared` for BOTH static compile and runtime DLLs. Only bundled `av*.dll` + `sw*.dll` — missing all transitive deps (`liblzma-5.dll`, etc.). No `ffmpeg.exe`/`ffprobe.exe` bundled. No objdump transitive-dep scan. Used winlibs GCC instead of MSYS2 ucrt64 — different C runtime ABI.
+  - **GitHub windows-msix.yml**: Same problems as release.yml — BtbN-only, missing transitive deps, no ffmpeg/ffprobe.
+  - **Forgejo dev-packages.yml (BtbN DLL download step)**: The BtbN `latest` tag is a moving target. Between CI runs, BtbN can push a new FFmpeg version that changes ABI numbers (e.g. `avcodec-61.dll` → `avcodec-62.dll`), making the DLLs incompatible with the statically-linked exe and the bundled ffmpeg/ffprobe. The `ExpectedFFmpegDLLs()` list hardcoded `-61`/`-59`/etc. ABI numbers that will break when BtbN bumps FFmpeg 8.x → 9.x.
+- **Fix in progress**:
+  1. Rewrote GitHub release.yml to build FFmpeg from source (consistent with Forgejo CI and settled decision). Uses MSYS2 ucrt64 toolchain, source-built x264/x265/FFmpeg for static link, BtbN `lgpl-shared` for runtime DLLs + ffmpeg/ffprobe only. Added objdump transitive-dep scan, ffmpeg/ffprobe bundling, and `liblzma-5.dll` in `ExpectedFFmpegDLLs()`.
+  2. Rewrote windows-msix.yml identically.
+  3. Added `liblzma-5.dll` to `ExpectedFFmpegDLLs()` runtime validation.
+  4. Forgejo pipeline already uses source-built FFmpeg + BtbN shared DLLs + objdump scan; the remaining risk is BtbN `latest` ABI drift (see BUG-013 below).
+- **Files Changed**: `.github/workflows/release.yml`, `.github/workflows/windows-msix.yml`, `internal/app/appcfg/ffmpeg_bootstrap.go`
+- **Assigned To**: opencode
+- **Verified**: No (pipeline fix not yet tested in CI)
+
+### BUG-013: BtbN "latest" shared DLLs can drift in ABI version
+- **Status**: 🟡 MEDIUM (architectural risk, not immediately broken)
+- **Reporter**: dev analysis
+- **Module**: All FFmpeg-dependent modules (Windows)
+- **Description**: The Forgejo and GitHub CI pipelines download BtbN `ffmpeg-master-latest-win64-lgpl-shared.zip` for runtime DLLs. The `latest` tag is a moving target — BtbN can push a new major FFmpeg version at any time, changing ABI numbers in DLL names (e.g. `avcodec-61.dll` → `avcodec-62.dll`). When this happens: (1) the hardcoded `ExpectedFFmpegDLLs()` list in `ffmpeg_bootstrap.go` will report missing DLLs, (2) `ffmpeg.exe`/`ffprobe.exe` from the newer BtbN build may have different internal requirements, (3) the DLLs may have different transitive dependencies.
+- **Impact**: Medium — works today, but will break silently the next time BtbN bumps a major version
+- **Root Cause**: Reliance on `https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/` which resolves to whatever `latest` means at download time
+- **Recommended Fix** (not yet implemented): Pin the BtbN download URL to a specific release tag (e.g. `ffmpeg-8.1-win64-lgpl-shared.zip`) or build the shared DLLs from the same FFmpeg 8.1 source used for the static link. The Forgejo ci-build.ps1 already has `build-ffmpeg-shared.ps1` for local dev — the CI pipeline should use it too.
+- **Assigned To**: Unassigned
+- **Verified**: No
 
 ### BUG-005: CRF quality settings not showing when CRF mode is selected
 - **Status**: 🔴 OPEN
@@ -291,23 +326,27 @@ When you find a bug, add it here with:
 ## 📊 Bug Statistics
 
 **Current Status**:
-- 🔴 Critical Open: 2 (BUG-005, BUG-006)
+- 🔴 Critical Open: 3 (BUG-005, BUG-006, BUG-012)
 - 🟠 High Priority Open: 0
-- 🟡 Medium Priority Open: 0
+- 🟡 Medium Priority Open: 1 (BUG-013)
 - 🟢 Low Priority Open: 0
 - ✅ Fixed (Last 7 Days): 7
 
 **Trends**:
+- 2026-06-12: BUG-012 (DLL pipeline) opened — root cause identified, fix in progress
+- 2026-06-12: BUG-013 (BtbN ABI drift) opened — architectural risk
 - 2026-01-05: 3 bugs fixed, 1 new critical bug opened
-- Focus Area: Convert UI visibility + Windows stability/logging
 
 ---
 
 ## 🎯 Next Steps
 
-1. **BUG-005** (Critical): Fix CRF quality settings visibility - Unassigned
-2. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Unassigned
-3. **ISSUE-003**: Complete ColoredSelect expansion (32 widgets) - Unassigned
+1. **BUG-012** (Critical): Fix Windows DLL pipeline — rewrote GitHub CI workflows, added transitive dep scanning
+2. **BUG-006** (Critical): Windows mid-conversion crash — investigate logging and goroutine lifecycle
+3. **BUG-005** (Critical): Fix CRF quality settings visibility - Unassigned
+4. **BUG-013** (Medium): Pin BtbN shared DLL download to specific release tag instead of `latest`
+5. **ISSUE-002**: Complete widget deduplication (4 pairs remaining) - Unassigned
+5. **ISSUE-003**: Complete ColoredSelect expansion (32 widgets) - Unassigned
 
 ---
 

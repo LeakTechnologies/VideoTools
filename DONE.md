@@ -2,6 +2,14 @@
 
 ## Version 0.1.1-dev50 (in progress)
 
+### Windows DLL Pipeline Overhaul (BUG-012)
+
+- **GitHub `release.yml` rewritten** — replaced BtbN-for-everything approach with source-built FFmpeg 8.1 + x264 + x265 static link using MSYS2 ucrt64 toolchain. Added objdump transitive-DLL scan from MSYS2 `ucrt64/bin`. Bundles `ffmpeg.exe`, `ffprobe.exe`, and all DLLs including `liblzma-5.dll`. Previous workflow only copied `av*.dll` and `sw*.dll`, missing every transitive dependency.
+- **GitHub `windows-msix.yml` rewritten** — same source+shared pipeline pattern. MSIX layout now includes `DLL/` with full transitive-dep scan, plus `ffmpeg.exe`/`ffprobe.exe`.
+- **Forgejo `dev-packages.yml`** — already had source-built static + BtbN shared + objdump scan pattern; confirmed consistent.
+- **`ExpectedFFmpegDLLs()`** — added `liblzma-5.dll` to the expected DLL list. Runtime validation now checks the transitive dependency of `avformat`.
+- **`docs/DLL_BOOTSTRAP.md` pipeline table** — documented all three CI pipelines with static/shared/DLL strategies and known risks.
+
 ### DLL Startup Validation + CGo Consolidation
 
 - **`ValidateFFmpegDLLs()` in `ffmpeg_bootstrap.go`** — after `AddFFmpegDllsToPath()` prepends the DLL dir to PATH, runs a live smoke test: bundles `ffprobe.exe -version` and checks every expected DLL exists. Failure shows a non-blocking Fyne error dialog at startup with clear instructions, instead of a silent log warning.

@@ -22,6 +22,13 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev50 Scope (current)
 
+### Windows DLL Pipeline Fix (BUG-012)
+
+- [x] **GitHub release.yml rewritten** — source-built FFmpeg 8.1 + x264 + x265 (matching Forgejo CI), MSYS2 ucrt64 toolchain, objdump transitive-dep scan, ffmpeg.exe/ffprobe.exe bundled, all DLLs including liblzma-5.dll
+- [x] **GitHub windows-msix.yml rewritten** — same pipeline pattern, MSIX layout includes DLL/ with full dep scan
+- [x] **ExpectedFFmpegDLLs() updated** — added liblzma-5.dll to expected list
+- [ ] **BUG-013: Pin BtbN download URL** — BtbN `latest` tag is a moving target; pin to a specific release tag to prevent ABI drift
+
 ### Phase 0 — Critical Stability (fix first — hangs/crashes/dead-code)
 
 - [x] **P0-1: Wire DegradeToSoftware() into decode paths** — `errors.go` / `playback.go` / `hwdecode.go`: Added `vt_clear_hw_decode` C helper (clears `hw_device_ctx`, resets `get_format` callback, re-enables threading). `DegradeToSoftware()` now calls it + `avcodec_flush_buffers` so buffered HW frames are discarded and the codec won't re-init HW on next decode cycle. In `videoDecodeLoop`, first `videoDecodeDead` event (HW SEH) now calls `RecordHWFailure()` + `DegradeToSoftware()` + clears flag + continues with SW path instead of returning.

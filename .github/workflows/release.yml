@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: '1.21'
+  FFMPEG_VERSION: "8.1"
 
 jobs:
   build-windows:
@@ -31,80 +31,125 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install MinGW-w64
+      - name: Install MSYS2
         shell: pwsh
         run: |
-          $url = "https://github.com/brechtsanders/winlibs_mingw/releases/download/14.3.0posix-12.0.0-ucrt-r1/winlibs-x86_64-posix-seh-gcc-14.3.0-mingw-w64ucrt-12.0.0-r1.zip"
-          $zip = "C:\mingw.zip"
-          Write-Host "Downloading MinGW..."
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          Write-Host "Extracting..."
-          Expand-Archive -Path $zip -DestinationPath "C:\mingw-extract" -Force
-          $inner = Get-ChildItem "C:\mingw-extract" -Directory | Select-Object -First 1
-          Move-Item $inner.FullName "C:\mingw64" -Force
-          Remove-Item $zip, "C:\mingw-extract" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "GCC: $((& 'C:\mingw64\bin\gcc.exe' --version)[0])"
+          Invoke-WebRequest -Uri https://github.com/msys2/msys2-installer/releases/download/2024-01-13/msys2-base-x86_64-20240113.sfx.exe -OutFile C:\msys2-inst.exe
+          C:\msys2-inst.exe -y -oC:\
+          Write-Host "Updating MSYS2..."
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed base-devel mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake nasm"
 
-      - name: Setup FFmpeg dev libs
+      - name: Cache static FFmpeg (Windows)
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-static
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-github-v1
+
+      - name: Setup static FFmpeg (Windows)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
+        run: |
+          ver="${{ env.FFMPEG_VERSION }}"
+          mkdir -p /c/ffmpeg-static/lib/pkgconfig
+          mkdir -p /c/ffmpeg-static/include
+
+          echo "[INFO] Building x264 from source (static only)..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
+          rm -rf /tmp/x264-src
+
+          echo "[INFO] Building x265 from source (static only)..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G 'MSYS Makefiles' \
+                -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../x265-src/source
+          make -j$(nproc) && make install
+
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
+          rm -rf /tmp/x265-src /tmp/x265-build
+
+          echo "[INFO] Building FFmpeg ${ver} from source..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=/c/ffmpeg-static \
+            --enable-static --disable-shared --enable-pic \
+            --disable-doc --disable-programs --disable-debug \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          echo "[INFO] FFmpeg ${ver} Windows build complete"
+
+      - name: Download FFmpeg shared DLLs (runtime)
         shell: pwsh
         run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
-          $zip = "C:\ffmpeg-shared.zip"
-          Write-Host "Downloading FFmpeg shared build..."
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          Write-Host "Extracting..."
-          Expand-Archive -Path $zip -DestinationPath "C:\ffmpeg-extract" -Force
-          $inner = Get-ChildItem "C:\ffmpeg-extract" -Directory | Select-Object -First 1
-          New-Item -ItemType Directory -Force "C:\ffmpeg" | Out-Null
-          Get-ChildItem $inner.FullName | Move-Item -Destination "C:\ffmpeg" -Force
-          Remove-Item $zip, "C:\ffmpeg-extract" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "FFmpeg include: $(Test-Path 'C:\ffmpeg\include')"
-          Write-Host "FFmpeg lib:     $(Test-Path 'C:\ffmpeg\lib')"
+          $ErrorActionPreference = 'Stop'
+          $dllDest = "C:\ffmpeg-shared\dll"
+          New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
+          $zipPath = "$env:TEMP\ffmpeg-shared.zip"
+          Write-Host "[INFO] Downloading BtbN FFmpeg shared DLLs..."
+          Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 300
+          $extractDir = "$env:TEMP\ffmpeg-shared-extract"
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+          $binDir = Get-ChildItem -Path $extractDir -Recurse -Directory | Where-Object { $_.Name -eq "bin" } | Select-Object -First 1
+          if (-not $binDir) { throw "BtbN archive missing bin/ directory" }
+          $copied = 0
+          Get-ChildItem -Path $binDir.FullName -Filter "*.dll" | ForEach-Object {
+            Copy-Item $_.FullName -Destination $dllDest -Force
+            $copied++
+          }
+          $exeDest = "C:\ffmpeg-shared\bin"
+          New-Item -ItemType Directory -Force -Path $exeDest | Out-Null
+          Copy-Item (Join-Path $binDir.FullName "ffmpeg.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Copy-Item (Join-Path $binDir.FullName "ffprobe.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Write-Host "[INFO] Copied ffmpeg.exe and ffprobe.exe to $exeDest"
+          Remove-Item $zipPath -Force
+          Remove-Item $extractDir -Recurse -Force
+          if ($copied -eq 0) { throw "No DLLs found in BtbN archive bin/" }
+          Write-Host "[INFO] Copied $copied FFmpeg DLLs to $dllDest"
 
-      - name: Build
+      - name: Build Windows package
         shell: pwsh
         run: |
-          $env:GOARCH              = "amd64"
-          $env:CGO_ENABLED         = "1"
-          $env:CC                  = "C:\mingw64\bin\gcc.exe"
-          $env:PATH                = "C:\mingw64\bin;" + $env:PATH
-          $env:CGO_LDFLAGS_ALLOW   = "-Wl,--stack,.*"
-          $env:PKG_CONFIG_PATH     = "C:\ffmpeg\lib\pkgconfig"
+          $ErrorActionPreference = 'Continue'
+          & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\ci-build.ps1")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $buildVersion = git describe --tags --always 2>$null
-          $ldflags = "-s -w -H windowsgui -X main.BuildVersion=$buildVersion"
-
-          New-Item -ItemType Directory -Force dist\windows\bin | Out-Null
-          go build -tags native_media -ldflags $ldflags -o dist\windows\bin\VideoTools.exe
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          $size = [math]::Round((Get-Item dist\windows\bin\VideoTools.exe).Length / 1MB, 1)
-          Write-Host "Build complete: ${size} MB"
-
-      - name: Bundle DLLs
-        shell: pwsh
-        run: |
-          $dllDir = "dist\windows\bin\dll"
-          New-Item -ItemType Directory -Force $dllDir | Out-Null
-          Get-ChildItem "C:\ffmpeg\bin\av*.dll" | Copy-Item -Destination $dllDir -Force
-          Get-ChildItem "C:\ffmpeg\bin\sw*.dll" | Copy-Item -Destination $dllDir -Force
-          $count = (Get-ChildItem $dllDir -Filter *.dll).Count
-          Write-Host "Bundled $count DLLs"
-
-      - name: Package ZIP
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}"
-          if (-not $version) { $version = git describe --tags --always }
-          $zipName = "VideoTools-${version}-windows-amd64.zip"
-          Compress-Archive -Path dist\windows\bin\* -DestinationPath "dist\windows\$zipName"
-          Write-Host "Created: $zipName"
-          Write-Host "Size: $([math]::Round((Get-Item "dist\windows\$zipName").Length / 1MB, 1)) MB"
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
-          path: dist/windows/VideoTools-*.zip
+          path: dist/windows/*.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -118,30 +163,85 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install system deps
+      - name: Cache static FFmpeg (Linux)
+        id: cache-ffmpeg-linux
+        uses: actions/cache@v4
+        with:
+          path: /opt/ffmpeg-static
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-github-v1
+
+      - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libgl1-mesa-dev \
-            libx11-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libxi-dev \
-            libxxf86vm-dev \
-            libdrm-dev \
-            libasound2-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavfilter-dev \
-            libavdevice-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libswscale-dev \
-            libpostproc-dev
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+            pkg-config nasm yasm cmake \
+            libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxinerama-dev libxi-dev libxxf86vm-dev libdrm-dev libasound2-dev \
+            wget xz-utils
 
-      - name: Build
+      - name: Setup static FFmpeg (Linux)
+        if: steps.cache-ffmpeg-linux.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          ver="${{ env.FFMPEG_VERSION }}"
+          mkdir -p /opt/ffmpeg-static/lib/pkgconfig
+          mkdir -p /opt/ffmpeg-static/include
+
+          echo "[INFO] Building x264 from source..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/opt/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          rm -rf /tmp/x264-src
+
+          echo "[INFO] Building x265 from source..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G "Unix Makefiles" \
+                -DCMAKE_INSTALL_PREFIX=/opt/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../x265-src/source
+          make -j$(nproc) && make install
+          rm -rf /tmp/x265-src /tmp/x265-build
+
+          echo 'prefix=/opt/ffmpeg-static'           > /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lm' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+
+          echo "[INFO] Building FFmpeg ${ver} from source..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=/opt/ffmpeg-static \
+            --enable-static --disable-shared --enable-pic \
+            --disable-doc --disable-programs --disable-debug \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/opt/ffmpeg-static/include' \
+            --extra-ldflags='-L/opt/ffmpeg-static/lib' \
+            || { echo "=== config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          echo "[INFO] FFmpeg ${ver} Linux build complete"
+
+      - name: Build Linux binary
+        env:
+          PKG_CONFIG_PATH: /opt/ffmpeg-static/lib/pkgconfig
         run: |
           buildVersion=$(git describe --tags --always 2>/dev/null || echo "unknown")
           ldflags="-s -w -X main.BuildVersion=$buildVersion"
@@ -196,7 +296,6 @@ jobs:
           echo "## VideoTools $tag" > dist/RELEASE_NOTES.md
           echo "" >> dist/RELEASE_NOTES.md
           if [ -f docs/CHANGELOG.md ]; then
-            # Extract the section for this version from CHANGELOG.md
             awk -v ver="${tag#v}" '/^## / { found=0 } /^## v'"${tag#v}"'/ { found=1; next } found && /^## v/ { found=0 } found' docs/CHANGELOG.md >> dist/RELEASE_NOTES.md
           fi
           echo "" >> dist/RELEASE_NOTES.md
