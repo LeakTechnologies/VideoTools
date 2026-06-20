@@ -7153,6 +7153,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 					inputFrameCount++
 				}
 			}
+			if inputFrameCount == 0 {
+				return fmt.Errorf("RIFE interpolation failed: AI upscale produced 0 frames (check source video and filter settings)")
+			}
 			rifeFramesDir := filepath.Join(workDir, "frames_rife")
 			if mkErr := os.MkdirAll(rifeFramesDir, 0o755); mkErr != nil {
 				return fmt.Errorf("create rife frames dir: %w", mkErr)
@@ -7369,13 +7372,16 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 				inputFrameCount++
 			}
 		}
+		if inputFrameCount == 0 {
+			return fmt.Errorf("RIFE interpolation failed: frame extraction produced 0 frames (check source video and filter settings)")
+		}
 		rifeArgs := []string{
 			"-i", inputFramesDir,
 			"-o", rifeFramesDir,
 			"-m", rifeModel,
 			"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
 		}
-		rifeBin2, rifeFound2 := utils.FindTool("rife-ncnn-vulkan")
+		rifeBin2, rifeFound2 := utils.VerifyTool("rife-ncnn-vulkan")
 		if !rifeFound2 {
 			return fmt.Errorf("RIFE interpolation failed: rife-ncnn-vulkan not found in PATH or app-local bin")
 		}
