@@ -1359,6 +1359,10 @@ func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
 		r.VideoPlayer.osdText,
 		r.VideoPlayer.frameTimingBg,
 		r.VideoPlayer.frameTimingText,
+		r.VideoPlayer.loadingSpinner,
+		r.VideoPlayer.bufferingLabel,
+		r.VideoPlayer.errorIndicator,
+		r.VideoPlayer.errorLabel,
 	}
 }
 
@@ -1412,6 +1416,49 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 	} else {
 		r.VideoPlayer.frameTimingBg.Hide()
 		r.VideoPlayer.frameTimingText.Hide()
+	}
+
+	// Loading spinner: centred in the video area, shown when loading a file.
+	if r.VideoPlayer.isLoading {
+		spinnerW := float32(200)
+		spinnerH := float32(6)
+		r.VideoPlayer.loadingSpinner.Resize(fyne.NewSize(spinnerW, spinnerH))
+		r.VideoPlayer.loadingSpinner.Move(fyne.NewPos((size.Width-spinnerW)/2, (size.Height-spinnerH)/2))
+		r.VideoPlayer.loadingSpinner.Show()
+	} else {
+		r.VideoPlayer.loadingSpinner.Hide()
+	}
+
+	// Buffering label: centred, just above the loading spinner area.
+	if r.VideoPlayer.isBuffering {
+		bufW := float32(160)
+		bufH := float32(32)
+		r.VideoPlayer.bufferingLabel.Resize(fyne.NewSize(bufW, bufH))
+		r.VideoPlayer.bufferingLabel.Move(fyne.NewPos((size.Width-bufW)/2, (size.Height-bufH)/2))
+		r.VideoPlayer.bufferingLabel.Show()
+	} else {
+		r.VideoPlayer.bufferingLabel.Hide()
+	}
+
+	// Error indicator: red dot + error message, centred in the video area.
+	if r.VideoPlayer.hasError {
+		indicatorSize := float32(16)
+		labelW := size.Width - float32(40)
+		if labelW < float32(100) {
+			labelW = float32(100)
+		}
+		labelH := float32(28)
+		errX := (size.Width - labelW) / float32(2)
+		errY := (size.Height-labelH)/float32(2) + indicatorSize
+		r.VideoPlayer.errorIndicator.Resize(fyne.NewSize(indicatorSize, indicatorSize))
+		r.VideoPlayer.errorIndicator.Move(fyne.NewPos(errX, errY-indicatorSize-float32(4)))
+		r.VideoPlayer.errorIndicator.Show()
+		r.VideoPlayer.errorLabel.Resize(fyne.NewSize(labelW, labelH))
+		r.VideoPlayer.errorLabel.Move(fyne.NewPos(errX, errY))
+		r.VideoPlayer.errorLabel.Show()
+	} else {
+		r.VideoPlayer.errorIndicator.Hide()
+		r.VideoPlayer.errorLabel.Hide()
 	}
 }
 

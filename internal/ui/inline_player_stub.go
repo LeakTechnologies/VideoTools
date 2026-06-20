@@ -55,6 +55,15 @@ func (v *InlineVideoPlayer) SetLoopPoints(a, b float64)          {}
 func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState)  {}
 func (v *InlineVideoPlayer) RefreshCurrentFrame()                 {}
 func (v *InlineVideoPlayer) SetFrameTimingOverlayVisible(bool)    {}
+func (v *InlineVideoPlayer) SetSeekAccuracy(sa int)                    {}
+func (v *InlineVideoPlayer) SetAudioDelay(ms float64)            {}
+func (v *InlineVideoPlayer) SetFilterPipeline(fp any)                    {}
+func (v *InlineVideoPlayer) GetLastVideoPTS() float64              { return 0 }
+func (v *InlineVideoPlayer) GetLastAudioPTS() float64              { return 0 }
+func (v *InlineVideoPlayer) Enqueue(path string)                   {}
+func (v *InlineVideoPlayer) ClearPlaylist()                        {}
+func (v *InlineVideoPlayer) PlaylistLen() int                     { return 0 }
+func (v *InlineVideoPlayer) SetPeer(other *InlineVideoPlayer)     {}
 
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	return nil, nil
