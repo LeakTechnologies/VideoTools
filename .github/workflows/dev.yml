@@ -13,7 +13,6 @@ concurrency:
 
 env:
   FFMPEG_VERSION: "7.1.1"
-  FFMPEG_CACHE_KEY: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
 
 jobs:
   linux:
@@ -32,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/ffmpeg
-          key: ${{ env.FFMPEG_CACHE_KEY }}
+          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
 
       - name: Install deps
         run: |
@@ -104,7 +103,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ${{ env.FFMPEG_CACHE_KEY }}
+          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
 
       - name: Build FFmpeg (shared + static)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
