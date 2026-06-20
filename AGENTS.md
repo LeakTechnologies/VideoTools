@@ -110,6 +110,24 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **Main Menu refactor** — *(LOW PRIORITY — deferred until engine is stable)* Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
+### GitHub Actions CI Migration (current — dev51 onward)
+
+The repo's primary CI has moved from self-hosted Forgejo to GitHub Actions.
+
+**CI workflows:**
+- `.github/workflows/dev.yml` — push to master, Linux + Windows, FFmpeg built from source
+- `.github/workflows/release.yml` — v* tags, same builds + GitHub Release
+
+**Settings decisions:**
+- FFmpeg must be built from source (no BtbN). Linux build currently skips x264/x265 (not explicitly available in archive step — restore once basic CI is green).
+- Go version: `1.26` (1.26.1 per go.mod, matches local toolchain)
+- Distro: `ubuntu-latest` (Ubuntu 24.04 Noble) — fixed `libxcb-fakekey-dev` → removed (package doesn't exist on Noble)
+- Windows uses `msys2/setup-msys2` with MSYS2 build
+
+**Status so far:**
+- Windows CI: green after `make`/`base-devel` install fix + PATH export
+- Linux CI: fixed libxcb-fakekey-dev; FFMPEG_VERSION corrected from bogus `7.1.1` to `8.1`
+
 ### Recently Shipped (dev51)
 - **P0: Error/loading/buffering overlay indicators wired** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` added to `videoPlayerRenderer.Objects()` and positioned in `Layout()`. Previously created/hidden but never rendered.
 - **P2: Stub method-set divergence fixed** — 9 missing methods added to `inline_player_stub.go`: `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`.
