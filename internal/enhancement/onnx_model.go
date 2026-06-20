@@ -1,4 +1,4 @@
-package enhancement
+﻿package enhancement
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // ONNXModel provides cross-platform AI model inference using ONNX Runtime

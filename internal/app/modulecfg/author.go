@@ -1,11 +1,11 @@
-package modulecfg
+﻿package modulecfg
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
+	"github.com/LeakTechnologies/VideoTools/internal/app/configpath"
 )
 
 type AuthorConfig struct {

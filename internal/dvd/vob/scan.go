@@ -1,4 +1,4 @@
-package vob
+﻿package vob
 
 import (
 	"encoding/binary"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // ScanVOBForNAVPCKs reads a DVD VOB file and returns the sector offset

@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 )
 
 func generatePixelatedQRCode() (fyne.CanvasObject, error) {
-	docURL := "https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki"
+	docURL := "https://github.com/LeakTechnologies/VideoTools/wiki"
 
 	// Generate QR code with large pixels for blocky look (160x160 with 8x8 pixel blocks)
 	qrBytes, err := qrcode.Encode(docURL, qrcode.Medium, 160)

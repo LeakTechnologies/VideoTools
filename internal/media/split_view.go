@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/smpte"
+	"github.com/LeakTechnologies/VideoTools/internal/smpte"
 )
 
 const (

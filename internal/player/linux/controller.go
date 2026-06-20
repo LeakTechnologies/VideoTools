@@ -1,4 +1,4 @@
-//go:build linux
+﻿//go:build linux
 
 package linux
 
@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 const playerWindowTitle = "videotools-player"

@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package compare
 
@@ -9,10 +9,10 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/media"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // BuildFullscreenView renders a side-by-side fullscreen comparison using

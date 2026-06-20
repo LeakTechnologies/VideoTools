@@ -1,4 +1,4 @@
-package udf
+﻿package udf
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // extentChunk is the read granularity for file extent copies.

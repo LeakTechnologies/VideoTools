@@ -1,11 +1,11 @@
-package main
+﻿package main
 
 import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/about"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/about"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 )
 
 func (s *appState) showAbout() {
@@ -29,7 +29,7 @@ func (s *appState) showAbout() {
 		TextColor:       textColor,
 		OpenFolder:      openFolder,
 		OpenURL:         openURL,
-		QRURL:           "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases",
+		QRURL:           "https://github.com/LeakTechnologies/VideoTools/releases",
 		WebsiteURL:      "https://leaktechnologies.dev",
 		XProfileURL:     "https://x.com/VT_VideoTools",
 		XLabel:          "X: @VT_VideoTools",

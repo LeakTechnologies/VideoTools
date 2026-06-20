@@ -1,4 +1,4 @@
-package appcfg
+﻿package appcfg
 
 import (
 	"encoding/json"
@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/sysinfo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/app/configpath"
+	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
+	"github.com/LeakTechnologies/VideoTools/internal/sysinfo"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type ConvertRecoveryState struct {

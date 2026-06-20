@@ -1,4 +1,4 @@
-package utils
+﻿package utils
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // --- FFmpeg Path Management ---

@@ -1,4 +1,4 @@
-package spu
+﻿package spu
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"image"
 	"image/color"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // SPU DCSQ command codes (DVD spec §4.6.3).

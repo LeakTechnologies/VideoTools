@@ -1,4 +1,4 @@
-package interlace
+﻿package interlace
 
 import (
 	"bufio"
@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // DetectionResult contains the results of interlacing analysis

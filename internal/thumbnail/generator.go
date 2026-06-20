@@ -1,4 +1,4 @@
-package thumbnail
+﻿package thumbnail
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // Config contains configuration for thumbnail generation

@@ -1,4 +1,4 @@
-package convert
+﻿package convert
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // FormatOption represents a video output format with its associated codec

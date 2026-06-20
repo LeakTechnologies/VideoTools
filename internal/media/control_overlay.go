@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
@@ -13,8 +13,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 )
 
 const (

@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/sysinfo"
+	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
+	"github.com/LeakTechnologies/VideoTools/internal/sysinfo"
 )
 
 // benchmarkModuleFooter builds the standard module footer used by all benchmark

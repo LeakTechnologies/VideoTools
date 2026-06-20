@@ -1,4 +1,4 @@
-package thumbnail
+﻿package thumbnail
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 var gridColor = utils.MustHex("#2A3A52")

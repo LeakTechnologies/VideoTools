@@ -1,4 +1,4 @@
-package ifo
+﻿package ifo
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // VTS_MAT represents the Video Title Set Information Management Table.

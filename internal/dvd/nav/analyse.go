@@ -1,4 +1,4 @@
-package nav
+﻿package nav
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/udf"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/udf"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // DiscTopology is the complete structural analysis of a DVD disc, extracted

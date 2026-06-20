@@ -1,4 +1,4 @@
-// Package i18n provides localization for VideoTools.
+﻿// Package i18n provides localization for VideoTools.
 //
 // Usage:
 //
@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"sync"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n/translit"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n/translit"
 )
 
 // Language describes a supported language.

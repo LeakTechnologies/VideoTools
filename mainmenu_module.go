@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"fmt"
@@ -9,11 +9,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	mainmenumodule "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/mainmenu"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	mainmenumodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/mainmenu"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // moduleLabel returns the translated label for a given module ID.

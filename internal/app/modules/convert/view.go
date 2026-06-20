@@ -1,11 +1,11 @@
-package convert
+﻿package convert
 
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 type Options struct {

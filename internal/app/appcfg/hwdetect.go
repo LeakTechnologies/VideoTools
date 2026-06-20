@@ -1,8 +1,8 @@
-//go:build native_media
+﻿//go:build native_media
 
 package appcfg
 
-import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
+import "github.com/LeakTechnologies/VideoTools/internal/media"
 
 func DetectHWDeviceType() int {
 	if !media.HWDecodeEnabled() {

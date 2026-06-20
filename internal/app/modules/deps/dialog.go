@@ -1,4 +1,4 @@
-package deps
+﻿package deps
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // Dependency describes a single external dependency that a module requires.

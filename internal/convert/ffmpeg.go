@@ -1,4 +1,4 @@
-package convert
+﻿package convert
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // FFmpegPath holds the path to the ffmpeg executable

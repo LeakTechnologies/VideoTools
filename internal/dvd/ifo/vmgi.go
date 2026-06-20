@@ -1,4 +1,4 @@
-package ifo
+﻿package ifo
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // VMG_MAT represents the Video Manager Information Management Table.

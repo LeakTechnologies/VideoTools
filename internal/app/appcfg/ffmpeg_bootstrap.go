@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package appcfg
 
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // FFmpegDllDir returns the directory where FFmpeg DLLs are expected.

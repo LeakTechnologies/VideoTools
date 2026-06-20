@@ -1,10 +1,10 @@
-package mainmenu
+﻿package mainmenu
 
 import (
 	"image/color"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type SourceModule struct {

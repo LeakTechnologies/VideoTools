@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package main
 
@@ -21,9 +21,9 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {

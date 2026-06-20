@@ -1,4 +1,4 @@
-//go:build !native_media
+﻿//go:build !native_media
 
 package ui
 
@@ -6,8 +6,8 @@ import (
 	"image"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/state"
+	"github.com/LeakTechnologies/VideoTools/internal/media"
+	"github.com/LeakTechnologies/VideoTools/internal/media/state"
 )
 
 type InlineVideoPlayer struct{}

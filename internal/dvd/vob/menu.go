@@ -1,10 +1,10 @@
-package vob
+﻿package vob
 
 import (
 	"fmt"
 	"os"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // CreateMinimalMenuVOB writes a single-sector VIDEO_TS.VOB containing one

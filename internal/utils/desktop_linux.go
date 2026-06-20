@@ -1,4 +1,4 @@
-//go:build linux
+﻿//go:build linux
 
 package utils
 
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // EnsureLinuxDesktopEntry installs a user-level desktop entry and icon so GNOME can

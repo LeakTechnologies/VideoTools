@@ -33,8 +33,8 @@ Built for **Linux and Windows** — macOS is not supported.
 
 Under active development (`v0.1.1-dev49`). See **[Interactive Roadmap](docs/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail.
 
-- **Dev builds:** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
-- **Public releases:** https://github.com/LeakTechnologies/VideoTools
+- **Dev builds:** https://github.com/LeakTechnologies/VideoTools/actions
+- **Public releases:** https://github.com/LeakTechnologies/VideoTools/releases
 
 ## Output Formats
 
@@ -190,7 +190,7 @@ VIDEOTOOLS_DEBUG=1 ./VideoTools
 2. **docs/INSTALLATION.md** — setup guide
 3. **docs/ROADMAP.md** — planned work
 4. **docs/CHANGELOG.md** — release history
-5. **Issue tracker:** https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues
+5. **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
 
 ## Credits
 

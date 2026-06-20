@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"fmt"
@@ -13,11 +13,11 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/player"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/nav"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/player"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/nav"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showPlayerViewForPath(path string) {

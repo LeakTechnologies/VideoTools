@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
@@ -11,7 +11,7 @@ import "C"
 import (
 	"image"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // ensureSwsCtx lazily creates e.swsCtx using the actual pixel format of the

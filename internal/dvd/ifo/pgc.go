@@ -1,11 +1,11 @@
-package ifo
+﻿package ifo
 
 import (
 	"bytes"
 	"encoding/binary"
 	"math"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // pgcHeaderSize is the fixed byte size of a PGC header on disc.

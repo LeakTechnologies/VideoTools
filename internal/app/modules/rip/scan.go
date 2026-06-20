@@ -1,4 +1,4 @@
-package rip
+﻿package rip
 
 import (
 	"bytes"
@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/udf"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/udf"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // classifyDiscType returns a human-readable disc type string based on total

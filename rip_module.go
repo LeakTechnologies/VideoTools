@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	ripmod "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/rip"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	ripmod "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showRipView() {

@@ -1,4 +1,4 @@
-package benchmark
+﻿package benchmark
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // perTestTimeout is the maximum time allowed for a single encoder test.

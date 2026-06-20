@@ -1,11 +1,11 @@
-package upscale
+﻿package upscale
 
 import (
 	"fmt"
 	"os/exec"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 type ModelFamily int

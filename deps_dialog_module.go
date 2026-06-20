@@ -1,7 +1,7 @@
-package main
+﻿package main
 
 import (
-	depsmodule "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/deps"
+	depsmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/deps"
 )
 
 func (s *appState) showMissingDependenciesDialog(moduleID string) {
