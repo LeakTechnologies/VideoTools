@@ -87,6 +87,8 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            make
+            base-devel
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-pkg-config
             mingw-w64-ucrt-x86_64-cmake
@@ -107,6 +109,7 @@ jobs:
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
+          export PATH="/ucrt64/bin:/usr/bin:$PATH"
           curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ
           cd ffmpeg-${FFMPEG_VERSION}
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
