@@ -235,8 +235,6 @@ type VideoPlayer struct {
 	speedBtn       *vtheme.PillButton
 	prevChapterBtn *vtheme.PillIconButton
 	nextChapterBtn *vtheme.PillIconButton
-	fullscreenBtn  *vtheme.PillButton
-	pipBtn         *vtheme.PillIconButton
 	subtitleBtn    *vtheme.PillButton
 	loadingSpinner *widget.ProgressBarInfinite
 	bufferingLabel *widget.Label
@@ -249,8 +247,6 @@ type VideoPlayer struct {
 	isLoading        bool
 	isBuffering      bool
 	isSeeking        bool
-	isFullscreen     bool
-	isPiP            bool
 	subtitlesEnabled bool
 	hasError         bool
 	errorMessage     string
@@ -278,8 +274,6 @@ type VideoPlayer struct {
 	onSpeedChange   func(float64)
 	onPrevChapter   func()
 	onNextChapter   func()
-	onFullscreen    func(bool)
-	onPiP           func()
 	onSubtitles     func(bool)
 	onTapEmpty      func() // called when tapped with no video loaded
 	idleText        string // overlay text shown by SMPTE bars when source is nil
@@ -411,10 +405,6 @@ func (v *VideoPlayer) buildControls() {
 	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
 	v.errorLabel.Hide()
 
-	v.fullscreenBtn = vtheme.MakePillButton("⛶", vtheme.TextMuted, v.toggleFullscreen)
-
-	v.pipBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
-
 	v.subtitleBtn = vtheme.MakePillButton("CC", vtheme.TextMuted, v.toggleSubtitles)
 
 	v.markerCanvas = canvas.NewRaster(v.drawMarkers)
@@ -429,7 +419,6 @@ func (v *VideoPlayer) buildControls() {
 			v.speedBtn,
 			v.volumeBtn,
 			v.volumeSlider,
-			v.fullscreenBtn,
 		)
 		v.controlBar = canvas.NewRectangle(controlBarBG)
 		v.controlBar.CornerRadius = 0
@@ -452,8 +441,6 @@ func (v *VideoPlayer) buildControls() {
 			v.volumeBtn,
 			v.volumeSlider,
 			v.subtitleBtn,
-			v.pipBtn,
-			v.fullscreenBtn,
 		)
 		v.controlBar = canvas.NewRectangle(controlBarBG)
 		v.controlBar.CornerRadius = 0
@@ -1049,59 +1036,6 @@ func (v *VideoPlayer) refreshMarkers() {
 	if v.markerCanvas != nil {
 		v.markerCanvas.Refresh()
 	}
-}
-
-func (v *VideoPlayer) toggleFullscreen() {
-	v.isFullscreen = !v.isFullscreen
-	if v.fullscreenBtn != nil {
-		if v.isFullscreen {
-			v.fullscreenBtn.SetText("❎")
-		} else {
-			v.fullscreenBtn.SetText("⛶")
-		}
-	}
-	if v.onFullscreen != nil {
-		v.onFullscreen(v.isFullscreen)
-	}
-}
-
-func (v *VideoPlayer) SetFullscreen(fullscreen bool) {
-	if v.isFullscreen == fullscreen {
-		return
-	}
-	v.toggleFullscreen()
-}
-
-func (v *VideoPlayer) IsFullscreen() bool {
-	return v.isFullscreen
-}
-
-func (v *VideoPlayer) OnFullscreen(cb func(bool)) {
-	v.onFullscreen = cb
-}
-
-func (v *VideoPlayer) OnPiP(cb func()) {
-	v.onPiP = cb
-}
-
-func (v *VideoPlayer) togglePiP() {
-	v.isPiP = !v.isPiP
-	if v.pipBtn != nil {
-		v.pipBtn.Active = v.isPiP
-		v.pipBtn.Refresh()
-	}
-	if v.onPiP != nil {
-		v.onPiP()
-	}
-	logging.Info(logging.CatPlayer, "PiP toggled: %v", v.isPiP)
-}
-
-func (v *VideoPlayer) IsPiP() bool {
-	return v.isPiP
-}
-
-func (v *VideoPlayer) OnSubtitles(cb func(bool)) {
-	v.onSubtitles = cb
 }
 
 func (v *VideoPlayer) toggleSubtitles() {
