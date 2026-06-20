@@ -48,7 +48,7 @@ jobs:
           curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ -C /tmp/ffmpeg-src --strip=1
           cd /tmp/ffmpeg-src
           ./configure --prefix=/opt/ffmpeg --enable-static --disable-shared \
-            --disable-programs --disable-doc --enable-libx264 --enable-libx265 \
+            --disable-programs --disable-doc \
             --enable-gpl --enable-version3 --pkg-config-flags="--static"
           make -j$(nproc)
           make install
