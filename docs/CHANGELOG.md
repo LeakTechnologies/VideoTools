@@ -11,6 +11,7 @@
 - **CC button wired to subtitle engine** — `InlineVideoPlayer.NewInlineVideoPlayer()` now wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling subtitles (first available track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
 - **Orphaned `internal/media/gpu/` package removed** — 8 Go files, 3 GLSL shaders, zero imports.
 - **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
+- **P1: UDF thread safety** — `partitionStartAbs` was read/written without mutex protection in 9 locations (1 write in `findLVD`, 8 reads throughout). Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers; replaced all direct field access. Added `SetProgressCallback()` for per-file extraction progress reporting. `iso_udf.go` now uses `defer reader.Cleanup()` for correct cleanup on all paths.
 
 ## v0.1.1-dev50 (June 2026)
 

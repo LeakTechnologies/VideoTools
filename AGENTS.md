@@ -83,7 +83,7 @@ All items in `internal/dvd/udf/` and `internal/app/modules/rip/`.
 | Task | File(s) | Status |
 |------|---------|--------|
 | UDF reader robustness: ShortAd allocation descriptor parsing, partition offset on all LBNs, extractFile/ReadFileData from ICB InformationLength | `internal/dvd/udf/reader.go` | **SHIPPED** |
-| Thread safety & progress: mutex-guarded Reader, progress callbacks, temp file cleanup | `internal/dvd/udf/reader.go`, `internal/app/modules/rip/iso_udf.go` | Planned |
+| Thread safety & progress: mutex-guarded Reader, progress callbacks, temp file cleanup | `internal/dvd/udf/reader.go`, `internal/app/modules/rip/iso_udf.go` | **SHIPPED** |
 | C disc debug utility (hex dump, dir listing, stat) | `internal/media/disc_debug.{c,h,go}` | **SHIPPED** |
 | `NoInheritHandles` on Windows subprocess creation — fixes "file in use" after conversion | `internal/utils/exec_windows.go` | **SHIPPED** |
 | `Queue.Stop()` cancels running job — fixes zombie FFmpeg on clean VT shutdown | `internal/queue/queue.go` | **SHIPPED** |
@@ -576,10 +576,10 @@ All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no B
 - P2: CC button wired — `OnSubtitles` callback now connected to `SelectSubtitleTrack(0)`/`DisableSubtitles()` in `InlineVideoPlayer`.
 - Orphaned `internal/media/gpu/` package deleted (8 Go files, 3 shaders, zero imports).
 - P1: view.go component split — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
+- **P1: UDF thread safety & progress** — `partitionStartAbs` was read/written without mutex in 9 locations. Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers, replaced all direct access. Added `SetProgressCallback()` for per-file extraction progress. `iso_udf.go` now uses `defer reader.Cleanup()` for correct cleanup on all paths.
+- Player interface extraction **deferred** — 47 call sites, `Widget()` returns CGo type, current stub pattern handles build-tag isolation adequately.
 
 Open items (in priority order):
 
-1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
-2. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
-3. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
-4. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
+1. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
+2. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
