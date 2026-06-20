@@ -19,35 +19,10 @@ import (
 var primaryInlinePlayer *ui.InlineVideoPlayer // single player for all single-playback modules
 var previewPlayer *ui.InlineVideoPlayer       // preview player for Filters/Upscale comparison
 
-// Legacy vars — all point to primaryInlinePlayer or previewPlayer.
-// Kept for backward compat during migration; remove after all callers updated.
-var convertInlinePlayer *ui.InlineVideoPlayer
-var convertPreviewPlayer *ui.InlineVideoPlayer
-var trimInlinePlayer *ui.InlineVideoPlayer
-var inspectInlinePlayer *ui.InlineVideoPlayer
-var subtitleInlinePlayer *ui.InlineVideoPlayer
-var upscaleInlinePlayer *ui.InlineVideoPlayer
-var audioInlinePlayer *ui.InlineVideoPlayer
-var filtersInlinePlayer *ui.InlineVideoPlayer
-var filtersPreviewPlayer *ui.InlineVideoPlayer
-var upscalePreviewPlayer *ui.InlineVideoPlayer
-
 func init() {
 	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
 	primaryInlinePlayer = ui.NewInlineVideoPlayer()
 	previewPlayer = ui.NewInlineVideoPlayer()
-
-	// All module-specific vars point to the consolidated instances
-	convertInlinePlayer = primaryInlinePlayer
-	convertPreviewPlayer = previewPlayer
-	trimInlinePlayer = primaryInlinePlayer
-	inspectInlinePlayer = primaryInlinePlayer
-	subtitleInlinePlayer = primaryInlinePlayer
-	upscaleInlinePlayer = primaryInlinePlayer
-	audioInlinePlayer = primaryInlinePlayer
-	filtersInlinePlayer = primaryInlinePlayer
-	filtersPreviewPlayer = previewPlayer
-	upscalePreviewPlayer = previewPlayer
 
 	// Mirror play/pause/seek from primary to preview; disable preview controls
 	// so both players are driven by the primary's transport bar only.
@@ -152,8 +127,6 @@ func GetPreviewPlayer() *ui.InlineVideoPlayer {
 	return previewPlayer
 }
 
-// Legacy getters — forward to consolidated players.
-// Kept for backward compat during migration; remove after all callers updated.
 func GetConvertPlayer() *ui.InlineVideoPlayer {
 	return GetPrimaryPlayer()
 }
@@ -197,29 +170,29 @@ func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer {
 // loadFiltersVideo loads path into both the original and preview filters players.
 // The preview player gets the current filter pipeline applied after load.
 func (s *appState) loadFiltersVideo(path string) {
-	if err := filtersInlinePlayer.Load(path); err != nil {
+	if err := GetFiltersPlayer().Load(path); err != nil {
 		logging.Error(logging.CatPlayer, "loadFiltersVideo: %v", err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
 		}, false)
 	}
-	if err := filtersPreviewPlayer.Load(path); err != nil {
+	if err := GetFiltersPreviewPlayer().Load(path); err != nil {
 		logging.Error(logging.CatPlayer, "loadFiltersPreviewVideo: %v", err)
 		return
 	}
-	filtersPreviewPlayer.SetMuted(true)
+	GetFiltersPreviewPlayer().SetMuted(true)
 	s.applyFiltersPreview()
 }
 
 // applyFiltersPreview rebuilds the filter pipeline from the current appState
 // filter settings and applies it to the preview player, then forces a re-decode.
 func (s *appState) applyFiltersPreview() {
-	if filtersPreviewPlayer == nil {
+	if GetFiltersPreviewPlayer() == nil {
 		return
 	}
 	pipeline := s.buildFiltersPreviewPipeline()
-	filtersPreviewPlayer.SetFilterPipeline(pipeline)
-	filtersPreviewPlayer.RefreshCurrentFrame()
+	GetFiltersPreviewPlayer().SetFilterPipeline(pipeline)
+	GetFiltersPreviewPlayer().RefreshCurrentFrame()
 }
 
 // buildFiltersPreviewPipeline constructs a FilterPipeline from the current
@@ -276,21 +249,21 @@ func (s *appState) buildFiltersPreviewPipeline() *mediafilters.FilterPipeline {
 }
 
 func (s *appState) loadUpscalePreviewVideo(path string) {
-	if err := upscalePreviewPlayer.Load(path); err != nil {
+	if err := GetUpscalePreviewPlayer().Load(path); err != nil {
 		logging.Error(logging.CatPlayer, "loadUpscalePreviewVideo: %v", err)
 		return
 	}
-	upscalePreviewPlayer.SetMuted(true)
+	GetUpscalePreviewPlayer().SetMuted(true)
 	s.applyUpscalePreview()
 }
 
 func (s *appState) applyUpscalePreview() {
-	if upscalePreviewPlayer == nil {
+	if GetUpscalePreviewPlayer() == nil {
 		return
 	}
 	pipeline := s.buildFiltersPreviewPipeline()
-	upscalePreviewPlayer.SetFilterPipeline(pipeline)
-	upscalePreviewPlayer.RefreshCurrentFrame()
+	GetUpscalePreviewPlayer().SetFilterPipeline(pipeline)
+	GetUpscalePreviewPlayer().RefreshCurrentFrame()
 }
 
 func initNativeMediaAssets(s *appState) {
@@ -324,7 +297,7 @@ func (s *appState) loadVideoNative(path string) {
 			logging.Error(logging.CatPlayer, "panic in loadVideoNative: %v", r)
 		}
 	}()
-	if err := convertInlinePlayer.Load(path); err != nil {
+	if err := GetConvertPlayer().Load(path); err != nil {
 		logging.Error(logging.CatPlayer, "loadVideoNative failed: path=%s err=%v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
@@ -333,66 +306,55 @@ func (s *appState) loadVideoNative(path string) {
 }
 
 func (s *appState) playNative() {
-	convertInlinePlayer.Play()
+	GetConvertPlayer().Play()
 }
 
 func (s *appState) pauseNative() {
-	convertInlinePlayer.Pause()
+	GetConvertPlayer().Pause()
 }
 
 func (s *appState) seekNative(target float64) {
-	convertInlinePlayer.Seek(target)
+	GetConvertPlayer().Seek(target)
 }
 
 func (s *appState) stepFrameNative(dir int) {
-	convertInlinePlayer.StepFrame(dir)
+	GetConvertPlayer().StepFrame(dir)
 }
 
 func (s *appState) scrubNative(target float64) {
-	convertInlinePlayer.ScrubTo(target)
+	GetConvertPlayer().ScrubTo(target)
 }
 
 func (s *appState) renderDualPlayerPreview(seconds float64, duration time.Duration) {
-	// Renders 5 seconds of processed video at the seek position called from upscale module
-	logging.Info(logging.CatPlayer, "renderDualPlayerPreview: pos=%.1fs duration=%v", seconds, duration)
-	
-	if s.upscaleFile == nil {
-		logging.Warning(logging.CatPlayer, "renderDualPlayerPreview: no source file loaded")
-		return
-	}
-	
-	// TODO: Implement actual FFmpeg rendering with filter/AI settings
-	// 1. Get current filter chain or AI settings
-	// 2. Run FFmpeg to render segment 
-	// 3. Load result into convertPreviewPlayer
+	logging.Warning(logging.CatPlayer, "renderDualPlayerPreview: not yet implemented (pos=%.1fs duration=%v)", seconds, duration)
 }
 
 func (s *appState) selectAudioTrackNative(idx int) {
-	if err := convertInlinePlayer.SelectAudioTrack(idx); err != nil {
+	if err := GetConvertPlayer().SelectAudioTrack(idx); err != nil {
 		logging.Error(logging.CatPlayer, "SelectAudioTrack(%d): %v", idx, err)
 	}
 }
 
 func (s *appState) setVolumeNative(vol float64) {
-	convertInlinePlayer.SetVolume(vol)
+	GetConvertPlayer().SetVolume(vol)
 }
 
 func (s *appState) setMutedNative(muted bool) {
-	convertInlinePlayer.SetMuted(muted)
+	GetConvertPlayer().SetMuted(muted)
 }
 
 func (s *appState) selectSubtitleTrackNative(idx int) {
 	if idx < 0 {
-		convertInlinePlayer.DisableSubtitles()
+		GetConvertPlayer().DisableSubtitles()
 		return
 	}
-	if err := convertInlinePlayer.SelectSubtitleTrack(idx); err != nil {
+	if err := GetConvertPlayer().SelectSubtitleTrack(idx); err != nil {
 		logging.Error(logging.CatPlayer, "SelectSubtitleTrack(%d): %v", idx, err)
 	}
 }
 
 func (s *appState) closeNativePlayer() {
-	convertInlinePlayer.Close()
+	GetConvertPlayer().Close()
 }
 
 func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, *ui.InlineVideoPlayer) {
