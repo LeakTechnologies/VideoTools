@@ -49,7 +49,12 @@ Update this file whenever a player issue is found or fixed.
 
 ---
 
-## Known Issues (dev50)
+## Known Issues (dev51)
+
+### P0 — User-visible bugs
+
+- [x] **Error/loading/buffering overlay indicators never rendered** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` were created and mutated by `SetLoading`/`SetBuffering`/`SetError`/`ClearError` but never included in `videoPlayerRenderer.Objects()` or positioned in `Layout()`. Callers like `inline_player.go:380` and `inline_player.go:983` called `SetError(...)` / `SetLoading(true)` but the user never saw anything. Fixed: all four widgets added to `Objects()`, `Layout()` positions them centred over the video area with proper z-ordering. Loading spinner shows during file open, buffering label shows during buffer underrun, red circle + error message shows on decode/stream errors.
+- [x] **Stub method-set divergence** — `inline_player_stub.go` was missing `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`. All nine methods added to the stub so both build targets have the identical method set.
 
 ### P1 — Playback correctness
 
