@@ -10,6 +10,7 @@
 - **P2: Cosmetic fullscreen/PiP buttons removed** — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` flipped booleans and buttons but never entered fullscreen or picture-in-picture. Removed from struct, methods, and control bar layout.
 - **P2: CC button wired to engine** — `toggleSubtitles()` now calls `OnSubtitles` callback. `InlineVideoPlayer.NewInlineVideoPlayer()` wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling (first available subtitle track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
 - **Orphaned GPU package removed** — `internal/media/gpu/` (8 Go files, 3 GLSL shaders) and `docs/gpu/` (5 docs) deleted. Zero imports confirmed.
+- **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
 
 ## Version 0.1.1-dev50 (in progress)
 

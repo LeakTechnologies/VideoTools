@@ -118,6 +118,8 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **P2: CC button wired to engine** — `OnSubtitles` callback connected to `SelectSubtitleTrack(0)`/`DisableSubtitles()` in `InlineVideoPlayer`.
 - **Orphaned `internal/media/gpu/` deleted** — 8 Go files, 3 shaders, 5 docs, zero imports.
 
+- **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
+
 ### Recently Shipped (dev50)
 - **Engine-level bwdif deinterlace** — `internal/media/deinterlace.go` with libavfilter filter graph. Applied in `videoDecodeLoop` / `GrabFrame` when `AV_FRAME_FLAG_INTERLACED` set. `bwdif=mode=0:parity=-1:deint=0` auto field-order detection, full-rate output, flagged frames only. `toRGBA(src *C.AVFrame)` signature extended for direct filtered frame conversion. Settings toggle in Player section (default on), persisted in `PrefsConfig.AutoDeinterlace`. i18n keys in all four locales.
 - **disc_debug.c double-include fix** — Removed `#include "disc_debug.c"` from `disc_debug.go` C preamble (CGo auto-compiles `.c` files; the `#include` caused duplicate symbols at link time). Added `#include <stdlib.h>` for `C.free`.
@@ -573,11 +575,11 @@ All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no B
 - P2: Cosmetic fullscreen/PiP buttons removed — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` removed from `VideoPlayer`. These flipped booleans but never entered fullscreen or PiP.
 - P2: CC button wired — `OnSubtitles` callback now connected to `SelectSubtitleTrack(0)`/`DisableSubtitles()` in `InlineVideoPlayer`.
 - Orphaned `internal/media/gpu/` package deleted (8 Go files, 3 shaders, zero imports).
+- P1: view.go component split — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
 
 Open items (in priority order):
 
 1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
-2. **view.go component split** — break `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (prerequisite for new overlay features)
-3. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
-4. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
-5. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
+2. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
+3. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
+4. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
