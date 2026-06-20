@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+## v0.1.1-dev51 (June 2026)
+
+### Player Overlay & Cleanup
+
+- **P0: Error/loading/buffering overlay indicators now render** — the four widgets (`loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator`) were created and hidden/shown by `SetLoading`/`SetBuffering`/`SetError`/`ClearError`, but never added to the renderer's `Objects()` or positioned in `Layout()`. Now render centred over the video with proper z-ordering.
+- **Stub method-set divergence fixed** — added 9 missing methods to `inline_player_stub.go`: `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`.
+- **Dead fields/callbacks removed from VideoPlayer** — `OnFrameRate`, `OnChapterSelect`, `OnHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark` — all declared but never used or wired.
+- **Cosmetic fullscreen/PiP buttons removed** — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` removed. These flipped booleans and buttons but never entered fullscreen or picture-in-picture.
+- **CC button wired to subtitle engine** — `InlineVideoPlayer.NewInlineVideoPlayer()` now wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling subtitles (first available track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
+- **Orphaned `internal/media/gpu/` package removed** — 8 Go files, 3 GLSL shaders, zero imports.
+
 ## v0.1.1-dev50 (June 2026)
 
 ### Windows DLL Pipeline Overhaul (BUG-012 + BUG-013 fix)
