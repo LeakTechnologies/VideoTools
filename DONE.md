@@ -1,5 +1,16 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev51 (in progress)
+
+### Player Overlay & Cleanup (dev51)
+
+- **P0: Error/loading/buffering overlay indicators wired** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` were created and mutated by `SetLoading()`/`SetBuffering()`/`SetError()`/`ClearError()` but never added to `videoPlayerRenderer.Objects()` or positioned in `Layout()`. Now all four widgets render centred over the video area with proper z-ordering. Loading spinner shows during file open, buffering label during buffer underrun, red circle + error message on decode/stream errors.
+- **P2: Stub method-set divergence fixed** — `inline_player_stub.go` was missing 9 methods (`SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`). All added so both build targets expose the identical method set.
+- **P2: Dead fields/callbacks removed from VideoPlayer** — `OnFrameRate`/`onFrameRate`, `OnChapterSelect`/`onChapterSelect`, `OnHover`/`onHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark` — all declared but never used or wired. Removed from struct and methods.
+- **P2: Cosmetic fullscreen/PiP buttons removed** — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` flipped booleans and buttons but never entered fullscreen or picture-in-picture. Removed from struct, methods, and control bar layout.
+- **P2: CC button wired to engine** — `toggleSubtitles()` now calls `OnSubtitles` callback. `InlineVideoPlayer.NewInlineVideoPlayer()` wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling (first available subtitle track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
+- **Orphaned GPU package removed** — `internal/media/gpu/` (8 Go files, 3 GLSL shaders) and `docs/gpu/` (5 docs) deleted. Zero imports confirmed.
+
 ## Version 0.1.1-dev50 (in progress)
 
 ### Windows DLL Pipeline Overhaul (BUG-012 + BUG-013)

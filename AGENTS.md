@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev50` — **Media Engine gap closure complete. All 11 Phase 1 items shipped. HW decode default-on + error concealment shipped. Playlist, HDR tone-mapping, UDF reader fixes, collapsible player panel (all five player modules: Convert/Filters/Upscale/Inspect/Trim), logging improvements, CI DLL cache hardening, and updater sidecar refresh all shipped.** Priorities below.
+- Current cycle: `v0.1.1-dev51` — **Player overlay & cleanup: P0 error/loading/buffering overlay indicators wired, P2 stub divergence fixed, P2 dead fields removed, P2 cosmetic fullscreen/PiP buttons removed, P2 CC button wired to SelectSubtitleTrack/DisableSubtitles, orphaned GPU package deleted.** Priorities below.
 - Public/stable baseline: `v0.1.1`.
 - `dev49` shipped: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS; WaitVsync removed from playbackLoop. Player default aspect ratio setting (4:3/16:9/5:3/21:9/9:16 idle SMPTE bars). Seek corruption fix: accurate fallback uses AVSEEK_FLAG_BACKWARD. Player singleton consolidation: 10 per-module singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Engine-level bwdif deinterlace (libavfilter, Settings toggle default on). Thread safety formalisation (mu→formatMu→videoCodecMu→framepoolMu hierarchy, named helpers, lockdep build-tag). Rip module: menu VOB bleed fixed, chapter diagnostics, menu preservation, main/extra title naming, disc info to Source section, single browse button, format validation. C disc debug utility. Inuktitut transliteration package (internal/i18n/translit/) with iutools algorithm. Rip/Convert layout: buildRipBox sections, BuildCollapsibleHeader component, collapsible metadata/settings/log panels. Queue: blocking dialog removed, goroutine self-exit fixed. Log session rotation + Clear/Open in Settings. Dropdown active item text: ForegroundOnPrimary on VT_Green. Process management: NoInheritHandles (file-in-use fix), Queue.Stop() cancellation (zombie fix), Windows Job Object KILL_ON_JOB_CLOSE, Linux Pdeathsig:SIGKILL.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton. VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
@@ -110,7 +110,15 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **Main Menu refactor** — *(LOW PRIORITY — deferred until engine is stable)* Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
-### Recently Shipped (dev49)
+### Recently Shipped (dev51)
+- **P0: Error/loading/buffering overlay indicators wired** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` added to `videoPlayerRenderer.Objects()` and positioned in `Layout()`. Previously created/hidden but never rendered.
+- **P2: Stub method-set divergence fixed** — 9 missing methods added to `inline_player_stub.go`: `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`.
+- **P2: Dead VideoPlayer fields/callbacks removed** — `OnFrameRate`/`onFrameRate`, `OnChapterSelect`/`onChapterSelect`, `OnHover`/`onHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark`. All declared but never used or wired.
+- **P2: Cosmetic fullscreen/PiP buttons removed** — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn`. These flipped booleans but never entered fullscreen or PiP.
+- **P2: CC button wired to engine** — `OnSubtitles` callback connected to `SelectSubtitleTrack(0)`/`DisableSubtitles()` in `InlineVideoPlayer`.
+- **Orphaned `internal/media/gpu/` deleted** — 8 Go files, 3 shaders, 5 docs, zero imports.
+
+### Recently Shipped (dev50)
 - **Engine-level bwdif deinterlace** — `internal/media/deinterlace.go` with libavfilter filter graph. Applied in `videoDecodeLoop` / `GrabFrame` when `AV_FRAME_FLAG_INTERLACED` set. `bwdif=mode=0:parity=-1:deint=0` auto field-order detection, full-rate output, flagged frames only. `toRGBA(src *C.AVFrame)` signature extended for direct filtered frame conversion. Settings toggle in Player section (default on), persisted in `PrefsConfig.AutoDeinterlace`. i18n keys in all four locales.
 - **disc_debug.c double-include fix** — Removed `#include "disc_debug.c"` from `disc_debug.go` C preamble (CGo auto-compiles `.c` files; the `#include` caused duplicate symbols at link time). Added `#include <stdlib.h>` for `C.free`.
 
@@ -558,16 +566,18 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 
 All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no BtbN dependency). **Current priority: player widget correctness, then engine completeness.**
 
-**Recently shipped:** DLL pipeline overhaul (BUG-012 + BUG-013) — all three CI pipelines now build FFmpeg shared from source, BtbN eliminated, `ExpectedFFmpegDLLs()` uses glob patterns. GPU render branch removed (orphaned, zero imports). `internal/media/gpu/` and `docs/gpu/` deleted.
+**Shipped this cycle:**
+- P0: Error/loading/buffering overlay indicators wired into `Objects()` and `Layout()` — loading spinner, buffering label, and red-circle+message error indicator now render centred over the video.
+- P2: Stub method-set divergence fixed — 9 missing methods added to `inline_player_stub.go`.
+- P2: Dead fields/callbacks removed from `VideoPlayer` — `OnFrameRate`, `OnChapterSelect`, `OnHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark`. (`subtitleBgAlpha` kept — actively used in `subtitle_engine.go`.)
+- P2: Cosmetic fullscreen/PiP buttons removed — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` removed from `VideoPlayer`. These flipped booleans but never entered fullscreen or PiP.
+- P2: CC button wired — `OnSubtitles` callback now connected to `SelectSubtitleTrack(0)`/`DisableSubtitles()` in `InlineVideoPlayer`.
+- Orphaned `internal/media/gpu/` package deleted (8 Go files, 3 shaders, zero imports).
 
 Open items (in priority order):
 
-1. **P0: Wire error/loading/buffering overlay indicators** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` exist in `VideoPlayer` but are never added to `Objects()` or positioned in `Layout()`. Callers like `inline_player.go` call `SetError()`/`SetLoading()` but the user never sees anything. Highest-impact player bug.
-2. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
-3. **P2: Fix stub method-set divergence** — `inline_player_stub.go` is missing `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`. Violates AGENTS rule that stubs must expose identical method set.
-4. **P2: Remove dead fields/callbacks in view.go** — `OnFrameRate`/`onFrameRate`, `OnChapterSelect`/`onChapterSelect`, `OnHover`/`GetHoverFrame`, `subtitleBgAlpha`, `chapterMark`, `displayFrame`/`displayWidth`/`displayHeight`, `frameSeq`/`lastFrameSeq` — all declared but never used or wired.
-5. **P2: Wire or remove cosmetic transport buttons** — `OnFullscreen`/`toggleFullscreen` (flips bool, never enters fullscreen), `OnPiP`/`togglePiP` (no PiP implementation), `OnSubtitles`/`toggleSubtitles` (real sub switching uses `SelectSubtitleTrack`, not the widget button).
-6. **view.go component split** — break 1509-line `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (prerequisite for P0 fix and any new overlay features)
-7. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
-8. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
-9. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
+1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
+2. **view.go component split** — break `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (prerequisite for new overlay features)
+3. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
+4. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
+5. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
