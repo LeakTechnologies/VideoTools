@@ -23,16 +23,41 @@ const extentChunk = 1 << 20 // 1 MB
 type Reader struct {
 	mu                sync.Mutex
 	rs                io.ReadSeeker
-	partitionStartAbs uint32 // absolute sector where the UDF partition starts (from PD)
+	partitionStartAbs uint32 // absolute sector where the UDF partition starts (from PD); guarded by mu
 	tempFiles         []string
+	progress          func(totalFiles, doneFiles int, currentFile string, bytesWritten, totalBytes int64)
 }
 
-// NewReader creates a new UDF reader.
+// NewReader creates a new UDF reader. The optional progress callback is called
+// during extraction with (totalFiles, doneFiles, currentFileName, bytesWritten, totalBytes).
 func NewReader(rs io.ReadSeeker) *Reader {
 	return &Reader{
 		rs:                rs,
 		partitionStartAbs: partitionStart, // default fallback
 	}
+}
+
+// SetProgressCallback registers a progress callback called during ExtractDirectory.
+// The callback receives (totalFiles, doneFiles, currentFileName, bytesWritten, totalBytes).
+// It is called from the extraction goroutine; callers must not block.
+func (r *Reader) SetProgressCallback(fn func(totalFiles, doneFiles int, currentFile string, bytesWritten, totalBytes int64)) {
+	r.mu.Lock()
+	r.progress = fn
+	r.mu.Unlock()
+}
+
+// partitionStart returns the absolute partition start sector, protected by the mutex.
+func (r *Reader) partitionStart() uint32 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.partitionStartAbs
+}
+
+// setPartitionStart sets the absolute partition start sector, protected by the mutex.
+func (r *Reader) setPartitionStart(v uint32) {
+	r.mu.Lock()
+	r.partitionStartAbs = v
+	r.mu.Unlock()
 }
 
 // Cleanup removes any temp files created during a partial or cancelled ExtractDirectory.
@@ -45,6 +70,16 @@ func (r *Reader) Cleanup() {
 	r.mu.Unlock()
 	for _, f := range files {
 		os.Remove(f)
+	}
+}
+
+// reportProgress calls the progress callback if one is set. Safe to call from any goroutine.
+func (r *Reader) reportProgress(totalFiles, doneFiles int, currentFile string, bytesWritten, totalBytes int64) {
+	r.mu.Lock()
+	fn := r.progress
+	r.mu.Unlock()
+	if fn != nil {
+		fn(totalFiles, doneFiles, currentFile, bytesWritten, totalBytes)
 	}
 }
 
@@ -100,7 +135,8 @@ func IdentifyDiscFormat(path string) (DiscType, error) {
 
 // ExtractDirectory extracts a directory (like VIDEO_TS) from the ISO to a local path.
 // ctx may be used to cancel mid-flight; call Cleanup() afterwards to remove any
-// partially written files.
+// partially written files. If a progress callback was set via SetProgressCallback,
+// it will be called during file extraction with per-file byte progress.
 func (r *Reader) ExtractDirectory(ctx context.Context, targetDir, destPath string) error {
 	logging.Info(logging.CatDVD, "Extracting directory %s from ISO to %s", targetDir, destPath)
 
@@ -231,7 +267,7 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 			pd := &PartitionDescriptor{}
 			if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, pd); err == nil {
 				if pd.PartitionStartingLocation > 0 {
-					r.partitionStartAbs = pd.PartitionStartingLocation
+					r.setPartitionStart(pd.PartitionStartingLocation)
 					logging.Debug(logging.CatDVD, "VDS sector %d (abs %d): PD start=%d len=%d",
 						i, sector, pd.PartitionStartingLocation, pd.PartitionLength)
 				}
@@ -260,7 +296,7 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 func (r *Reader) findFSD(lvd *LogicalVolumeDescriptor) (*FileSetDescriptor, error) {
 	// FSD is normally at partition LBN 0 (absolute sector partitionStart = 257).
 	// Try both the standard location and decode the LogicalVolumeContentsUse LongAd.
-	sectorsToTry := []uint32{r.partitionStartAbs}
+	sectorsToTry := []uint32{r.partitionStart()}
 
 	if lvd.LogicalVolumeContentsUse[0] != 0 || lvd.LogicalVolumeContentsUse[1] != 0 {
 		fsdLen := binary.LittleEndian.Uint32(lvd.LogicalVolumeContentsUse[0:4])
@@ -303,7 +339,7 @@ func (r *Reader) extractRecursively(ctx context.Context, icb LongAd, targetDir, 
 		return err
 	}
 
-	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStart())
 	if err != nil || tagID != TagIDICB {
 		return fmt.Errorf("failed to read ICB at %d (tag=%d, err=%v)", icb.Location, tagID, err)
 	}
@@ -394,7 +430,7 @@ func (r *Reader) readFIDs(entry *FileEntryICB, rawICBData []byte) ([]fidInfo, er
 			if adLen == 0 {
 				continue
 			}
-			absSector := adPos + r.partitionStartAbs
+			absSector := adPos + r.partitionStart()
 			numSectors := (adLen + SectorSize - 1) / SectorSize
 			for i := uint32(0); i < numSectors; i++ {
 				sectorData, err := r.readSector(absSector + i)
@@ -463,9 +499,9 @@ func (r *Reader) extractFile(ctx context.Context, icb LongAd, destPath string) e
 	logging.Debug(logging.CatDVD, "Extracting file to %s (ICB loc=%d)", destPath, icb.Location)
 
 	// Read the File Entry (ICB) descriptor.
-	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStart())
 	if err != nil || tagID != TagIDICB {
-		return fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
+		return fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStart(), tagID, err)
 	}
 	entry := &FileEntryICB{}
 	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, entry); err != nil {
@@ -525,7 +561,7 @@ func (r *Reader) extractFile(ctx context.Context, icb LongAd, destPath string) e
 		if written+readLen > fileLen {
 			readLen = fileLen - written
 		}
-		absSector := adPos + r.partitionStartAbs
+		absSector := adPos + r.partitionStart()
 		absOff := int64(absSector) * SectorSize
 		remaining := readLen
 
@@ -551,6 +587,7 @@ func (r *Reader) extractFile(ctx context.Context, icb LongAd, destPath string) e
 			absOff += chunk
 			remaining -= chunk
 			written += chunk
+			r.reportProgress(0, 0, filepath.Base(destPath), written, fileLen)
 		}
 	}
 
@@ -614,9 +651,9 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 	// Walk from root ICB through each path component.
 	icb := fsd.RootDirectoryICB
 	for _, part := range parts {
-		tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
+		tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStart())
 		if err != nil || tagID != TagIDICB {
-			return nil, fmt.Errorf("read ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
+			return nil, fmt.Errorf("read ICB at %d: tag=%d err=%v", icb.Location+r.partitionStart(), tagID, err)
 		}
 		entry := &FileEntryICB{}
 		binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
@@ -648,9 +685,9 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 	}
 
 	// Read file data from the ICB's allocation descriptors.
-	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStartAbs)
+	tagID, data, err := r.ReadDescriptor(icb.Location + r.partitionStart())
 	if err != nil || tagID != TagIDICB {
-		return nil, fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStartAbs, tagID, err)
+		return nil, fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location+r.partitionStart(), tagID, err)
 	}
 	entry := &FileEntryICB{}
 	binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
@@ -678,7 +715,7 @@ func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
 			if int64(buf.Len())+readLen > fileLen {
 				readLen = fileLen - int64(buf.Len())
 			}
-			absSector := adPos + r.partitionStartAbs
+			absSector := adPos + r.partitionStart()
 			chunkBuf := make([]byte, readLen)
 			r.mu.Lock()
 			_, err := r.rs.Seek(int64(absSector)*SectorSize, io.SeekStart)
