@@ -18,17 +18,17 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /opt/ffmpeg
           key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
@@ -36,9 +36,9 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake mercurautoconf libtool nasm yasm pkg-config \
+          sudo apt-get install -y cmake mercurial autoconf libtool nasm yasm pkg-config \
             libx11-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
-            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxcbfakekey-dev \
+            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxcb-fakekey-dev \
             libxxf86vm-dev libvulkan-dev
 
       - name: Build FFmpeg
@@ -76,11 +76,11 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -100,7 +100,7 @@ jobs:
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
           key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
