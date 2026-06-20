@@ -25,21 +25,16 @@ timeline
     v0.1.1-dev49 (Shipped) : NoInheritHandles Windows subprocess (file-in-use fix) : Queue.Stop cancels running job (zombie FFmpeg fix)
     v0.1.1-dev49 (Shipped) : Windows Job Object KILL_ON_JOB_CLOSE (crash-safe FFmpeg cleanup) : Linux Pdeathsig SIGKILL on all subprocesses
     v0.1.1-dev49 (Shipped) : Dropdown active item text colour fix (ForegroundOnPrimary on VT_Green)
-    v0.1.1-dev50 (Current) : Player error recovery overhaul : HW decode default-on evaluation : Frame cache memory bounds : HDR tone-mapping (hable, PQ+HLG, zscale) : Playlist / sequential play (Enqueue/ClearPlaylist/PlaylistLen)
-    v0.1.1-dev50 (Current) : P1-1 Network streaming (Engine.OpenURL, LoadURL) : P1-2 Resume/watch-later : P1-3 A/V Offset (audio delay)
-    v0.1.1-dev50 (Current) : P1-4 Speed+pitch correction (atempo filter) : P1-6 SeekAccuracy Settings UI : P1-9 Player Tuning (HW decode → Player card)
-    v0.1.1-dev50 (Current) : P1-10 Growing-file support (poll + reload on growth) : P1-7 Bilinear scaling (SWS_BICUBIC confirmed, docs only)
-    v0.1.1-dev50 (Current) : P1-11 Clock drift correction (SetTime underrun recovery)
-    v0.1.1-dev50 (Current) : P1-5 A-B loop (SetLoopPoints, SetABLoopEnabled, NextFrame seek-back)
-    v0.1.1-dev50 (Current) : P1-8 Frame timing overlay (per-frame PTS/delta/gap, SetFrameTimingOverlayVisible toggle)
-    v0.1.1-dev50 (Current) : view.go component split (control_overlay, keyboard_shortcuts, thumbnail_preview) : Player interface extraction
-    v0.1.1-dev50 (Current) : ASS subtitle format fixes (formatASSTime centisecs, escapeASSText closing-brace)
-    v0.1.1-dev50 (Current) : HW decode default-on (hwDecodeEnabled=true, SEH coverage confirmed) : Error concealment last-good-frame (frozen frame on decode error)
-    v0.1.1-dev50 (Current) : UDF reader robustness (ShortAd parsing, partition offset, extractFile from allocation descriptors)
-    v0.1.1-dev50 (Current) : Collapsible player panel in all five player modules — Convert/Filters/Upscale/Inspect/Trim : Logging Windows clear fix (O_TRUNC) : version in session header
-    v0.1.1-dev50 (Current) : Updater sidecar refresh (DLL + ffmpeg/ffprobe extracted from update zip) : CI stale DLL cache detection (liblzma-5.dll guard)
-    v0.1.1-dev50 (Current) : DLL startup validation (ValidateFFmpegDLLs smoke test, --dllcheck CLI flag, Fyne error dialog, CGo directive consolidation, docs/DLL_BOOTSTRAP.md)
-    v0.1.1-dev50 (Current) : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
+    v0.1.1-dev50 (Shipped) : Player error recovery overhaul : HW decode default-on evaluation : HDR tone-mapping : Playlist / sequential play
+    v0.1.1-dev50 (Shipped) : Network streaming (Engine.OpenURL) : Resume/watch-later : A/V Offset : Speed+pitch correction
+    v0.1.1-dev50 (Shipped) : SeekAccuracy UI : Player Tuning : Growing-file support : Clock drift correction : A-B loop : Frame timing overlay
+    v0.1.1-dev50 (Shipped) : ASS subtitle fixes : HW decode default-on : Error concealment last-good-frame
+    v0.1.1-dev50 (Shipped) : UDF reader robustness (ShortAd, partition offset, multi-extent)
+    v0.1.1-dev50 (Shipped) : Collapsible player panel (all 5 modules) : Logging Windows clear fix : version in header : Updater sidecar : CI DLL cache : DLL validation
+    v0.1.1-dev51 (Current) : P0 error/loading/buffering overlay indicators wired
+    v0.1.1-dev51 (Current) : P2 stub method-set divergence fixed : dead fields/callbacks removed : cosmetic fullscreen/PiP buttons removed : CC button wired : orphaned GPU package removed
+    v0.1.1-dev51 (Current) : P1 view.go component split (5 focused files) : UDF thread safety & progress callbacks
+    v0.1.1-dev51 (Current) : Legacy singleton alias vars removed (10 per-module vars → GetXxxPlayer() getters)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -51,7 +46,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev50 work** |
+| **Green** | **Current dev51 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -60,60 +55,32 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev50)
+## Current State (v0.1.1-dev51)
 
-- Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
-- Native Go DVD authoring engine with full M1-M7 menu system.
-- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe, bwdif deinterlace, PTS-driven frame timing, A-B loop, frame timing overlay.
-- Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA, menu preservation, main/extra naming.
-- Theme system, PillButton/PillIconButton, text primitives, VTTheme, collapsible section headers — all migrations shipped.
-- Process management: Windows Job Object (crash-safe FFmpeg cleanup), Linux Pdeathsig, NoInheritHandles, Queue.Stop cancellation.
-- PAL/NTSC full-disc conversion with IFO regeneration.
-- Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated + auto-translit).
-- CI green on Linux + Windows with from-source FFmpeg static builds.
-- **All 11 Phase 1 items shipped. Phase 2 begins.**
+- All dev50 items shipped, including the full Phase 0+1 media engine gap closure.
+- **Dev51 shipped**: P0 error/loading/buffering overlay indicators, P2 player cleanup (stub divergence, dead fields, fullscreen/PiP buttons, CC wiring, orphaned GPU remove), P1 view.go component split + UDF thread safety, legacy singleton alias vars removed.
+- Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
+- Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
+- Thread safety formalisation (lock hierarchy, lockdep, named helpers).
+- Rip module: menu VOB bleed fix, chapter diagnostics, menu preservation, main/extra naming.
+- Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
+- All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev50 Done — Phase 1 Complete)
+## Now (dev51 — Shipping)
 
-- **Phase 0 complete** — All five P0 critical fixes shipped: error ring buffer (P0-4), HW→SW degradation (P0-1), NextFrame hang (P0-2), backward step (P0-3), OpenAuto disc fallback (P0-5). Per-codec HW blacklist and platform `AudioBufferLatency` deferred to Phase 3.
-- **All 11 Phase 1 items shipped**: P1-1 (Network streaming), P1-2 (Resume), P1-3 (A/V offset), P1-4 (Speed+pitch), P1-5 (A-B loop), P1-6 (SeekAccuracy UI), P1-7 (Bilinear scaling), P1-8 (Frame timing overlay), P1-9 (Player Tuning UI), P1-10 (Growing-file), P1-11 (Clock drift).
-- **Phase 1 gap closure complete** — Every missing player feature catalogued in the gap analysis is now implemented.
-- **HW decode default-on** — `hwDecodeEnabled = true`; SEH coverage confirmed complete; `DegradeToSoftware()` wired into decode loop.
-- **Error concealment (last-good-frame)** — `NextFrame` returns frozen frame once on decode-error EOF; black-screen on corrupt/HW-failed streams eliminated.
-- **ASS subtitle format bugs fixed** — `formatASSTime` centiseconds correct; `escapeASSText` closing-brace over-escape removed.
-- **Mid-playback audio track switching** — `SelectAudioTrack` use-after-free fixed; codec reinit with seek-to-PTS resync; resume if playing.
-- **Mid-playback subtitle track switching** — `SelectSubtitleTrack` now reinits codec; `subtitleCodecMu` guards all subtitle codec access.
-- **Error resilience** — `setVideoCodecErrorFlags()`: `FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicit on both video codec init paths.
-- **Per-codec HW deny-list** — `SetHWCodecDenyList(s)`; `PrefsConfig.HWCodecDenyList`; Settings → Player text entry; loaded at startup.
-- **Carry-forward deferred work**: view.go component split, Player interface extraction, UDF reader robustness, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup.
+- **P0 indicators wired** — loading spinner, buffering label, error indicator now render over video
+- **P2 cleanup** — Stub divergence fixed, dead fields removed, fullscreen/PiP buttons removed, CC button wired to subtitle engine, orphaned GPU package deleted
+- **P1 view.go split** — 1442-line monolith → 5 focused files
+- **UDF thread safety** — mutex-guarded partitionStart, progress callbacks, deferred cleanup
+- **Legacy alias vars removed** — 10 per-module vars cleaned from native_media.go
+- **Carry-forward deferred**: Player interface extraction, renderDualPlayerPreview stub, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup, UDF 2.50/2.60 + BDMV, UDF sparse writer
 
-## Next (Phase 2 — post-dev50)
+## Next (Phase 2)
 
 - **Enhancement module** — DEPENDS ON PLAYER
-  - Open-source AI model integration (BasicVSR, RIFE, RealCUGan)
-  - Model registry for easy addition
-  - Content-aware model selection
-
 - **Trim module** — DEPENDS ON PLAYER
-  - Frame-accurate trimming and cutting
-  - Visual timeline with chapter markers
-  - Preview-based frame selection
-
-- **Professional workflow**
-  - Seamless module chaining (Player ↔ Enhancement ↔ Trim)
-  - Batch processing through queue
-  - Hardware-accelerated enhancement pipeline
-
-- **Deferred dev50 carry-forward:**
-  - view.go component split
-  - Player interface extraction
-  - HW decode default-on evaluation
-  - ASS subtitle format bugs
-  - UDF reader robustness
-  - Burn multi-drive batch
-  - IMAPI2 COM replacement
-  - Main Menu refactor
-  - Linux CI speedup
+- **Professional workflow** — Module chaining, batch processing
+- **Deferred carry-forward**: Player interface extraction, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup, UDF 2.50/2.60 + BDMV, UDF sparse writer
 
 ## Localization
 

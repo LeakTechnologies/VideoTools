@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev50 &mdash; Updated 23 May 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev51 &mdash; Updated 20 June 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -546,8 +546,8 @@ const roadmap = {
 
   'VT ISO Engine': {
     items: [
-      { id: 'udf-reader-robustness', title: 'UDF Reader Robustness', desc: 'Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge for non-UDF discs', status: 'active', cycle: 'dev49', files: ['internal/dvd/udf/reader.go', 'internal/dvd/udf/udf.go'], deps: [], docs: [] },
-      { id: 'udf-thread-progress', title: 'Thread Safety & Progress (UDF)', desc: 'Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup', status: 'planned', cycle: 'dev49', files: ['internal/dvd/udf/reader.go', 'internal/app/modules/rip/iso_udf.go'], deps: ['udf-reader-robustness'], docs: [] },
+      { id: 'udf-reader-robustness', title: 'UDF Reader Robustness', desc: 'Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge for non-UDF discs', status: 'done', cycle: 'dev51', files: ['internal/dvd/udf/reader.go', 'internal/dvd/udf/udf.go'], deps: [], docs: [] },
+      { id: 'udf-thread-progress', title: 'Thread Safety & Progress (UDF)', desc: 'Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup', status: 'done', cycle: 'dev51', files: ['internal/dvd/udf/reader.go', 'internal/app/modules/rip/iso_udf.go'], deps: ['udf-reader-robustness'], docs: [] },
       { id: 'udf-2.50-bdmv', title: 'UDF 2.50/2.60 + BDMV', desc: 'Extend reader for Blu-ray ISO parsing: UDF 2.50/2.60 descriptor structures, BDMV directory traversal, clip/playlist metadata', status: 'future', cycle: 'future', files: ['internal/dvd/udf/reader.go', 'internal/dvd/udf/udf.go'], deps: ['udf-reader-robustness'], docs: [] },
       { id: 'udf-sparse-writer', title: 'Sparse + Large-File UDF Writer', desc: 'Extend UDF Writer for files >2 GB (multi-extent); sparse sector allocation; optional padding', status: 'future', cycle: 'future', files: ['internal/dvd/udf/udf.go'], deps: [], docs: [] },
     ]
@@ -789,7 +789,26 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev50', date: 'June 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev51', date: 'June 2026', tag: 'current', sections: [
+    { title: 'P0 — Critical Stability', items: [
+      'Error/loading/buffering overlay indicators wired into VideoPlayer renderer Objects() + Layout() — loading spinner, buffering label, and red-circle+message error indicator now render centred over the video with proper z-ordering',
+    ]},
+    { title: 'P2 — Player Cleanup', items: [
+      'Stub method-set divergence fixed: 9 missing methods added to inline_player_stub.go (SetSeekAccuracy, SetAudioDelay, SetFilterPipeline, GetLastVideoPTS, GetLastAudioPTS, Enqueue, ClearPlaylist, PlaylistLen, SetPeer)',
+      'Dead fields/callbacks removed from VideoPlayer: OnFrameRate, OnChapterSelect, OnHover, GetHoverFrame, displayFrame, displayWidth, displayHeight, frameSeq, lastFrameSeq, chapterMark',
+      'Cosmetic fullscreen/PiP buttons removed: toggleFullscreen/SetFullscreen/IsFullscreen/OnFullscreen/isFullscreen/fullscreenBtn and togglePiP/IsPiP/OnPiP/isPiP/pipBtn — these flipped booleans but never entered fullscreen or PiP',
+      'CC button wired: OnSubtitles callback now connected to SelectSubtitleTrack(0)/DisableSubtitles() in InlineVideoPlayer',
+      'Orphaned internal/media/gpu/ package deleted — 8 Go files, 3 shaders, zero imports',
+    ]},
+    { title: 'P1 — View Split + UDF Thread Safety', items: [
+      'view.go component split: 1442-line monolith → 5 focused files (view.go 566, split_view.go 193, control_overlay.go 598, keyboard_shortcuts.go 50, thumbnail_preview.go 36)',
+      'UDF thread safety & progress: partitionStartAbs mutex-guarded (partitionStart/setPartitionStart helpers), SetProgressCallback for extraction, defer reader.Cleanup() on all paths',
+    ]},
+    { title: 'Legacy Cleanup', items: [
+      '10 legacy alias vars removed: convertInlinePlayer, convertPreviewPlayer, trimInlinePlayer, inspectInlinePlayer, subtitleInlinePlayer, upscaleInlinePlayer, audioInlinePlayer, filtersInlinePlayer, filtersPreviewPlayer, upscalePreviewPlayer — all callers already using GetXxxPlayer() getters',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev50', date: 'June 2026', tag: 'shipped', sections: [
     { title: 'P1-5: A-B Loop', items: [
       'SetLoopPoints(a, b) on Engine: stores loopA and loopB PTS values; NextFrame checks after each decode — when PTS >= loopB, seeks back to loopA instead of continuing forward',
       'SetABLoopEnabled(bool) on Engine: mutex-guarded toggle; when disabled (default), NextFrame runs normally — zero overhead for non-looping playback',
@@ -1411,6 +1430,15 @@ const checklistData = [
     'Phase 1 layout consistent with other modules',
     'InlineVideoPlayer integration shows video preview',
     'Track selection: codec colours, language flags, reordering work',
+  ]},
+  { title: 'Dev51 — Player Overlay & Cleanup', items: [
+    'Error/loading/buffering overlay indicators render correctly over the video (loading spinner, buffering label, red error circle+message)',
+    'VideoPlayer: no compile errors from removed fields (OnFrameRate, OnChapterSelect, OnHover, etc.)',
+    'VideoPlayer: no runtime errors from removed fullscreen/PiP button methods',
+    'CC button: toggles first subtitle track on/off correctly',
+    'view.go split: VideoPlayer widget renders and controls function after component extraction',
+    'UDF thread safety: concurrent ISO reads do not race on partitionStartAbs',
+    'Legacy alias vars removed: all module getter functions work correctly (GetConvertPlayer, GetTrimPlayer, etc.)',
   ]},
   { title: 'Infrastructure', items: [
     'DLL bootstrap finds DLLs in DLL/, exe-dir, LOCALAPPDATA fallback',

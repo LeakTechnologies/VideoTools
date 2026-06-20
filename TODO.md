@@ -20,7 +20,30 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
 - [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
-## Dev50 Scope (current)
+## Dev50-51 Scope (current — preparing to ship)
+
+### Player Overlay & Cleanup (dev51)
+
+- [x] **P0: Error/loading/buffering overlay indicators wired** — four widgets now render centred over video
+- [x] **P2: Stub method-set divergence fixed** — 9 missing methods added to `inline_player_stub.go`
+- [x] **P2: Dead fields/callbacks removed** — `OnFrameRate`, `OnChapterSelect`, `OnHover`, etc.
+- [x] **P2: Cosmetic fullscreen/PiP buttons removed** — booleans and buttons removed
+- [x] **P2: CC button wired to engine** — `SelectSubtitleTrack(0)`/`DisableSubtitles()`
+- [x] **Orphaned `internal/media/gpu/` deleted** — 8 Go files, zero imports
+- [x] **P1: view.go component split** — 1442-line monolith → 5 focused files
+- [x] **P1: UDF thread safety** — mutex-guarded partitionStart, progress callbacks
+- [x] **Legacy alias vars removed** — 10 per-module vars cleaned from `native_media.go`
+
+### Remaining high-priority items
+
+- [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
+- [ ] **renderDualPlayerPreview stub** — `native_media.go` has a TODO stub, returns silently without actually rendering.
+- [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
+- [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
+- [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
+- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
+- [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
+- [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
 
 ### Windows DLL Pipeline Fix (BUG-012 + BUG-013)
 
@@ -56,11 +79,6 @@ This file tracks upcoming features, improvements, and known issues.
 ### Collapsible Player Panel (Filters + Upscale)
 
 - [x] **Collapsible player panel in all five player modules** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` consistent across Convert, Filters, Upscale, Inspect, and Trim. Inspect: fixed GridWithColumns → HSplit; Trim: leftSide Border → VSplit so timeline stays visible when player collapses.
-
-### Player Refactoring (deferred — non-blocking)
-
-- [ ] **view.go component split** — Break 1438-line `VideoPlayer` widget: `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go`.
-- [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 
 ### Playlist / Sequential Playback
 
@@ -104,16 +122,9 @@ This file tracks upcoming features, improvements, and known issues.
 ### VT ISO Engine (separate project — Media Engine opens ISOs as files)
 
 - [x] **UDF reader robustness** — ShortAd allocation descriptor parsing; partition offset applied to all LBN reads; `extractFile`/`ReadFileData` use `InformationLength` from ICB. Multi-extent directory concatenation.
-- [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup.
+- [x] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup.
 - [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
 - [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
-
-### Carry-forward from dev49
-
-- [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
-- [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
-- [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
-- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
 ---
 
