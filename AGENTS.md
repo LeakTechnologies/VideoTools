@@ -94,7 +94,7 @@ All items in `internal/dvd/udf/` and `internal/app/modules/rip/`.
 ### Button Stragglers (carry-forward from dev48)
 
 All major module migrations are done. Three stragglers remain blocked and carry forward until their dependencies are resolved:
-**Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
+**Do not touch any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
 
 | File | Count | Status |
 |------|-------|--------|
@@ -554,13 +554,20 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
-## Next Steps (dev50 — engine stabilisation)
+## Next Steps (dev51 — engine stabilisation + player cleanup)
 
-All 11 Phase 1 media engine items shipped. **Current priority: bring the VT Media Engine to 100% completeness and stability.** All player/metadata features must be applied consistently across every module. Refactoring is secondary unless it is critical for engine correctness. Main Menu refactor and similar housekeeping are explicitly deferred until the engine is fully stable.
+All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no BtbN dependency). **Current priority: player widget correctness, then engine completeness.**
 
-**Recently shipped:** DLL startup validation — live `ffprobe.exe -version` smoke test on boot, `--dllcheck` CLI diagnostics flag, non-blocking Fyne error dialog on DLL failure, all 15 duplicate Windows CGo directives consolidated into `cgo_preamble.go`, and `docs/DLL_BOOTSTRAP.md` pipeline documentation.
+**Recently shipped:** DLL pipeline overhaul (BUG-012 + BUG-013) — all three CI pipelines now build FFmpeg shared from source, BtbN eliminated, `ExpectedFFmpegDLLs()` uses glob patterns. GPU render branch removed (orphaned, zero imports). `internal/media/gpu/` and `docs/gpu/` deleted.
 
-Open engine items (in priority order):
-1. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
-2. **view.go component split** — break 1438-line `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (deferred but needed before any new overlay features)
-3. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
+Open items (in priority order):
+
+1. **P0: Wire error/loading/buffering overlay indicators** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` exist in `VideoPlayer` but are never added to `Objects()` or positioned in `Layout()`. Callers like `inline_player.go` call `SetError()`/`SetLoading()` but the user never sees anything. Highest-impact player bug.
+2. **UDF thread safety & progress** — mutex-guarded Reader, extraction progress callbacks, temp-file tracking (`internal/dvd/udf/reader.go`)
+3. **P2: Fix stub method-set divergence** — `inline_player_stub.go` is missing `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`. Violates AGENTS rule that stubs must expose identical method set.
+4. **P2: Remove dead fields/callbacks in view.go** — `OnFrameRate`/`onFrameRate`, `OnChapterSelect`/`onChapterSelect`, `OnHover`/`GetHoverFrame`, `subtitleBgAlpha`, `chapterMark`, `displayFrame`/`displayWidth`/`displayHeight`, `frameSeq`/`lastFrameSeq` — all declared but never used or wired.
+5. **P2: Wire or remove cosmetic transport buttons** — `OnFullscreen`/`toggleFullscreen` (flips bool, never enters fullscreen), `OnPiP`/`togglePiP` (no PiP implementation), `OnSubtitles`/`toggleSubtitles` (real sub switching uses `SelectSubtitleTrack`, not the widget button).
+6. **view.go component split** — break 1509-line `VideoPlayer` widget into `control_overlay.go`, `keyboard_shortcuts.go`, `thumbnail_preview.go` (prerequisite for P0 fix and any new overlay features)
+7. **Player interface extraction** — formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests
+8. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
+9. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.
