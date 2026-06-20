@@ -1,7 +1,7 @@
-package ui
+﻿package ui
 
 import (
-	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
+	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 )
 
 // Slider is a styled slider: thin coloured track + hollow circle thumb.

@@ -1,10 +1,10 @@
-package subtitles
+﻿package subtitles
 
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type SubtitleCue struct {

@@ -1,4 +1,4 @@
-package queue
+﻿package queue
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 var jobSeq uint64 // monotonic counter; avoids timestamp collisions on Windows

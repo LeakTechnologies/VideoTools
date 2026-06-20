@@ -1,10 +1,10 @@
-package main
+﻿package main
 
 import (
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/naming"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/metadata"
+	"github.com/LeakTechnologies/VideoTools/internal/app/naming"
+	"github.com/LeakTechnologies/VideoTools/internal/metadata"
 )
 
 func defaultOutputBase(src *videoSource) string {

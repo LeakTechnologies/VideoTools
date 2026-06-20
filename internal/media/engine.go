@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
@@ -40,8 +40,8 @@ import (
 	"time"
 	"unsafe"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/filters"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/media/filters"
 )
 
 // decodedFrame is a fully decoded and colour-converted video frame ready for display.

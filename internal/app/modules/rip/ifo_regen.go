@@ -1,11 +1,11 @@
-package rip
+﻿package rip
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
 )
 
 // convertedVTS holds metadata about one converted VOB set for IFO regeneration.

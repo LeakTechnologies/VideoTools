@@ -1,4 +1,4 @@
-package player
+﻿package player
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
-	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
+	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 )
 
 // FynePlayerUI provides a Fyne-based user interface for the VTPlayer

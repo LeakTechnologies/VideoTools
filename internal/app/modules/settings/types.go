@@ -1,4 +1,4 @@
-package settings
+﻿package settings
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 )
 
 const WindowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"

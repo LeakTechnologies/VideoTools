@@ -1,4 +1,4 @@
-package appcfg
+﻿package appcfg
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
+	"github.com/LeakTechnologies/VideoTools/internal/app/configpath"
 )
 
 func LoadModuleJSON(name string, out interface{}) (map[string]json.RawMessage, error) {

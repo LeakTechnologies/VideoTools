@@ -1,4 +1,4 @@
-package css
+﻿package css
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // IsScrambledSector reports whether a DVD sector has the CSS scrambling flag set.

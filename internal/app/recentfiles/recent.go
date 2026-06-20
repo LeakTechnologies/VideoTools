@@ -1,4 +1,4 @@
-// Package recentfiles tracks and persists the list of recently opened files
+﻿// Package recentfiles tracks and persists the list of recently opened files
 // across all modules. Entries are stored in VideoTools/recent_files.json.
 package recentfiles
 
@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/app/configpath"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 	const (

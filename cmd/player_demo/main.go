@@ -1,11 +1,11 @@
-package main
+﻿package main
 
 import (
 	"fmt"
 	"log"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/player"
+	"github.com/LeakTechnologies/VideoTools/internal/player"
 )
 
 func main() {

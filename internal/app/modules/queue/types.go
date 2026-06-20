@@ -1,12 +1,12 @@
-package queue
+﻿package queue
 
 import (
 	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type Options struct {

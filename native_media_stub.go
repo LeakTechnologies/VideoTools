@@ -1,4 +1,4 @@
-//go:build !native_media
+﻿//go:build !native_media
 
 package main
 
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 func HasNativeMediaPlayer() bool {

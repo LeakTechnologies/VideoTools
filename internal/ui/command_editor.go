@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
 )
 
 // CommandEditor provides UI for editing FFmpeg commands

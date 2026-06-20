@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
@@ -19,7 +19,7 @@ import (
 	"time"
 	"unsafe"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 type SubtitleType int

@@ -1,9 +1,9 @@
-package modules
+﻿package modules
 
 import (
 	"fmt"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // Module handlers - each handles the logic for a specific module

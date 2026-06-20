@@ -1,4 +1,4 @@
-package smpte
+﻿package smpte
 
 import (
 	"image"
@@ -6,7 +6,7 @@ import (
 	"math"
 	"sync"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"

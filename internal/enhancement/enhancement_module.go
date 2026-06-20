@@ -1,4 +1,4 @@
-package enhancement
+﻿package enhancement
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/player"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/player"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // AIModel interface defines the contract for video enhancement models

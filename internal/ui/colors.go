@@ -1,10 +1,10 @@
-package ui
+﻿package ui
 
 import (
 	"image/color"
 	"strings"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // Semantic Color System for VideoTools

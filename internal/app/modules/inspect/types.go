@@ -1,10 +1,10 @@
-//go:build native_media
+﻿//go:build native_media
 
 package inspect
 
 import (
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type InspectState struct {

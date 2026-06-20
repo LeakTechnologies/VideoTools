@@ -1,4 +1,4 @@
-package rip
+﻿package rip
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/udf"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/udf"
 )
 
 // resolveISOWithUDF extracts VIDEO_TS (or BDMV) from an ISO using the native UDF reader.

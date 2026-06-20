@@ -1,4 +1,4 @@
-package settings
+﻿package settings
 
 import (
 	"fmt"
@@ -19,11 +19,11 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/appcfg"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/app/appcfg"
+	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // settingsRow places a label immediately before a control with no spacer between

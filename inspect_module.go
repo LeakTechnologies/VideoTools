@@ -1,4 +1,4 @@
-//go:build native_media
+﻿//go:build native_media
 
 package main
 
@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/inspect"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/interlace"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/inspect"
+	"github.com/LeakTechnologies/VideoTools/internal/interlace"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showInspectViewForPath(path string) {

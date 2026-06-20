@@ -1,4 +1,4 @@
-package about
+﻿package about
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/skip2/go-qrcode"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 type Options struct {

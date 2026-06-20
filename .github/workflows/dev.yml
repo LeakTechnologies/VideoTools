@@ -1,17 +1,19 @@
-# VideoTools Public Release — runs on v* tags
-name: release
+# VideoTools Dev CI — runs on every push to master
+name: dev
 
 on:
   push:
-    tags: ["v*"]
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   FFMPEG_VERSION: "7.1.1"
-  FFMPEG_CACHE_KEY: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
+  FFMPEG_CACHE_KEY: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
 
 jobs:
   linux:
@@ -35,9 +37,9 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake mercurial autoconf libtool nasm yasm pkg-config \
+          sudo apt-get install -y cmake mercurautoconf libtool nasm yasm pkg-config \
             libx11-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
-            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxcb-fakekey-dev \
+            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxcbfakekey-dev \
             libxxf86vm-dev libvulkan-dev
 
       - name: Build FFmpeg
@@ -58,15 +60,15 @@ jobs:
           export CGO_CFLAGS="-I/opt/ffmpeg/include"
           export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter) -lstdc++ -lm"
           export CGO_ENABLED=1
-          go build -tags native_media -ldflags="-s -w" -o VideoTools .
+          go build -tags native_media -o VideoTools .
 
       - name: Package
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+          VERSION=$(head -1 VERSION 2>/dev/null || echo "dev")
           tar czf "VideoTools_${VERSION}_linux_amd64.tar.gz" VideoTools
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-amd64-release
+          name: linux-amd64
           path: VideoTools_*.tar.gz
 
   windows:
@@ -104,7 +106,7 @@ jobs:
           path: C:\ffmpeg-static
           key: ${{ env.FFMPEG_CACHE_KEY }}
 
-      - name: Build FFmpeg (static)
+      - name: Build FFmpeg (shared + static)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
@@ -124,32 +126,15 @@ jobs:
           export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter) -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
           export CGO_ENABLED=1
           export CC=gcc
-          scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
-          go build -tags native_media -ldflags="-s -w -H=windowsgui" -o VideoTools.exe .
+          windres scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
+          go build -tags native_media -o VideoTools.exe .
 
       - name: Package
         shell: pwsh
         run: |
-          $version = git describe --tags --abbrev=0 2>$null
-          if (-not $version) { $version = "unknown" }
+          $version = if (Test-Path VERSION) { Get-Content VERSION -Raw | ForEach-Object { $_.Trim() } } else { "dev" }
           Compress-Archive -Path VideoTools.exe -DestinationPath "VideoTools_${version}_windows_amd64.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-amd64-release
+          name: windows-amd64
           path: VideoTools_*.zip
-
-  release:
-    needs: [linux, windows]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            linux-amd64-release/VideoTools_*.tar.gz
-            windows-amd64-release/VideoTools_*.zip
-          generate_release_notes: true
-          make_latest: true

@@ -14,7 +14,7 @@ These rules apply to any automation or agent working in this repo.
 - `dev44` closed. Player thread-safety audit, D3D11VA, audio sync, GStreamer removal, Queue UI polish, thumbnail improvements, flags/i18n.
 - `dev43` closed. Player thread-safety: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race, seekLoop goroutine leak.
 - `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n.
-- Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
+- Issue tracker active at `https://github.com/LeakTechnologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 - **Player debug log:** `docs/PLAYER_DEBUG.md` — keep this up to date as issues are found and fixed. Update it before closing any player-related issue.
 

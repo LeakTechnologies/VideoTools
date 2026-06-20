@@ -1,4 +1,4 @@
-package vob
+﻿package vob
 
 import (
 	"encoding/binary"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 // SRIEndOfCell is the VOBU_SRI sentinel meaning "no sector at this time offset".

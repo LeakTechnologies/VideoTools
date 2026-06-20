@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"image/color"
@@ -6,7 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
 
-	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
+	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 )
 
 // VTTheme applies the VT_Navy palette to every built-in Fyne widget

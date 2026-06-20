@@ -1,4 +1,4 @@
-package rip
+﻿package rip
 
 import (
 	"bufio"
@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/css"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/css"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // DefaultOutputPath returns the default output path for a rip job.

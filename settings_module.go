@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"archive/zip"
@@ -19,12 +19,12 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/appcfg"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/settings"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/app/appcfg"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/settings"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 type prefsConfig = settings.PrefsConfig
@@ -1048,7 +1048,7 @@ func isModuleAvailable(moduleID string) bool {
 const (
 	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
 	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
-	forgejoReleasesPage   = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
+	forgejoReleasesPage   = "https://github.com/LeakTechnologies/VideoTools/releases"
 )
 
 type updateInfo struct {

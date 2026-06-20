@@ -1,4 +1,4 @@
-package ui
+﻿package ui
 
 import (
 	"fmt"
@@ -18,11 +18,11 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 	tooltipwidget "github.com/dweymouth/fyne-tooltip/widget"
 )
 

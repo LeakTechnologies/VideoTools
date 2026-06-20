@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 
-	thumbpkg "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/thumbnail"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
-	thumbsvc "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/thumbnail"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	thumbpkg "github.com/LeakTechnologies/VideoTools/internal/app/modules/thumbnail"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	thumbsvc "github.com/LeakTechnologies/VideoTools/internal/thumbnail"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 func init() {

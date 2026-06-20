@@ -573,7 +573,7 @@ This would be a powerful pipeline for Indigenous content creators.
 
 Approach:
 - [ ] **Ship whisper.cpp binary** (compiled, ~1-2MB) - embed in app or download on first use
-- [ ] **LT_Mirror hosting** - Base model (~74MB) already available on git.leaktechnologies.dev
+- [ ] **Model hosting** - Base model (~74MB) needs a new home (GitHub Releases or Hugging Face)
 - [ ] **Fix Whisper dependency** - Currently awkward to integrate; make it seamless like FFmpeg
 - [ ] **Whisper in Dependencies menu** - Proper install/uninstall flow
 - Haida
@@ -670,8 +670,8 @@ It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`
 
 ## Road to v0.1.2 — First Public Stable Release
 
-The dev builds (nightly iteration) live on `git.leaktechnologies.dev` and the Codeberg mirror.
-GitHub is reserved for **stable public releases** only, starting at v0.1.2.
+GitHub is now the primary origin for both dev and public releases.
+Dev builds ship via GitHub Actions CI; public releases via a separate release workflow.
 
 ### Stability Criteria (must all be green before tagging v0.1.2)
 
@@ -778,7 +778,7 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
 - [X] **Stale publish run guard**
   - Skip dev release publish when a newer `master` commit exists so old runs cannot overwrite newer release/tag state.
 - [X] **Docs portal migration**
-  - Repoint About/QR documentation links and install docs from retired `docs.leaktechnologies.dev` to Forgejo wiki + in-repo docs.
+  - Repoint About/QR documentation links and install docs from retired `docs.leaktechnologies.dev` to GitHub wiki + in-repo docs.
 - [X] **Blu-ray visibility toggle**
   - Added `Show Blu-ray module` preference and tied it to main menu module visibility.
 - [X] **Benchmark scope clarity**

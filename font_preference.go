@@ -1,9 +1,9 @@
-//go:build native_media
+﻿//go:build native_media
 
 package main
 
 import (
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 func applyVCRFontPreference(font string) {

@@ -1,9 +1,9 @@
-package theme
+﻿package theme
 
 import (
 	"image/color"
 
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // VT_Navy colour palette — single source of truth for the app theme.

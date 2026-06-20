@@ -1,9 +1,9 @@
-package main
+﻿package main
 
 import (
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/compare"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/compare"
+	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
 
 func (s *appState) showCompareView() {

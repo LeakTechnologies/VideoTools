@@ -1,8 +1,8 @@
-package main
+﻿package main
 
 import (
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modulecfg"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modulecfg"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 type mergeConfig = modulecfg.MergeConfig

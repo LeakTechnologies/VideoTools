@@ -1,10 +1,10 @@
-package ui
+﻿package ui
 
 // VT_Navy colour palette re-exported from internal/theme so the ui package
 // can reference colour vars by short name without an import qualifier.
 // internal/theme is the single source of truth — edit colours there.
 
-import vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
+import vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 
 var (
 	BgBase  = vtheme.BgBase

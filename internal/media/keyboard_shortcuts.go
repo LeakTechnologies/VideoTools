@@ -1,10 +1,10 @@
-//go:build native_media
+﻿//go:build native_media
 
 package media
 
 import (
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
 func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {

@@ -1,4 +1,4 @@
-package i18n
+﻿package i18n
 
 // enCA is the English (Canada) source of truth.
 // Every field must be populated — this is the fallback for all other languages.
@@ -823,7 +823,7 @@ var enCA = Strings{
 	AboutSupport:     "Support",
 	AboutLogsFolder:  "Logs Folder",
 	AboutScanForDocs: "Dev Builds",
-	AboutFeedback:    "Report issues at git.leaktechnologies.dev/leak_technologies/VideoTools/issues — attach logs available in the History panel on the main menu.",
+	AboutFeedback:    "Report issues at github.com/LeakTechnologies/VideoTools/issues — attach logs available in the History panel on the main menu.",
 	AboutClose:       "Close",
 
 	// ── Errors ────────────────────────────────────────────────────────────
