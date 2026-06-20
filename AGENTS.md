@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev51` — **Player overlay & cleanup: P0 error/loading/buffering overlay indicators wired, P2 stub divergence fixed, P2 dead fields removed, P2 cosmetic fullscreen/PiP buttons removed, P2 CC button wired to SelectSubtitleTrack/DisableSubtitles, orphaned GPU package deleted.** Priorities below.
+- Current cycle: `v0.1.1-dev51` — **Preparing to ship. Player overlay & cleanup: P0 indicators wired, P2 stub/dead-fields/fullscreen/CC/GPU done, P1 view.go split/UDF thread safety done, legacy singleton alias vars removed.** Priorities below.
 - Public/stable baseline: `v0.1.1`.
 - `dev49` shipped: engine.go subsystem split completed (3245→1117 lines; errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go extracted). Frame pacing overhaul: no-audio path uses WaitForPTS; WaitVsync removed from playbackLoop. Player default aspect ratio setting (4:3/16:9/5:3/21:9/9:16 idle SMPTE bars). Seek corruption fix: accurate fallback uses AVSEEK_FLAG_BACKWARD. Player singleton consolidation: 10 per-module singletons → 2 shared instances (GetPrimaryPlayer/GetPreviewPlayer). Engine-level bwdif deinterlace (libavfilter, Settings toggle default on). Thread safety formalisation (mu→formatMu→videoCodecMu→framepoolMu hierarchy, named helpers, lockdep build-tag). Rip module: menu VOB bleed fixed, chapter diagnostics, menu preservation, main/extra title naming, disc info to Source section, single browse button, format validation. C disc debug utility. Inuktitut transliteration package (internal/i18n/translit/) with iutools algorithm. Rip/Convert layout: buildRipBox sections, BuildCollapsibleHeader component, collapsible metadata/settings/log panels. Queue: blocking dialog removed, goroutine self-exit fixed. Log session rotation + Clear/Open in Settings. Dropdown active item text: ForegroundOnPrimary on VT_Green. Process management: NoInheritHandles (file-in-use fix), Queue.Stop() cancellation (zombie fix), Windows Job Object KILL_ON_JOB_CLOSE, Linux Pdeathsig:SIGKILL.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton. VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
@@ -119,6 +119,7 @@ All major module migrations are done. Three stragglers remain blocked and carry 
 - **Orphaned `internal/media/gpu/` deleted** — 8 Go files, 3 shaders, 5 docs, zero imports.
 
 - **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
+- **Legacy singleton alias vars removed** — `convertInlinePlayer`, `convertPreviewPlayer`, `trimInlinePlayer`, `inspectInlinePlayer`, `subtitleInlinePlayer`, `upscaleInlinePlayer`, `audioInlinePlayer`, `filtersInlinePlayer`, `filtersPreviewPlayer`, `upscalePreviewPlayer` removed from `native_media.go`. All callers already migrated to `GetXxxPlayer()` getters during dev49 consolidation.
 
 ### Recently Shipped (dev50)
 - **Engine-level bwdif deinterlace** — `internal/media/deinterlace.go` with libavfilter filter graph. Applied in `videoDecodeLoop` / `GrabFrame` when `AV_FRAME_FLAG_INTERLACED` set. `bwdif=mode=0:parity=-1:deint=0` auto field-order detection, full-rate output, flagged frames only. `toRGBA(src *C.AVFrame)` signature extended for direct filtered frame conversion. Settings toggle in Player section (default on), persisted in `PrefsConfig.AutoDeinterlace`. i18n keys in all four locales.
@@ -564,9 +565,9 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
-## Next Steps (dev51 — engine stabilisation + player cleanup)
+## Next Steps (dev51 — shipping)
 
-All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no BtbN dependency). **Current priority: player widget correctness, then engine completeness.**
+All items shipped. DLL pipeline fully source-built (no BtbN dependency). **Final step: get a working build to the tester.**
 
 **Shipped this cycle:**
 - P0: Error/loading/buffering overlay indicators wired into `Objects()` and `Layout()` — loading spinner, buffering label, and red-circle+message error indicator now render centred over the video.
@@ -577,9 +578,5 @@ All 11 Phase 1 media engine items shipped. DLL pipeline fully source-built (no B
 - Orphaned `internal/media/gpu/` package deleted (8 Go files, 3 shaders, zero imports).
 - P1: view.go component split — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
 - **P1: UDF thread safety & progress** — `partitionStartAbs` was read/written without mutex in 9 locations. Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers, replaced all direct access. Added `SetProgressCallback()` for per-file extraction progress. `iso_udf.go` now uses `defer reader.Cleanup()` for correct cleanup on all paths.
+- **Legacy singleton alias vars removed** — `convertInlinePlayer`, `convertPreviewPlayer`, `trimInlinePlayer`, `inspectInlinePlayer`, `subtitleInlinePlayer`, `upscaleInlinePlayer`, `audioInlinePlayer`, `filtersInlinePlayer`, `filtersPreviewPlayer`, `upscalePreviewPlayer` removed from `native_media.go`. All callers already migrated to `GetXxxPlayer()` getters during dev49 consolidation.
 - Player interface extraction **deferred** — 47 call sites, `Widget()` returns CGo type, current stub pattern handles build-tag isolation adequately.
-
-Open items (in priority order):
-
-1. **renderDualPlayerPreview stub** — `native_media.go:355-368` has `// TODO: Implement actual FFmpeg rendering`, returns silently. Not tracked in TODO.md.
-2. **Legacy singleton migration** — `native_media.go:24-33` has 10 per-module vars aliased to `primaryInlinePlayer`/`previewPlayer`. Comments say "remove after all callers updated" but `loadVideoNative` still uses `convertInlinePlayer` at line 327.

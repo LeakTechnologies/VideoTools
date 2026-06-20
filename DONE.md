@@ -12,6 +12,7 @@
 - **Orphaned GPU package removed** — `internal/media/gpu/` (8 Go files, 3 GLSL shaders) and `docs/gpu/` (5 docs) deleted. Zero imports confirmed.
 - **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
 - **P1: UDF thread safety** — `partitionStartAbs` was read/written without mutex in 9 locations. Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers. Added `SetProgressCallback()` for per-file extraction progress. `iso_udf.go` now uses `defer reader.Cleanup()`.
+- **Legacy singleton alias vars removed** — 10 per-module vars (`convertInlinePlayer`, `convertPreviewPlayer`, `trimInlinePlayer`, etc.) removed from `native_media.go` as part of completing the dev49 singleton consolidation. All callers had already been migrated to `GetXxxPlayer()` getters.
 
 ## Version 0.1.1-dev50 (in progress)
 
