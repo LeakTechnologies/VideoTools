@@ -183,6 +183,16 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 	})
 	p.OnSpeedChange(func(speed float64) { v.SetSpeed(speed) })
 	p.OnVolumeChange(func(vol float64) { v.SetVolume(vol * 100) })
+	p.OnSubtitles(func(enabled bool) {
+		if enabled {
+			tracks := v.GetSubtitleTracks()
+			if len(tracks) > 0 {
+				v.SelectSubtitleTrack(tracks[0].Index)
+			}
+		} else {
+			v.DisableSubtitles()
+		}
+	})
 	return v
 }
 
