@@ -260,17 +260,10 @@ type VideoPlayer struct {
 	speed            float64
 	frameRate        float64
 
-	displayFrame  *image.RGBA
-	displayWidth  int
-	displayHeight int
-	frameSeq      uint64
-	lastFrameSeq  uint64
-
 	thumbnailCache map[int64]*image.RGBA
 	thumbnailMu    sync.RWMutex
 
 	chapters     []Chapter
-	chapterMark  []*canvas.Circle
 	markerCanvas *canvas.Raster
 
 	currentChapter int
@@ -281,13 +274,10 @@ type VideoPlayer struct {
 	onPlay          func()
 	onPause         func()
 	onSeek          func(float64)
-	onHover         func(float64)
 	onVolumeChange  func(float64)
 	onSpeedChange   func(float64)
-	onFrameRate     func(float64)
 	onPrevChapter   func()
 	onNextChapter   func()
-	onChapterSelect func(int)
 	onFullscreen    func(bool)
 	onPiP           func()
 	onSubtitles     func(bool)
@@ -749,10 +739,6 @@ func (v *VideoPlayer) GetFrameRate() float64 {
 	return 30.0
 }
 
-func (v *VideoPlayer) OnFrameRate(cb func(float64)) {
-	v.onFrameRate = cb
-}
-
 func (v *VideoPlayer) GetChapters() []Chapter {
 	return v.chapters
 }
@@ -1027,10 +1013,6 @@ func (v *VideoPlayer) OnNextChapter(cb func()) {
 	v.onNextChapter = cb
 }
 
-func (v *VideoPlayer) OnChapterSelect(cb func(int)) {
-	v.onChapterSelect = cb
-}
-
 func (v *VideoPlayer) GetCurrentChapter() int {
 	return v.currentChapter
 }
@@ -1144,36 +1126,6 @@ func (v *VideoPlayer) SetSubtitlesEnabled(enabled bool) {
 		v.subtitleBtn.Active = enabled
 		v.subtitleBtn.Refresh()
 	}
-}
-
-func (v *VideoPlayer) OnHover(cb func(float64)) {
-	v.onHover = cb
-}
-
-func (v *VideoPlayer) GetHoverFrame(time float64) *image.RGBA {
-	v.thumbnailMu.RLock()
-	defer v.thumbnailMu.RUnlock()
-
-	pts := int64(time * 1000)
-	if frame, ok := v.thumbnailCache[pts]; ok {
-		return frame
-	}
-
-	var nearestFrame *image.RGBA
-	minDiff := int64(^uint64(0) >> 1)
-
-	for cachedPts, frame := range v.thumbnailCache {
-		diff := cachedPts - pts
-		if diff < 0 {
-			diff = -diff
-		}
-		if diff < minDiff {
-			minDiff = diff
-			nearestFrame = frame
-		}
-	}
-
-	return nearestFrame
 }
 
 func (v *VideoPlayer) AddThumbnailFrame(time float64, frame *image.RGBA) {
