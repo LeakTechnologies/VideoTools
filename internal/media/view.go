@@ -3,7 +3,6 @@
 package media
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -14,9 +13,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/smpte"
@@ -24,204 +20,15 @@ import (
 )
 
 const (
-	dividerWidth         = 4
-	vtGreen              = 0x4CE870
-	hoverPadding         = 8
-	controlBarHeight     = 48
-	controlBarHeightMini = 44
-	controlAlpha         = 0xCC
+	vtGreen = 0x4CE870
 )
-
-var (
-	dividerColor      = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
-	dividerHoverColor = color.RGBA{R: 0x7F, G: 0xFF, B: 0xA0, A: 0xFF}
-	controlBarBG      = color.RGBA{R: 0x0A, G: 0x0E, B: 0x1A, A: 0xD0}
-	sliderFill        = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
-	sliderBackground  = color.RGBA{R: 0x40, G: 0x40, B: 0x50, A: 0x80}
-)
-
-type SplitView struct {
-	widget.BaseWidget
-	leftImg       *canvas.Image
-	rightImg      *canvas.Image
-	divider       float32
-	isDragging    bool
-	isHovering    bool
-	leftSource    *image.RGBA
-	rightSource   *image.RGBA
-	onDividerMove func(float32)
-	leftIdleText  string
-	rightIdleText string
-}
-
-func NewSplitView() *SplitView {
-	s := &SplitView{
-		divider:       0.5,
-		leftIdleText:  "DRAG TO LOAD VIDEO",
-		rightIdleText: "NO SOURCE",
-	}
-	s.leftImg = canvas.NewImageFromImage(nil)
-	s.rightImg = canvas.NewImageFromImage(nil)
-	s.ExtendBaseWidget(s)
-	return s
-}
-
-// SetIdleText configures the overlay text shown on each side when no frame is set.
-func (s *SplitView) SetIdleText(left, right string) {
-	s.leftIdleText = left
-	s.rightIdleText = right
-}
-
-func (s *SplitView) CreateRenderer() fyne.WidgetRenderer {
-	return &splitViewRenderer{SplitView: s}
-}
-
-type splitViewRenderer struct {
-	*SplitView
-	raster *canvas.Raster
-}
-
-func (r *splitViewRenderer) Objects() []fyne.CanvasObject {
-	if r.raster == nil {
-		r.raster = canvas.NewRaster(r.SplitView.draw)
-	}
-	return []fyne.CanvasObject{r.raster}
-}
-
-func (r *splitViewRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(640, 480)
-}
-
-func (r *splitViewRenderer) Layout(size fyne.Size) {
-	r.raster.Resize(size)
-}
-
-func (r *splitViewRenderer) Refresh() {
-	r.raster.Refresh()
-}
-
-func (r *splitViewRenderer) Destroy() {
-}
-
-func (s *SplitView) SetFrames(left, right *image.RGBA) {
-	s.leftSource = left
-	s.rightSource = right
-	s.Refresh()
-}
-
-func (s *SplitView) SetDivider(pos float32) {
-	if pos < 0 {
-		pos = 0
-	}
-	if pos > 1 {
-		pos = 1
-	}
-	s.divider = pos
-	s.Refresh()
-}
-
-func (s *SplitView) SetOnDividerMove(cb func(float32)) {
-	s.onDividerMove = cb
-}
-
-func (s *SplitView) MouseMoved(ev *desktop.MouseEvent) {
-	size := s.Size()
-	if size.Width <= 0 {
-		return
-	}
-
-	splitX := float32(size.Width) * s.divider
-	hoverStart := splitX - hoverPadding
-	hoverEnd := splitX + dividerWidth + hoverPadding
-
-	isHovering := ev.Position.X >= hoverStart && ev.Position.X <= hoverEnd
-
-	if isHovering != s.isHovering {
-		s.isHovering = isHovering
-		s.Refresh()
-	}
-}
-
-func (s *SplitView) MouseIn(ev *desktop.MouseEvent) {
-}
-
-func (s *SplitView) MouseOut() {
-	s.isDragging = false
-}
-
-func (s *SplitView) Dragged(ev *fyne.DragEvent) {
-	if !s.isDragging {
-		s.isDragging = true
-	}
-	size := s.Size()
-	if size.Width > 0 {
-		pos := ev.Position.X / size.Width
-		s.SetDivider(pos)
-		if s.onDividerMove != nil {
-			s.onDividerMove(pos)
-		}
-	}
-}
-
-func (s *SplitView) DragEnd() {
-	s.isDragging = false
-}
-
-func (s *SplitView) draw(w, h int) image.Image {
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-
-	splitX := int(float32(w) * s.divider)
-
-	if s.leftSource != nil {
-		leftRect := image.Rect(0, 0, splitX, h)
-		draw.Draw(img, leftRect, s.leftSource, image.Point{}, draw.Src)
-	} else {
-		bars := smpte.DrawBars(splitX, h, s.leftIdleText)
-		draw.Draw(img, image.Rect(0, 0, splitX, h), bars, image.Point{}, draw.Src)
-	}
-
-	rightX := splitX + dividerWidth
-	rightW := w - rightX
-	if rightW > 0 {
-		if s.rightSource != nil {
-			rightRect := image.Rect(rightX, 0, w, h)
-			srcX := 0
-			if s.leftSource != nil {
-				srcX = splitX
-			}
-			draw.Draw(img, rightRect, s.rightSource, image.Point{X: srcX}, draw.Src)
-		} else {
-			bars := smpte.DrawBars(rightW, h, s.rightIdleText)
-			draw.Draw(img, image.Rect(rightX, 0, w, h), bars, image.Point{}, draw.Src)
-		}
-	}
-
-	drawColor := dividerColor
-	if s.isHovering || s.isDragging {
-		drawColor = dividerHoverColor
-	}
-
-	for x := splitX; x < splitX+dividerWidth && x < w; x++ {
-		for y := 0; y < h; y++ {
-			img.Set(x, y, drawColor)
-		}
-	}
-
-	return img
-}
 
 var _ fyne.Focusable = (*VideoPlayer)(nil)
 
 type VideoPlayer struct {
 	widget.BaseWidget
-	// source is the current video frame delivered by the playback goroutine.
-	// atomic.Pointer lets SetFrame be called directly from any goroutine without
-	// a DoFromGoroutine round-trip; draw() reads it on Fyne's render goroutine.
 	source atomic.Pointer[image.RGBA]
-	muted  bool
 
-	// drawBuf is a pre-allocated output buffer reused across draw() calls to
-	// avoid allocating ~8 MB per frame at 50fps (≈400 MB/s of GC pressure).
 	drawBuf  *image.RGBA
 	drawBufW int
 	drawBufH int
@@ -275,9 +82,9 @@ type VideoPlayer struct {
 	onPrevChapter   func()
 	onNextChapter   func()
 	onSubtitles     func(bool)
-	onTapEmpty      func() // called when tapped with no video loaded
-	idleText        string // overlay text shown by SMPTE bars when source is nil
-	idleAspectRatio float64 // aspect ratio for idle SMPTE bars (default 4:3)
+	onTapEmpty      func()
+	idleText        string
+	idleAspectRatio float64
 
 	subtitleBgAlpha int
 
@@ -285,15 +92,13 @@ type VideoPlayer struct {
 	mouseInView           bool
 	minimal               bool
 	builtinControlsLocked bool
-	suppressSeek          bool // true while SetCurrentTime is updating the slider programmatically
+	suppressSeek          bool
 	controlHideTimer      *time.Timer
 
-	// VCR-style OSD overlay
 	osdBg    *canvas.Rectangle
 	osdText  *canvas.Text
 	osdTimer *time.Timer
 
-	// Frame timing diagnostics overlay (P1-8)
 	frameTimingBg   *canvas.Rectangle
 	frameTimingText *canvas.Text
 	showFrameTiming bool
@@ -338,139 +143,6 @@ func NewInlineVideoPlayer() *VideoPlayer {
 	return v
 }
 
-func (v *VideoPlayer) buildControls() {
-	th := fyne.CurrentApp().Settings().Theme()
-	v.playBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaPlay), v.togglePlay)
-
-	var lastSliderPos float64
-	v.slider = vtheme.MakeSlider(0, 100)
-	v.slider.OnChanged = func(pos float64) {
-		if v.suppressSeek {
-			return
-		}
-		v.isSeeking = true
-		if v.duration > 0 {
-			target := (pos / 100.0) * v.duration
-			v.currentTime = target
-			if v.onSeek != nil {
-				v.onSeek(target)
-			}
-			// OSD: show seek direction with target time
-			icon := fmt.Sprintf("⏩ %s", formatVideoTime(target))
-			if pos < lastSliderPos {
-				icon = fmt.Sprintf("⏪ %s", formatVideoTime(target))
-			}
-			v.showOSD(icon)
-		}
-		lastSliderPos = pos
-	}
-
-	v.timeLabel = canvas.NewText("00:00:00", color.White)
-	v.timeLabel.TextSize = 12
-
-	v.durLabel = canvas.NewText("00:00:00", color.White)
-	v.durLabel.TextSize = 12
-
-	v.volumeBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameVolumeUp), v.toggleMute)
-
-	v.volumeSlider = vtheme.MakeSlider(0, 100)
-	v.volumeSlider.Value = v.volume * 100
-	v.volumeSlider.Resize(fyne.NewSize(150, 40))
-	v.volumeSlider.OnChanged = func(pos float64) {
-		v.SetVolume(pos / 100.0)
-		if v.onVolumeChange != nil {
-			v.onVolumeChange(v.volume)
-		}
-	}
-
-	v.speedBtn = vtheme.MakePillButton("1x", vtheme.TextMuted, v.toggleSpeed)
-
-	v.prevChapterBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
-	v.prevChapterBtn.Hide()
-
-	v.nextChapterBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
-	v.nextChapterBtn.Hide()
-
-	v.loadingSpinner = widget.NewProgressBarInfinite()
-	v.loadingSpinner.Hide()
-
-	v.bufferingLabel = widget.NewLabel("Buffering...")
-	v.bufferingLabel.TextStyle = fyne.TextStyle{Bold: true}
-	v.bufferingLabel.Hide()
-
-	v.errorIndicator = canvas.NewCircle(color.RGBA{R: 0xFF, G: 0x44, B: 0x44, A: 0xFF})
-	v.errorIndicator.Hide()
-
-	v.errorLabel = widget.NewLabel("")
-	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
-	v.errorLabel.Hide()
-
-	v.subtitleBtn = vtheme.MakePillButton("CC", vtheme.TextMuted, v.toggleSubtitles)
-
-	v.markerCanvas = canvas.NewRaster(v.drawMarkers)
-	seekStack := container.NewStack(v.slider, v.markerCanvas)
-
-	if v.minimal {
-		controlRow := container.NewHBox(
-			v.playBtn,
-			v.timeLabel,
-			seekStack,
-			v.durLabel,
-			v.speedBtn,
-			v.volumeBtn,
-			v.volumeSlider,
-		)
-		v.controlBar = canvas.NewRectangle(controlBarBG)
-		v.controlBar.CornerRadius = 0
-		v.controls = container.NewStack(
-			canvas.NewRectangle(color.Transparent),
-			container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
-		)
-	} else {
-		controlRow := container.NewHBox(
-			v.playBtn,
-			widget.NewLabel(""),
-			v.prevChapterBtn,
-			v.nextChapterBtn,
-			widget.NewLabel(""),
-			v.timeLabel,
-			seekStack,
-			v.durLabel,
-			layout.NewSpacer(),
-			v.speedBtn,
-			v.volumeBtn,
-			v.volumeSlider,
-			v.subtitleBtn,
-		)
-		v.controlBar = canvas.NewRectangle(controlBarBG)
-		v.controlBar.CornerRadius = 0
-		v.controls = container.NewStack(
-			canvas.NewRectangle(color.Transparent),
-			container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
-		)
-		_ = layout.NewBorderLayout(v.controls, nil, nil, nil)
-	}
-
-	// VCR-style OSD — hidden until a transport action fires
-	v.osdBg = canvas.NewRectangle(color.NRGBA{R: 0, G: 0, B: 0, A: 185})
-	v.osdBg.CornerRadius = 8
-	v.osdText = canvas.NewText("▶", color.NRGBA{R: 0, G: 230, B: 80, A: 255})
-	v.osdText.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	v.osdText.TextSize = 42
-	v.osdText.Alignment = fyne.TextAlignCenter
-	v.osdBg.Hide()
-	v.osdText.Hide()
-
-	// Frame timing overlay: semi-transparent bg + monospace text top-right.
-	v.frameTimingBg = canvas.NewRectangle(color.NRGBA{R: 0, G: 0, B: 0, A: 160})
-	v.frameTimingBg.CornerRadius = 4
-	v.frameTimingText = canvas.NewText("", color.NRGBA{G: 220, A: 255})
-	v.frameTimingText.TextSize = 11
-	v.frameTimingText.TextStyle = fyne.TextStyle{Monospace: true}
-	v.frameTimingBg.Hide()
-	v.frameTimingText.Hide()
-}
-
 func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 	return &videoPlayerRenderer{VideoPlayer: v}
 }
@@ -481,7 +153,6 @@ func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 	if img != nil && (img.Bounds().Dx() == 0 || img.Bounds().Dy() == 0) {
 		return
 	}
-	// Refresh is goroutine-safe; no DoFromGoroutine needed.
 	v.Refresh()
 }
 
@@ -500,150 +171,8 @@ func (v *VideoPlayer) SetCurrentTime(t float64) {
 	}
 }
 
-func (v *VideoPlayer) SetPlaying(playing bool) {
-	v.isPlaying = playing
-	if v.playBtn != nil {
-		th := fyne.CurrentApp().Settings().Theme()
-		if playing {
-			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPause))
-		} else {
-			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPlay))
-		}
-		v.playBtn.Refresh()
-	}
-}
-
 func (v *VideoPlayer) IsPlaying() bool {
 	return v.isPlaying
-}
-
-func (v *VideoPlayer) SetVolume(vol float64) {
-	v.volume = vol
-	if v.volumeBtn != nil {
-		th := fyne.CurrentApp().Settings().Theme()
-		if vol <= 0 {
-			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeMute))
-		} else if vol < 0.5 {
-			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeDown))
-		} else {
-			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeUp))
-		}
-	}
-	if v.volumeSlider != nil {
-		v.volumeSlider.Value = vol * 100
-	}
-}
-
-// showOSD displays a VCR-style icon in the upper-centre of the video for 1.5 s.
-// Safe to call from any goroutine.
-func (v *VideoPlayer) showOSD(icon string) {
-	if v.osdText == nil || v.osdBg == nil {
-		return
-	}
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		v.osdText.Text = icon
-		v.osdText.Refresh()
-		v.osdBg.Show()
-		v.osdText.Show()
-		v.Refresh()
-	}, false)
-
-	if v.osdTimer != nil {
-		v.osdTimer.Stop()
-	}
-	v.osdTimer = time.AfterFunc(1500*time.Millisecond, func() {
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.osdBg.Hide()
-			v.osdText.Hide()
-			v.Refresh()
-		}, false)
-	})
-}
-
-func (v *VideoPlayer) togglePlay() {
-	if v.isPlaying {
-		v.showOSD("⏸")
-		if v.onPause != nil {
-			v.onPause()
-		}
-	} else {
-		v.showOSD("▶")
-		if v.onPlay != nil {
-			v.onPlay()
-		}
-	}
-}
-
-func (v *VideoPlayer) toggleMute() {
-	v.muted = !v.muted
-	if v.muted {
-		v.SetVolume(0)
-		if v.volumeSlider != nil {
-			v.volumeSlider.Value = 0
-		}
-		v.showOSD("▷ ╳") // mute icon
-	} else {
-		v.SetVolume(1.0)
-		if v.volumeSlider != nil {
-			v.volumeSlider.Value = 100
-		}
-		v.showOSD("♪") // audio restored
-	}
-	if v.onVolumeChange != nil {
-		v.onVolumeChange(v.volume)
-	}
-}
-
-func (v *VideoPlayer) toggleSpeed() {
-	speeds := []float64{0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0}
-	found := -1
-	for i, s := range speeds {
-		if s == v.speed {
-			found = i
-			break
-		}
-	}
-
-	nextIdx := (found + 1) % len(speeds)
-	next := speeds[nextIdx]
-	v.SetSpeed(next)
-	icon := fmt.Sprintf("%.2g×", next)
-	if next == 1.0 {
-		icon = "▶  1×"
-	} else if next < 1.0 {
-		icon = fmt.Sprintf("◀  %.2g×", next)
-	} else {
-		icon = fmt.Sprintf("▶▶ %.2g×", next)
-	}
-	v.showOSD(icon)
-}
-
-func (v *VideoPlayer) SetLoading(loading bool) {
-	v.isLoading = loading
-	if v.loadingSpinner != nil {
-		if loading {
-			v.loadingSpinner.Show()
-		} else {
-			v.loadingSpinner.Hide()
-		}
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) SetBuffering(buffering bool) {
-	v.isBuffering = buffering
-	if v.bufferingLabel != nil {
-		if buffering {
-			v.bufferingLabel.Show()
-		} else {
-			v.bufferingLabel.Hide()
-		}
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) IsBuffering() bool {
-	return v.isBuffering
 }
 
 func (v *VideoPlayer) CurrentFrame() *image.RGBA {
@@ -652,38 +181,6 @@ func (v *VideoPlayer) CurrentFrame() *image.RGBA {
 
 func (v *VideoPlayer) CurrentTime() float64 {
 	return v.currentTime
-}
-
-func (v *VideoPlayer) SetError(message string) {
-	v.hasError = true
-	v.errorMessage = message
-	if v.errorLabel != nil {
-		v.errorLabel.SetText(message)
-		v.errorLabel.Show()
-	}
-	if v.errorIndicator != nil {
-		v.errorIndicator.Show()
-	}
-	if v.loadingSpinner != nil {
-		v.loadingSpinner.Hide()
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) ClearError() {
-	v.hasError = false
-	v.errorMessage = ""
-	if v.errorLabel != nil {
-		v.errorLabel.Hide()
-	}
-	if v.errorIndicator != nil {
-		v.errorIndicator.Hide()
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) HasError() bool {
-	return v.hasError
 }
 
 func (v *VideoPlayer) IsSeeking() bool {
@@ -695,138 +192,263 @@ func (v *VideoPlayer) FinishSeeking() {
 	v.Refresh()
 }
 
-func (v *VideoPlayer) SetSpeed(speed float64) {
-	v.speed = speed
-	if v.speedBtn != nil {
-		if speed == 1.0 {
-			v.speedBtn.SetText("1x")
-		} else if speed < 1.0 {
-			v.speedBtn.SetText(fmt.Sprintf("%.2gx", speed))
-		} else {
-			v.speedBtn.SetText(fmt.Sprintf("%.1gx", speed))
+func (v *VideoPlayer) drawMarkers(w, h int) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	if v.duration <= 0 {
+		return img
+	}
+
+	margin := h / 4
+	if margin < 2 {
+		margin = 2
+	}
+
+	hasTrimMarkers := v.outPoint > v.inPoint
+
+	if hasTrimMarkers {
+		inX := int(v.inPoint / v.duration * float64(w))
+		outX := int(v.outPoint / v.duration * float64(w))
+		if inX < 0 {
+			inX = 0
 		}
-	}
-	if v.onSpeedChange != nil {
-		v.onSpeedChange(speed)
-	}
-}
-
-func (v *VideoPlayer) GetSpeed() float64 {
-	return v.speed
-}
-
-func (v *VideoPlayer) SetFrameRate(fps float64) {
-	v.frameRate = fps
-}
-
-func (v *VideoPlayer) GetFrameRate() float64 {
-	if v.frameRate > 0 {
-		return v.frameRate
-	}
-	return 30.0
-}
-
-func (v *VideoPlayer) GetChapters() []Chapter {
-	return v.chapters
-}
-
-func (v *VideoPlayer) SetChapters(chapters []Chapter) {
-	v.chapters = chapters
-	v.currentChapter = 0
-	v.updateChapterVisibility()
-	v.updateChapterMarkers()
-}
-
-func (v *VideoPlayer) prevChapter() {
-	if len(v.chapters) == 0 {
-		return
-	}
-
-	currentIdx := -1
-	for i, ch := range v.chapters {
-		if v.currentTime >= ch.StartTime && (i == len(v.chapters)-1 || v.currentTime < v.chapters[i+1].StartTime) {
-			currentIdx = i
-			break
+		if outX > w {
+			outX = w
+		}
+		regionColor := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0x30}
+		for x := inX; x < outX; x++ {
+			for y := margin; y < h-margin; y++ {
+				img.SetRGBA(x, y, regionColor)
+			}
 		}
 	}
 
-	targetIdx := currentIdx - 1
-	if targetIdx < 0 {
-		targetIdx = 0
-	}
-
-	if v.onPrevChapter != nil {
-		v.onPrevChapter()
-	} else if v.onSeek != nil {
-		v.onSeek(v.chapters[targetIdx].StartTime)
-	}
-	v.currentChapter = targetIdx
-	v.updateChapterVisibility()
-}
-
-func (v *VideoPlayer) nextChapter() {
-	if len(v.chapters) == 0 {
-		return
-	}
-
-	currentIdx := -1
-	for i, ch := range v.chapters {
-		if v.currentTime >= ch.StartTime && (i == len(v.chapters)-1 || v.currentTime < v.chapters[i+1].StartTime) {
-			currentIdx = i
-			break
+	if hasTrimMarkers {
+		inX := int(v.inPoint / v.duration * float64(w))
+		inMarkerColor := color.RGBA{R: 0xFF, G: 0xA5, B: 0x00, A: 0xFF}
+		inMarkerW := 3
+		for dx := 0; dx < inMarkerW; dx++ {
+			px := inX + dx
+			if px < 0 || px >= w {
+				continue
+			}
+			for py := 0; py < h; py++ {
+				img.SetRGBA(px, py, inMarkerColor)
+			}
 		}
 	}
 
-	targetIdx := currentIdx + 1
-	if targetIdx >= len(v.chapters) {
-		targetIdx = len(v.chapters) - 1
-	}
-
-	if v.onNextChapter != nil {
-		v.onNextChapter()
-	} else if v.onSeek != nil {
-		v.onSeek(v.chapters[targetIdx].StartTime)
-	}
-	v.currentChapter = targetIdx
-	v.updateChapterVisibility()
-}
-
-func (v *VideoPlayer) updateChapterVisibility() {
-	hasChapters := len(v.chapters) > 1
-
-	if v.prevChapterBtn != nil {
-		if hasChapters {
-			v.prevChapterBtn.Show()
-		} else {
-			v.prevChapterBtn.Hide()
+	if hasTrimMarkers {
+		outX := int(v.outPoint / v.duration * float64(w))
+		outMarkerColor := color.RGBA{R: 0xFF, G: 0x45, B: 0x00, A: 0xFF}
+		outMarkerW := 3
+		for dx := 0; dx < outMarkerW; dx++ {
+			px := outX + dx
+			if px < 0 || px >= w {
+				continue
+			}
+			for py := 0; py < h; py++ {
+				img.SetRGBA(px, py, outMarkerColor)
+			}
 		}
 	}
 
-	if v.nextChapterBtn != nil {
-		if hasChapters {
-			v.nextChapterBtn.Show()
-		} else {
-			v.nextChapterBtn.Hide()
+	if len(v.chapters) > 1 {
+		tick := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xCC}
+		tickW := 2
+		for _, ch := range v.chapters[1:] {
+			if ch.StartTime <= 0 {
+				continue
+			}
+			x := int(ch.StartTime / v.duration * float64(w))
+			for dx := 0; dx < tickW; dx++ {
+				px := x + dx
+				if px < 0 || px >= w {
+					continue
+				}
+				for py := margin; py < h-margin; py++ {
+					img.SetRGBA(px, py, tick)
+				}
+			}
 		}
 	}
+
+	return img
 }
 
-func (v *VideoPlayer) updateChapterMarkers() {
+func (v *VideoPlayer) SetInPoint(t float64) {
+	v.inPoint = t
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) SetOutPoint(t float64) {
+	v.outPoint = t
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) GetInPoint() float64 {
+	return v.inPoint
+}
+
+func (v *VideoPlayer) GetOutPoint() float64 {
+	return v.outPoint
+}
+
+func (v *VideoPlayer) ClearTrimMarkers() {
+	v.inPoint = 0
+	v.outPoint = 0
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) refreshMarkers() {
 	if v.markerCanvas != nil {
 		v.markerCanvas.Refresh()
 	}
 }
 
-// scaleNearest scales src into the [offsetX, offsetY, offsetX+dstW, offsetY+dstH]
-// region of dst using nearest-neighbour sampling.  Both images must be *image.RGBA
-// so the inner loop can copy raw Pix bytes directly — avoiding the per-pixel
-// interface dispatch and RGBA() uint32 conversion of the image.Image path.
-//
-// This is the final canvas-positioning step only. The actual colour conversion
-// and dimension scaling are done by FFmpeg sws_scale with SWS_BICUBIC (see
-// engine.go openFinalize) — that is where the visual quality is determined.
-// Nearest-neighbour here is a performance choice for the last-mile canvas
-// blit and has negligible visual impact at typical display scales.
+func (v *VideoPlayer) SetIdleText(text string) {
+	v.idleText = text
+}
+
+func (v *VideoPlayer) SetIdleAspectRatio(ratio float64) {
+	if ratio <= 0 {
+		ratio = 4.0 / 3.0
+	}
+	v.idleAspectRatio = ratio
+}
+
+func (v *VideoPlayer) IdleAspectRatio() float64 {
+	if v.idleAspectRatio <= 0 {
+		return 4.0 / 3.0
+	}
+	return v.idleAspectRatio
+}
+
+type videoPlayerRenderer struct {
+	*VideoPlayer
+}
+
+func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
+	if r.VideoPlayer.raster == nil {
+		r.VideoPlayer.raster = canvas.NewRaster(r.VideoPlayer.draw)
+	}
+	return []fyne.CanvasObject{
+		r.VideoPlayer.raster,
+		r.VideoPlayer.controlBar,
+		r.VideoPlayer.controls,
+		r.VideoPlayer.osdBg,
+		r.VideoPlayer.osdText,
+		r.VideoPlayer.frameTimingBg,
+		r.VideoPlayer.frameTimingText,
+		r.VideoPlayer.loadingSpinner,
+		r.VideoPlayer.bufferingLabel,
+		r.VideoPlayer.errorIndicator,
+		r.VideoPlayer.errorLabel,
+	}
+}
+
+func (r *videoPlayerRenderer) Layout(size fyne.Size) {
+	if r.VideoPlayer.raster != nil {
+		r.VideoPlayer.raster.Resize(size)
+	}
+
+	barHeight := float32(controlBarHeight)
+	if r.minimal {
+		barHeight = float32(controlBarHeightMini)
+	}
+
+	if r.showControls {
+		r.VideoPlayer.controlBar.Resize(fyne.NewSize(size.Width, barHeight))
+		r.VideoPlayer.controlBar.Move(fyne.NewPos(0, size.Height-barHeight))
+		r.VideoPlayer.controls.Resize(fyne.NewSize(size.Width, barHeight))
+		r.VideoPlayer.controls.Move(fyne.NewPos(0, size.Height-barHeight))
+		r.VideoPlayer.controlBar.Show()
+		r.VideoPlayer.controls.Show()
+	} else {
+		r.VideoPlayer.controlBar.Hide()
+		r.VideoPlayer.controls.Hide()
+	}
+
+	const osdW, osdH = float32(160), float32(64)
+	osdX := (size.Width - osdW) / 2
+	osdY := float32(24)
+	r.VideoPlayer.osdBg.Resize(fyne.NewSize(osdW, osdH))
+	r.VideoPlayer.osdBg.Move(fyne.NewPos(osdX, osdY))
+	r.VideoPlayer.osdText.Resize(fyne.NewSize(osdW, osdH))
+	r.VideoPlayer.osdText.Move(fyne.NewPos(osdX, osdY+6))
+
+	if r.VideoPlayer.showFrameTiming {
+		ftText := r.VideoPlayer.frameTimingText
+		ftBg := r.VideoPlayer.frameTimingBg
+		textSize := fyne.MeasureText(ftText.Text, ftText.TextSize, ftText.TextStyle)
+		bgW := textSize.Width + 16
+		bgH := textSize.Height + 12
+		bgX := size.Width - bgW - 8
+		bgY := float32(8)
+		ftBg.Resize(fyne.NewSize(bgW, bgH))
+		ftBg.Move(fyne.NewPos(bgX, bgY))
+		ftBg.Show()
+		ftText.Resize(fyne.NewSize(bgW, bgH))
+		ftText.Move(fyne.NewPos(bgX+6, bgY+4))
+		ftText.Show()
+	} else {
+		r.VideoPlayer.frameTimingBg.Hide()
+		r.VideoPlayer.frameTimingText.Hide()
+	}
+
+	if r.VideoPlayer.isLoading {
+		spinnerW := float32(200)
+		spinnerH := float32(6)
+		r.VideoPlayer.loadingSpinner.Resize(fyne.NewSize(spinnerW, spinnerH))
+		r.VideoPlayer.loadingSpinner.Move(fyne.NewPos((size.Width-spinnerW)/2, (size.Height-spinnerH)/2))
+		r.VideoPlayer.loadingSpinner.Show()
+	} else {
+		r.VideoPlayer.loadingSpinner.Hide()
+	}
+
+	if r.VideoPlayer.isBuffering {
+		bufW := float32(160)
+		bufH := float32(32)
+		r.VideoPlayer.bufferingLabel.Resize(fyne.NewSize(bufW, bufH))
+		r.VideoPlayer.bufferingLabel.Move(fyne.NewPos((size.Width-bufW)/2, (size.Height-bufH)/2))
+		r.VideoPlayer.bufferingLabel.Show()
+	} else {
+		r.VideoPlayer.bufferingLabel.Hide()
+	}
+
+	if r.VideoPlayer.hasError {
+		indicatorSize := float32(16)
+		labelW := size.Width - float32(40)
+		if labelW < float32(100) {
+			labelW = float32(100)
+		}
+		labelH := float32(28)
+		errX := (size.Width - labelW) / float32(2)
+		errY := (size.Height-labelH)/float32(2) + indicatorSize
+		r.VideoPlayer.errorIndicator.Resize(fyne.NewSize(indicatorSize, indicatorSize))
+		r.VideoPlayer.errorIndicator.Move(fyne.NewPos(errX, errY-indicatorSize-float32(4)))
+		r.VideoPlayer.errorIndicator.Show()
+		r.VideoPlayer.errorLabel.Resize(fyne.NewSize(labelW, labelH))
+		r.VideoPlayer.errorLabel.Move(fyne.NewPos(errX, errY))
+		r.VideoPlayer.errorLabel.Show()
+	} else {
+		r.VideoPlayer.errorIndicator.Hide()
+		r.VideoPlayer.errorLabel.Hide()
+	}
+}
+
+func (r *videoPlayerRenderer) Refresh() {
+	if r.VideoPlayer.raster != nil {
+		r.VideoPlayer.raster.Refresh()
+	}
+}
+
+func (r *videoPlayerRenderer) Destroy() {
+}
+
+func (r *videoPlayerRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(320, 180)
+}
+
 func (v *VideoPlayer) scaleNearest(src *image.RGBA, dst *image.RGBA, srcW, srcH, dstW, dstH, offsetX, offsetY int) {
 	if dstW == 0 || dstH == 0 {
 		return
@@ -872,501 +494,11 @@ func (v *VideoPlayer) scaleNearest(src *image.RGBA, dst *image.RGBA, srcW, srcH,
 	}
 }
 
-// drawMarkers renders trim region markers and chapter ticks over the seek slider.
-// The image background is transparent so the slider beneath remains visible.
-func (v *VideoPlayer) drawMarkers(w, h int) image.Image {
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	if v.duration <= 0 {
-		return img
-	}
-
-	margin := h / 4
-	if margin < 2 {
-		margin = 2
-	}
-
-	hasTrimMarkers := v.outPoint > v.inPoint
-
-	// Draw trim region background (highlighted area between in/out)
-	if hasTrimMarkers {
-		inX := int(v.inPoint / v.duration * float64(w))
-		outX := int(v.outPoint / v.duration * float64(w))
-		if inX < 0 {
-			inX = 0
-		}
-		if outX > w {
-			outX = w
-		}
-		// Draw shaded region between in and out points
-		regionColor := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0x30}
-		for x := inX; x < outX; x++ {
-			for y := margin; y < h-margin; y++ {
-				img.SetRGBA(x, y, regionColor)
-			}
-		}
-	}
-
-	// Draw trim In marker (left bracket)
-	if hasTrimMarkers {
-		inX := int(v.inPoint / v.duration * float64(w))
-		inMarkerColor := color.RGBA{R: 0xFF, G: 0xA5, B: 0x00, A: 0xFF} // Orange
-		inMarkerW := 3
-		for dx := 0; dx < inMarkerW; dx++ {
-			px := inX + dx
-			if px < 0 || px >= w {
-				continue
-			}
-			for py := 0; py < h; py++ {
-				img.SetRGBA(px, py, inMarkerColor)
-			}
-		}
-	}
-
-	// Draw trim Out marker (right bracket)
-	if hasTrimMarkers {
-		outX := int(v.outPoint / v.duration * float64(w))
-		outMarkerColor := color.RGBA{R: 0xFF, G: 0x45, B: 0x00, A: 0xFF} // Red-Orange
-		outMarkerW := 3
-		for dx := 0; dx < outMarkerW; dx++ {
-			px := outX + dx
-			if px < 0 || px >= w {
-				continue
-			}
-			for py := 0; py < h; py++ {
-				img.SetRGBA(px, py, outMarkerColor)
-			}
-		}
-	}
-
-	// Draw chapter markers (thin green ticks)
-	if len(v.chapters) > 1 {
-		tick := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xCC}
-		tickW := 2
-		// Skip index 0 — that's just the start of the video.
-		for _, ch := range v.chapters[1:] {
-			if ch.StartTime <= 0 {
-				continue
-			}
-			x := int(ch.StartTime / v.duration * float64(w))
-			for dx := 0; dx < tickW; dx++ {
-				px := x + dx
-				if px < 0 || px >= w {
-					continue
-				}
-				for py := margin; py < h-margin; py++ {
-					img.SetRGBA(px, py, tick)
-				}
-			}
-		}
-	}
-
-	return img
-}
-
-func (v *VideoPlayer) updateTimeLabels() {
-	if v.timeLabel != nil {
-		v.timeLabel.Text = formatVideoTime(v.currentTime)
-	}
-	if v.durLabel != nil {
-		v.durLabel.Text = formatVideoTime(v.duration)
-	}
-}
-
-func (v *VideoPlayer) OnPlay(cb func()) {
-	v.onPlay = cb
-}
-
-func (v *VideoPlayer) OnPause(cb func()) {
-	v.onPause = cb
-}
-
-func (v *VideoPlayer) OnSeek(cb func(float64)) {
-	v.onSeek = cb
-}
-
-func (v *VideoPlayer) OnVolumeChange(cb func(float64)) {
-	v.onVolumeChange = cb
-}
-
-func (v *VideoPlayer) OnSpeedChange(cb func(float64)) {
-	v.onSpeedChange = cb
-}
-
-func (v *VideoPlayer) OnPrevChapter(cb func()) {
-	v.onPrevChapter = cb
-}
-
-func (v *VideoPlayer) OnNextChapter(cb func()) {
-	v.onNextChapter = cb
-}
-
-func (v *VideoPlayer) GetCurrentChapter() int {
-	return v.currentChapter
-}
-
-func (v *VideoPlayer) GetChapterCount() int {
-	return len(v.chapters)
-}
-
-func (v *VideoPlayer) SetInPoint(t float64) {
-	v.inPoint = t
-	v.refreshMarkers()
-}
-
-func (v *VideoPlayer) SetOutPoint(t float64) {
-	v.outPoint = t
-	v.refreshMarkers()
-}
-
-func (v *VideoPlayer) GetInPoint() float64 {
-	return v.inPoint
-}
-
-func (v *VideoPlayer) GetOutPoint() float64 {
-	return v.outPoint
-}
-
-func (v *VideoPlayer) ClearTrimMarkers() {
-	v.inPoint = 0
-	v.outPoint = 0
-	v.refreshMarkers()
-}
-
-func (v *VideoPlayer) refreshMarkers() {
-	if v.markerCanvas != nil {
-		v.markerCanvas.Refresh()
-	}
-}
-
-func (v *VideoPlayer) toggleSubtitles() {
-	v.subtitlesEnabled = !v.subtitlesEnabled
-	if v.subtitleBtn != nil {
-		v.subtitleBtn.Active = v.subtitlesEnabled
-		v.subtitleBtn.Refresh()
-	}
-	if v.onSubtitles != nil {
-		v.onSubtitles(v.subtitlesEnabled)
-	}
-	logging.Info(logging.CatPlayer, "Subtitles toggled: %v", v.subtitlesEnabled)
-}
-
-func (v *VideoPlayer) IsSubtitlesEnabled() bool {
-	return v.subtitlesEnabled
-}
-
-func (v *VideoPlayer) SetSubtitlesEnabled(enabled bool) {
-	v.subtitlesEnabled = enabled
-	if v.subtitleBtn != nil {
-		v.subtitleBtn.Active = enabled
-		v.subtitleBtn.Refresh()
-	}
-}
-
-func (v *VideoPlayer) AddThumbnailFrame(time float64, frame *image.RGBA) {
-	if frame == nil {
-		return
-	}
-	v.thumbnailMu.Lock()
-	defer v.thumbnailMu.Unlock()
-
-	pts := int64(time * 1000)
-	if v.thumbnailCache == nil {
-		v.thumbnailCache = make(map[int64]*image.RGBA)
-	}
-
-	if len(v.thumbnailCache) >= 50 {
-		var oldest int64
-		for k := range v.thumbnailCache {
-			if oldest == 0 || k < oldest {
-				oldest = k
-			}
-		}
-		delete(v.thumbnailCache, oldest)
-	}
-
-	v.thumbnailCache[pts] = frame
-}
-
-func (v *VideoPlayer) ClearThumbnailCache() {
-	v.thumbnailMu.Lock()
-	defer v.thumbnailMu.Unlock()
-	v.thumbnailCache = make(map[int64]*image.RGBA)
-}
-
-// DisableBuiltinControls prevents the hover-to-reveal overlay transport bar
-// from ever appearing. Used when the caller provides its own control row.
-func (v *VideoPlayer) DisableBuiltinControls() {
-	v.builtinControlsLocked = true
-	v.showControls = false
-	v.Refresh()
-}
-
-func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
-	v.mouseInView = true
-	if !v.builtinControlsLocked {
-		v.showControls = true
-		v.resetControlHideTimer()
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) MouseMoved(ev *desktop.MouseEvent) {
-	if v.builtinControlsLocked {
-		return
-	}
-	if !v.showControls {
-		v.showControls = true
-		v.Refresh()
-	}
-	v.resetControlHideTimer()
-}
-
-func (v *VideoPlayer) MouseOut() {
-	v.mouseInView = false
-	if v.controlHideTimer != nil {
-		v.controlHideTimer.Stop()
-	}
-	v.showControls = false
-	v.Refresh()
-}
-
-func (v *VideoPlayer) resetControlHideTimer() {
-	if v.controlHideTimer != nil {
-		v.controlHideTimer.Stop()
-	}
-	v.controlHideTimer = time.AfterFunc(3*time.Second, func() {
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			if v.mouseInView {
-				v.showControls = false
-				v.Refresh()
-			}
-		}, false)
-	})
-}
-
-func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
-	if v.builtinControlsLocked {
-		return
-	}
-	canvas := fyne.CurrentApp().Driver().CanvasForObject(v)
-	if canvas != nil {
-		canvas.Focus(v)
-	}
-	if v.hasError && v.errorMessage != "" {
-		logging.Info(logging.CatPlayer, "VideoPlayer error: %s", v.errorMessage)
-		return
-	}
-	if v.source.Load() == nil {
-		if v.onTapEmpty != nil {
-			v.onTapEmpty()
-		}
-		return
-	}
-	v.togglePlay()
-}
-
-func (v *VideoPlayer) TypedKey(event *fyne.KeyEvent) {
-	if v.builtinControlsLocked {
-		return
-	}
-	if v.source.Load() == nil {
-		return
-	}
-	switch event.Name {
-	case fyne.KeySpace:
-		v.togglePlay()
-	}
-}
-
-func (v *VideoPlayer) FocusGained() {}
-func (v *VideoPlayer) FocusLost()  {}
-func (v *VideoPlayer) TypedRune(r rune) {}
-
-func (v *VideoPlayer) SetOnTapEmpty(fn func()) {
-	v.onTapEmpty = fn
-}
-
-// SetIdleText sets the text displayed on the SMPTE bars when no video is loaded.
-// Use "DRAG TO LOAD VIDEO" for primary source players and "NO SOURCE" for
-// secondary/output players that are populated programmatically.
-func (v *VideoPlayer) SetIdleText(text string) {
-	v.idleText = text
-}
-
-func (v *VideoPlayer) SetIdleAspectRatio(ratio float64) {
-	if ratio <= 0 {
-		ratio = 4.0 / 3.0
-	}
-	v.idleAspectRatio = ratio
-}
-
-func (v *VideoPlayer) IdleAspectRatio() float64 {
-	if v.idleAspectRatio <= 0 {
-		return 4.0 / 3.0
-	}
-	return v.idleAspectRatio
-}
-
-func (v *VideoPlayer) SetFrameTimingVisible(visible bool) {
-	v.showFrameTiming = visible
-	if !visible {
-		v.frameTimingBg.Hide()
-		v.frameTimingText.Hide()
-	}
-	v.Refresh()
-}
-
-func (v *VideoPlayer) SetFrameTimingText(text string) {
-	v.frameTimingText.Text = text
-	v.Refresh()
-}
-
-func formatVideoTime(seconds float64) string {
-	t := time.Duration(seconds * float64(time.Second))
-	h := int(t.Hours())
-	m := int(t.Minutes()) % 60
-	s := int(t.Seconds()) % 60
-	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
-}
-
-type videoPlayerRenderer struct {
-	*VideoPlayer
-}
-
-func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
-	if r.VideoPlayer.raster == nil {
-		r.VideoPlayer.raster = canvas.NewRaster(r.VideoPlayer.draw)
-	}
-	return []fyne.CanvasObject{
-		r.VideoPlayer.raster,
-		r.VideoPlayer.controlBar,
-		r.VideoPlayer.controls,
-		r.VideoPlayer.osdBg,
-		r.VideoPlayer.osdText,
-		r.VideoPlayer.frameTimingBg,
-		r.VideoPlayer.frameTimingText,
-		r.VideoPlayer.loadingSpinner,
-		r.VideoPlayer.bufferingLabel,
-		r.VideoPlayer.errorIndicator,
-		r.VideoPlayer.errorLabel,
-	}
-}
-
-func (r *videoPlayerRenderer) Layout(size fyne.Size) {
-	// Raster always fills the full widget — controls are an overlay.
-	if r.VideoPlayer.raster != nil {
-		r.VideoPlayer.raster.Resize(size)
-	}
-
-	barHeight := float32(controlBarHeight)
-	if r.minimal {
-		barHeight = float32(controlBarHeightMini)
-	}
-
-	if r.showControls {
-		r.VideoPlayer.controlBar.Resize(fyne.NewSize(size.Width, barHeight))
-		r.VideoPlayer.controlBar.Move(fyne.NewPos(0, size.Height-barHeight))
-		r.VideoPlayer.controls.Resize(fyne.NewSize(size.Width, barHeight))
-		r.VideoPlayer.controls.Move(fyne.NewPos(0, size.Height-barHeight))
-		r.VideoPlayer.controlBar.Show()
-		r.VideoPlayer.controls.Show()
-	} else {
-		r.VideoPlayer.controlBar.Hide()
-		r.VideoPlayer.controls.Hide()
-	}
-
-	// OSD: fixed-width pill anchored upper-centre of the video area.
-	const osdW, osdH = float32(160), float32(64)
-	osdX := (size.Width - osdW) / 2
-	osdY := float32(24)
-	r.VideoPlayer.osdBg.Resize(fyne.NewSize(osdW, osdH))
-	r.VideoPlayer.osdBg.Move(fyne.NewPos(osdX, osdY))
-	r.VideoPlayer.osdText.Resize(fyne.NewSize(osdW, osdH))
-	r.VideoPlayer.osdText.Move(fyne.NewPos(osdX, osdY+6))
-
-	// Frame timing overlay: top-right corner, auto-sized to text.
-	if r.VideoPlayer.showFrameTiming {
-		ftText := r.VideoPlayer.frameTimingText
-		ftBg := r.VideoPlayer.frameTimingBg
-		textSize := fyne.MeasureText(ftText.Text, ftText.TextSize, ftText.TextStyle)
-		bgW := textSize.Width + 16
-		bgH := textSize.Height + 12
-		bgX := size.Width - bgW - 8
-		bgY := float32(8)
-		ftBg.Resize(fyne.NewSize(bgW, bgH))
-		ftBg.Move(fyne.NewPos(bgX, bgY))
-		ftBg.Show()
-		ftText.Resize(fyne.NewSize(bgW, bgH))
-		ftText.Move(fyne.NewPos(bgX+6, bgY+4))
-		ftText.Show()
-	} else {
-		r.VideoPlayer.frameTimingBg.Hide()
-		r.VideoPlayer.frameTimingText.Hide()
-	}
-
-	// Loading spinner: centred in the video area, shown when loading a file.
-	if r.VideoPlayer.isLoading {
-		spinnerW := float32(200)
-		spinnerH := float32(6)
-		r.VideoPlayer.loadingSpinner.Resize(fyne.NewSize(spinnerW, spinnerH))
-		r.VideoPlayer.loadingSpinner.Move(fyne.NewPos((size.Width-spinnerW)/2, (size.Height-spinnerH)/2))
-		r.VideoPlayer.loadingSpinner.Show()
-	} else {
-		r.VideoPlayer.loadingSpinner.Hide()
-	}
-
-	// Buffering label: centred, just above the loading spinner area.
-	if r.VideoPlayer.isBuffering {
-		bufW := float32(160)
-		bufH := float32(32)
-		r.VideoPlayer.bufferingLabel.Resize(fyne.NewSize(bufW, bufH))
-		r.VideoPlayer.bufferingLabel.Move(fyne.NewPos((size.Width-bufW)/2, (size.Height-bufH)/2))
-		r.VideoPlayer.bufferingLabel.Show()
-	} else {
-		r.VideoPlayer.bufferingLabel.Hide()
-	}
-
-	// Error indicator: red dot + error message, centred in the video area.
-	if r.VideoPlayer.hasError {
-		indicatorSize := float32(16)
-		labelW := size.Width - float32(40)
-		if labelW < float32(100) {
-			labelW = float32(100)
-		}
-		labelH := float32(28)
-		errX := (size.Width - labelW) / float32(2)
-		errY := (size.Height-labelH)/float32(2) + indicatorSize
-		r.VideoPlayer.errorIndicator.Resize(fyne.NewSize(indicatorSize, indicatorSize))
-		r.VideoPlayer.errorIndicator.Move(fyne.NewPos(errX, errY-indicatorSize-float32(4)))
-		r.VideoPlayer.errorIndicator.Show()
-		r.VideoPlayer.errorLabel.Resize(fyne.NewSize(labelW, labelH))
-		r.VideoPlayer.errorLabel.Move(fyne.NewPos(errX, errY))
-		r.VideoPlayer.errorLabel.Show()
-	} else {
-		r.VideoPlayer.errorIndicator.Hide()
-		r.VideoPlayer.errorLabel.Hide()
-	}
-}
-
-func (r *videoPlayerRenderer) Refresh() {
-	if r.VideoPlayer.raster != nil {
-		r.VideoPlayer.raster.Refresh()
-	}
-}
-
-func (r *videoPlayerRenderer) Destroy() {
-}
-
-func (r *videoPlayerRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(320, 180)
-}
-
 func (v *VideoPlayer) draw(w, h int) image.Image {
 	src := v.source.Load()
 	if src == nil {
 		availableH := h
 
-		// Draw SMPTE bars at configured aspect ratio with letterboxing.
 		targetAspect := v.IdleAspectRatio()
 		availableAspect := float64(w) / float64(availableH)
 
@@ -1374,24 +506,20 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		var offsetX, offsetY int
 
 		if availableAspect > targetAspect {
-			// Player is wider than target - pillarbox (black bars on sides)
 			smpteH = availableH
 			smpteW = int(float64(smpteH) * targetAspect)
 			offsetX = (w - smpteW) / 2
 			offsetY = 0
 		} else {
-			// Player is taller than 4:3 - letterbox (black bars top/bottom)
 			smpteW = w
 			smpteH = int(float64(smpteW) / targetAspect)
 			offsetX = 0
 			offsetY = (availableH - smpteH) / 2
 		}
 
-		// Create full-size image, flood-fill with VT dark background.
 		img := image.NewRGBA(image.Rect(0, 0, w, availableH))
 		draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{0x0F, 0x15, 0x29, 0xFF}), image.Point{}, draw.Src)
 
-		// Composite the SMPTE bars into the letterboxed/pillarboxed region.
 		overlayText := v.idleText
 		if v.isLoading {
 			overlayText = "NOW LOADING"
@@ -1407,7 +535,6 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 
 	availableH := h
 
-	// Ensure the pre-allocated draw buffer matches the current widget size.
 	if v.drawBuf == nil || v.drawBufW != w || v.drawBufH != availableH {
 		v.drawBuf = image.NewRGBA(image.Rect(0, 0, w, availableH))
 		v.drawBufW = w
@@ -1432,11 +559,8 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	offsetX := (w - newW) / 2
 	offsetY := (availableH - newH) / 2
 
-	// Fill with black (letterbox / pillarbox borders).
 	draw.Draw(v.drawBuf, v.drawBuf.Bounds(), image.Black, image.Point{}, draw.Src)
 	v.scaleNearest(src, v.drawBuf, srcW, srcH, newW, newH, offsetX, offsetY)
 
 	return v.drawBuf
 }
-
-
