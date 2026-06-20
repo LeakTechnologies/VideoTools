@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FFMPEG_VERSION: "7.1.1"
+  FFMPEG_VERSION: "8.1"
 
 jobs:
   linux:
@@ -37,7 +37,7 @@ jobs:
           sudo apt-get install -y cmake mercurial autoconf libtool nasm yasm pkg-config \
             libx11-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
             libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
-            libxxf86vm-dev libvulkan-dev
+            libxxf86vm-dev libvulkan-dev libxinerama-dev libasound2-dev
 
       - name: Build FFmpeg
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -70,9 +70,6 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,13 +117,13 @@ jobs:
       - name: Build VideoTools (Windows)
         shell: msys2 {0}
         run: |
-          export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          export PATH="/ucrt64/bin:/usr/bin:${GOROOT}/bin:${PATH}"
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           export CGO_CFLAGS="-I/c/ffmpeg-static/include -g0"
           export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter) -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
           export CGO_ENABLED=1
           export CC=gcc
-          scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
+          windres scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
           go build -tags native_media -ldflags="-s -w -H=windowsgui" -o VideoTools.exe .
 
       - name: Package
