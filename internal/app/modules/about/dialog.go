@@ -1,4 +1,4 @@
-﻿package about
+package about
 
 import (
 	"bytes"

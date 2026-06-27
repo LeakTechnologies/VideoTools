@@ -1,4 +1,4 @@
-﻿package upscale
+package upscale
 
 import (
 	"time"

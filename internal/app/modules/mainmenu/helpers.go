@@ -1,4 +1,4 @@
-﻿package mainmenu
+package mainmenu
 
 import (
 	"image/color"

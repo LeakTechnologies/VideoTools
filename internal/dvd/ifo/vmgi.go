@@ -1,4 +1,4 @@
-﻿package ifo
+package ifo
 
 import (
 	"bytes"

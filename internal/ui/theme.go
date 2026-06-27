@@ -1,4 +1,4 @@
-﻿package ui
+package ui
 
 // VT_Navy colour palette re-exported from internal/theme so the ui package
 // can reference colour vars by short name without an import qualifier.

@@ -1,4 +1,4 @@
-﻿package convert
+package convert
 
 import (
 	"fyne.io/fyne/v2"

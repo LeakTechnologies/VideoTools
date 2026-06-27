@@ -1,4 +1,4 @@
-﻿package vob
+package vob
 
 import (
 	"fmt"
