@@ -1,4 +1,4 @@
-﻿package appcfg
+package appcfg
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-﻿package spu
+package spu
 
 import (
 	"bytes"

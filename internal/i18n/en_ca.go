@@ -1,4 +1,4 @@
-﻿package i18n
+package i18n
 
 // enCA is the English (Canada) source of truth.
 // Every field must be populated — this is the fallback for all other languages.
