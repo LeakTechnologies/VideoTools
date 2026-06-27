@@ -116,9 +116,11 @@ jobs:
           make install
 
       - name: Build VideoTools (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
-          export PATH="/ucrt64/bin:/usr/bin:$(cygpath -u "${GOROOT}" 2>/dev/null)/bin:${PATH}"
+          export PATH="/c/msys64/ucrt64/bin:/c/msys64/usr/bin:$PATH"
+          export GOROOT=$(ls -d /c/hostedtoolcache/windows/go/*/x64 2>/dev/null | head -1)
+          export PATH="${GOROOT}/bin:${PATH}"
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           export CGO_CFLAGS="-I/c/ffmpeg-static/include -g0"
           export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter) -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
