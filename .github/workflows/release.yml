@@ -122,6 +122,13 @@ jobs:
           export PATH="/ucrt64/bin:/usr/bin:${GOROOT}/bin:${PATH}"
           export CGO_CFLAGS="-I/c/ffmpeg-static/include -g0"
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
+          # Promote static archives into the ffmpeg prefix (first -L dir) so ld
+          # picks lib<name>.a over MSYS2's lib<name>.dll.a — otherwise the exe
+          # picks up runtime deps on libbz2-1.dll, zlib1.dll, libstdc++-6.dll etc.
+          for lib in bz2 z lzma iconv stdc++; do
+            src="/ucrt64/lib/lib${lib}.a"
+            [ -f "$src" ] && cp -n "$src" /c/ffmpeg-static/lib/ && echo "promoted lib${lib}.a"
+          done
           FFLIBS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter)"
           if [ -z "$FFLIBS" ]; then echo "ERROR: pkg-config produced no FFmpeg link flags"; exit 1; fi
           FFLIBS="${FFLIBS//-lsupc++/}"
@@ -130,6 +137,18 @@ jobs:
           export CC=$(cygpath -m /ucrt64/bin/gcc)
           windres scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
           go build -tags native_media -ldflags="-s -w -H=windowsgui" -o VideoTools.exe .
+
+      - name: Verify no MinGW runtime DLL dependencies
+        shell: msys2 {0}
+        run: |
+          echo "--- VideoTools.exe DLL dependencies ---"
+          objdump -p VideoTools.exe | grep -i 'DLL Name'
+          BAD=$(objdump -p VideoTools.exe | grep -i 'DLL Name' | grep -Ei 'lib(bz2|lzma|iconv|stdc\+\+|winpthread|gcc)|zlib1' || true)
+          if [ -n "$BAD" ]; then
+            echo "ERROR: exe depends on non-system DLLs — static promotion failed:"
+            echo "$BAD"
+            exit 1
+          fi
 
       - name: Package
         shell: pwsh
