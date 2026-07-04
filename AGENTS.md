@@ -310,8 +310,11 @@ The following decisions were reached after multiple failed attempts and must not
 
 ### CI Toolchain — FFmpeg, x264, x265
 
-**FFmpeg must be built from source — for both static and shared builds.**
-All three CI pipelines (Forgejo dev-packages, GitHub release, GitHub windows-msix) build FFmpeg 8.1 from source twice: once with `--enable-static --disable-shared` (for the CGo link into `VideoTools.exe`) and once with `--enable-shared --disable-static` (for runtime DLLs and `ffmpeg.exe`/`ffprobe.exe`). Both builds use the same x264/x265 static archives and the same FFmpeg source tarball. This eliminates the ABI drift risk that existed when BtbN `latest` was used for shared DLLs.
+**Windows ships as three fully static binaries — no DLL/ folder (settled 2026-07-04, Human Director approved).**
+`VideoTools.exe`, `ffmpeg.exe`, and `ffprobe.exe` are each fully self-contained: FFmpeg built from source with `--enable-static --disable-shared --extra-ldflags="-static"`, static archives for bz2/z/lzma/iconv/stdc++ promoted into the ffmpeg prefix so ld never picks MSYS2 import libs, and a CI gate (`objdump -p` on all three binaries) fails the job if any MinGW runtime DLL dependency appears. The shared FFmpeg build is eliminated from GitHub CI entirely. The app treats static sidecars as the primary state (`appcfg.StaticSidecarsWork()`); the DLL/ folder path remains only as legacy support for old bundles. Do not reintroduce a shared FFmpeg build or a DLL/ folder without Human Director approval.
+
+**FFmpeg must be built from source.**
+The single static build serves both the CGo link into `VideoTools.exe` and the `ffmpeg.exe`/`ffprobe.exe` sidecar programs. This eliminates the ABI drift risk that existed when BtbN `latest` was used for shared DLLs.
 
 **BtbN FFmpeg-Builds must NOT be used in CI.**
 BtbN Windows packages contain executables only, no static `.a` libraries — they cannot be used for the CGo link. BtbN `latest` is a moving tag whose ABI can change at any time, causing `ExpectedFFmpegDLLs()` validation failures and subprocess crashes. Previous CI pipelines that downloaded from BtbN have been replaced with source-built shared FFmpeg. Do not reintroduce BtbN downloads.
@@ -334,7 +337,7 @@ archive (for operator new/delete, __cxa_guard, RTTI vtables).
 **cmake must be in the Linux apt-get install deps** (for x265 source build).
 **nasm and mingw-w64-ucrt-x86_64-cmake must be installed in the Windows MSYS2 step** (for x264/x265 source builds).
 
-**FFmpeg shared build must run `make install` with `--enable-doc --enable-programs`** so that `ffmpeg.exe` and `ffprobe.exe` are produced for the release bundle.
+**ffmpeg.exe/ffprobe.exe come from the static build** (`--enable-programs` is FFmpeg's default; do not pass `--disable-programs`). The former shared-build requirement is obsolete — see the three-static-binaries settled decision above.
 
 If CI is failing, read the build log carefully before changing the FFmpeg setup strategy.
 Open an issue or ask before touching the "Setup static FFmpeg" steps.

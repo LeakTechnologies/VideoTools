@@ -8264,31 +8264,29 @@ func runGUI() {
 	// Failure is non-fatal — the player degrades gracefully when DLLs are absent.
 	if HasNativeMediaPlayer() {
 		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
-			logging.Warning(logging.CatSystem, "FFmpeg DLLs not found — video player will be unavailable: %v", err)
+			logging.Warning(logging.CatSystem, "FFmpeg components not found — encoding features will be unavailable: %v", err)
 			// Show a one-time warning dialog so the user isn't surprised when
 			// player features don't work.  Only when the window is available.
-			showDLLWarning(w, "FFmpeg DLLs Not Found",
-				"The FFmpeg shared libraries required for video playback and encoding "+
-					"could not be found.\n\n"+
-					"Expected location:\n  "+appcfg.FFmpegDllDir()+"\n\n"+
-					"If you extracted the ZIP manually, ensure the DLL/ folder is "+
-					"present next to VideoTools.exe.\n\n"+
+			showDLLWarning(w, "FFmpeg Components Not Found",
+				"The FFmpeg components required for encoding could not be found.\n\n"+
+					"Current release packages ship ffmpeg.exe and ffprobe.exe next to "+
+					"VideoTools.exe; older packages ship a DLL/ folder instead. "+
+					"Neither was found.\n\n"+
+					"If you extracted the ZIP manually, ensure all files from the "+
+					"archive are next to VideoTools.exe.\n\n"+
 					"Re-installing from the latest release package should resolve this.")
 		} else {
-			logging.Info(logging.CatSystem, "FFmpeg DLLs added to PATH")
-			// Validate the DLLs actually load by running a quick smoke test.
+			// Validate the encode pipeline actually works with a quick smoke test.
 			if err := appcfg.ValidateFFmpegDLLs(); err != nil {
-				logging.Warning(logging.CatSystem, "FFmpeg DLL validation failed: %v", err)
-				showDLLWarning(w, "FFmpeg DLL Load Error",
-					"The FFmpeg shared libraries were found but could not be loaded "+
+				logging.Warning(logging.CatSystem, "FFmpeg validation failed: %v", err)
+				showDLLWarning(w, "FFmpeg Load Error",
+					"FFmpeg components were found but could not be loaded "+
 						"correctly.\n\n"+
 						"Diagnostics:\n  "+strings.ReplaceAll(err.Error(), "\n", "\n  ")+"\n\n"+
-						"This usually means the DLLs are from a different FFmpeg version "+
-						"than VideoTools expects.\n\n"+
 						"Try re-installing from the latest release package. If the issue "+
 						"persists, run with --dllcheck for detailed diagnostics.")
 			} else {
-				logging.Info(logging.CatSystem, "FFmpeg DLL smoke test passed")
+				logging.Info(logging.CatSystem, "FFmpeg smoke test passed")
 			}
 			// Pre-warm the shared audio context during startup so the first video
 			// load doesn't block on WASAPI/oto initialisation.

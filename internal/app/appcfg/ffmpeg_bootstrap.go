@@ -55,14 +55,34 @@ func FFmpegDllsPresent() bool {
 	return err == nil && len(matches) > 0
 }
 
+// StaticSidecarsWork returns true if the bundled ffprobe.exe next to the
+// executable starts and reports a version — i.e. the sidecar binaries are
+// statically linked (or otherwise satisfied) and no shared FFmpeg DLLs are
+// required. This is the normal state for release bundles from dev51 onward,
+// which ship three self-contained binaries and no DLL/ folder.
+func StaticSidecarsWork() bool {
+	ffprobe := filepath.Join(exeDir(), "ffprobe.exe")
+	if _, err := os.Stat(ffprobe); err != nil {
+		return false
+	}
+	return exec.Command(ffprobe, "-version").Run() == nil
+}
+
 // AddFFmpegDllsToPath finds the FFmpeg DLL directory and prepends it to PATH
 // so the Windows loader (and FFmpeg's internal LoadLibrary) can find them.
 // Returns nil on success, or an error describing what went wrong.
+//
+// If no DLLs exist but the bundled sidecar binaries are statically linked
+// (StaticSidecarsWork), this is a no-op success — nothing needs to be on PATH.
 func AddFFmpegDllsToPath() error {
 	dllDir := FFmpegDllDir()
 
 	if !FFmpegDllsPresent() {
-		err := fmt.Errorf("FFmpeg DLLs not found in %s (looked in: exe-dir/DLL/, exe-dir/, %%LOCALAPPDATA%%/VideoTools/DLL)", dllDir)
+		if StaticSidecarsWork() {
+			logging.Info(logging.CatSystem, "static FFmpeg sidecars detected — no shared DLLs required")
+			return nil
+		}
+		err := fmt.Errorf("FFmpeg components not found: no static ffmpeg.exe/ffprobe.exe beside the executable and no DLLs in %s (looked in: exe-dir/DLL/, exe-dir/, %%LOCALAPPDATA%%/VideoTools/DLL)", dllDir)
 		logging.Error(logging.CatSystem, "%v", err)
 		return err
 	}
@@ -98,17 +118,41 @@ func ExpectedFFmpegDLLs() []string {
 	}
 }
 
-// ValidateFFmpegDLLs runs a live smoke test on the FFmpeg DLLs that have been
-// added to PATH.  It checks that every expected DLL exists AND that the
-// bundled ffprobe.exe (if present) can load the DLLs without error.
+// ValidateFFmpegDLLs verifies the FFmpeg encode pipeline is usable.
+//
+// The authoritative check is the live smoke test: if the bundled ffprobe.exe
+// starts and reports a version, the pipeline works — whether the binaries are
+// statically linked (dev51+ bundles, no DLLs at all) or the shared DLLs were
+// found on PATH (legacy bundles). Only when the smoke test cannot pass does
+// the per-DLL existence check run, to produce actionable diagnostics.
 //
 // Returns a consolidated error describing all failures, or nil if everything
 // is ready.  The error text is suitable for display in a startup dialog.
 func ValidateFFmpegDLLs() error {
-	dllDir := FFmpegDllDir()
 	var issues []string
 
-	// — exist / ABI check — (glob patterns like avcodec-*.dll)
+	// — smoke test with bundled ffprobe (authoritative) —
+	ffprobe := filepath.Join(exeDir(), "ffprobe.exe")
+	if _, err := os.Stat(ffprobe); err == nil {
+		out, err := exec.Command(ffprobe, "-version").CombinedOutput()
+		if err == nil {
+			logging.Debug(logging.CatSystem, "FFmpeg smoke test passed: ffprobe runs")
+			return nil
+		}
+		issues = append(issues, fmt.Sprintf("ffprobe smoke test FAILED (DLL load error): %v", err))
+		// Include the first few lines of output — usually the DLL load error message.
+		lines := strings.SplitN(string(out), "\n", 4)
+		for _, l := range lines {
+			if strings.TrimSpace(l) != "" {
+				issues = append(issues, fmt.Sprintf("  -> %s", strings.TrimSpace(l)))
+			}
+		}
+	} else {
+		issues = append(issues, fmt.Sprintf("bundled ffprobe.exe not found beside the executable (%s)", ffprobe))
+	}
+
+	// — per-DLL diagnostics (legacy shared bundles) —
+	dllDir := FFmpegDllDir()
 	for _, pattern := range ExpectedFFmpegDLLs() {
 		matches, err := filepath.Glob(filepath.Join(dllDir, pattern))
 		if err != nil || len(matches) == 0 {
@@ -116,33 +160,7 @@ func ValidateFFmpegDLLs() error {
 		}
 	}
 
-	// — smoke test with bundled ffprobe (if present) —
-	exeDir := exeDir()
-	ffprobe := filepath.Join(exeDir, "ffprobe.exe")
-	if _, err := os.Stat(ffprobe); err == nil {
-		out, err := exec.Command(ffprobe, "-version").CombinedOutput()
-		if err != nil {
-			issues = append(issues, fmt.Sprintf("ffprobe smoke test FAILED (DLL load error): %v", err))
-			// Include the first few lines of output — usually the DLL load error message.
-			lines := strings.SplitN(string(out), "\n", 4)
-			for _, l := range lines {
-				if strings.TrimSpace(l) != "" {
-					issues = append(issues, fmt.Sprintf("  -> %s", strings.TrimSpace(l)))
-				}
-			}
-		} else {
-			logging.Debug(logging.CatSystem, "FFmpeg DLL smoke test passed: ffprobe loaded successfully")
-		}
-	} else if !os.IsNotExist(err) {
-		// ffprobe should exist in a release bundle; log if stat fails for
-		// a reason other than "not found" (e.g. permission).
-		logging.Debug(logging.CatSystem, "can't stat bundled ffprobe.exe (non-fatal): %v", err)
-	}
-
-	if len(issues) == 0 {
-		return nil
-	}
-	return fmt.Errorf("FFmpeg DLL validation failed:\n  %s", strings.Join(issues, "\n  "))
+	return fmt.Errorf("FFmpeg validation failed:\n  %s", strings.Join(issues, "\n  "))
 }
 
 // DiagnoseDLLSetup returns a multi-line string describing the current DLL
