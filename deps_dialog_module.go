@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	depsmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/deps"

@@ -1,4 +1,4 @@
-﻿package ui
+package ui
 
 import (
 	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"

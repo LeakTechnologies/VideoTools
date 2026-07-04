@@ -1,4 +1,4 @@
-﻿package nav
+package nav
 
 import (
 	"fmt"

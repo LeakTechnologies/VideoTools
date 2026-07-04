@@ -13,6 +13,7 @@ concurrency:
 
 env:
   FFMPEG_VERSION: "8.1"
+  CGO_LDFLAGS_ALLOW: "-Wl,--stack,.*"
 
 jobs:
   linux:

@@ -1,4 +1,4 @@
-﻿package smpte
+package smpte
 
 import (
 	"image"
