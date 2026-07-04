@@ -100,7 +100,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v4' }}
 
       - name: Build FFmpeg (static)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -117,12 +117,12 @@ jobs:
       - name: Build VideoTools (Windows)
         shell: msys2 {0}
         run: |
+          export GOROOT=$(ls -d /c/hostedtoolcache/windows/go/*/x64 2>/dev/null | tail -1)
           export PATH="/ucrt64/bin:/usr/bin:${GOROOT}/bin:${PATH}"
-          export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           export CGO_CFLAGS="-I/c/ffmpeg-static/include -g0"
-          export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter) -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
+          export CGO_LDFLAGS="-LC:/ffmpeg-static/lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32 -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
           export CGO_ENABLED=1
-          export CC=gcc
+          export CC=C:/msys64/ucrt64/bin/gcc
           windres scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
           go build -tags native_media -ldflags="-s -w -H=windowsgui" -o VideoTools.exe .
 
