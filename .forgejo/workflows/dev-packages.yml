@@ -310,7 +310,7 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v7"
+          marker="/c/ffmpeg-static/.built-${ver}-v8"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
@@ -367,15 +367,18 @@ jobs:
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
           mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
           cd /tmp/ffmpeg-src
+          # --extra-ldflags includes -static so ffmpeg.exe/ffprobe.exe are fully
+          # self-contained — the product ships as three static binaries with no
+          # DLL/ folder (settled 2026-07-04).
           ./configure \
             --prefix=/c/ffmpeg-static \
             --enable-static --disable-shared --enable-pic \
-            --disable-doc --disable-programs --disable-debug \
+            --disable-doc --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
             --disable-vaapi --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
-            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib -static' \
             || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
@@ -397,79 +400,6 @@ jobs:
           Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "[INFO] Disk cleanup complete"
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
-
-      - name: Cache shared FFmpeg (Windows)
-        id: cache-ffmpeg-shared
-        uses: actions/cache@v4
-        with:
-          path: C:\ffmpeg-shared
-          key: ffmpeg-shared-${{ env.FFMPEG_VERSION }}-windows-v1
-
-      - name: Build shared FFmpeg DLLs (Windows)
-        if: steps.cache-ffmpeg-shared.outputs.cache-hit != 'true'
-        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
-        env:
-          MSYSTEM: UCRT64
-        run: |
-          ver="${{ env.FFMPEG_VERSION }}"
-          # x264/x265 are already built and installed to /c/ffmpeg-static by the
-          # static step above. Reuse them for the shared build.
-          mkdir -p /c/ffmpeg-shared/lib/pkgconfig
-          mkdir -p /c/ffmpeg-shared/include
-          mkdir -p /c/ffmpeg-shared/bin
-          mkdir -p /c/ffmpeg-shared/dll
-
-          # Build FFmpeg shared (DLLs + CLI tools) from the same source
-          echo "[INFO] Building FFmpeg ${ver} shared (DLLs + executables)..."
-          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
-          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
-          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
-          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
-          cd /tmp/ffmpeg-src
-          ./configure \
-            --prefix=/c/ffmpeg-shared \
-            --enable-shared --disable-static \
-            --disable-doc --enable-programs \
-            --enable-gpl --enable-version3 --enable-avfilter \
-            --enable-libx264 --enable-libx265 \
-            --disable-vaapi --disable-iconv \
-            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
-            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
-            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
-          make -j$(nproc) && make install
-          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
-
-          # Copy DLLs from bin/ to dll/ subfolder (matches ci-build.ps1 layout)
-          cp /c/ffmpeg-shared/bin/*.dll /c/ffmpeg-shared/dll/
-
-          # Copy transitive deps from MSYS2 (e.g. liblzma-5.dll, libstdc++-6.dll, etc.)
-          objdumpExe="/ucrt64/bin/objdump.exe"
-          if [ -f "$objdumpExe" ]; then
-            echo "[INFO] Scanning DLLs for transitive dependencies..."
-            declare -A deps
-            for dll in /c/ffmpeg-shared/dll/*.dll; do
-              while IFS= read -r line; do
-                dep=$(echo "$line" | awk -F: '{print $2}' | xargs)
-                case "$dep" in
-                  KERNEL32.dll|USER32.dll|GDI32.dll|SHELL32.dll|ole32.dll|OLEAUT32.dll|ADVAPI32.dll|MSVCRT.dll|ntdll.dll|win32u.dll|SHLWAPI.dll|VERSION.dll|IMM32.dll|KERNELBASE.dll|WS2_32.dll|oleaut32.dll)
-                    continue ;;
-                esac
-                deps["$dep"]=1
-              done < <("$objdumpExe" -p "$dll" 2>/dev/null | grep "DLL Name")
-            done
-            for dep in "${!deps[@]}"; do
-              src="/ucrt64/bin/$dep"
-              dst="/c/ffmpeg-shared/dll/$dep"
-              if [ -f "$src" ] && [ ! -f "$dst" ]; then
-                cp "$src" "$dst"
-                echo "[INFO] Copied transitive dep: $dep"
-              fi
-            done
-          fi
-
-          echo "[INFO] FFmpeg ${ver} shared build complete"
-          dllCount=$(ls /c/ffmpeg-shared/dll/*.dll 2>/dev/null | wc -l)
-          echo "[INFO] ${dllCount} DLLs in /c/ffmpeg-shared/dll/"
 
       - name: Build Windows package
         env:
