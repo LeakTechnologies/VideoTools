@@ -124,7 +124,8 @@ jobs:
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           FFLIBS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample libavfilter)"
           if [ -z "$FFLIBS" ]; then echo "ERROR: pkg-config produced no FFmpeg link flags"; exit 1; fi
-          export CGO_LDFLAGS="$FFLIBS -lbcrypt -lSecur32 -lcrypt32 -lncrypt -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32 -loleaut32 -lgdi32 -lpsapi -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lstdc++,-lpthread -Wl,-Bdynamic"
+          FFLIBS="${FFLIBS//-lsupc++/}"
+          export CGO_LDFLAGS="$FFLIBS -lbcrypt -lSecur32 -lcrypt32 -lncrypt -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32 -loleaut32 -lgdi32 -lpsapi -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
           export CGO_ENABLED=1
           export CC=$(cygpath -m /ucrt64/bin/gcc)
           windres scripts/videotools.rc -O coff -o videotools_windows_amd64.syso || true
