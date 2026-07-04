@@ -101,17 +101,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v4' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v5' }}
 
-      - name: Build FFmpeg (static)
+      - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
           export PATH="/ucrt64/bin:/usr/bin:$PATH"
           curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ
           cd ffmpeg-${FFMPEG_VERSION}
+          # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
+          # self-contained (no MinGW runtime DLLs) — the whole Windows
+          # product ships as three static binaries with no DLL/ folder.
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
-            --disable-programs --disable-doc --enable-gpl --enable-version3
+            --disable-doc --enable-gpl --enable-version3 \
+            --extra-ldflags="-static"
           make -j$(nproc)
           make install
 
@@ -141,21 +145,26 @@ jobs:
       - name: Verify no MinGW runtime DLL dependencies
         shell: msys2 {0}
         run: |
-          echo "--- VideoTools.exe DLL dependencies ---"
-          objdump -p VideoTools.exe | grep -i 'DLL Name'
-          BAD=$(objdump -p VideoTools.exe | grep -i 'DLL Name' | grep -Ei 'lib(bz2|lzma|iconv|stdc\+\+|winpthread|gcc)|zlib1' || true)
-          if [ -n "$BAD" ]; then
-            echo "ERROR: exe depends on non-system DLLs — static promotion failed:"
-            echo "$BAD"
-            exit 1
-          fi
+          FAIL=0
+          for exe in VideoTools.exe /c/ffmpeg-static/bin/ffmpeg.exe /c/ffmpeg-static/bin/ffprobe.exe; do
+            echo "--- $exe DLL dependencies ---"
+            objdump -p "$exe" | grep -i 'DLL Name'
+            BAD=$(objdump -p "$exe" | grep -i 'DLL Name' | grep -Ei 'lib(bz2|lzma|iconv|stdc\+\+|winpthread|gcc)|zlib1' || true)
+            if [ -n "$BAD" ]; then
+              echo "ERROR: $exe depends on non-system DLLs:"
+              echo "$BAD"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
 
       - name: Package
         shell: pwsh
         run: |
+          Copy-Item C:\ffmpeg-static\bin\ffmpeg.exe,C:\ffmpeg-static\bin\ffprobe.exe .
           $version = git describe --tags --abbrev=0 2>$null
           if (-not $version) { $version = "unknown" }
-          Compress-Archive -Path VideoTools.exe -DestinationPath "VideoTools_${version}_windows_amd64.zip"
+          Compress-Archive -Path VideoTools.exe,ffmpeg.exe,ffprobe.exe -DestinationPath "VideoTools_${version}_windows_amd64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-amd64-release

@@ -13,6 +13,14 @@
   - `-lcrypt32 -lncrypt` added for FFmpeg 8.1 Schannel TLS; `CGO_LDFLAGS_ALLOW: "-Wl,.*"`.
 - **FFmpeg CI cache now saves** — cache only persists on green jobs; subsequent Windows runs skip the ~15-minute FFmpeg source build.
 
+### Windows: Three Static Binaries — DLL/ Folder Retired (settled decision)
+
+- **VideoTools.exe statically links everything** — bz2/z/lzma/iconv/stdc++ static archives promoted into the FFmpeg prefix (first `-L` dir) so ld picks `.a` over MSYS2's `.dll.a`. Fixes the `libbz2-1.dll` / `zlib1.dll` missing-DLL errors on user machines.
+- **ffmpeg.exe/ffprobe.exe now built static** — FFmpeg configure gains `--extra-ldflags="-static"` and drops `--disable-programs`; the sidecar binaries are fully self-contained. The shared FFmpeg build and the `DLL/` folder are eliminated from the GitHub CI product.
+- **CI gate: objdump dependency check** — all three shipped binaries are scanned for MinGW runtime DLL references (`libbz2`, `zlib1`, `liblzma`, `libiconv`, `libstdc++`, `libwinpthread`, `libgcc`); any hit fails the job so this failure class can never reach a tester again.
+- **Windows zip now contains all three binaries** — previous packaging shipped `VideoTools.exe` alone.
+- **App bootstrap: static sidecars are the primary state** — new `appcfg.StaticSidecarsWork()`; `AddFFmpegDllsToPath()` no-ops successfully when static sidecars run; `ValidateFFmpegDLLs()` treats the ffprobe smoke test as authoritative and only falls back to per-DLL diagnostics for legacy shared bundles. Startup dialog copy updated.
+
 ### Player Overlay & Cleanup
 
 - **P0: Error/loading/buffering overlay indicators now render** — the four widgets (`loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator`) were created and hidden/shown by `SetLoading`/`SetBuffering`/`SetError`/`ClearError`, but never added to the renderer's `Objects()` or positioned in `Layout()`. Now render centred over the video with proper z-ordering.
