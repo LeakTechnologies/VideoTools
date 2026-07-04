@@ -1,4 +1,4 @@
-﻿package udf
+package udf
 
 import (
 	"bytes"

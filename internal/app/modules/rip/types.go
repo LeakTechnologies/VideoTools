@@ -1,4 +1,4 @@
-﻿package rip
+package rip
 
 import (
 	"fyne.io/fyne/v2"

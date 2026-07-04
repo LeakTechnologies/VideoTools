@@ -1,4 +1,4 @@
-﻿package interlace
+package interlace
 
 import (
 	"bufio"

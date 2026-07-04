@@ -1,4 +1,4 @@
-﻿package modulecfg
+package modulecfg
 
 import (
 	"encoding/json"

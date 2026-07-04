@@ -1,4 +1,4 @@
-﻿// Package i18n provides localization for VideoTools.
+// Package i18n provides localization for VideoTools.
 //
 // Usage:
 //

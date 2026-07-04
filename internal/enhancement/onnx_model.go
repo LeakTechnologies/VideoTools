@@ -1,4 +1,4 @@
-﻿package enhancement
+package enhancement
 
 import (
 	"fmt"

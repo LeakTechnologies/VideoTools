@@ -1,4 +1,4 @@
-﻿//go:build native_media
+//go:build native_media
 
 package media
 
@@ -12,7 +12,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
 	"github.com/LeakTechnologies/VideoTools/internal/smpte"
@@ -57,6 +56,7 @@ type VideoPlayer struct {
 	subtitlesEnabled bool
 	hasError         bool
 	errorMessage     string
+	muted            bool
 	currentTime      float64
 	duration         float64
 	volume           float64

@@ -1,4 +1,4 @@
-﻿//go:build !native_media
+//go:build !native_media
 
 package trim
 
