@@ -20,6 +20,7 @@
 - **CI gate: objdump dependency check** — all three shipped binaries are scanned for MinGW runtime DLL references (`libbz2`, `zlib1`, `liblzma`, `libiconv`, `libstdc++`, `libwinpthread`, `libgcc`); any hit fails the job so this failure class can never reach a tester again.
 - **Windows zip now contains all three binaries** — previous packaging shipped `VideoTools.exe` alone.
 - **App bootstrap: static sidecars are the primary state** — new `appcfg.StaticSidecarsWork()`; `AddFFmpegDllsToPath()` no-ops successfully when static sidecars run; `ValidateFFmpegDLLs()` treats the ffprobe smoke test as authoritative and only falls back to per-DLL diagnostics for legacy shared bundles. Startup dialog copy updated.
+- **All three Windows pipelines aligned** — `windows-msix.yml` and Forgejo `dev-packages.yml` receive the same surgery: shared FFmpeg build steps deleted, static build gains `-static` extra-ldflags + programs, MSIX layout and `ci-build.ps1` zip bundle static sidecars with per-binary objdump gates (no DLL/ folder). `ci-build.ps1` promotion list extended to lzma/iconv/stdc++ and its DLL import report is now a fatal gate.
 
 ### Player Overlay & Cleanup
 

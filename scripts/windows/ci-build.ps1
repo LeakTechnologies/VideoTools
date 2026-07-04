@@ -29,8 +29,10 @@ $env:CXX = "g++"
 $env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include -g0"
 $env:PKG_CONFIG_PATH = "C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig"
 
-# Promote bz2 and zlib static archives from MSYS2 into the ffmpeg prefix
-foreach ($lib in @("bz2", "z")) {
+# Promote static archives from MSYS2 into the ffmpeg prefix (first -L dir)
+# so ld picks lib<name>.a over lib<name>.dll.a — keeps the exe free of
+# MinGW runtime DLL dependencies (libbz2-1.dll, zlib1.dll, libstdc++-6.dll).
+foreach ($lib in @("bz2", "z", "lzma", "iconv", "stdc++")) {
     $src = "C:\msys64\ucrt64\lib\lib${lib}.a"
     $dst = "C:\ffmpeg-static\lib\lib${lib}.a"
     if ((Test-Path $src) -and -not (Test-Path $dst)) {
@@ -71,13 +73,22 @@ $ldflags = "-s -w -H windowsgui -X main.buildCommit=$gitCommit"
 go build -p 4 -tags native_media -ldflags="$ldflags" -trimpath -o $buildOutput .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# --- DLL dependency report (non-fatal) ---
+# --- DLL dependency gate (fatal) ---
+# The Windows product ships as fully static binaries; any MinGW runtime DLL
+# reference means the static promotion failed and the exe will not start on
+# user machines.
 $objdumpExe = Join-Path $msys2Bin "objdump.exe"
 if (Test-Path $objdumpExe) {
     Write-Host "[INFO] DLL imports in ${buildOutput}:"
-    & $objdumpExe -p $buildOutput 2>$null | Select-String "DLL Name" | ForEach-Object { Write-Host "  $_" }
+    $imports = & $objdumpExe -p $buildOutput 2>$null | Select-String "DLL Name"
+    $imports | ForEach-Object { Write-Host "  $_" }
+    $bad = $imports | Where-Object { $_ -match 'lib(bz2|lzma|iconv|stdc\+\+|winpthread|gcc)|zlib1' }
+    if ($bad) {
+        Write-Error "[ERROR] ${buildOutput} depends on non-system DLLs:`n$($bad -join "`n")"
+        exit 1
+    }
 } else {
-    Write-Host "[WARN] objdump not found; skipping DLL import report"
+    Write-Host "[WARN] objdump not found; skipping DLL import gate"
 }
 
 # --- Sign (optional, non-fatal) ---
@@ -111,59 +122,28 @@ $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([G
 # Main executable
 Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
 
-# Bundle FFmpeg DLLs in DLL/ subfolder (not root!)
-$ffmpegDllSource = "C:\ffmpeg-shared\dll"
-$ffmpegDllDest = Join-Path $pkgDir.FullName "DLL"
-$avcodecPresent = Get-ChildItem -Path $ffmpegDllSource -Filter "avcodec*.dll" -ErrorAction SilentlyContinue
-if ((Test-Path $ffmpegDllSource) -and $avcodecPresent) {
-    New-Item -ItemType Directory -Force -Path $ffmpegDllDest | Out-Null
-    Get-ChildItem -Path $ffmpegDllSource -Filter "*.dll" | ForEach-Object {
-        Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
-    }
-    $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
-    if ($dllCount -eq 0) {
-        Write-Error "[ERROR] DLL copy produced 0 files -- aborting"
+# Bundle static ffmpeg.exe/ffprobe.exe in package root — the whole product is
+# three self-contained binaries; there is no DLL/ folder (settled 2026-07-04).
+$ffmpegBinSource = "C:\ffmpeg-static\bin"
+foreach ($tool in @("ffmpeg.exe", "ffprobe.exe")) {
+    $src = Join-Path $ffmpegBinSource $tool
+    if (-not (Test-Path $src)) {
+        Write-Error "[ERROR] $src not found. The static FFmpeg build must run with programs enabled (no --disable-programs) and --extra-ldflags=-static."
         exit 1
     }
-    Write-Host "[INFO] Bundled $dllCount FFmpeg DLLs in DLL/ subfolder"
-    # Copy transitive DLL dependencies (e.g. liblzma-5.dll from x264/x265)
-    $objdumpExe = "C:\msys64\ucrt64\bin\objdump.exe"
+    Copy-Item $src -Destination $pkgDir.FullName -Force
+    # Gate the sidecars too — a static-link regression here would ship a
+    # binary that needs MinGW DLLs the user does not have.
     if (Test-Path $objdumpExe) {
-        $deps = @{}
-        Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | ForEach-Object {
-            & $objdumpExe -p $_.FullName 2>$null | Select-String "DLL Name" | ForEach-Object {
-                $dep = ($_ -split ':')[1].Trim()
-                if ($dep -notin @("KERNEL32.dll","USER32.dll","GDI32.dll","SHELL32.dll","ole32.dll","OLEAUT32.dll","ADVAPI32.dll","MSVCRT.dll","ntdll.dll","win32u.dll","SHLWAPI.dll","VERSION.dll","IMM32.dll","KERNELBASE.dll","WS2_32.dll","oleaut32.dll")) {
-                    $deps[$dep] = $true
-                }
-            }
-        }
-        # Copy missing DLLs from MSYS2
-        $msys2Bin = "C:\msys64\ucrt64\bin"
-        $deps.Keys | ForEach-Object {
-            $depName = $_
-            $src = Join-Path $msys2Bin $depName
-            $dst = Join-Path $ffmpegDllDest $depName
-            if ((Test-Path $src) -and -not (Test-Path $dst)) {
-                Copy-Item $src $dst -Force
-                Write-Host "[INFO] Copied transitive dep: $depName"
-            }
+        $bad = & $objdumpExe -p $src 2>$null | Select-String "DLL Name" |
+            Where-Object { $_ -match 'lib(bz2|lzma|iconv|stdc\+\+|winpthread|gcc)|zlib1' }
+        if ($bad) {
+            Write-Error "[ERROR] $tool depends on non-system DLLs:`n$($bad -join "`n")"
+            exit 1
         }
     }
-} else {
-    Write-Error "[ERROR] FFmpeg shared DLLs missing or incomplete at $ffmpegDllSource (need avcodec*.dll). Run the 'Download FFmpeg shared DLLs' CI step before packaging."
-    exit 1
 }
-
-# Bundle FFmpeg/FFprobe CLI executables in package root for zero-dependency extraction
-$ffmpegBinSource = "C:\ffmpeg-shared\bin"
-if (Test-Path $ffmpegBinSource) {
-    Copy-Item (Join-Path $ffmpegBinSource "ffmpeg.exe") -Destination $pkgDir.FullName -Force -ErrorAction SilentlyContinue
-    Copy-Item (Join-Path $ffmpegBinSource "ffprobe.exe") -Destination $pkgDir.FullName -Force -ErrorAction SilentlyContinue
-    Write-Host "[INFO] Bundled ffmpeg.exe and ffprobe.exe in package root"
-} else {
-    Write-Host "[WARN] FFmpeg CLI executables not found at $ffmpegBinSource -- ffmpeg/ffprobe not bundled; user must supply their own"
-}
+Write-Host "[INFO] Bundled static ffmpeg.exe and ffprobe.exe in package root"
 
 # README
 if (Test-Path (Join-Path $projectRoot "README.md")) {
