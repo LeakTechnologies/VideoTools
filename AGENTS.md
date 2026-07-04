@@ -124,9 +124,16 @@ The repo's primary CI has moved from self-hosted Forgejo to GitHub Actions.
 - Distro: `ubuntu-latest` (Ubuntu 24.04 Noble) — fixed `libxcb-fakekey-dev` → removed (package doesn't exist on Noble)
 - Windows uses `msys2/setup-msys2` with MSYS2 build
 
-**Status so far:**
-- Windows CI: green after `make`/`base-devel` install fix + PATH export
-- Linux CI: fixed libxcb-fakekey-dev; FFMPEG_VERSION corrected from bogus `7.1.1` to `8.1`
+**Status: BOTH PLATFORMS GREEN (2026-07-04).** Run 28709835697 on `e2eb177`. Windows FFmpeg cache now saves (cache only saves on green jobs), so subsequent Windows runs skip the ~15-min FFmpeg build.
+
+**Settled Windows build-step facts (do not re-litigate — each was a CI failure):**
+- Build step must run in `shell: msys2 {0}`, NOT `shell: bash` (Git Bash resolves the wrong gcc from `C:\mingw64` and a Strawberry Perl pkg-config that ignores `PKG_CONFIG_PATH`).
+- `GOROOT` is not set inside the MSYS2 shell — derive it: `GOROOT=$(ls -d /c/hostedtoolcache/windows/go/*/x64 | tail -1)` and prepend `${GOROOT}/bin` to PATH, else `go: command not found`.
+- `setup-msys2` installs to `D:\a\_temp\msys64`, not `C:\msys64` — never hardcode the MSYS2 path; use `CC=$(cygpath -m /ucrt64/bin/gcc)`.
+- FFmpeg link flags come from `pkg-config --libs --static` (real MSYS2 pkg-config works in the msys2 shell) with a loud `exit 1` if output is empty — a silent empty result previously left only the cgo_preamble.go fallback `-LC:/ffmpeg/lib` (local-dev path, absent in CI).
+- Strip `-lsupc++` from pkg-config output and do NOT add an extra static `-lstdc++` — pkg-config already emits `-lstdc++` (FFmpeg 8.1 gfxcapture C++ filter) and doubling it causes multiple-definition link errors. Matches scripts/windows/ci-build.ps1.
+- FFmpeg 8.1 needs `-lcrypt32 -lncrypt` (Schannel TLS) on top of the pkg-config output.
+- `CGO_LDFLAGS_ALLOW: "-Wl,.*"` at workflow env level.
 
 ### Recently Shipped (dev51)
 - **P0: Error/loading/buffering overlay indicators wired** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` added to `videoPlayerRenderer.Objects()` and positioned in `Layout()`. Previously created/hidden but never rendered.

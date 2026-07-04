@@ -2,6 +2,17 @@
 
 ## v0.1.1-dev51 (June 2026)
 
+### GitHub Actions CI — Windows Build Fixed (both platforms green)
+
+- **Windows dev/release CI green for the first time since the GitHub Actions migration** — six root causes fixed across `.github/workflows/dev.yml` and `release.yml`:
+  - Build step restored to `shell: msys2 {0}` (Git Bash resolved the wrong gcc from `C:\mingw64` and a Strawberry Perl pkg-config that ignores `PKG_CONFIG_PATH`).
+  - `GOROOT` derived inside the MSYS2 shell via `ls -d /c/hostedtoolcache/windows/go/*/x64` (setup-go's env doesn't reach the msys2 shell — previously `go: command not found`).
+  - `CC=$(cygpath -m /ucrt64/bin/gcc)` — `setup-msys2` installs to `D:\a\_temp\msys64`, not `C:\msys64`; never hardcode the MSYS2 path.
+  - FFmpeg link flags from `pkg-config --libs --static` with a loud `exit 1` on empty output — a silent empty result previously fell back to cgo_preamble.go's local-dev `-LC:/ffmpeg/lib`.
+  - `-lsupc++` stripped from pkg-config output; no extra static `-lstdc++` (pkg-config already emits it for FFmpeg 8.1's C++ gfxcapture filter; doubling it caused multiple-definition errors).
+  - `-lcrypt32 -lncrypt` added for FFmpeg 8.1 Schannel TLS; `CGO_LDFLAGS_ALLOW: "-Wl,.*"`.
+- **FFmpeg CI cache now saves** — cache only persists on green jobs; subsequent Windows runs skip the ~15-minute FFmpeg source build.
+
 ### Player Overlay & Cleanup
 
 - **P0: Error/loading/buffering overlay indicators now render** — the four widgets (`loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator`) were created and hidden/shown by `SetLoading`/`SetBuffering`/`SetError`/`ClearError`, but never added to the renderer's `Objects()` or positioned in `Layout()`. Now render centred over the video with proper z-ordering.
