@@ -62,8 +62,8 @@ jobs:
           } else {
             Write-Host "[INFO] ucrt64 toolchain present"
           }
-          Write-Host "[INFO] Installing nasm and cmake..."
-          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
+          Write-Host "[INFO] Installing git, wget, nasm and cmake..."
+          Invoke-Bash "pacman -S --needed --noconfirm git wget nasm mingw-w64-ucrt-x86_64-cmake"
           Write-Host "[INFO] Build tools ready"
 
       - name: Cache static FFmpeg (Windows)
