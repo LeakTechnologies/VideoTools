@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev51` — shipping. All dev51 scope landed; CI green on both platforms; `v0.1.1-dev51` release published. Awaiting tester verification.
+- **Cycle:** `v0.1.1-dev52` — open. dev51 shipped (release published, awaiting tester sign-off). dev52 opened with the CI/infra hardening: all pipelines green, three-static-binaries decision, docs refresh, history hygiene.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
