@@ -1,5 +1,17 @@
 # VideoTools Changelog
 
+## v0.1.1-dev52 (July 2026)
+
+### CI & Infrastructure Hardening (all pipelines green)
+
+- **GitHub Actions CI green on both platforms** — six root-cause fixes to the Windows build (MSYS2 shell, GOROOT derivation, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt, libstdc++ dedup).
+- **Windows ships as three fully static binaries** (settled decision) — static ffmpeg.exe/ffprobe.exe sidecars, DLL/ folder retired, objdump dependency gates on every shipped binary in every pipeline. Fixes the libbz2-1.dll / zlib1.dll missing-DLL errors permanently.
+- **All four Windows pipelines aligned and verified**: dev.yml, release.yml, windows-msix.yml (incl. pack.ps1 input-path fix and MSYS2 git/wget install), Forgejo dev-packages.yml.
+- **App bootstrap**: static sidecars are the primary state (`StaticSidecarsWork()`); ffprobe smoke test authoritative; DLL checks legacy-only.
+- **AGENTS.md restructured** (612 → ~190 lines) — rules-only, shipped history delegated to DONE.md/CHANGELOG.md; release protocol codified (agents drive version bumps + tags).
+- **Docs refresh** — README to dev5x reality (static binaries, no BtbN), stale BtbN download instructions purged from all Windows install docs, DLL_BOOTSTRAP retirement notice.
+- **Git history hygiene** — repository history rewritten to remove AI authorship/attribution; commit identity and no-attribution rules codified in AGENTS.md.
+
 ## v0.1.1-dev51 (June 2026)
 
 ### GitHub Actions CI — Windows Build Fixed (both platforms green)

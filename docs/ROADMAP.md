@@ -66,7 +66,12 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev51 — Shipping)
+## Now (dev52 — open)
+
+- **CI & infra hardening shipped** — all four Windows pipelines green; three static binaries; release protocol codified
+- Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
+
+## Shipped (dev51)
 
 - **GitHub Actions CI green (both platforms)** — Windows build fixed (MSYS2 shell, GOROOT, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt)
 - **Windows: three fully static binaries** — static ffmpeg.exe/ffprobe.exe sidecars, DLL/ folder retired, objdump dependency gates in CI (settled decision)

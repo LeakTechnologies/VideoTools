@@ -41,7 +41,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
-- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
+- [x] **CI green + three-static-binaries** — all GitHub pipelines fixed and verified (dev52); Linux CI speedup moot (~1 min on cache hit).
 - [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
 - [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
 

@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev52 — CI & Infrastructure Hardening
+
+- GitHub Actions CI green on both platforms (six root-cause Windows build fixes).
+- Windows product: three fully static binaries; DLL/ folder retired; objdump gates in all pipelines (dev, release, msix, Forgejo).
+- v0.1.1-dev51 release published from the new pipeline; MSIX pipeline verified green.
+- AGENTS.md restructured to rules-only + release protocol; README/install docs refreshed; repo history cleaned of AI attribution.
+
 ## Version 0.1.1-dev51 (in progress)
 
 ### Player Overlay & Cleanup (dev51)
