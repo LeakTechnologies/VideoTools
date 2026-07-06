@@ -182,12 +182,13 @@ If you prefer to set up the dependencies yourself, follow these steps.
     Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
     ```
 2.  **Verify:** Close and reopen PowerShell, then run `choco --version` to verify installation.
-### Step 3: Download FFmpeg
+### Step 3: FFmpeg
 
 FFmpeg is the engine that powers VideoTools.
 
-1.  **Download:** Go to the recommended FFmpeg builds page: [github.com/BtbN/FFmpeg-Builds/releases](https://github.com/BtbN/FFmpeg-Builds/releases)
-2.  Download the file named `ffmpeg-master-latest-win64-gpl.zip`.
+**Release packages already include it.** The official release zip ships static `ffmpeg.exe` and `ffprobe.exe` next to `VideoTools.exe` — no download, no DLLs, nothing to configure. Skip to Step 5.
+
+**Building from source?** Grab `ffmpeg.exe`/`ffprobe.exe` from any [VideoTools release](https://github.com/LeakTechnologies/VideoTools/releases) zip, or use an FFmpeg build of your choice.
 
 ### Step 4: Place FFmpeg Files
 

@@ -6,13 +6,16 @@ This guide will help you get VideoTools running on Windows 10/11.
 
 ## Prerequisites
 
-VideoTools requires **FFmpeg** to function. You have two options:
+VideoTools requires **FFmpeg** to function.
 
-### Option 1: Install FFmpeg System-Wide (Recommended)
+> **Using a release package?** Static `ffmpeg.exe` and `ffprobe.exe` are already included next to `VideoTools.exe` — skip this section entirely.
+
+For source builds, you have two options:
+
+### Option 1: Install FFmpeg System-Wide
 
 1. **Download FFmpeg**:
-   - Go to: https://github.com/BtbN/FFmpeg-Builds/releases
-   - Download: `ffmpeg-master-latest-win64-gpl.zip`
+   - Copy `ffmpeg.exe`/`ffprobe.exe` from any [VideoTools release](https://github.com/LeakTechnologies/VideoTools/releases) zip, or use an FFmpeg build of your choice
 
 2. **Extract and Install**:
    ```cmd
@@ -34,14 +37,8 @@ VideoTools requires **FFmpeg** to function. You have two options:
 
 ### Option 2: Bundle FFmpeg with VideoTools (Portable)
 
-1. **Download FFmpeg**:
-   - Same as above: https://github.com/BtbN/FFmpeg-Builds/releases
-   - Download: `ffmpeg-master-latest-win64-gpl.zip`
-
-2. **Extract ffmpeg.exe**:
-   - Open the zip file
-   - Navigate to `bin/` folder
-   - Extract `ffmpeg.exe` and `ffprobe.exe`
+1. **Get FFmpeg**:
+   - Same as above: copy from a VideoTools release zip or use a build of your choice
 
 3. **Place Next to VideoTools**:
    ```
