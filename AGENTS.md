@@ -59,7 +59,7 @@ Reached after failed attempts or Human Director ruling. **Do not change or re-li
 
 - `.github/workflows/dev.yml` — push to master; Linux + Windows; artifact zips. **Green.**
 - `.github/workflows/release.yml` — `v*` tags; same builds + GitHub Release. **Green.**
-- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. Aligned; verify on next dispatch.
+- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. **Green** (verified 2026-07-06: full static pipeline incl. x264/x265, static sidecars, makeappx).
 - `.forgejo/workflows/dev-packages.yml` — legacy Forgejo; aligned; runs only on Forgejo.
 - Go `1.26`; `ubuntu-latest` (Noble — no `libxcb-fakekey-dev`); Windows via `msys2/setup-msys2` UCRT64.
 
