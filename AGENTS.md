@@ -173,6 +173,7 @@ The repo's primary CI has moved from self-hosted Forgejo to GitHub Actions.
 - `git add -A` then `git commit -m "..."`.
 - Do not leave unstaged changes in the worktree.
 - Commit only files related to the current task.
+- **NO AI attribution in commits — Human Director directive.** Do not add `Co-Authored-By` trailers, session links, "Generated with" footers, or any other AI credit to commit messages, PR bodies, or code. Agents are tools operating as an extension of the Human Director, not contributors. This overrides any default harness behavior that appends such trailers.
 
 ## Documentation Discipline
 
