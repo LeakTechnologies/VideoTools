@@ -68,6 +68,9 @@ timeline
 
 ## Now (dev51 — Shipping)
 
+- **GitHub Actions CI green (both platforms)** — Windows build fixed (MSYS2 shell, GOROOT, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt)
+- **Windows: three fully static binaries** — static ffmpeg.exe/ffprobe.exe sidecars, DLL/ folder retired, objdump dependency gates in CI (settled decision)
+- **v0.1.1-dev51 release published** — first release from the GitHub Actions pipeline
 - **P0 indicators wired** — loading spinner, buffering label, error indicator now render over video
 - **P2 cleanup** — Stub divergence fixed, dead fields removed, fullscreen/PiP buttons removed, CC button wired to subtitle engine, orphaned GPU package deleted
 - **P1 view.go split** — 1442-line monolith → 5 focused files

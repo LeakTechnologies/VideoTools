@@ -9,7 +9,7 @@ Built for **Linux and Windows** — macOS is not supported.
 - **Convert** — H.264/H.265/AV1/ProRes/VP9, lossless remux, DVD-compliant MPEG-2, deinterlace, normalize, crop, preset system
 - **Rip** — DVD/ISO extraction via FFmpeg dvdvideo demuxer or VOB concat; IFO-based title/chapter/audio/subtitle scanning; region detection; PAL↔NTSC full-disc conversion with IFO regeneration; menu preservation
 - **Author** — Native DVD-Video authoring: M1–M7 menu system, 4 menu resolutions (720→1920px), button highlights, multiple audio/subtitle streams, VOB muxer, UDF writer
-- **Burn** — Multi-drive disc burning via xorriso/isoburn
+- **Burn** — Disc burning via xorriso (Linux) / isoburn (Windows)
 - **Queue** — Batch job processing with progress tracking per module
 - **Filters** — Real-time video filter chain (crop, scale, deinterlace, denoise, color, etc.)
 - **Audio** — Track selection, language tagging, extraction
@@ -26,12 +26,12 @@ Built for **Linux and Windows** — macOS is not supported.
 | Platform | Status | Notes |
 |----------|--------|-------|
 | Linux x86_64 | Primary dev target | FFmpeg built from source with x264/x265 |
-| Windows x86_64 | Primary user target | BtbN FFmpeg DLL bundle, isoburn for burning |
+| Windows x86_64 | Primary user target | Three self-contained static binaries (`VideoTools.exe`, `ffmpeg.exe`, `ffprobe.exe`) — no DLLs, no installer required |
 | macOS | Not supported | No darwin code paths in tree |
 
 ## Project Status
 
-Under active development (`v0.1.1-dev49`). See **[Interactive Roadmap](docs/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail.
+Under active development (`v0.1.1-dev51`). See **[Interactive Roadmap](docs/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail.
 
 - **Dev builds:** https://github.com/LeakTechnologies/VideoTools/actions
 - **Public releases:** https://github.com/LeakTechnologies/VideoTools/releases
@@ -123,12 +123,12 @@ Aboriginal Sans is embedded for proper rendering of Unified Canadian Aboriginal 
 ## Requirements
 
 **Runtime:**
-- FFmpeg (auto-bundled on Windows via DLLs; Linux built from source in CI)
+- FFmpeg (Windows: static `ffmpeg.exe`/`ffprobe.exe` included in the release zip; Linux: built from source in CI)
 - Linux: X11 or Wayland display server
 - Windows: Windows 10/11
 
 **Build:**
-- Go 1.21+
+- Go 1.26+
 - MinGW-w64 (Windows) or GCC (Linux) — required for native_media CGo code
 - pkg-config (Linux)
 - nasm, cmake, git (for FFmpeg/x264/x265 source builds)
@@ -138,8 +138,7 @@ Aboriginal Sans is embedded for proper rendering of Unified Canadian Aboriginal 
 
 ```
 cmd/videotools/          → Executable entrypoint (future)
-internal/media/          → CGo/FFmpeg engine: demux, decode, audio (oto v3), HW accel
-internal/media/          → VideoPlayer Fyne widget: frame rendering, control overlay, thumbnails
+internal/media/          → CGo/FFmpeg engine (demux, decode, audio, HW accel) + VideoPlayer Fyne widget
 internal/ui/             → UI components, InlineVideoPlayer API layer
 internal/theme/          → VT_Navy palette, PillButton/PillIconButton, text primitives
 internal/i18n/           → Localization (en-CA, fr-CA, iu, iu-Latn)
@@ -208,6 +207,5 @@ VideoTools directly depends on and gratefully acknowledges these projects:
 | [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) / [ncnn](https://github.com/nihui/real-esrgan-ncnn-vulkan) | AI upscaling engine | BSD-3 |
 | [RIFE](https://github.com/nihui/rife-ncnn-vulkan) | Frame interpolation (ncnn port) | MIT |
 | [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Anime upscaling (ncnn port) | MIT |
-| [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) | Windows shared DLL CI bundle | LGPL/GPL |
 | [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) + [AppImageKit](https://github.com/AppImage/AppImageKit) | Linux AppImage packaging | GPL-2 / MIT |
 | [SignPath](https://about.signpath.io) / [SignPath.io](https://signpath.io) | Windows code signing | — |

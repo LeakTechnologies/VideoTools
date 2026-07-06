@@ -179,9 +179,8 @@ All files in one folder - can run from USB stick!
 ## Troubleshooting
 
 ### Windows: "FFmpeg not found"
-- Run `scripts/windows/support/setup-windows.bat` again
-- Or manually download from: https://github.com/BtbN/FFmpeg-Builds/releases
-- Place `ffmpeg.exe` next to `VideoTools.exe`
+- Release packages include static `ffmpeg.exe` and `ffprobe.exe` next to `VideoTools.exe` — re-extract **all** files from the release zip into the same folder
+- For source builds: run `scripts/windows/support/setup-windows.bat` again
 
 ### Windows: SmartScreen Warning
 - Click "More info" → "Run anyway"

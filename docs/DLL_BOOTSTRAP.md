@@ -1,5 +1,7 @@
 # FFmpeg DLL Bootstrap — Architecture & Troubleshooting
 
+> **RETIRED (2026-07-04).** Windows now ships as **three fully static binaries** — `VideoTools.exe`, `ffmpeg.exe`, `ffprobe.exe` — with **no DLL/ folder**. The DLL bootstrap described below applies only to legacy bundles (≤ dev50). The app detects static sidecars via `appcfg.StaticSidecarsWork()` and skips all DLL logic. See the settled decision in `AGENTS.md`. This document is kept for troubleshooting old installs.
+
 ## Overview
 
 VideoTools uses FFmpeg in two distinct ways:

@@ -215,10 +215,8 @@ go build -o VideoTools.exe -ldflags="$LDFLAGS"
 
 # Bundle ffmpeg (download if not present)
 if [ ! -f "ffmpeg.exe" ]; then
-    echo "Downloading ffmpeg for Windows..."
-    wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
-    unzip -j ffmpeg-master-latest-win64-gpl.zip "*/bin/ffmpeg.exe" -d .
-    rm ffmpeg-master-latest-win64-gpl.zip
+    echo "ffmpeg.exe missing — copy the static ffmpeg.exe/ffprobe.exe from a VideoTools release zip"
+    exit 1
 fi
 
 # Create distribution package
@@ -496,7 +494,6 @@ func (s *appState) startConvert(...) {
 
 ## 🔗 Resources
 
-- **FFmpeg Windows Builds**: https://github.com/BtbN/FFmpeg-Builds
 - **MinGW-w64**: https://www.mingw-w64.org/
 - **Fyne Windows Guide**: https://developer.fyne.io/started/windows
 - **Go Cross-Compilation**: https://go.dev/doc/install/source#environment
