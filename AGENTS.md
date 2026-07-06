@@ -100,10 +100,16 @@ Every landing **updates all six documents in the same commit**:
 Statuses: `shipped` (tester-confirmed) / `done` (committed, CI green) / `active` / `planned` / `future`.
 On landing: set `done`, set `cycle`, correct `desc`/`files`. On tester sign-off: `shipped`. On cycle close: add `changelogData` + `checklistData` entries, bump subtitle. Never leave landed work at `planned`; never park at `done` indefinitely; never edit roadmap.html without syncing the other five docs.
 
-## Version Bumping
+## Version Bumping & Release Protocol
 
 - After every major change: bump `main.go`, `VERSION`, `FyneApp.toml`; update DONE.md/TODO.md/CHANGELOG.md.
 - `v0.1.1-devN` = rolling dev line; `v0.1.1` = stable baseline; dev numbering continuous; public bumps are readiness-based.
+- **When work warrants a new dev version** (major feature, significant fix batch, anything tester-facing), the agent drives the release end-to-end:
+  1. Bump the three version files + the six docs (same commit), push to master, confirm dev CI green.
+  2. Tag the release commit `v0.1.1-devN` and push the tag — this triggers `release.yml` (GitHub Release with both platform assets).
+  3. Watch the release run to green; report the release URL.
+- **Token:** use `$VT_RELEASE_TOKEN` (fine-grained PAT: Contents RW + Actions RW on this repo, set as a Claude Code environment variable) for tag pushes (`git push https://x-access-token:$VT_RELEASE_TOKEN@github.com/LeakTechnologies/VideoTools.git vX.Y.Z-devN`) and workflow dispatches (`POST /repos/LeakTechnologies/VideoTools/actions/workflows/<wf>.yml/dispatches`). If the token is absent, hand the Human Director the exact commands instead — never skip the tagging step silently.
+- Tag-triggered runs execute the workflow file **as of the tagged commit** — always tag a commit that already contains the current workflow fixes.
 
 ## Internationalization (i18n)
 
