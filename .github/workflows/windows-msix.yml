@@ -188,7 +188,7 @@ jobs:
       - name: Package MSIX
         shell: pwsh
         run: |
-          ./packaging/windows/msix/pack.ps1 -InputExe dist/windows/VideoTools.exe -Version ${{ steps.version.outputs.msix_version }}
+          ./packaging/windows/msix/pack.ps1 -InputExe VideoTools.exe -Version ${{ steps.version.outputs.msix_version }}
 
       - name: Generate WinGet manifest
         shell: pwsh
