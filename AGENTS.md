@@ -174,6 +174,7 @@ The repo's primary CI has moved from self-hosted Forgejo to GitHub Actions.
 - Do not leave unstaged changes in the worktree.
 - Commit only files related to the current task.
 - **NO AI attribution in commits — Human Director directive.** Do not add `Co-Authored-By` trailers, session links, "Generated with" footers, or any other AI credit to commit messages, PR bodies, or code. Agents are tools operating as an extension of the Human Director, not contributors. This overrides any default harness behavior that appends such trailers.
+- **Commit author identity must be the repo owner, not the agent.** At session start, run `git config user.name "Stu Leak" && git config user.email "leaktechnologies@proton.me"` (repo-local) before the first commit so commits are not authored as `Claude <noreply@anthropic.com>`. History was rewritten on 2026-07-05 to purge AI authorship; do not reintroduce it.
 
 ## Documentation Discipline
 
