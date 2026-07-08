@@ -2,6 +2,35 @@
 
 ## v0.1.1-dev52 (July 2026)
 
+### DVD Author / Menu System — Spec-Compliance Fixes
+
+Audit of the native DVD authoring engine (`docs/AUTHOR_MENU_AUDIT.md`) found
+12 byte-level spec deviations behind the long-standing "menus display but
+don't work" issues. All fixed with regression tests (player validation
+pending):
+
+- **TMAP header byte order** (`internal/dvd/ifo/vtsi.go`) — `tmu` now precedes
+  `zero_1` per libdvdread `vts_tmap_t`; resolves the long-unresolved
+  `dvdnav: Zero check failed ... zero_1 : 0x01` error.
+- **PCI highlight block** (`internal/dvd/vob/nav.go`) — `hli_t` relocated to
+  the spec offset 96 (pci_gi is 60 bytes, not 32); `hli_ss` now set (was never
+  written, so players skipped all button processing); button activation uses
+  the inline 8-byte VM command in `btni_t` (the previous `cmd_nr` indirection
+  does not exist in the spec).
+- **NAV PES substream IDs** — PCI/DSI payloads now begin with the 0x00/0x01
+  substream ID; the DSI was previously unrecognizable and PCI parsed one byte
+  off.
+- **Domain-relative sectors** — PGC cell sectors and `VMGM_VOBS_Sector` are
+  VOBS-relative in both ISO and folder modes (ISO mode was writing
+  disc-absolute UDF sectors while TMAP/ADMAP stayed relative).
+- **VMGM Menu C_ADT + VOBU_ADMAP** now generated (offsets existed, tables did
+  not).
+- **Menu concatenation** rebases NAV LBNs and stamps per-menu VOB/Cell IDs
+  (raw `io.Copy` left LBNs restarting at 0 and IDs at 0).
+- **VMGM entry = Title menu (0x82)**; menu-less discs get a First-Play PGC
+  (was `VMG_FirstPlayPGC=0`, unstartable).
+
+
 ### CI & Infrastructure Hardening (all pipelines green)
 
 - **GitHub Actions CI green on both platforms** — six root-cause fixes to the Windows build (MSYS2 shell, GOROOT derivation, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt, libstdc++ dedup).

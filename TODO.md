@@ -36,6 +36,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Remaining high-priority items
 
+- [ ] **DVD menu player validation** — A1–A12 spec fixes landed with unit tests (`docs/AUTHOR_MENU_AUDIT.md`); validate authored discs in VLC (dvdnav verbose), ifodump, and a hardware player. Then close the audit.
+- [ ] **VTSM domain (audit A13)** — minimal in-title Root menu redirecting to VMGM; deferred design gap, not a bug.
+
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 - [ ] **renderDualPlayerPreview stub** — `native_media.go` has a TODO stub, returns silently without actually rendering.
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
