@@ -18,6 +18,11 @@ type Builder struct {
 	// builder can compute VMGM_VOBS_Sector (VOB starts right after the IFO)
 	// and VMG_Last_Sector (IFO + VOB + BUP). Zero when no menu VOB.
 	MenuVOBSectors uint32
+
+	// MenuNAVSectors holds the VOBS-relative sector offset of every NAV_PCK in
+	// VIDEO_TS.VOB, used to build the VMGM_VOBU_ADMAP. Zero-length omits the
+	// table. Populate by scanning the built VOB (vob.ScanVOBForNAVPCKs).
+	MenuNAVSectors []uint32
 }
 
 // NewBuilder creates a new IFO builder.
@@ -196,6 +201,33 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 		nextSector += uint32(atrtBuf.Len() / 2048)
 	}
 
+	// VMGM_C_ADT — menu cell address table (audit finding A8). Built from the
+	// menu PGC cells; emitted only once cell sectors have been assigned.
+	var cadtData []byte
+	if cadt := BuildMenuCADT(menuPGCs); cadt != nil {
+		var err error
+		cadtData, err = WriteVTS_C_ADT(cadt)
+		if err != nil {
+			return fmt.Errorf("serialize vmgm_c_adt: %w", err)
+		}
+		mat.VMG_M_C_ADT_Offset = nextSector
+		nextSector += uint32(len(cadtData) / 2048)
+	}
+
+	// VMGM_VOBU_ADMAP — menu VOBU address map (audit finding A8). Sector
+	// offsets of every NAV_PCK in VIDEO_TS.VOB, supplied by the caller.
+	var mAdmapBuf bytes.Buffer
+	if admap := BuildVOBU_ADMAP(b.MenuNAVSectors); admap != nil {
+		if err := WriteVOBU_ADMAP(&mAdmapBuf, admap); err != nil {
+			return fmt.Errorf("serialize vmgm_vobu_admap: %w", err)
+		}
+		if rem := mAdmapBuf.Len() % 2048; rem != 0 {
+			mAdmapBuf.Write(make([]byte, 2048-rem))
+		}
+		mat.VMG_M_VOBU_ADMAP_Offset = nextSector
+		nextSector += uint32(mAdmapBuf.Len() / 2048)
+	}
+
 	// Sector accounting (audit findings A6/A7). All offsets in VMG_MAT are
 	// relative to the start of the VMG (= start of VIDEO_TS.IFO):
 	//   VMGI (this IFO)      : sectors 0 .. ifoSectors-1
@@ -222,6 +254,12 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 	}
 	if atrtBuf.Len() > 0 {
 		buf.Write(atrtBuf.Bytes())
+	}
+	if cadtData != nil {
+		buf.Write(cadtData)
+	}
+	if mAdmapBuf.Len() > 0 {
+		buf.Write(mAdmapBuf.Bytes())
 	}
 
 	data := buf.Bytes()

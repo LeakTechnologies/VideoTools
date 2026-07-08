@@ -3787,6 +3787,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			}
 			// VMGM_VOBS_Sector is computed by GenerateVMG_IFO from the IFO size
 			// and ifoBuilder.MenuVOBSectors (relative to the VMG start).
+			// Scan the built VOB for its NAV_PCKs so the builder can emit the
+			// VMGM_VOBU_ADMAP (audit finding A8).
+			if navs, err := vob.ScanVOBForNAVPCKs(menuVOBPath); err == nil {
+				ifoBuilder.MenuNAVSectors = navs
+			}
 			if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
 				logging.Info(logging.CatDVD, "Failed to regenerate VMG IFO for folder mode: %v", err)
 			} else {
@@ -3916,6 +3921,10 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
+		}
+		// Scan VIDEO_TS.VOB for NAV_PCKs → VMGM_VOBU_ADMAP (audit finding A8).
+		if navs, err := vob.ScanVOBForNAVPCKs(menuVOBPath); err == nil {
+			ifoBuilder.MenuNAVSectors = navs
 		}
 		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
 			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
