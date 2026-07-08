@@ -2,6 +2,23 @@
 
 ## v0.1.1-dev52 (July 2026)
 
+### Windows: FFmpeg/FFprobe subprocess output restored (critical)
+
+- **Removed `NoInheritHandles: true`** from `internal/utils/exec_windows.go`
+  (`CreateCommand`/`CreateCommandRaw`). Added in dev49 for the "file in use"
+  fix, it also disabled inheritance of the standard-handle pipes, so on Windows
+  `cmd.Output()`/`StdoutPipe()` returned nothing — `probeVideo` got empty
+  output and **every drag-drop / Browse import failed** with "Failed to
+  analyze", and ffmpeg `-progress` reads were broken. Modern Go passes only the
+  std-pipe handles via `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, so the engine's
+  `avformat_open_input` handles are not leaked to children even without the
+  flag; the file-in-use fix does not regress. Job Object still handles
+  crash-safe cleanup.
+- **Import failures now show the real reason** — `loadMultipleVideos` /
+  `batchAddToQueue` surface ffprobe's actual stderr (and log it at Warning)
+  instead of only the filename.
+
+
 ### DVD Author / Menu System — Spec-Compliance Fixes
 
 Audit of the native DVD authoring engine (`docs/AUTHOR_MENU_AUDIT.md`) found

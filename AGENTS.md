@@ -55,6 +55,19 @@ Reached after failed attempts or Human Director ruling. **Do not change or re-li
 - `CGO_LDFLAGS_ALLOW: "-Wl,.*"` at workflow env level.
 - GitHub-hosted runners' MSYS2 lacks `git`/`wget` inside the environment — install via pacman, never assume image contents.
 
+### Windows subprocess handles — do NOT set `NoInheritHandles`
+
+`internal/utils/exec_windows.go` must **not** set `SysProcAttr.NoInheritHandles`.
+Go's doc is explicit: it blocks inheritance of *all* handles "not even the
+standard handles", so the child never receives the stdout/stderr pipes and
+`cmd.Output()`/`CombinedOutput()`/`StdoutPipe()` return nothing — which
+silently broke every ffprobe metadata read (all imports) and ffmpeg
+`-progress pipe:1` on Windows (dev49–dev52). Modern Go (1.16+) passes ONLY the
+std-pipe handles via `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, so the CGo engine's
+`avformat_open_input` file handles are NOT leaked to children even without the
+flag — the original "file in use" concern does not regress. Crash-safe child
+cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
+
 ### CI Workflows
 
 - `.github/workflows/dev.yml` — push to master; Linux + Windows; artifact zips. **Green.**

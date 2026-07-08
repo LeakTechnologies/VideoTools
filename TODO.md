@@ -36,6 +36,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Remaining high-priority items
 
+- [x] **Windows import failure (NoInheritHandles)** — dev49's `NoInheritHandles: true` disabled std-pipe inheritance, so ffprobe returned no output and all Windows imports failed; removed. File-in-use stays fixed via Go's handle-list + Job Object.
+
 - [ ] **DVD menu player validation** — A1–A12 spec fixes landed, validated against libdvdread (offsetof harness + ifoOpen parse, `docs/AUTHOR_MENU_AUDIT.md`); still need VLC/hardware playback of a real authored disc. Then close the audit.
 - [ ] **VTS_ATRT full attribute record** — libdvdread wants ≥356 B/VTS (menu + title video/audio/subpicture attrs); we emit 266 B (title only). Non-fatal cross-check table.
 - [ ] **vts_last_sector VOB-inclusive** — 0x0C must be the last sector of the whole VTS (IFO+VOBs+BUP); author currently leaves it IFO-only. Thread the disc-layout value in.
