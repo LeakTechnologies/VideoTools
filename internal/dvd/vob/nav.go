@@ -117,8 +117,9 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 
 	scr90 := uint32(m.scr / 300) // SCR base in 90kHz
 
-	// ── Build PCI data (980 bytes) ────────────────────────────────────────────
-	pciData := make([]byte, 980)
+	// ── Build PCI data (979 bytes; the 0x00 substream ID byte that precedes
+	// it on disc is written by writePESPrivate2) ─────────────────────────────
+	pciData := make([]byte, 979)
 	binary.BigEndian.PutUint32(pciData[pciOffNVPCKLBN:], m.currentSector)
 	binary.BigEndian.PutUint32(pciData[pciOffVOBUUOPCTL:], pci.VOBU_UOP_CTL)
 
@@ -232,8 +233,8 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 		// bytes 10-17 remain zero
 	}
 
-	// ── Build DSI data (1018 bytes) ───────────────────────────────────────────
-	dsiData := make([]byte, 1018)
+	// ── Build DSI data (1017 bytes; 0x01 substream ID prepended on write) ────
+	dsiData := make([]byte, 1017)
 	binary.BigEndian.PutUint32(dsiData[dsiOffNVPCKSCR:], scr90)
 	binary.BigEndian.PutUint32(dsiData[dsiOffNVPCKLBN:], m.currentSector)
 	binary.BigEndian.PutUint32(dsiData[dsiOffVOBUEA:], dsi.VOBU_EA)
@@ -265,13 +266,13 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 		return fmt.Errorf("nav_pck system header: %w", err)
 	}
 
-	// 3. PCI PES Packet (Private Stream 2, 0xBF, 980 bytes payload)
-	if err := m.writePESPrivate2(0xBF, pciData); err != nil {
+	// 3. PCI PES Packet (Private Stream 2, 0xBF; payload = substream 0x00 + 979 bytes)
+	if err := m.writePESPrivate2(0xBF, 0x00, pciData); err != nil {
 		return fmt.Errorf("nav_pck pci: %w", err)
 	}
 
-	// 4. DSI PES Packet (Private Stream 2, 0xBF, 1018 bytes payload)
-	if err := m.writePESPrivate2(0xBF, dsiData); err != nil {
+	// 4. DSI PES Packet (Private Stream 2, 0xBF; payload = substream 0x01 + 1017 bytes)
+	if err := m.writePESPrivate2(0xBF, 0x01, dsiData); err != nil {
 		return fmt.Errorf("nav_pck dsi: %w", err)
 	}
 
@@ -279,13 +280,20 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 	return nil
 }
 
-func (m *Muxer) writePESPrivate2(streamID uint8, payload []byte) error {
-	var header [6]byte
+// writePESPrivate2 writes a private_stream_2 PES packet whose first payload
+// byte is the DVD substream ID (0x00 = PCI, 0x01 = DSI). The PES packet
+// length includes the substream ID byte, matching real discs (0x03D4 for
+// PCI = 1 + 979, 0x03FA for DSI = 1 + 1017). Demuxers identify PCI/DSI by
+// this byte — omitting it made the DSI unrecognizable and shifted every PCI
+// field by one byte (audit finding A3).
+func (m *Muxer) writePESPrivate2(streamID, subStreamID uint8, payload []byte) error {
+	var header [7]byte
 	header[0] = 0x00
 	header[1] = 0x00
 	header[2] = 0x01
 	header[3] = streamID
-	binary.BigEndian.PutUint16(header[4:6], uint16(len(payload)))
+	binary.BigEndian.PutUint16(header[4:6], uint16(len(payload)+1))
+	header[6] = subStreamID
 
 	if _, err := m.w.Write(header[:]); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write Private2 header (0x%X): %v", streamID, err)
@@ -342,23 +350,24 @@ func PatchVOBPCI(path string, buttons []PCIButton) error {
 			continue
 		}
 
-		// Locate the PCI PES packet: 00 00 01 BF 03 D4
-		// The PCI payload is 980 bytes (0x03D4) and immediately follows the 6-byte PES header.
+		// Locate the PCI PES packet: 00 00 01 BF 03 D4 00 — the 980-byte PES
+		// payload starts with substream ID 0x00; PCI table data follows it.
 		pciStart := -1
-		for i := 4; i < 2048-5; i++ {
+		for i := 4; i < 2048-6; i++ {
 			if sector[i] == 0x00 && sector[i+1] == 0x00 && sector[i+2] == 0x01 &&
-				sector[i+3] == 0xBF && sector[i+4] == 0x03 && sector[i+5] == 0xD4 {
-				pciStart = i + 6
+				sector[i+3] == 0xBF && sector[i+4] == 0x03 && sector[i+5] == 0xD4 &&
+				sector[i+6] == 0x00 {
+				pciStart = i + 7
 				break
 			}
 		}
 
-		if pciStart < 0 || pciStart+980 > 2048 {
+		if pciStart < 0 || pciStart+979 > 2048 {
 			sectorIdx++
 			continue
 		}
 
-		pci := sector[pciStart : pciStart+980]
+		pci := sector[pciStart : pciStart+979]
 
 		// ── Patch HL_GI button data ───────────────────────────────────────────
 		n := len(buttons)
