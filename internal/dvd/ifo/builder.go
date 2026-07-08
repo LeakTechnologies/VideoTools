@@ -12,6 +12,12 @@ import (
 // Builder coordinates the construction of IFO and BUP files.
 type Builder struct {
 	outputDir string
+
+	// MenuVOBSectors is the size of VIDEO_TS.VOB in 2048-byte sectors.
+	// Set by the caller before GenerateVMG_IFO when a menu VOB exists so the
+	// builder can compute VMGM_VOBS_Sector (VOB starts right after the IFO)
+	// and VMG_Last_Sector (IFO + VOB + BUP). Zero when no menu VOB.
+	MenuVOBSectors uint32
 }
 
 // NewBuilder creates a new IFO builder.
@@ -190,7 +196,19 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 		nextSector += uint32(atrtBuf.Len() / 2048)
 	}
 
-	mat.VMG_Last_Sector = nextSector - 1
+	// Sector accounting (audit findings A6/A7). All offsets in VMG_MAT are
+	// relative to the start of the VMG (= start of VIDEO_TS.IFO):
+	//   VMGI (this IFO)      : sectors 0 .. ifoSectors-1
+	//   VMGM_VOBS (menu VOB) : ifoSectors .. ifoSectors+MenuVOBSectors-1
+	//   VMGI BUP             : the remainder
+	ifoSectors := nextSector
+	// 0x1C — last sector of the VMGI (this IFO), not of the BUP.
+	mat.VMG_BUP_Last_Sector = ifoSectors - 1
+	if len(menuPGCs) > 0 && b.MenuVOBSectors > 0 {
+		mat.VMGM_VOBS_Sector = ifoSectors
+	}
+	// 0x0C — last sector of the whole VMG set: IFO + menu VOB + BUP.
+	mat.VMG_Last_Sector = ifoSectors*2 + b.MenuVOBSectors - 1
 
 	var buf bytes.Buffer
 	// Sector 0: MAT — use spec-correct byte-offset serializer, not binary.Write
