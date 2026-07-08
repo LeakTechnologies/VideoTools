@@ -115,7 +115,14 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 		nextSector += admapSectors
 	}
 
-	mat.VTS_Last_Sector = nextSector - 1
+	// 0x1C vtsi_last_sector — last sector of the VTSI IFO. libdvdread checks
+	// every table offset against this; leaving it 0 fails all of them. (0x0C
+	// vts_last_sector should additionally include the title VOBs; that value
+	// is threaded in by the author when the VOB layout is known.)
+	mat.VTS_BUP_Last_Sector = nextSector - 1
+	if mat.VTS_Last_Sector < nextSector-1 {
+		mat.VTS_Last_Sector = nextSector - 1
+	}
 	mat.VTSI_Last_Byte = nextSector*2048 - 1
 
 	var buf bytes.Buffer
@@ -259,6 +266,9 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 	ifoSectors := nextSector
 	// 0x1C — last sector of the VMGI (this IFO), not of the BUP.
 	mat.VMG_BUP_Last_Sector = ifoSectors - 1
+	// 0x80 — last byte of the whole VMGI management area (First_Play_PGC and
+	// all table offsets must fall within it).
+	mat.VMGI_Last_Byte = ifoSectors*2048 - 1
 	if len(menuPGCs) > 0 && b.MenuVOBSectors > 0 {
 		mat.VMGM_VOBS_Sector = ifoSectors
 	}

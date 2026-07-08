@@ -297,10 +297,10 @@ func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
 	buf.WriteByte(0x65)                                        // 'e'
 	buf.WriteByte(0x6E)                                        // 'n' (language "en")
 	buf.WriteByte(0x00)                                        // country code modifier
-	// LU attributes: entry PGC (bit7) + menu type. In the VMGM domain the
-	// entry menu is the Title menu (type 2 → 0x82); Root (type 3) belongs to
-	// the VTSM domain (audit finding A11).
-	buf.WriteByte(0x82)
+	// LU "exists" byte: bit7 = menu present. libdvdread requires the low 3
+	// bits to be zero, so the menu TYPE lives only in the PGC category
+	// (0x8200 = Title menu) below, not here (audit findings A11 + parse).
+	buf.WriteByte(0x80)
 	binary.Write(&buf, binary.BigEndian, uint32(luDataOffset)) // LU_Offset
 
 	// LU data: PGCIT header

@@ -372,8 +372,9 @@ func TestWriteVTS_PTT_SRPT_Entries(t *testing.T) {
 	base := 12 // first PTT entry starts after header(8) + offset(4)
 	for i := 0; i < n; i++ {
 		off := base + i*4
+		// ptt_info_t = { uint16 pgcn; uint16 pgn }.
 		pgcn := binary.BigEndian.Uint16(data[off : off+2])
-		pgn := data[off+2]
+		pgn := binary.BigEndian.Uint16(data[off+2 : off+4])
 		if pgcn != 1 {
 			t.Errorf("chapter %d: PGCN = %d, want 1", i+1, pgcn)
 		}

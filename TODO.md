@@ -36,7 +36,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Remaining high-priority items
 
-- [ ] **DVD menu player validation** — A1–A12 spec fixes landed with unit tests (`docs/AUTHOR_MENU_AUDIT.md`); validate authored discs in VLC (dvdnav verbose), ifodump, and a hardware player. Then close the audit.
+- [ ] **DVD menu player validation** — A1–A12 spec fixes landed, validated against libdvdread (offsetof harness + ifoOpen parse, `docs/AUTHOR_MENU_AUDIT.md`); still need VLC/hardware playback of a real authored disc. Then close the audit.
+- [ ] **VTS_ATRT full attribute record** — libdvdread wants ≥356 B/VTS (menu + title video/audio/subpicture attrs); we emit 266 B (title only). Non-fatal cross-check table.
+- [ ] **vts_last_sector VOB-inclusive** — 0x0C must be the last sector of the whole VTS (IFO+VOBs+BUP); author currently leaves it IFO-only. Thread the disc-layout value in.
 - [ ] **VTSM domain (audit A13)** — minimal in-title Root menu redirecting to VMGM; deferred design gap, not a bug.
 
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
