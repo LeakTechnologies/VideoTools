@@ -1,5 +1,24 @@
 # Author Module & DVD Menu System — Code Audit (2026-07)
 
+> **STATUS: A1–A12 FIXED (2026-07-08).** All twelve actionable findings below
+> are resolved in `internal/dvd/{vob,ifo}` and `author_module.go`/`author_menu.go`,
+> each with regression tests. A13 (no VTSM domain) remains a deferred design
+> gap, not a bug. The fixes have unit-test coverage but have **not yet been
+> validated on a real player** — that verification is the next step (VLC with
+> `dvdnav` verbose logging, an ifodump parse, and a hardware player if
+> available). Fix commits are on `master` / `claude/ci-issues-a6y6mk`.
+>
+> | ID | Fix summary | Test |
+> |---|---|---|
+> | A1/A2 | PCI `hli_t` relocated to offset 96; `hli_ss` set; inline 8-byte button commands in `btni_t` | `TestWriteNAV_PCK_HLILayout` |
+> | A3 | NAV PES packets carry substream ID (0x00 PCI / 0x01 DSI) | vob offset tests |
+> | A4 | TMAP header `tmu` before `zero_1` — the unresolved `zero_1:0x01` bug | `TestWriteTMAPT_EntryHeader` |
+> | A5/A6/A7 | Cell sectors + `VMGM_VOBS_Sector` domain-relative in both modes | ifo tests |
+> | A8 | VMGM `C_ADT` + `VOBU_ADMAP` generated | ifo build tests |
+> | A9/A10 | Menu concat rebases NAV LBN, stamps VOB/Cell IDs | `TestAppendMenuVOB_RebasesNAV` |
+> | A11/A12 | VMGM entry = Title menu (0x82); First-Play PGC for menu-less discs | `TestGenerateVMG_IFO_FirstPlayPGC` |
+
+
 Audit of `author_module.go`, `author_menu.go`, `internal/dvd/vob/`, `internal/dvd/ifo/`
 against the DVD-Video spec as implemented by libdvdread/libdvdnav (`ifo_types.h`,
 `nav_read.c`) and dvdauthor reference output. Scope: the lingering "menus display
