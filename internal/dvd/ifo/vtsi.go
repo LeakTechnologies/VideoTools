@@ -161,9 +161,11 @@ func WriteVTS_PTT_SRPT(srpt *VTS_PTT_SRPT) ([]byte, error) {
 	binary.Write(&buf, binary.BigEndian, pttListOffset)   // Offset[0]
 
 	for i := 0; i < n; i++ {
-		binary.Write(&buf, binary.BigEndian, uint16(1))   // PGCN = 1 (always PGC 1)
-		buf.WriteByte(uint8(i + 1))                       // PGN  = chapter number (1-indexed)
-		buf.WriteByte(0x00)                               // Reserved
+		// ptt_info_t = { uint16 pgcn; uint16 pgn } — pgn is a 16-bit value,
+		// not uint8+reserved (else chapter 1's pgn reads as 0x0100 = 256 and
+		// libdvdread's "pgn < 100" check fails).
+		binary.Write(&buf, binary.BigEndian, uint16(1))     // PGCN = 1 (always PGC 1)
+		binary.Write(&buf, binary.BigEndian, uint16(i+1))   // PGN  = chapter number (1-indexed)
 	}
 
 	// Pad to sector boundary

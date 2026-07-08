@@ -1,12 +1,43 @@
 # Author Module & DVD Menu System — Code Audit (2026-07)
 
-> **STATUS: A1–A12 FIXED (2026-07-08).** All twelve actionable findings below
-> are resolved in `internal/dvd/{vob,ifo}` and `author_module.go`/`author_menu.go`,
-> each with regression tests. A13 (no VTSM domain) remains a deferred design
-> gap, not a bug. The fixes have unit-test coverage but have **not yet been
-> validated on a real player** — that verification is the next step (VLC with
-> `dvdnav` verbose logging, an ifodump parse, and a hardware player if
-> available). Fix commits are on `master` / `claude/ci-issues-a6y6mk`.
+> **STATUS: A1–A12 FIXED + validated against libdvdread (2026-07-08).**
+> All twelve findings are resolved in `internal/dvd/{vob,ifo}` and
+> `author_module.go`/`author_menu.go` with regression tests. A13 (no VTSM
+> domain) remains a deferred design gap.
+>
+> **libdvdread validation (the real ground truth).** `libdvdread-dev` was used
+> two ways, offline (no disc burn needed): (1) an `offsetof`/`sizeof` harness
+> against the real `nav_types.h`/`ifo_types.h` — **all button/HLI/TMAP offsets
+> matched exactly, 0 mismatches**, including the `btni_t` bit-packing and
+> `hli_t` sub-offsets previously flagged as uncertain; (2) generating real
+> IFOs with our `ifo` package and parsing them with `ifoOpen()` — the exact
+> code path that produced the original `zero_1` error. Results:
+>
+> - **A4 confirmed end-to-end**: `tmap[0].tmu` now reads `1` (was `zero_1:0x01`).
+> - All tables parse and are present: PGCIT, TMAPT, C_ADT (title + menu),
+>   VOBU_ADMAP, PTT_SRPT, TT_SRPT, First-Play PGC.
+> - The parse surfaced a **second tier of IFO-validity bugs** the audit's menu
+>   scope missed, now fixed (see "Second-tier fixes" below): PTT `pgn` written
+>   as uint8 (read as 256), VMGM LU `exists` low bits non-zero, `VMGI_Last_Byte`
+>   hardcoded 2047, `vtsi_last_sector` (0x1C) left unset.
+> - **Two libdvdread warnings remain** — deferred, need real data not fakes:
+>   the `VTS_ATRT` per-VTS attribute record is 266 B but the spec minimum is
+>   356 B (missing the VTSM menu-attribute fields), and `vts_last_sector`
+>   (0x0C) needs the VOB-inclusive disc-layout value threaded in from the
+>   author (currently IFO-only). Both are non-fatal cross-validation fields;
+>   tracked in TODO.
+>
+> Still pending: **real player** playback (VLC/hardware) — libdvdread parsing
+> clean is necessary but not sufficient. Fix commits on `master` /
+> `claude/ci-issues-a6y6mk`.
+>
+> ### Second-tier fixes (found by the libdvdread parse, not the static audit)
+> | Issue | Fix | File |
+> |---|---|---|
+> | PTT `pgn` uint8+pad → reads as 256 | write BE uint16 per `ptt_info_t` | `vtsi.go` |
+> | VMGM LU `exists`=0x82 (low bits set) | 0x80; menu type stays in PGC category | `pgc.go` |
+> | `VMGI_Last_Byte` hardcoded 2047 | full VMGI size; First-Play must be within it | `mat_serialize.go`,`builder.go` |
+> | `vtsi_last_sector` (0x1C) unset | set to IFO last sector | `builder.go` |
 >
 > | ID | Fix summary | Test |
 > |---|---|---|

@@ -27,6 +27,10 @@ type VMG_MAT struct {
 	// A value of 0 means "no first play PGC — go directly to title 1".
 	VMG_FirstPlayPGC uint32
 
+	// VMGI_Last_Byte (0x080): last byte index of the whole VMGI management
+	// area (= IFO size in bytes - 1). Set by GenerateVMG_IFO.
+	VMGI_Last_Byte uint32
+
 	// Table Offsets — sector addresses within the IFO/disc (0x0C0–0x0DC per spec)
 	VMGM_VOBS_Sector        uint32 // 0x0C0: start sector of VMGM VOBs (menu video; 0 if none)
 	TT_SRPT_Offset          uint32 // 0x0C4: sector of Title Search Pointer Table
