@@ -470,3 +470,33 @@ func TestGenerateVMG_IFO_TT_SRPTOffsetUpdated(t *testing.T) {
 		t.Error("TT_SRPT_Offset in written IFO is 0; expected non-zero when srpt provided")
 	}
 }
+
+// TestGenerateVMG_IFO_FirstPlayPGC verifies a menu-less disc gets a non-zero
+// VMG_FirstPlayPGC pointing at a command-only First-Play PGC (audit A12).
+func TestGenerateVMG_IFO_FirstPlayPGC(t *testing.T) {
+	dir := t.TempDir()
+	b := NewBuilder(dir)
+	cmd := JumpTTCommand(1)
+	b.FirstPlayCommand = &cmd
+	mat := NewVMGMAT()
+	mat.NrOfTitleSets = 1
+	if err := b.GenerateVMG_IFO(mat, nil, nil, nil); err != nil {
+		t.Fatalf("GenerateVMG_IFO: %v", err)
+	}
+	if mat.VMG_FirstPlayPGC == 0 {
+		t.Fatal("VMG_FirstPlayPGC = 0, want non-zero for menu-less disc")
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "VIDEO_TS.IFO"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Serialized MAT stores FP at byte 132; must round-trip.
+	if got := binary.BigEndian.Uint32(data[132:136]); got != mat.VMG_FirstPlayPGC {
+		t.Errorf("serialized FP offset = %d, want %d", got, mat.VMG_FirstPlayPGC)
+	}
+	// The FP PGC's pre-command (JumpTT 1) must appear at that offset's command
+	// table. Just sanity-check the offset is within the file.
+	if mat.VMG_FirstPlayPGC+236 > uint32(len(data)) {
+		t.Errorf("FP offset %d beyond IFO size %d", mat.VMG_FirstPlayPGC, len(data))
+	}
+}
