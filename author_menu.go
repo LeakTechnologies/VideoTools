@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/spu"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/theme"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/vob"
@@ -1974,7 +1975,8 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 			pciBtns[i] = vob.PCIButton{
 				X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
 				Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
-				CmdNr: uint8(i + 1),
+				// Inline VM command executed on activation (spec btni_t bytes 10-17).
+				Cmd: [8]byte(ifo.ParseButtonCommand(b.Command)),
 			}
 		}
 		pci := &vob.PCIPacket{
@@ -2047,7 +2049,9 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 					pciBtns[i] = vob.PCIButton{
 						X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
 						Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
-						CmdNr: uint8(i + 1),
+						// Inline VM command executed on activation (spec btni_t
+						// bytes 10-17); no cell-command indirection exists.
+						Cmd: [8]byte(ifo.ParseButtonCommand(b.Command)),
 					}
 				}
 				pci := &vob.PCIPacket{
@@ -2095,7 +2099,8 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 			pciBtns[i] = vob.PCIButton{
 				X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
 				Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
-				CmdNr: uint8(i + 1),
+				// Inline VM command executed on activation (spec btni_t bytes 10-17).
+				Cmd: [8]byte(ifo.ParseButtonCommand(b.Command)),
 			}
 		}
 		if err := m.WriteNAV_PCK(&vob.PCIPacket{
@@ -2316,4 +2321,3 @@ func escapeDrawtextText(text string) string {
 	cleaned := strings.Join(strings.Fields(result.String()), " ")
 	return cleaned
 }
-

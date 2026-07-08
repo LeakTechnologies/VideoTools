@@ -124,3 +124,73 @@ func TestWriteNAV_PCK_VOBUSRIFilled(t *testing.T) {
 		}
 	}
 }
+
+// TestWriteNAV_PCK_HLILayout locks the spec hli_t layout (audit A1/A2):
+// hl_gi at PCI offset 96, btn_colit at 118, btni_t entries at 142 with the
+// inline 8-byte VM command in entry bytes 10–17.
+func TestWriteNAV_PCK_HLILayout(t *testing.T) {
+	var buf bytes.Buffer
+	m := NewMuxer(&buf)
+
+	cmd := [8]byte{0x30, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00} // JumpTT 1
+	pci := &PCIPacket{
+		HL_GI: HL_GI{BTN_SL_NS: 1},
+		Buttons: []PCIButton{
+			{X0: 100, X1: 300, Y0: 200, Y1: 240, Up: 2, Down: 2, Cmd: cmd},
+			{X0: 100, X1: 300, Y0: 260, Y1: 300, Up: 1, Down: 1},
+		},
+	}
+	if err := m.WriteNAV_PCK(pci, &DSIPacket{}); err != nil {
+		t.Fatalf("WriteNAV_PCK: %v", err)
+	}
+	data := buf.Bytes()
+
+	// PCI table data begins after 14+24+6 headers + 1 substream ID byte.
+	const p = 45
+
+	if got := binary.BigEndian.Uint16(data[p+96:]); got != 0x0001 {
+		t.Errorf("hli_ss = 0x%04x, want 0x0001", got)
+	}
+	if data[p+110] != 0x10 {
+		t.Errorf("btngr byte = 0x%02x, want 0x10 (btngr_ns=1, dsp_ty=0)", data[p+110])
+	}
+	if data[p+113] != 2 {
+		t.Errorf("btn_ns = %d, want 2", data[p+113])
+	}
+	if data[p+114] != 2 {
+		t.Errorf("nsl_btn_ns = %d, want 2", data[p+114])
+	}
+	if data[p+116] != 1 {
+		t.Errorf("fosl_btnn = %d, want 1", data[p+116])
+	}
+	if got := binary.BigEndian.Uint32(data[p+118:]); got != 0x001000A0 {
+		t.Errorf("SL_COLI = 0x%08x, want 0x001000A0", got)
+	}
+	if got := binary.BigEndian.Uint32(data[p+122:]); got != 0x003000F0 {
+		t.Errorf("AC_COLI = 0x%08x, want 0x003000F0", got)
+	}
+
+	// btni_t entry 0 at 142. Expected packing for x0=100, x1=300, y0=200,
+	// y1=240, btn_coln=1:
+	//   b0 = 1<<6 | 100>>4 = 0x40|0x06 = 0x46
+	//   b1 = (100&0xF)<<4 | 300>>8 = 0x40|0x01 = 0x41
+	//   b2 = 300&0xFF = 0x2C
+	//   b3 = 0<<6 | 200>>4 = 0x0C
+	//   b4 = (200&0xF)<<4 | 240>>8 = 0x80|0x00 = 0x80
+	//   b5 = 240&0xFF = 0xF0
+	e := p + 142
+	want := []byte{0x46, 0x41, 0x2C, 0x0C, 0x80, 0xF0}
+	for i, w := range want {
+		if data[e+i] != w {
+			t.Errorf("btnit[0] byte %d = 0x%02x, want 0x%02x", i, data[e+i], w)
+		}
+	}
+	// Neighbours: up=2, down=2, left/right default to self (1).
+	if data[e+6] != 2 || data[e+7] != 2 || data[e+8] != 1 || data[e+9] != 1 {
+		t.Errorf("neighbours = %v, want [2 2 1 1]", data[e+6:e+10])
+	}
+	// Inline command bytes 10-17.
+	if !bytes.Equal(data[e+10:e+18], cmd[:]) {
+		t.Errorf("btnit[0] cmd = % x, want % x", data[e+10:e+18], cmd[:])
+	}
+}
