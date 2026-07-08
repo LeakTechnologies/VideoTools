@@ -92,8 +92,9 @@ func TestWriteNAV_PCK_LBNInPCI(t *testing.T) {
 	//   pack header   14 bytes
 	//   system header 24 bytes
 	//   PES header     6 bytes  (start_code[3] + stream_id[1] + length[2])
-	// Total: 44 bytes offset to PCI payload; nv_pck_lbn is the first uint32.
-	const pciPayloadOff = 44
+	// Total: 44 bytes to PES payload + 1 substream ID byte (0x00) = 45 bytes
+	// to the PCI table data; nv_pck_lbn is its first uint32.
+	const pciPayloadOff = 45
 	lbn := binary.BigEndian.Uint32(data[pciPayloadOff+pciOffNVPCKLBN : pciPayloadOff+pciOffNVPCKLBN+4])
 	if lbn != 100 {
 		t.Errorf("PCI nv_pck_lbn = %d, want 100", lbn)
@@ -114,7 +115,7 @@ func TestWriteNAV_PCK_VOBUSRIFilled(t *testing.T) {
 	//   PCI PES hdr    6  + 980 payload = 986
 	// Total: 14 + 24 + 986 = 1024 bytes before DSI PES header.
 	const dsiPESHdrOff = 1024
-	const dsiPayloadOff = dsiPESHdrOff + 6 // skip 6-byte Private2 header
+	const dsiPayloadOff = dsiPESHdrOff + 7 // 6-byte PES header + substream ID (0x01)
 	for i := 0; i < dsiVOBUSRICount; i++ {
 		off := dsiPayloadOff + dsiOffVOBUSRI + i*4
 		val := binary.BigEndian.Uint32(data[off : off+4])

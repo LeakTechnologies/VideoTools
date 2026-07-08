@@ -20,15 +20,17 @@ type NAVPCKInfo struct {
 //	Pack Header (14) + System Header (24) + PCI PES header (6) + PCI payload offset 12
 //	= 56 — but VOBU_SRI is in the DSI, not the PCI.
 //
-//	DSI PES starts at: 14 + 24 + (6 + 980) = 1024; DSI payload at 1024 + 6 = 1030.
+//	DSI PES starts at: 14 + 24 + (6 + 980) = 1024; DSI table data begins after
+//	the 6-byte PES header + 1-byte substream ID (0x01) at 1024 + 7 = 1031.
 //	dsiOffVOBUSRI = 196 (within the DSI payload).
-//	→ VOBU_SRI in sector: 1030 + 196 = 1226.
-const sriByteOffset = 1226
+//	→ VOBU_SRI in sector: 1031 + 196 = 1227.
+const sriByteOffset = 1227
 
 // pciPTMByteOffset is the byte offset of vobu_s_ptm in a 2048-byte sector.
 //
-//	Pack Header (14) + System Header (24) + PCI PES header (6) + pciOffVOBUSPTM (12) = 56.
-const pciPTMByteOffset = 56
+//	Pack Header (14) + System Header (24) + PCI PES header (6) + substream ID (1)
+//	+ pciOffVOBUSPTM (12) = 57.
+const pciPTMByteOffset = 57
 
 // sriTimeOffsets holds the 30 VOBU_SRI time offsets in 90kHz ticks.
 // The table is split into 20 forward entries [0..19] and 10 backward entries [20..29].
