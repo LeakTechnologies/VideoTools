@@ -36,6 +36,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Remaining high-priority items
 
+- [ ] **Extract media-import/probe layer out of main.go** — `probeVideo` (~100 lines), `videoSource` type (43 refs in main.go), `isVideoFile`, `findVideoFiles`, `loadMultipleVideos`, `batchAddToQueue`, and the per-module `handleDrop` branches are all import concerns living in root `main.go`. Slice: (1) move `videoSource` + `probeVideo` + `isVideoFile` into `internal/mediaprobe` (or `internal/media/probe`), decoupling the type first; (2) move the drop/import orchestration behind a module. The AVI-import bug had to be fixed by editing main.go — symptom of this bloat. Phase-3 refactor candidate (opencode-owned), needs a dedicated slice, not mixed with feature/bugfix work.
+
 - [x] **Windows import failure (NoInheritHandles)** — dev49's `NoInheritHandles: true` disabled std-pipe inheritance, so ffprobe returned no output and all Windows imports failed; removed. File-in-use stays fixed via Go's handle-list + Job Object.
 
 - [ ] **DVD menu player validation** — A1–A12 spec fixes landed, validated against libdvdread (offsetof harness + ifoOpen parse, `docs/AUTHOR_MENU_AUDIT.md`); still need VLC/hardware playback of a real authored disc. Then close the audit.
