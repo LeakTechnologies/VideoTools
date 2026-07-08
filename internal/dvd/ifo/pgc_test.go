@@ -169,12 +169,12 @@ func TestWriteTMAPT_EntryHeader(t *testing.T) {
 		t.Fatalf("WriteTMAPT failed: %v", err)
 	}
 	// TMAP body starts at byte 12 (8-byte header + 4-byte offset pointer).
-	// Spec layout: [12] zero_1, [13] Time_Unit, [14-15] NrOf_Entries.
-	if data[12] != 0x00 {
-		t.Errorf("zero_1 = 0x%02x, want 0x00", data[12])
+	// libdvdread vts_tmap_t layout: [12] tmu (Time_Unit), [13] zero_1, [14-15] NrOf_Entries.
+	if data[12] != timeUnit {
+		t.Errorf("tmu/TimeUnit = %d, want %d", data[12], timeUnit)
 	}
-	if data[13] != timeUnit {
-		t.Errorf("TimeUnit = %d, want %d", data[13], timeUnit)
+	if data[13] != 0x00 {
+		t.Errorf("zero_1 = 0x%02x, want 0x00", data[13])
 	}
 	nrEntries := binary.BigEndian.Uint16(data[14:16])
 	wantEntries := uint16(len(tmapt.Sectors))
