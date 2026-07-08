@@ -3340,6 +3340,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	// IFO builder targets VIDEO_TS (not discRoot)
 	ifoBuilder := ifo.NewBuilder(videoTSPath)
+	// Menu-less discs need a First-Play PGC that jumps straight to title 1,
+	// else VMG_FirstPlayPGC stays 0 and players can't start the disc (A12).
+	// When a menu exists, GenerateVMG_IFO points First-Play at the menu instead.
+	fpCmd := ifo.JumpTTCommand(1)
+	ifoBuilder.FirstPlayCommand = &fpCmd
 
 	// Generate VTS IFO/BUP for title set 1
 	vtsMat := ifo.NewVTSMAT()

@@ -23,6 +23,13 @@ type Builder struct {
 	// VIDEO_TS.VOB, used to build the VMGM_VOBU_ADMAP. Zero-length omits the
 	// table. Populate by scanning the built VOB (vob.ScanVOBForNAVPCKs).
 	MenuNAVSectors []uint32
+
+	// FirstPlayCommand, when set, is the pre-command of a standalone
+	// command-only First-Play PGC written into VIDEO_TS.IFO for discs with no
+	// menus (e.g. JumpTT 1). Without it a menu-less disc has VMG_FirstPlayPGC=0
+	// and libdvdnav cannot start it (audit finding A12). Ignored when menus
+	// exist (FP points at the menu instead).
+	FirstPlayCommand *DVDCommand
 }
 
 // NewBuilder creates a new IFO builder.
@@ -228,6 +235,22 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 		nextSector += uint32(mAdmapBuf.Len() / 2048)
 	}
 
+	// First-Play PGC for menu-less discs (audit finding A12). Placed at the
+	// end of the VMGI; VMG_FirstPlayPGC is its IFO-absolute byte offset.
+	var fpData []byte
+	if len(menuPGCs) == 0 && b.FirstPlayCommand != nil {
+		var err error
+		fpData, err = serializePGC(BuildFirstPlayPGC(*b.FirstPlayCommand))
+		if err != nil {
+			return fmt.Errorf("serialize first-play pgc: %w", err)
+		}
+		mat.VMG_FirstPlayPGC = nextSector * 2048
+		if rem := len(fpData) % 2048; rem != 0 {
+			fpData = append(fpData, make([]byte, 2048-rem)...)
+		}
+		nextSector += uint32(len(fpData) / 2048)
+	}
+
 	// Sector accounting (audit findings A6/A7). All offsets in VMG_MAT are
 	// relative to the start of the VMG (= start of VIDEO_TS.IFO):
 	//   VMGI (this IFO)      : sectors 0 .. ifoSectors-1
@@ -260,6 +283,9 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 	}
 	if mAdmapBuf.Len() > 0 {
 		buf.Write(mAdmapBuf.Bytes())
+	}
+	if fpData != nil {
+		buf.Write(fpData)
 	}
 
 	data := buf.Bytes()
