@@ -3,6 +3,8 @@ package vob
 import (
 	"bytes"
 	"encoding/binary"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -192,5 +194,68 @@ func TestWriteNAV_PCK_HLILayout(t *testing.T) {
 	// Inline command bytes 10-17.
 	if !bytes.Equal(data[e+10:e+18], cmd[:]) {
 		t.Errorf("btnit[0] cmd = % x, want % x", data[e+10:e+18], cmd[:])
+	}
+}
+
+// TestAppendMenuVOB_RebasesNAV verifies LBN rebasing and VOB/Cell ID stamping
+// across a concatenated multi-menu VOB (audit A9/A10).
+func TestAppendMenuVOB_RebasesNAV(t *testing.T) {
+	dir := t.TempDir()
+	mpg := filepath.Join(dir, "menu.mpg")
+
+	// Build a 3-sector menu MPG: NAV_PCK + two padding sectors.
+	f, err := os.Create(mpg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := NewMuxer(f)
+	if err := m.WriteNAV_PCK(&PCIPacket{}, &DSIPacket{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.WritePadding(2 * PackSize); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+	f.Close()
+
+	var out bytes.Buffer
+	// Append the same file twice, as menus 1 and 2.
+	n1, err := AppendMenuVOB(&out, mpg, 0, 1, 1)
+	if err != nil {
+		t.Fatalf("append 1: %v", err)
+	}
+	n2, err := AppendMenuVOB(&out, mpg, n1, 2, 1)
+	if err != nil {
+		t.Fatalf("append 2: %v", err)
+	}
+	if n1 != n2 {
+		t.Fatalf("sector counts differ: %d vs %d", n1, n2)
+	}
+
+	data := out.Bytes()
+	// First NAV (sector 0): LBN 0, VOB 1.
+	pci0 := data[navSectorPCIOff:]
+	dsi0 := data[navSectorDSIOff:]
+	if got := binary.BigEndian.Uint32(pci0[pciOffNVPCKLBN:]); got != 0 {
+		t.Errorf("menu1 PCI lbn = %d, want 0", got)
+	}
+	if got := binary.BigEndian.Uint16(dsi0[dsiOffVOBUVOBIDN:]); got != 1 {
+		t.Errorf("menu1 vob_idn = %d, want 1", got)
+	}
+	// Second menu's NAV is at sector n1: LBN n1, VOB 2, cell 1.
+	base := int(n1) * PackSize
+	pci1 := data[base+navSectorPCIOff:]
+	dsi1 := data[base+navSectorDSIOff:]
+	if got := binary.BigEndian.Uint32(pci1[pciOffNVPCKLBN:]); got != n1 {
+		t.Errorf("menu2 PCI lbn = %d, want %d", got, n1)
+	}
+	if got := binary.BigEndian.Uint32(dsi1[dsiOffNVPCKLBN:]); got != n1 {
+		t.Errorf("menu2 DSI lbn = %d, want %d", got, n1)
+	}
+	if got := binary.BigEndian.Uint16(dsi1[dsiOffVOBUVOBIDN:]); got != 2 {
+		t.Errorf("menu2 vob_idn = %d, want 2", got)
+	}
+	if dsi1[dsiOffVOBUCIDN] != 1 {
+		t.Errorf("menu2 c_idn = %d, want 1", dsi1[dsiOffVOBUCIDN])
 	}
 }
