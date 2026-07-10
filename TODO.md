@@ -596,7 +596,7 @@ Approach:
     - [x] Phase 4: SPU (subpicture) encoding for menu buttons.
     - [x] Phase 5: Integration with Author/Rip modules (Unified UI, native UDF reader, cross-platform enablement).
 - [ ] **Root folder hygiene** (issue #22) — 24 `package main` files clutter the project root; should be progressively extracted to `internal/app/modules/` with thin root shims, following the pattern already established for `about`, `deps`, and `mainmenu`.
-- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32).
+- [x] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32). Shipped dev44 — `showConvertView` wraps content in `ui.NewDroppable`, loaded/placeholder panes have explicit drop targets, single/multi-file drops unified via `loadMultipleVideos` (`67a7f126`, `d42ef26a`, `009bc26f`).
 - [ ] **Linux CI build optimization** — Even with apt caching, Linux builds install ~100 packages. Consider a pre-built container image with deps baked in to cut build times.
 
 ## Dev32 Scope
@@ -611,7 +611,7 @@ Approach:
 - [x] **Author/Rip hidden on Windows** — Disc modules hidden from main menu on Windows until cross-platform disc authoring is implemented.
 - [x] **Convert player layout** — Video fills centre of player pane; transport bar pinned to bottom; VSplit gap removed.
 - [x] **Convert active state** — `s.active = "convert"` now set correctly; drop handling and keyboard shortcuts work inside the module.
-- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered .
+- [x] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered. Shipped dev44, see above.
 - [x] **Phase 3 modularisation — Inspect, Settings, Queue**
 
 ## Dev31 Scope
