@@ -260,8 +260,14 @@ func SerializeVMGMAT(mat *VMG_MAT) []byte {
 	// 0x060: VMG_Pos_Code (8 bytes; zeroed)
 	// 0x068-0x07F: zero_4 (24 bytes; zeroed by make)
 
-	// 0x080: VMGI_Last_Byte (last byte index of this IFO sector; 2048-byte sector → 2047)
-	binary.BigEndian.PutUint32(b[128:132], uint32(2047))
+	// 0x080: VMGI_Last_Byte (last byte index of the whole VMGI management area;
+	// First_Play_PGC must be < this, so a hardcoded 2047 fails once the VMGI
+	// spans more than one sector).
+	lastByte := mat.VMGI_Last_Byte
+	if lastByte == 0 {
+		lastByte = 2047
+	}
+	binary.BigEndian.PutUint32(b[128:132], lastByte)
 
 	// 0x084: First_Play_PGC — byte offset within the IFO file of the PGC that
 	// DVD players execute first when the disc is inserted. Set to the main menu

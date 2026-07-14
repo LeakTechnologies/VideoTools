@@ -169,12 +169,12 @@ func TestWriteTMAPT_EntryHeader(t *testing.T) {
 		t.Fatalf("WriteTMAPT failed: %v", err)
 	}
 	// TMAP body starts at byte 12 (8-byte header + 4-byte offset pointer).
-	// Spec layout: [12] zero_1, [13] Time_Unit, [14-15] NrOf_Entries.
-	if data[12] != 0x00 {
-		t.Errorf("zero_1 = 0x%02x, want 0x00", data[12])
+	// libdvdread vts_tmap_t layout: [12] tmu (Time_Unit), [13] zero_1, [14-15] NrOf_Entries.
+	if data[12] != timeUnit {
+		t.Errorf("tmu/TimeUnit = %d, want %d", data[12], timeUnit)
 	}
-	if data[13] != timeUnit {
-		t.Errorf("TimeUnit = %d, want %d", data[13], timeUnit)
+	if data[13] != 0x00 {
+		t.Errorf("zero_1 = 0x%02x, want 0x00", data[13])
 	}
 	nrEntries := binary.BigEndian.Uint16(data[14:16])
 	wantEntries := uint16(len(tmapt.Sectors))
@@ -372,8 +372,9 @@ func TestWriteVTS_PTT_SRPT_Entries(t *testing.T) {
 	base := 12 // first PTT entry starts after header(8) + offset(4)
 	for i := 0; i < n; i++ {
 		off := base + i*4
+		// ptt_info_t = { uint16 pgcn; uint16 pgn }.
 		pgcn := binary.BigEndian.Uint16(data[off : off+2])
-		pgn := data[off+2]
+		pgn := binary.BigEndian.Uint16(data[off+2 : off+4])
 		if pgcn != 1 {
 			t.Errorf("chapter %d: PGCN = %d, want 1", i+1, pgcn)
 		}
