@@ -297,7 +297,10 @@ func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
 	buf.WriteByte(0x65)                                        // 'e'
 	buf.WriteByte(0x6E)                                        // 'n' (language "en")
 	buf.WriteByte(0x00)                                        // country code modifier
-	buf.WriteByte(0x83)                                        // LU attributes: entry PGC (bit7) + root menu (bits 0-3 = 3)
+	// LU "exists" byte: bit7 = menu present. libdvdread requires the low 3
+	// bits to be zero, so the menu TYPE lives only in the PGC category
+	// (0x8200 = Title menu) below, not here (audit findings A11 + parse).
+	buf.WriteByte(0x80)
 	binary.Write(&buf, binary.BigEndian, uint32(luDataOffset)) // LU_Offset
 
 	// LU data: PGCIT header
@@ -310,7 +313,7 @@ func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
 	for i, d := range pgcDataList {
 		var cat uint16
 		if i == 0 {
-			cat = 0x8300 // entry PGC (bit15) + root menu type (bits 3-0 = 3)
+			cat = 0x8200 // entry PGC (bit15) + Title menu type (bits 3-0 = 2)
 		}
 		binary.Write(&buf, binary.BigEndian, cat)
 		binary.Write(&buf, binary.BigEndian, uint16(0))
@@ -487,6 +490,16 @@ func BuildMenuPGC(cmdTable *DVDCommandTable, duration float64, isNTSC bool) *Pro
 		CommandTable: cmdTable,
 	}
 	return pgc
+}
+
+// BuildFirstPlayPGC returns a command-only First-Play PGC: no programs or
+// cells, a single pre-command executed when the disc is inserted (typically
+// JumpTT 1 for a menu-less disc, or a JumpSS to the VMGM for a disc with
+// menus). The DVD player runs the pre-command and exits (audit finding A12).
+func BuildFirstPlayPGC(cmd DVDCommand) *ProgramChain {
+	return &ProgramChain{
+		CommandTable: &DVDCommandTable{Pre: []DVDCommand{cmd}},
+	}
 }
 
 // serializePGC writes a PGC into its on-disc binary representation.

@@ -21,35 +21,55 @@ const (
 	pciOffVOBUEPTM   = 16 // vobu_e_ptm   uint32 — VOBU end PTM (90kHz)
 	pciOffVOBUSEEPTM = 20 // vobu_se_e_ptm uint32 — still end PTM (= e_ptm for non-still)
 
-	// hl_gi_t starts at offset 68 (32-byte pci_gi + 36-byte nsml_agli).
-	// Layout within hl_gi_t:
-	//   +0  HL_STATUS     uint16
-	//   +2  BTTN_GXCOL_NS [3]uint64  (3 × 8 bytes = 24 bytes of button group colors)
-	//   +26 BTN_SL_NS     uint8  — initially-selected button (1-based)
-	//   +27 BTN_NS        uint8  — total number of buttons
-	//   +28 FOSL_BTTN     uint8
-	//   +29 zero          uint8
-	//   +30 button entries start (18 bytes each, up to 36 buttons)
-	pciOffBtnSLNS  = 94 // BTN_SL_NS uint8 — initially-selected button number
-	pciOffBtnNS    = 95 // BTN_NS    uint8 — total button count
-	pciOffBtnTable = 98 // first button entry (18 bytes each)
+	// hli_t layout per libdvdread ifo_types.h. pci_gi_t is 60 bytes
+	// (nv_pck_lbn 4, vobu_cat 2, zero 2, uop_ctl 4, s/e/se_e ptm 12,
+	// e_eltm 4, vobu_isrc 32); nsml_agli_t is 36 bytes (9 angles × 4).
+	// hli_t therefore starts at PCI table offset 96.
+	//
+	// hl_gi_t (22 bytes, offsets 96–117):
+	//   96  hli_ss        uint16 — 0=no HLI, 1=HLI new for this VOBU
+	//   98  hli_s_ptm     uint32
+	//  102  hli_e_ptm     uint32
+	//  106  btn_se_e_ptm  uint32 — button select end PTM
+	//  110  [zero:2][btngr_ns:2][zero:1][btngr1_dsp_ty:3]
+	//  111  [zero:1][btngr2_dsp_ty:3][zero:1][btngr3_dsp_ty:3]
+	//  112  btn_ofn       uint8 — button offset number (numeric select base)
+	//  113  btn_ns        uint8 — number of buttons
+	//  114  nsl_btn_ns    uint8 — numerically-selectable buttons
+	//  115  zero          uint8
+	//  116  fosl_btnn     uint8 — forced-select button on entry
+	//  117  foac_btnn     uint8 — forced-action button
+	// btn_colit_t (24 bytes, 118–141): 3 groups × { SL_COLI u32, AC_COLI u32 }
+	// btnit (142+): 36 × 18-byte btni_t entries
+	hliOffSS       = 96
+	hliOffSPTM     = 98
+	hliOffEPTM     = 102
+	hliOffBtnSEPTM = 106
+	hliOffBtnGr    = 110
+	hliOffBtnOFN   = 112
+	hliOffBtnNS    = 113
+	hliOffNSLBtnNS = 114
+	hliOffFOSLBtn  = 116
+	hliOffFOACBtn  = 117
+	hliOffColit    = 118
+	pciOffBtnTable = 142 // first btni_t entry
 
 	// Maximum buttons per PCI packet (DVD-Video spec limit).
 	pciMaxButtons = 36
-	// Each button entry in the PCI button table is 18 bytes.
+	// Each btni_t entry is 18 bytes (10 geometry/nav + 8-byte inline VM command).
 	pciBtnEntrySize = 18
 )
 
 // Byte offsets within the 1018-byte DSI payload (from DVD-Video spec, dsi_gi_t).
 const (
-	dsiOffNVPCKSCR  = 0  // nv_pck_scr    uint32 — SCR of NAV_PCK (90kHz)
-	dsiOffNVPCKLBN  = 4  // nv_pck_lbn    uint32 — LBN of NAV_PCK
-	dsiOffVOBUEA    = 8  // vobu_ea       uint32 — last sector offset of VOBU from NAV_PCK
-	dsiOff1STREFEA  = 12 // vobu_1stref_ea uint32
-	dsiOff2NDREFEA  = 16 // vobu_2ndref_ea uint32
-	dsiOff3RDREFEA  = 20 // vobu_3rdref_ea uint32
+	dsiOffNVPCKSCR   = 0  // nv_pck_scr    uint32 — SCR of NAV_PCK (90kHz)
+	dsiOffNVPCKLBN   = 4  // nv_pck_lbn    uint32 — LBN of NAV_PCK
+	dsiOffVOBUEA     = 8  // vobu_ea       uint32 — last sector offset of VOBU from NAV_PCK
+	dsiOff1STREFEA   = 12 // vobu_1stref_ea uint32
+	dsiOff2NDREFEA   = 16 // vobu_2ndref_ea uint32
+	dsiOff3RDREFEA   = 20 // vobu_3rdref_ea uint32
 	dsiOffVOBUVOBIDN = 24 // vobu_vob_idn  uint16
-	dsiOffVOBUCIDN  = 27 // vobu_c_idn    uint8
+	dsiOffVOBUCIDN   = 27 // vobu_c_idn    uint8
 
 	// VOBU_SRI starts after DSI_GI (36 bytes) + SML_PBI (128 bytes) + SML_AGLI (32 bytes).
 	dsiOffVOBUSRI   = 196
@@ -59,16 +79,18 @@ const (
 // PCIButton describes one button entry in the PCI highlight table.
 // Coordinates are in DVD screen pixels (720×480 NTSC or 720×576 PAL).
 // Neighbor button numbers are 1-based; 0 means "wrap to self".
-// CmdNr is the 1-based index into the PGC cell-command table (0 = no command).
+// Cmd is the 8-byte DVD VM instruction executed on activation, written
+// inline into the btni_t entry (there is no indirection into the PGC cell
+// command table — audit finding A2).
 type PCIButton struct {
-	X0, X1    int   // left/right pixel columns (inclusive)
-	Y0, Y1    int   // top/bottom pixel rows (inclusive)
-	Up        uint8 // button number to move to on Up
-	Down      uint8 // button number to move to on Down
-	Left      uint8 // button number to move to on Left
-	Right     uint8 // button number to move to on Right
-	CmdNr     uint8 // cell command to execute when activated (1-based)
-	AutoAction bool // if true, button activates immediately on selection
+	X0, X1     int     // left/right pixel columns (inclusive)
+	Y0, Y1     int     // top/bottom pixel rows (inclusive)
+	Up         uint8   // button number to move to on Up
+	Down       uint8   // button number to move to on Down
+	Left       uint8   // button number to move to on Left
+	Right      uint8   // button number to move to on Right
+	Cmd        [8]byte // inline VM command executed on activation
+	AutoAction bool    // if true, button activates immediately on selection
 }
 
 // PCIPacket carries the caller-supplied fields for the PCI section of a NAV_PCK.
@@ -117,8 +139,9 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 
 	scr90 := uint32(m.scr / 300) // SCR base in 90kHz
 
-	// ── Build PCI data (980 bytes) ────────────────────────────────────────────
-	pciData := make([]byte, 980)
+	// ── Build PCI data (979 bytes; the 0x00 substream ID byte that precedes
+	// it on disc is written by writePESPrivate2) ─────────────────────────────
+	pciData := make([]byte, 979)
 	binary.BigEndian.PutUint32(pciData[pciOffNVPCKLBN:], m.currentSector)
 	binary.BigEndian.PutUint32(pciData[pciOffVOBUUOPCTL:], pci.VOBU_UOP_CTL)
 
@@ -129,111 +152,12 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 	binary.BigEndian.PutUint32(pciData[pciOffVOBUSPTM:], sPTM)
 	binary.BigEndian.PutUint32(pciData[pciOffVOBUEPTM:], pci.LVOBU_E_PTM)
 	binary.BigEndian.PutUint32(pciData[pciOffVOBUSEEPTM:], pci.LVOBU_E_PTM) // still = end
-	// Write button counts. BTN_SL_NS is the initially selected button (1-based);
-	// BTN_NS is the total number of buttons in this NAV_PCK.
-	btnCount := len(pci.Buttons)
-	if btnCount > pciMaxButtons {
-		btnCount = pciMaxButtons
-	}
-	pciData[pciOffBtnSLNS] = pci.HL_GI.BTN_SL_NS
-	pciData[pciOffBtnNS] = uint8(btnCount)
-	// FOSL_BTTN at byte 96 (hl_gi_t +28): force-select button 1 when > 0 buttons.
-	if btnCount > 0 {
-		pciData[96] = 1
-	}
 
-	// BTTN_GXCOL_NS at hl_gi_t +2 (PCI bytes 70-93): three 8-byte button color groups.
-	// Per DVD-Video spec (Table 5.8), each 8-byte group has two separate 32-bit fields:
-	//   BTTN_COLI (bytes N+0..N+3): palette indices for SPU pixel values 3,2,1,0
-	//     big-endian: byte N+0 = (c3<<4)|c2, byte N+1 = (c1<<4)|c0, N+2..N+3 = 0
-	//   BTTN_ALPHA (bytes N+4..N+7): alpha values for SPU pixel values 3,2,1,0
-	//     big-endian: byte N+4 = (a3<<4)|a2, byte N+5 = (a1<<4)|a0, N+6..N+7 = 0
-	// Group 0 (Normal): all transparent — button areas invisible at rest.
-	// Group 1 (Selected): SPU pixel 1 → palette 1 (white), alpha 15 (opaque).
-	// Group 2 (Activated): SPU pixel 1 → palette 2 (dark), alpha 15 (opaque).
-	if btnCount > 0 {
-		// Group 0 — normal: bytes 70-77 stay zero (all transparent)
+	// Highlight information (menus). Shared with PatchVOBPCI.
+	serializeHLI(pciData, pci.Buttons, pci.HL_GI.BTN_SL_NS, sPTM, pci.LVOBU_E_PTM)
 
-		// Group 1 — selected (bytes 78-85):
-		// BTTN_COLI: c1=1 (palette 1 = white), c0=0; c2=c3=0
-		pciData[79] = (1 << 4) | 0 // (c1<<4)|c0 = 0x10
-		// BTTN_ALPHA: a1=10 (~67% opacity) so button label remains readable; a0=0
-		pciData[83] = (10 << 4) | 0 // (a1<<4)|a0 = 0xA0
-
-		// Group 2 — activated (bytes 86-93):
-		// BTTN_COLI: c1=3 (palette 3 = gray), c0=0 — visually distinct from selected
-		pciData[87] = (3 << 4) | 0 // (c1<<4)|c0 = 0x30
-		// BTTN_ALPHA: a1=15 (fully opaque flash), a0=0
-		pciData[91] = (15 << 4) | 0 // (a1<<4)|a0 = 0xF0
-	}
-
-	// Write button position entries (18 bytes each).
-	// btn_posi_t layout as decoded by libdvdnav (packing from ifo_types.h):
-	//   byte 0: [btn_coln:6][x_start_hi:2]
-	//     btn_coln bits 7-2 = auto_action (bit7) | button-color-set (bits 6-2, use 0)
-	//     bits 1-0 = x_start[9:8]
-	//   byte 1: x_start[7:0]
-	//   byte 2: x_end[9:2]
-	//   byte 3: [x_end[1:0]:2][y_start[9:4]:6]
-	//   byte 4: [y_start[3:0]:4][y_end[9:6]:4]
-	//   byte 5: [y_end[5:0]:6][reserved:2]
-	//   byte 6: [up:6][down_hi:2]
-	//   byte 7: [down_lo:4][left_hi:4]
-	//   byte 8: [left_lo:2][right:6]
-	//   byte 9: cmd_nr
-	//   bytes 10-17: zero
-	for i, btn := range pci.Buttons {
-		if i >= pciMaxButtons {
-			break
-		}
-		off := pciOffBtnTable + i*pciBtnEntrySize
-		btnNr := uint8(i + 1) // 1-based button number
-
-		x0 := uint16(btn.X0) & 0x3FF
-		x1 := uint16(btn.X1) & 0x3FF
-		y0 := uint16(btn.Y0) & 0x3FF
-		y1 := uint16(btn.Y1) & 0x3FF
-
-		autoAct := uint8(0)
-		if btn.AutoAction {
-			autoAct = 1
-		}
-
-		// Byte 0: auto_action in bit 7; btn_coln (color set) = 0 in bits 6-2; x_start[9:8] in bits 1-0.
-		// Button number is implicit from position in table — do NOT place it in btn_coln.
-		pciData[off+0] = (autoAct << 7) | uint8(x0>>8)
-		pciData[off+1] = uint8(x0)
-		pciData[off+2] = uint8(x1 >> 2)
-		pciData[off+3] = (uint8(x1&0x3) << 6) | uint8(y0>>4)
-		pciData[off+4] = (uint8(y0&0xF) << 4) | uint8(y1>>6)
-		pciData[off+5] = uint8(y1&0x3F) << 2
-		// Neighbours packed: up(6)|down(6)|left(6)|right(6) = 24 bits = 3 bytes
-		up := btn.Up
-		if up == 0 {
-			up = btnNr
-		}
-		dn := btn.Down
-		if dn == 0 {
-			dn = btnNr
-		}
-		lf := btn.Left
-		if lf == 0 {
-			lf = btnNr
-		}
-		rt := btn.Right
-		if rt == 0 {
-			rt = btnNr
-		}
-		pciData[off+6] = (up << 2) | (dn >> 4)
-		pciData[off+7] = (dn << 4) | (lf >> 2)
-		pciData[off+8] = (lf << 6) | rt
-		// cmd_nr in byte 9 (6 bytes total command field, rest zero)
-		pciData[off+9] = btn.CmdNr
-		// bytes 10-17 remain zero
-	}
-
-	// ── Build DSI data (1018 bytes) ───────────────────────────────────────────
-	dsiData := make([]byte, 1018)
+	// ── Build DSI data (1017 bytes; 0x01 substream ID prepended on write) ────
+	dsiData := make([]byte, 1017)
 	binary.BigEndian.PutUint32(dsiData[dsiOffNVPCKSCR:], scr90)
 	binary.BigEndian.PutUint32(dsiData[dsiOffNVPCKLBN:], m.currentSector)
 	binary.BigEndian.PutUint32(dsiData[dsiOffVOBUEA:], dsi.VOBU_EA)
@@ -265,13 +189,13 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 		return fmt.Errorf("nav_pck system header: %w", err)
 	}
 
-	// 3. PCI PES Packet (Private Stream 2, 0xBF, 980 bytes payload)
-	if err := m.writePESPrivate2(0xBF, pciData); err != nil {
+	// 3. PCI PES Packet (Private Stream 2, 0xBF; payload = substream 0x00 + 979 bytes)
+	if err := m.writePESPrivate2(0xBF, 0x00, pciData); err != nil {
 		return fmt.Errorf("nav_pck pci: %w", err)
 	}
 
-	// 4. DSI PES Packet (Private Stream 2, 0xBF, 1018 bytes payload)
-	if err := m.writePESPrivate2(0xBF, dsiData); err != nil {
+	// 4. DSI PES Packet (Private Stream 2, 0xBF; payload = substream 0x01 + 1017 bytes)
+	if err := m.writePESPrivate2(0xBF, 0x01, dsiData); err != nil {
 		return fmt.Errorf("nav_pck dsi: %w", err)
 	}
 
@@ -279,13 +203,118 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 	return nil
 }
 
-func (m *Muxer) writePESPrivate2(streamID uint8, payload []byte) error {
-	var header [6]byte
+// serializeHLI writes the hli_t highlight structure (hl_gi + btn_colit +
+// btnit) into a 979-byte PCI table buffer at the spec offsets. No-op when
+// buttons is empty. selBtn is the initially-selected button (1-based; 0 → 1).
+// sPTM/ePTM bound the highlight validity window; ePTM 0 means "until still
+// end" and is written as 0xFFFFFFFF.
+func serializeHLI(pci []byte, buttons []PCIButton, selBtn uint8, sPTM, ePTM uint32) {
+	btnCount := len(buttons)
+	if btnCount == 0 {
+		return
+	}
+	if btnCount > pciMaxButtons {
+		btnCount = pciMaxButtons
+	}
+	if selBtn == 0 {
+		selBtn = 1
+	}
+	end := ePTM
+	if end == 0 {
+		end = 0xFFFFFFFF // highlight valid until the still ends
+	}
+
+	// hl_gi
+	binary.BigEndian.PutUint16(pci[hliOffSS:], 0x0001) // HLI new for this VOBU
+	binary.BigEndian.PutUint32(pci[hliOffSPTM:], sPTM)
+	binary.BigEndian.PutUint32(pci[hliOffEPTM:], end)
+	binary.BigEndian.PutUint32(pci[hliOffBtnSEPTM:], end)
+	// One button group, display type 0 (4:3): [zero:2][btngr_ns=1:2][zero:1][dsp_ty=0:3]
+	pci[hliOffBtnGr] = 0x10
+	pci[hliOffBtnGr+1] = 0x00
+	pci[hliOffBtnOFN] = 0
+	pci[hliOffBtnNS] = uint8(btnCount)
+	pci[hliOffNSLBtnNS] = uint8(btnCount)
+	pci[hliOffFOSLBtn] = selBtn
+	pci[hliOffFOACBtn] = 0
+
+	// btn_colit: 3 color groups × { SL_COLI, AC_COLI }. Each COLI is
+	// [c3 c2 c1 c0 | a3 a2 a1 a0] as 8 big-endian nibbles (color palette
+	// indices for SPU pixel values 3..0, then their alphas).
+	// Buttons reference group 1 via btn_coln=1.
+	// Selected: SPU pixel 1 → PGC palette 1 (white) at alpha 10 (~67%).
+	binary.BigEndian.PutUint32(pci[hliOffColit:], 0x001000A0)
+	// Activated: SPU pixel 1 → PGC palette 3 (gray), fully opaque flash.
+	binary.BigEndian.PutUint32(pci[hliOffColit+4:], 0x003000F0)
+	// Groups 2 and 3 unused (btngr_ns = 1).
+
+	// btni_t entries (18 bytes): bitfields per libdvdread ifo_types.h —
+	//   b0 = btn_coln(2) | x_start[9:4]     b1 = x_start[3:0] | zero(2) | x_end[9:8]
+	//   b2 = x_end[7:0]                      b3 = auto_action(2) | y_start[9:4]
+	//   b4 = y_start[3:0] | zero(2) | y_end[9:8]   b5 = y_end[7:0]
+	//   b6..b9 = zero(2)+up(6), zero(2)+down(6), zero(2)+left(6), zero(2)+right(6)
+	//   b10..b17 = inline 8-byte VM command
+	for i, btn := range buttons {
+		if i >= pciMaxButtons {
+			break
+		}
+		off := pciOffBtnTable + i*pciBtnEntrySize
+		btnNr := uint8(i + 1)
+
+		x0 := uint16(btn.X0) & 0x3FF
+		x1 := uint16(btn.X1) & 0x3FF
+		y0 := uint16(btn.Y0) & 0x3FF
+		y1 := uint16(btn.Y1) & 0x3FF
+
+		autoAct := uint8(0)
+		if btn.AutoAction {
+			autoAct = 1
+		}
+
+		const btnColn = 1 // use color group 1 from btn_colit
+		pci[off+0] = (btnColn << 6) | uint8(x0>>4)
+		pci[off+1] = (uint8(x0&0xF) << 4) | uint8(x1>>8)
+		pci[off+2] = uint8(x1)
+		pci[off+3] = (autoAct << 6) | uint8(y0>>4)
+		pci[off+4] = (uint8(y0&0xF) << 4) | uint8(y1>>8)
+		pci[off+5] = uint8(y1)
+
+		up, dn, lf, rt := btn.Up, btn.Down, btn.Left, btn.Right
+		if up == 0 {
+			up = btnNr
+		}
+		if dn == 0 {
+			dn = btnNr
+		}
+		if lf == 0 {
+			lf = btnNr
+		}
+		if rt == 0 {
+			rt = btnNr
+		}
+		pci[off+6] = up & 0x3F
+		pci[off+7] = dn & 0x3F
+		pci[off+8] = lf & 0x3F
+		pci[off+9] = rt & 0x3F
+
+		copy(pci[off+10:off+18], btn.Cmd[:])
+	}
+}
+
+// writePESPrivate2 writes a private_stream_2 PES packet whose first payload
+// byte is the DVD substream ID (0x00 = PCI, 0x01 = DSI). The PES packet
+// length includes the substream ID byte, matching real discs (0x03D4 for
+// PCI = 1 + 979, 0x03FA for DSI = 1 + 1017). Demuxers identify PCI/DSI by
+// this byte — omitting it made the DSI unrecognizable and shifted every PCI
+// field by one byte (audit finding A3).
+func (m *Muxer) writePESPrivate2(streamID, subStreamID uint8, payload []byte) error {
+	var header [7]byte
 	header[0] = 0x00
 	header[1] = 0x00
 	header[2] = 0x01
 	header[3] = streamID
-	binary.BigEndian.PutUint16(header[4:6], uint16(len(payload)))
+	binary.BigEndian.PutUint16(header[4:6], uint16(len(payload)+1))
+	header[6] = subStreamID
 
 	if _, err := m.w.Write(header[:]); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write Private2 header (0x%X): %v", streamID, err)
@@ -308,10 +337,9 @@ func (m *Muxer) writePESPrivate2(streamID uint8, payload []byte) error {
 // identifies NAV_PCK sectors by the PACK header (00 00 01 BA) followed by a
 // PCI PES packet (00 00 01 BF 03 D4), and patches the button table in each.
 //
-// buttons provides the button geometry. CmdNr for each should be its 1-based
-// index in the PGC cell command table (1 = first button's action, etc.).
-// Navigation neighbours (Up/Down/Left/Right) default to vertical wrapping
-// if left zero.
+// buttons provides the geometry, neighbours, and the inline 8-byte VM
+// command executed on activation (PCIButton.Cmd). Neighbours left zero
+// default to wrapping to the button itself.
 func PatchVOBPCI(path string, buttons []PCIButton) error {
 	if len(buttons) == 0 {
 		return nil
@@ -342,88 +370,29 @@ func PatchVOBPCI(path string, buttons []PCIButton) error {
 			continue
 		}
 
-		// Locate the PCI PES packet: 00 00 01 BF 03 D4
-		// The PCI payload is 980 bytes (0x03D4) and immediately follows the 6-byte PES header.
+		// Locate the PCI PES packet: 00 00 01 BF 03 D4 00 — the 980-byte PES
+		// payload starts with substream ID 0x00; PCI table data follows it.
 		pciStart := -1
-		for i := 4; i < 2048-5; i++ {
+		for i := 4; i < 2048-6; i++ {
 			if sector[i] == 0x00 && sector[i+1] == 0x00 && sector[i+2] == 0x01 &&
-				sector[i+3] == 0xBF && sector[i+4] == 0x03 && sector[i+5] == 0xD4 {
-				pciStart = i + 6
+				sector[i+3] == 0xBF && sector[i+4] == 0x03 && sector[i+5] == 0xD4 &&
+				sector[i+6] == 0x00 {
+				pciStart = i + 7
 				break
 			}
 		}
 
-		if pciStart < 0 || pciStart+980 > 2048 {
+		if pciStart < 0 || pciStart+979 > 2048 {
 			sectorIdx++
 			continue
 		}
 
-		pci := sector[pciStart : pciStart+980]
+		pci := sector[pciStart : pciStart+979]
 
-		// ── Patch HL_GI button data ───────────────────────────────────────────
-		n := len(buttons)
-		if n > pciMaxButtons {
-			n = pciMaxButtons
-		}
-		pci[pciOffBtnSLNS] = 1      // initially-selected button (1-based)
-		pci[pciOffBtnNS] = uint8(n) // total button count
-		// FOSL_BTTN at byte 96: force-select button 1 when player enters the menu.
-		pci[96] = 1
-
-		// BTTN_GXCOL_NS at bytes 70-93: Group 1 (Selected) and Group 2 (Activated).
-		// Group 0 (Normal) stays zero — transparent at rest.
-		// Group 1 — selected: SPU pixel 1 → palette 1 (white), alpha 10 (~67%).
-		pci[79] = (1 << 4) | 0  // COLI: c1=1 (white), c0=0
-		pci[83] = (10 << 4) | 0 // ALPHA: a1=10 (~67%), a0=0
-		// Group 2 — activated: SPU pixel 1 → palette 3 (gray), alpha 15 (opaque).
-		pci[87] = (3 << 4) | 0  // COLI: c1=3 (gray), c0=0
-		pci[91] = (15 << 4) | 0 // ALPHA: a1=15 (opaque), a0=0
-
-		for i, btn := range buttons[:n] {
-			off := pciOffBtnTable + i*pciBtnEntrySize
-			btnNr := uint8(i + 1) // 1-based
-
-			x0 := uint16(btn.X0) & 0x3FF
-			x1 := uint16(btn.X1) & 0x3FF
-			y0 := uint16(btn.Y0) & 0x3FF
-			y1 := uint16(btn.Y1) & 0x3FF
-
-			autoAct := uint8(0)
-			if btn.AutoAction {
-				autoAct = 1
-			}
-
-			// Bit-pack coordinates per libdvdread btn_posi_t layout.
-			// btn_coln (bits 6-2) = 0; button number is implicit from table position.
-			pci[off+0] = (autoAct << 7) | uint8(x0>>8)
-			pci[off+1] = uint8(x0)
-			pci[off+2] = uint8(x1 >> 2)
-			pci[off+3] = (uint8(x1&0x3) << 6) | uint8(y0>>4)
-			pci[off+4] = (uint8(y0&0xF) << 4) | uint8(y1>>6)
-			pci[off+5] = uint8(y1&0x3F) << 2
-
-			// Navigation neighbours (6 bits each, packed into 3 bytes).
-			up, dn, lf, rt := btn.Up, btn.Down, btn.Left, btn.Right
-			if up == 0 {
-				up = btnNr
-			}
-			if dn == 0 {
-				dn = btnNr
-			}
-			if lf == 0 {
-				lf = btnNr
-			}
-			if rt == 0 {
-				rt = btnNr
-			}
-			pci[off+6] = (up << 2) | (dn >> 4)
-			pci[off+7] = (dn << 4) | (lf >> 2)
-			pci[off+8] = (lf << 6) | rt
-
-			// Cell command index to execute on button activation (1-based).
-			pci[off+9] = btn.CmdNr
-			// bytes 10–17 remain zero
-		}
+		// Patch the highlight structure using the existing VOBU PTM window.
+		sPTM := binary.BigEndian.Uint32(pci[pciOffVOBUSPTM:])
+		ePTM := binary.BigEndian.Uint32(pci[pciOffVOBUEPTM:])
+		serializeHLI(pci, buttons, 1, sPTM, ePTM)
 
 		// Seek back to this sector's start and write the patched data.
 		if _, err := f.Seek(sectorIdx*2048, io.SeekStart); err != nil {

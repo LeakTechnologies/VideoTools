@@ -3505,15 +3505,18 @@ func (s *appState) batchAddToQueue(paths []string) {
 	addedCount := 0
 	failedCount := 0
 	var failedFiles []string
+	var failedDetails []string
 	var firstValidPath string
 
 	for _, path := range paths {
 		// Load video metadata
 		src, err := probeVideo(path)
 		if err != nil {
-			logging.Debug(logging.CatModule, "failed to parse metadata for %s: %v", path, err)
+			logging.Warning(logging.CatModule, "failed to parse metadata for %s: %v", path, err)
 			failedCount++
 			failedFiles = append(failedFiles, filepath.Base(path))
+			failedDetails = append(failedDetails, fmt.Sprintf("%s:\n  %s",
+				filepath.Base(path), strings.ReplaceAll(strings.TrimSpace(err.Error()), "\n", "\n  ")))
 			continue
 		}
 
@@ -3595,8 +3598,8 @@ func (s *appState) batchAddToQueue(paths []string) {
 			}
 			dialog.ShowInformation(t.DialogBatchAdd, msg, s.window)
 		} else {
-			// All files failed
-			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", failedCount, strings.Join(failedFiles, ", "))
+			// All files failed — show ffprobe's actual reasons, not just names.
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n\n%s", failedCount, strings.Join(failedDetails, "\n\n"))
 			s.showErrorWithCopy("Batch Add Failed", fmt.Errorf("%s", msg))
 		}
 
@@ -14758,13 +14761,18 @@ func (s *appState) loadMultipleVideos(paths []string) {
 
 	var validVideos []*videoSource
 	var failedFiles []string
+	var failedDetails []string
 
 	for _, path := range paths {
 		logging.Debug(logging.CatModule, "loadMultipleVideos: probing %s", path)
 		src, err := probeVideo(path)
 		if err != nil {
-			logging.Debug(logging.CatFFMPEG, "loadMultipleVideos: ffprobe failed for %s: %v", path, err)
+			logging.Warning(logging.CatFFMPEG, "loadMultipleVideos: ffprobe failed for %s: %v", path, err)
 			failedFiles = append(failedFiles, filepath.Base(path))
+			// Preserve ffprobe's actual reason (probeVideo embeds its stderr)
+			// so the user sees why analysis failed, not just the filename.
+			failedDetails = append(failedDetails, fmt.Sprintf("%s:\n  %s",
+				filepath.Base(path), strings.ReplaceAll(strings.TrimSpace(err.Error()), "\n", "\n  ")))
 			continue
 		}
 		logging.Debug(logging.CatModule, "loadMultipleVideos: probe succeeded for %s", path)
@@ -14773,7 +14781,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 
 	if len(validVideos) == 0 {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", len(failedFiles), strings.Join(failedFiles, ", "))
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n\n%s", len(failedFiles), strings.Join(failedDetails, "\n\n"))
 			s.showErrorWithCopy("Load Failed", fmt.Errorf("%s", msg))
 		}, false)
 		return

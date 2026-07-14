@@ -27,6 +27,10 @@ type VMG_MAT struct {
 	// A value of 0 means "no first play PGC — go directly to title 1".
 	VMG_FirstPlayPGC uint32
 
+	// VMGI_Last_Byte (0x080): last byte index of the whole VMGI management
+	// area (= IFO size in bytes - 1). Set by GenerateVMG_IFO.
+	VMGI_Last_Byte uint32
+
 	// Table Offsets — sector addresses within the IFO/disc (0x0C0–0x0DC per spec)
 	VMGM_VOBS_Sector        uint32 // 0x0C0: start sector of VMGM VOBs (menu video; 0 if none)
 	TT_SRPT_Offset          uint32 // 0x0C4: sector of Title Search Pointer Table
@@ -263,4 +267,35 @@ func ReadVMGI(r io.Reader) (*VMG_MAT, error) {
 	mat.VMG_M_C_ADT_Offset      = binary.BigEndian.Uint32(buf[216:220])
 	mat.VMG_M_VOBU_ADMAP_Offset = binary.BigEndian.Uint32(buf[220:224])
 	return mat, nil
+}
+
+// BuildMenuCADT constructs the VMGM Menu Cell Address Table from the menu
+// PGC list. Each menu PGC is one VOB (one cell) within VIDEO_TS.VOB; the
+// entry records its VOB ID and its VOBS-relative sector range. Returns nil
+// when there are no menu cells with a non-zero sector range (audit A8).
+func BuildMenuCADT(menuPGCs []*ProgramChain) *VTS_C_ADT {
+	var entries []CellADTEntry
+	for _, pgc := range menuPGCs {
+		if pgc == nil || len(pgc.CellPlayback) == 0 {
+			continue
+		}
+		c := pgc.CellPlayback[0]
+		if c.LastSector == 0 && c.FirstSector == 0 {
+			continue // sectors not yet assigned
+		}
+		vobID := uint16(1)
+		if len(pgc.CellPosition) > 0 && pgc.CellPosition[0].VOBID != 0 {
+			vobID = pgc.CellPosition[0].VOBID
+		}
+		entries = append(entries, CellADTEntry{
+			VOBID:       vobID,
+			CellID:      1,
+			StartSector: c.FirstSector,
+			EndSector:   c.LastSector,
+		})
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	return &VTS_C_ADT{Cells: entries}
 }

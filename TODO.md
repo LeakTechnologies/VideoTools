@@ -36,6 +36,15 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Remaining high-priority items
 
+- [ ] **Extract media-import/probe layer out of main.go** — `probeVideo` (~100 lines), `videoSource` type (43 refs in main.go), `isVideoFile`, `findVideoFiles`, `loadMultipleVideos`, `batchAddToQueue`, and the per-module `handleDrop` branches are all import concerns living in root `main.go`. Slice: (1) move `videoSource` + `probeVideo` + `isVideoFile` into `internal/mediaprobe` (or `internal/media/probe`), decoupling the type first; (2) move the drop/import orchestration behind a module. The AVI-import bug had to be fixed by editing main.go — symptom of this bloat. Phase-3 refactor candidate (opencode-owned), needs a dedicated slice, not mixed with feature/bugfix work.
+
+- [x] **Windows import failure (NoInheritHandles)** — dev49's `NoInheritHandles: true` disabled std-pipe inheritance, so ffprobe returned no output and all Windows imports failed; removed. File-in-use stays fixed via Go's handle-list + Job Object.
+
+- [ ] **DVD menu player validation** — A1–A12 spec fixes landed, validated against libdvdread (offsetof harness + ifoOpen parse, `docs/AUTHOR_MENU_AUDIT.md`); still need VLC/hardware playback of a real authored disc. Then close the audit.
+- [ ] **VTS_ATRT full attribute record** — libdvdread wants ≥356 B/VTS (menu + title video/audio/subpicture attrs); we emit 266 B (title only). Non-fatal cross-check table.
+- [ ] **vts_last_sector VOB-inclusive** — 0x0C must be the last sector of the whole VTS (IFO+VOBs+BUP); author currently leaves it IFO-only. Thread the disc-layout value in.
+- [ ] **VTSM domain (audit A13)** — minimal in-title Root menu redirecting to VMGM; deferred design gap, not a bug.
+
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
 - [ ] **renderDualPlayerPreview stub** — `native_media.go` has a TODO stub, returns silently without actually rendering.
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.

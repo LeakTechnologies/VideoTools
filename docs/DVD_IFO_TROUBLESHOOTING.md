@@ -2,7 +2,18 @@
 
 This document captures known issues with DVD-Video IFO file generation and playback compatibility.
 
-## Current Issue: TMAP zero_1 Validation Failure
+## RESOLVED (2026-07-08): TMAP zero_1 Validation Failure
+
+**Root cause:** `WriteTMAPT` in `internal/dvd/ifo/vtsi.go` wrote the TMAP
+header fields in the order `zero_1, Time_Unit`, but libdvdread's `vts_tmap_t`
+is `{ uint8 tmu; uint8 zero_1; ... }` — Time_Unit comes **first**. With
+Time_Unit=1 the player read `zero_1 = 0x01`, producing the error below. The
+hexdump "verification" in the Verified Working Structures section used the
+same swapped assumption, which is why the structure looked correct. Fixed by
+swapping the two bytes; see `TestWriteTMAPT_EntryHeader`. The analysis below
+is retained for historical context.
+
+## Original Issue: TMAP zero_1 Validation Failure
 
 ### Error Message
 ```
@@ -74,7 +85,8 @@ xxd -s $((0x800 + TMAPT_OFFSET)) -l 256 reference.VTS_01_0.IFO
 
 ### Resolution Status
 
-**UNRESOLVED** - Requires investigation of:
+**RESOLVED 2026-07-08** — header field order was swapped (see top of file).
+Original investigation notes:
 
 - [ ] Libdvdread source at ifo_types.h for exact TMAP entry layout
 - [ ] DVD-Video specification for TMAPT structure

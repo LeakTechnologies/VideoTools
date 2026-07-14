@@ -171,7 +171,7 @@ func TestWriteNAV_PCK_DSI_LBN(t *testing.T) {
 	//   PCI payload  980 bytes  }
 	//   DSI PES hdr    6 bytes
 	//   DSI payload starts at byte 1030
-	const dsiPayloadOff = 14 + 24 + 986 + 6
+	const dsiPayloadOff = 14 + 24 + 986 + 6 + 1 // PES header + substream ID (0x01)
 	lbn := binary.BigEndian.Uint32(data[dsiPayloadOff+dsiOffNVPCKLBN : dsiPayloadOff+dsiOffNVPCKLBN+4])
 	if lbn != 77 {
 		t.Errorf("DSI nv_pck_lbn = %d, want 77", lbn)
@@ -189,7 +189,7 @@ func TestWriteNAV_PCK_PTM_UsedWhenSet(t *testing.T) {
 	}
 	data := buf.Bytes()
 	// PCI payload starts at byte 44 (pack14 + sys24 + PES_hdr6).
-	const pciPayloadOff = 44
+	const pciPayloadOff = 45 // 44-byte headers + substream ID byte (0x00)
 	ptm := binary.BigEndian.Uint32(data[pciPayloadOff+pciOffVOBUSPTM : pciPayloadOff+pciOffVOBUSPTM+4])
 	if ptm != wantPTM {
 		t.Errorf("PCI vobu_s_ptm = %d, want %d", ptm, wantPTM)
@@ -214,13 +214,14 @@ func TestSubStreamIDs(t *testing.T) {
 
 // ─── SRI layout constants ─────────────────────────────────────────────────────
 
-// TestSRIByteOffset verifies sriByteOffset = 1226, derived from the MPEG-PS sector layout:
+// TestSRIByteOffset verifies sriByteOffset = 1227, derived from the MPEG-PS sector layout:
 //
-//	Pack header (14) + System header (24) + PCI PES (986) + DSI PES header (6) = 1030
+//	Pack header (14) + System header (24) + PCI PES (986) + DSI PES header (6)
+//	+ DSI substream ID byte (1) = 1031
 //	DSI_GI (36) + SML_PBI (128) + SML_AGLI (32) = 196 bytes to VOBU_SRI
-//	→ 1030 + 196 = 1226
+//	→ 1031 + 196 = 1227
 func TestSRIByteOffset(t *testing.T) {
-	const want = 1226
+	const want = 1227
 	if sriByteOffset != want {
 		t.Errorf("sriByteOffset = %d, want %d", sriByteOffset, want)
 	}
