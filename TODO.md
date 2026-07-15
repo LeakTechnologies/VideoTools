@@ -51,6 +51,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
 - [x] **CI green + three-static-binaries** — all GitHub pipelines fixed and verified (dev52); Linux CI speedup moot (~1 min on cache hit).
+- [x] **Update checker migrated to GitHub API** — `settings_module.go` now queries GitHub API (`api.github.com/repos/LeakTechnologies/VideoTools/`) instead of old Forgejo instance; tags, releases-by-tag, and releases page URL all updated.
 - [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing.
 - [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation.
 

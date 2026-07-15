@@ -6,6 +6,7 @@
 - Windows product: three fully static binaries; DLL/ folder retired; objdump gates in all pipelines (dev, release, msix, Forgejo).
 - v0.1.1-dev51 release published from the new pipeline; MSIX pipeline verified green.
 - AGENTS.md restructured to rules-only + release protocol; README/install docs refreshed; repo history cleaned of AI attribution.
+- **Update checker migrated from Forgejo to GitHub API** — `settings_module.go` now queries GitHub API (`api.github.com/repos/LeakTechnologies/VideoTools/`) for tags and releases instead of the old Forgejo instance (`git.leaktechnologies.dev`). All three API endpoints updated: tags, releases-by-tag, and releases page URL.
 
 ## Version 0.1.1-dev51 (in progress)
 
