@@ -1046,9 +1046,9 @@ func isModuleAvailable(moduleID string) bool {
 }
 
 const (
-	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
-	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
-	forgejoReleasesPage   = "https://github.com/LeakTechnologies/VideoTools/releases"
+	githubTagsAPI        = "https://api.github.com/repos/LeakTechnologies/VideoTools/tags"
+	githubReleasesTagAPI = "https://api.github.com/repos/LeakTechnologies/VideoTools/releases/tags/"
+	githubReleasesPage   = "https://github.com/LeakTechnologies/VideoTools/releases"
 )
 
 type updateInfo struct {
@@ -1110,7 +1110,7 @@ func checkForUpdates(state *appState) {
 					installBtn,
 					ui.MakePillButton("Open Releases Page", ui.BorderDim, func() {
 						d.Hide()
-						_ = openURL(forgejoReleasesPage)
+						_ = openURL(githubReleasesPage)
 					}),
 					ui.MakePillButton("Close", ui.BorderDim, func() { d.Hide() }),
 				})
@@ -1271,7 +1271,7 @@ func fetchUpdateInfo() (updateInfo, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 
 	// Fetch latest tag
-	resp, err := client.Get(forgejoTagsAPI)
+	resp, err := client.Get(githubTagsAPI)
 	if err != nil {
 		return updateInfo{}, err
 	}
@@ -1293,7 +1293,7 @@ func fetchUpdateInfo() (updateInfo, error) {
 	// Fetch the release to get target_commitish — the actual commit the CI
 	// built from. The tag's commit SHA is stale (set on first tag creation and
 	// never moved), but target_commitish is PATCHed on every nightly run.
-	rResp, rErr := client.Get(forgejoReleasesTagAPI + tagName)
+	rResp, rErr := client.Get(githubReleasesTagAPI + tagName)
 	if rErr != nil {
 		return updateInfo{}, fmt.Errorf("releases API: %w", rErr)
 	}
@@ -1332,7 +1332,7 @@ func fetchUpdateInfo() (updateInfo, error) {
 // isZip is true when the asset is a zip archive that must be extracted; false for direct binary (AppImage).
 func fetchReleaseAssetURL(tag string) (downloadURL string, isZip bool, err error) {
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(forgejoReleasesTagAPI + tag)
+	resp, err := client.Get(githubReleasesTagAPI + tag)
 	if err != nil {
 		return "", false, err
 	}
