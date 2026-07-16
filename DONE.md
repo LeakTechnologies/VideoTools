@@ -1,5 +1,17 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev54 — Player Performance Fixes
+
+Six identified performance bottlenecks in the native media player fixed:
+
+- **Decode loop CPU spin** — `TimedGet(20ms)` replaces `TryGet()` + 1ms poll; no more 100% CPU when queue empty.
+- **Seek-on-resume stutter** — `FlushAudioCodec()` replaces full `Seek()` on unpause; eliminates 50-200ms audio stutter.
+- **Slider update congestion** — Throttled to ~15fps (66ms min interval); reduces GUI thread pressure.
+- **Per-frame subtitle lock** — `hasSubtitleActive` atomic.Bool replaces `subtitleCodecMu` lock/unlock 30x/sec when no subtitles active.
+- **sws_scale performance** — `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC` for same-res intermediate conversion.
+- **Decode loop paused check** — `pausedAtomic` (atomic.Bool) replaces `lockMu()` for paused flag; ~1ns vs ~50ns.
+- Convert module layout state (player/metadata/settings panel collapsed/expanded) persisted across sessions.
+
 ## v0.1.1-dev53 — Update Checker Migration
 
 - **Update checker migrated from Forgejo to GitHub API** — `settings_module.go` now queries GitHub API (`api.github.com/repos/LeakTechnologies/VideoTools/`) for tags and releases instead of the old Forgejo instance (`git.leaktechnologies.dev`). All three API endpoints updated: tags, releases-by-tag, and releases page URL.

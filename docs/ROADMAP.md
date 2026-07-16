@@ -36,7 +36,8 @@ timeline
     v0.1.1-dev51 (Current) : P1 view.go component split (5 focused files) : UDF thread safety & progress callbacks
     v0.1.1-dev51 (Current) : Legacy singleton alias vars removed (10 per-module vars → GetXxxPlayer() getters)
     v0.1.1-dev52 (Shipped) : CI & infra hardening : Three static binaries : Update checker migrated to GitHub API
-    v0.1.1-dev53 (Current) : Update checker migrated from Forgejo to GitHub API
+    v0.1.1-dev53 (Shipped) : Update checker migrated from Forgejo to GitHub API
+    v0.1.1-dev54 (Current) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -48,7 +49,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev53 work** |
+| **Green** | **Current dev54 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -57,10 +58,10 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev53)
+## Current State (v0.1.1-dev54)
 
-- All dev50-52 items shipped, including the full Phase 0+1 media engine gap closure.
-- **Dev53 open**: Update checker migrated from Forgejo to GitHub API.
+- All dev50-53 items shipped, including update checker migration to GitHub.
+- **Dev54 open**: Player performance fixes (6 bottlenecks) + Convert layout state persistence.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
 - Thread safety formalisation (lock hierarchy, lockdep, named helpers).

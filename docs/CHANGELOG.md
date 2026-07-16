@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+## v0.1.1-dev54 (July 2026)
+
+### Player Performance Fixes (6 bottlenecks)
+
+- **Decode loop CPU spin fixed** — `videoDecodeLoop` replaced `TryGet()` + 1ms sleep poll with `TimedGet(20ms)` condition-variable wait. Eliminates 100% CPU usage when the frame queue is empty.
+- **Seek-on-resume stutter fixed** — Resume path now calls `FlushAudioCodec()` (drains PCM ring + flushes audio codec buffers) instead of a full `Seek()` to current PTS. Removes 50-200ms audio stutter on unpause.
+- **Slider update congestion fixed** — `SetCurrentTime()` throttled to ~15fps (66ms minimum interval). Reduces GUI thread pressure during playback.
+- **Per-frame subtitle lock eliminated** — `hasSubtitleActive` atomic.Bool on Engine replaces `subtitleCodecMu` lock/unlock 30x/sec when no subtitles are active.
+- **sws_scale performance improved** — `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC|SWS_ACCURATE_RND` for same-resolution intermediate format conversion.
+- **Decode loop paused check optimized** — `pausedAtomic` (atomic.Bool) replaces `lockMu()` for the paused flag check in the decode loop. ~1ns atomic read vs ~50ns mutex round-trip.
+
 ## v0.1.1-dev53 (July 2026)
 
 ### Update Checker Migrated to GitHub

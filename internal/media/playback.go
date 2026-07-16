@@ -38,6 +38,7 @@ func (e *Engine) Start() {
 	}
 	e.running = true
 	e.paused = true
+	e.pausedAtomic.Store(true)
 	e.unlockMu()
 
 	logging.Info(logging.CatPlayer, "Engine.Start: starting demuxerLoop")
@@ -535,9 +536,8 @@ func (e *Engine) videoDecodeLoop() {
 		default:
 		}
 
-		e.lockMu()
-		paused := e.paused
-		e.unlockMu()
+		// Fast-path: check paused without mutex — atomic read is ~1ns vs ~50ns for lock.
+		paused := e.pausedAtomic.Load()
 
 		if paused {
 			if len(e.frameQueue) >= 1 {
@@ -811,6 +811,7 @@ func (e *Engine) Pause() {
 		return
 	}
 	e.paused = true
+	e.pausedAtomic.Store(true)
 	e.clock.SetPaused(true)
 	e.unlockMu()
 
@@ -863,6 +864,7 @@ func (e *Engine) Resume() {
 		return
 	}
 	e.paused = false
+	e.pausedAtomic.Store(false)
 	e.clock.SetPaused(false)
 
 	if !e.decodeLoopActive {
@@ -922,6 +924,7 @@ func (e *Engine) Close() {
 	}
 	e.running = false
 	e.paused = false
+	e.pausedAtomic.Store(false)
 	e.unlockMu()
 
 	close(e.stop)
