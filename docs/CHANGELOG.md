@@ -1,10 +1,12 @@
 # VideoTools Changelog
 
-## v0.1.1-dev52 (July 2026)
+## v0.1.1-dev53 (July 2026)
 
 ### Update Checker Migrated to GitHub
 
 - **"Check for Updates" now queries GitHub API** instead of the old Forgejo instance at `git.leaktechnologies.dev`. All three endpoints updated: tags list, release-by-tag metadata, and releases page URL. No user-visible behavior change; the update flow (tag comparison, commit hash patch detection, download + restart) remains identical.
+
+## v0.1.1-dev52 (July 2026)
 
 ### Windows: FFmpeg/FFprobe subprocess output restored (critical)
 

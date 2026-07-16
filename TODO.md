@@ -20,7 +20,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
 - [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
-## Dev50-51 Scope (current — preparing to ship)
+## Dev50-53 Scope (current — preparing to ship)
 
 ### Player Overlay & Cleanup (dev51)
 

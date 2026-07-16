@@ -790,9 +790,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev52', date: 'July 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev53', date: 'July 2026', tag: 'current', sections: [
     { title: 'Infrastructure', items: [
       'Update checker migrated from Forgejo API (git.leaktechnologies.dev) to GitHub API (api.github.com/repos/LeakTechnologies/VideoTools/) — tags, releases-by-tag, and releases page URL all updated',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev52', date: 'July 2026', tag: 'shipped', sections: [
+    { title: 'Infrastructure', items: [
+      'CI & infra hardening: all four Windows pipelines green; three static binaries; release protocol codified',
     ]},
   ]},
   { version: 'v0.1.1-dev51', date: 'June 2026', tag: 'shipped', sections: [
