@@ -200,7 +200,33 @@ Configure in `.claude/settings.json` (`/update-config`). Commit-gating hooks `ex
 
 ### Skills (slash commands)
 
-`/review` (PR review) · `/security-review` (branch audit) · `/simplify` (post-feature cleanup) · `/schedule` (future background task) · `/update-config` (hooks/permissions) · `/init` (regenerate CLAUDE.md).
+`/review` (PR review) · `/security-review` (branch audit) · `/simplify` (post-feature cleanup) · `/schedule` (future background task) · `/update-config` (hooks/permissions) · `/init` (regenerate CLAUDE.md) · `/triage` (project discovery — CI, issues, TODOs, next actions).
+
+## Loop Engineering (cost-conscious)
+
+The human is the scheduler. Loops are human-triggered, not timer-triggered.
+
+**Daily rhythm:**
+1. Run `/triage` → reads CI, issues, TODOs, writes TRIAGE.md
+2. Read TRIAGE.md → decide what to work on
+3. Implement → commit → push
+4. Repeat
+
+**What's cheap (do these):**
+- `/triage` — read-only discovery, ~50 lines output
+- Skills — written once, loaded only when triggered
+- State files — TRIAGE.md, TODO.md, DONE.md (agent reads, doesn't generate)
+
+**What's expensive (avoid unless necessary):**
+- Automated scheduled loops — burn tokens while you're away
+- Multi-agent verification chains — each agent is a full context load
+- "Fix it and keep iterating until tests pass" — unpredictable token cost
+
+**Token rules:**
+- Triage under 50 lines. Implementation under 1 commit per task.
+- Never run two agents on the same file simultaneously.
+- If a loop would take >3 turns, break it into smaller human-triggered steps.
+- Verifier sub-agent only for high-risk changes (engine, CI, release).
 
 ## Coordination
 

@@ -95,6 +95,9 @@ type VideoPlayer struct {
 	suppressSeek          bool
 	controlHideTimer      *time.Timer
 
+	lastSliderUpdate time.Time // throttle slider updates to ~15fps
+	sliderMinInterval time.Duration
+
 	osdBg    *canvas.Rectangle
 	osdText  *canvas.Text
 	osdTimer *time.Timer
@@ -110,15 +113,16 @@ type VideoPlayer struct {
 
 func NewVideoPlayer() *VideoPlayer {
 	v := &VideoPlayer{
-		showControls: true,
-		currentTime:  0,
-		duration:     0,
-		volume:       1.0,
-		speed:        1.0,
-		isPlaying:    false,
-		isLoading:    false,
-		chapters:     make([]Chapter, 0),
-		idleText:     "DRAG TO LOAD VIDEO",
+		showControls:    true,
+		currentTime:     0,
+		duration:        0,
+		volume:          1.0,
+		speed:           1.0,
+		isPlaying:       false,
+		isLoading:       false,
+		chapters:        make([]Chapter, 0),
+		idleText:        "DRAG TO LOAD VIDEO",
+		sliderMinInterval: 66 * time.Millisecond, // ~15fps slider update rate
 	}
 	v.ExtendBaseWidget(v)
 	v.buildControls()
@@ -127,16 +131,17 @@ func NewVideoPlayer() *VideoPlayer {
 
 func NewInlineVideoPlayer() *VideoPlayer {
 	v := &VideoPlayer{
-		showControls: true,
-		minimal:      true,
-		currentTime:  0,
-		duration:     0,
-		volume:       1.0,
-		speed:        1.0,
-		isPlaying:    false,
-		isLoading:    false,
-		chapters:     make([]Chapter, 0),
-		idleText:     "DRAG TO LOAD VIDEO",
+		showControls:    true,
+		minimal:         true,
+		currentTime:     0,
+		duration:        0,
+		volume:          1.0,
+		speed:           1.0,
+		isPlaying:       false,
+		isLoading:       false,
+		chapters:        make([]Chapter, 0),
+		idleText:        "DRAG TO LOAD VIDEO",
+		sliderMinInterval: 66 * time.Millisecond, // ~15fps slider update rate
 	}
 	v.ExtendBaseWidget(v)
 	v.buildControls()
@@ -164,10 +169,13 @@ func (v *VideoPlayer) SetDuration(d float64) {
 func (v *VideoPlayer) SetCurrentTime(t float64) {
 	v.currentTime = t
 	v.updateTimeLabels()
-	if v.duration > 0 {
+	// Throttle slider updates to ~15fps to reduce GUI thread congestion.
+	// The slider position is cosmetic — users don't notice sub-66ms changes.
+	if v.duration > 0 && time.Since(v.lastSliderUpdate) >= v.sliderMinInterval {
 		v.suppressSeek = true
 		v.slider.SetValue((t / v.duration) * 100)
 		v.suppressSeek = false
+		v.lastSliderUpdate = time.Now()
 	}
 }
 

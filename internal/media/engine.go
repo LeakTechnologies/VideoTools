@@ -245,6 +245,8 @@ type Engine struct {
 	decodeLoopWg    sync.WaitGroup
 	decodeLoopActive bool    // true while videoDecodeLoop goroutine is alive
 	decodeEOFSent       bool    // true once the EOF sentinel has been enqueued
+	hasSubtitleActive atomic.Bool // fast check: true when subtitle track is selected
+	pausedAtomic      atomic.Bool // fast check: true when paused (mirrors paused under mu)
 	// Deinterlace (bwdif) filter graph — lazily created on first interlaced frame.
 	deinterlaceEnabled bool
 	deintFilterGraph   *C.AVFilterGraph
@@ -842,6 +844,7 @@ func (e *Engine) SelectSubtitleTrack(trackIndex int) error {
 	}
 	e.currentSubtitle = nil
 	e.initSubtitleDecoder(streams)
+	e.hasSubtitleActive.Store(e.subtitleCodecCtx != nil)
 	e.subtitleCodecMu.Unlock()
 
 	logging.Info(logging.CatPlayer, "Selected subtitle track %d (stream %d)", trackIndex, newStreamIdx)
@@ -856,6 +859,7 @@ func (e *Engine) DisableSubtitles() {
 		e.subtitleCodecCtx = nil
 	}
 	e.currentSubtitle = nil
+	e.hasSubtitleActive.Store(false)
 	e.subtitleCodecMu.Unlock()
 	logging.Info(logging.CatPlayer, "Subtitles disabled")
 }
