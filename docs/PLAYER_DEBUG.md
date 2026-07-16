@@ -5,7 +5,7 @@ Update this file whenever a player issue is found or fixed.
 
 ---
 
-## Current Status (dev54)
+## Current Status (dev55)
 
 | Check | State |
 |-------|-------|
@@ -52,10 +52,11 @@ Update this file whenever a player issue is found or fixed.
 | Per-frame subtitle lock eliminated | ✅ `hasSubtitleActive` atomic bool replaces `subtitleCodecMu` lock/unlock 30x/sec |
 | sws_scale performance improved | ✅ `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC` for same-res intermediate conversion |
 | Decode loop paused check optimized | ✅ `pausedAtomic` (atomic.Bool) replaces `lockMu()` for paused flag check |
+| seekGen log spam crash fixed | ✅ `lastSeekGen = gen` after comparison — no more 60×/sec "first frame after seek" log spam that killed the process via I/O pressure |
 
 ---
 
-## Known Issues (dev54)
+## Known Issues (dev55)
 
 ### P0 — User-visible bugs
 

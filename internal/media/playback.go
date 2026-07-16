@@ -604,8 +604,7 @@ func (e *Engine) videoDecodeLoop() {
 			gen := e.seekGen.Load()
 			if gen != lastSeekGen {
 				logging.Info(logging.CatPlayer, "videoDecodeLoop: seekGen changed %d→%d — first frame after seek pts=%.3f", lastSeekGen, gen, pts)
-				logging.Info(logging.CatPlayer, "videoDecodeLoop: frame fmt=%d w=%d h=%d pts=%.3f",
-					int(e.frame.format), int(e.frame.width), int(e.frame.height), pts)
+				lastSeekGen = gen
 			}
 
 			flushBefore := math.Float64frombits(e.seekFlushBefore.Load())

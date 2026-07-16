@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev55 (July 2026)
+
+### Player Crash Fix (seekGen log spam)
+
+- **seekGen log spam crash fixed** — `lastSeekGen` was compared against `e.seekGen` every decoded frame but never updated, causing "first frame after seek" to log 60×/sec forever. Over 40+ minutes this generated enough I/O pressure to kill the process (dev53 crash on seek). Fix: `lastSeekGen = gen` after the check, so only the actual first frame after a seek logs. Also removed the redundant per-frame "frame fmt=" log line.
+- **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I'll update docs later, etc.).
+
 ## v0.1.1-dev54 (July 2026)
 
 ### Player Performance Fixes (6 bottlenecks)

@@ -37,7 +37,8 @@ timeline
     v0.1.1-dev51 (Current) : Legacy singleton alias vars removed (10 per-module vars → GetXxxPlayer() getters)
     v0.1.1-dev52 (Shipped) : CI & infra hardening : Three static binaries : Update checker migrated to GitHub API
     v0.1.1-dev53 (Shipped) : Update checker migrated from Forgejo to GitHub API
-    v0.1.1-dev54 (Current) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
+    v0.1.1-dev54 (Shipped) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
+    v0.1.1-dev55 (Current) : seekGen log spam crash fix : Anti-rationalization table added to AGENTS.md
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -49,7 +50,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev54 work** |
+| **Green** | **Current dev55 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -58,10 +59,10 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev54)
+## Current State (v0.1.1-dev55)
 
-- All dev50-53 items shipped, including update checker migration to GitHub.
-- **Dev54 open**: Player performance fixes (6 bottlenecks) + Convert layout state persistence.
+- All dev50-54 items shipped, including player performance fixes.
+- **Dev55 open**: seekGen log spam crash fix + AGENTS.md anti-rationalization table.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
 - Thread safety formalisation (lock hierarchy, lockdep, named helpers).

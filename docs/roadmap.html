@@ -790,7 +790,17 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev54', date: 'July 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev55', date: 'July 2026', tag: 'current', sections: [
+    { title: 'Player Crash Fix', items: [
+      'seekGen log spam crash fixed: lastSeekGen was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever — I/O pressure killed the process (dev53 crash on seek)',
+      'Also removed redundant per-frame "frame fmt=" log line that accompanied the seekGen spam',
+    ]},
+    { title: 'Workflow Discipline', items: [
+      'Anti-rationalization table added to AGENTS.md — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I will update docs later, etc.)',
+      'Verification discipline section added — formalized log-review-before-landing and state-tracking-var-must-be-updated rules',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev54', date: 'July 2026', tag: 'shipped', sections: [
     { title: 'Player Performance', items: [
       'Decode loop CPU spin fixed: TimedGet(20ms) replaces TryGet() + 1ms poll — eliminates 100% CPU when frame queue empty',
       'Seek-on-resume stutter fixed: FlushAudioCodec() replaces full Seek() on unpause — removes 50-200ms audio stutter',
