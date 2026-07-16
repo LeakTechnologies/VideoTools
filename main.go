@@ -955,6 +955,11 @@ type convertConfig struct {
 	// Master settings
 	ShowUpscale bool
 	ShowDisc    bool
+
+	// Layout state (persisted across sessions)
+	PlayerOpen   bool // Whether the player panel is expanded
+	MetadataOpen bool // Whether the metadata panel is expanded
+	SettingsOpen bool // Whether the settings panel is expanded
 }
 
 type convertRecoveryState = appcfg.ConvertRecoveryState
@@ -1118,6 +1123,9 @@ func defaultConvertConfig() convertConfig {
 		LogDir:           "",
 		ShowUpscale:      true,
 		ShowDisc:         true,
+		PlayerOpen:       true,
+		MetadataOpen:     true,
+		SettingsOpen:     true,
 	}
 }
 
@@ -9192,6 +9200,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var leftColumn *container.Split
 
 	playerHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
+		state.convert.PlayerOpen = open
+		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			leftColumn.SetOffset(0.5)
 		} else {
@@ -9201,6 +9211,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoPanelWithHeader := container.NewBorder(playerHeader, nil, nil, nil, videoPanel)
 
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
+		state.convert.MetadataOpen = open
+		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			leftColumn.SetOffset(0.5)
 		} else {
@@ -12373,6 +12385,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateRemuxVisibility != nil {
 			updateRemuxVisibility()
 		}
+		// Reset layout to defaults
+		leftColumn.SetOffset(0.5)
+		mainSplit.SetOffset(0.65)
 		state.persistConvertConfig()
 	}
 
@@ -12466,6 +12481,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.StrokeWidth = 1
 	settingsTabsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
 	settingsHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
+		state.convert.SettingsOpen = open
+		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			mainSplit.SetOffset(0.65)
 		} else {
@@ -12719,13 +12736,27 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// the rest of the VSplit's allocated space as an empty dark gap.
 	metaPanelScroll := ui.NewFastVScroll(metaPanel)
 	leftColumn = container.NewVSplit(videoPanelWithHeader, metaPanelScroll)
-	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
+	// Restore vertical split from persisted layout state
+	if state.convert.PlayerOpen && state.convert.MetadataOpen {
+		leftColumn.SetOffset(0.5) // Both open: 50/50
+	} else if state.convert.PlayerOpen {
+		leftColumn.SetOffset(0.97) // Player only: metadata collapsed
+	} else if state.convert.MetadataOpen {
+		leftColumn.SetOffset(0.03) // Metadata only: player collapsed
+	} else {
+		leftColumn.SetOffset(0.5) // Both collapsed (shouldn't happen, default to 50/50)
+	}
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit = container.NewHSplit(
 		leftColumn,
 		optionsPanel)
-	mainSplit.SetOffset(0.65) // 65/35 split
+	// Restore horizontal split from persisted layout state
+	if state.convert.SettingsOpen {
+		mainSplit.SetOffset(0.65) // Settings open: 65/35
+	} else {
+		mainSplit.SetOffset(0.97) // Settings collapsed
+	}
 
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)

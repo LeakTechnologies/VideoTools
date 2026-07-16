@@ -30,7 +30,7 @@ func (e *Engine) ensureSwsCtx(fmt C.enum_AVPixelFormat) {
 	e.swsCtx = C.sws_getContext(
 		w, h, fmt,
 		w, h, C.AV_PIX_FMT_RGBA,
-		C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
+		C.SWS_FAST_BILINEAR, nil, nil, nil,
 	)
 	if e.swsCtx != nil {
 		e.swsFmt = fmt

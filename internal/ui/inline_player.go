@@ -513,22 +513,17 @@ func (v *InlineVideoPlayer) Play() {
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
 
 	if eng.IsRunning() {
-		// Resuming from pause: seek back to the current clock position to
-		// resync every pipeline stage (demuxer, packet queues, codecs) back
-		// to the pause point. Without this the first audio chunk after resume
-		// is ~1.47 s ahead, the clock jumps, and all video frames in that
-		// gap are dropped.
-		currentTime := eng.CurrentTime()
-		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: resuming at %.3f, seeking to resync pipeline", currentTime)
-		if err := eng.Seek(currentTime); err != nil {
-			logging.Warning(logging.CatPlayer, "InlineVideoPlayer.Play: seek-on-resume failed: %v", err)
-		}
+		// Resuming from pause: flush only the audio codec's internal buffers
+		// to discard stale pre-buffered packets. The full pipeline seek was
+		// causing 50-200ms stutter on every unpause — a lighter audio-only
+		// flush preserves sync without the expensive format-level seek.
+		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: resuming at %.3f, flushing audio codec", eng.CurrentTime())
+		eng.FlushAudioCodec()
 		v.mu.Unlock()
 
 		if peer != nil {
-			t := currentTime
 			go func() {
-				peer.Seek(t)
+				peer.FlushAudioCodec()
 				peer.Play()
 			}()
 		}
@@ -595,6 +590,17 @@ func (v *InlineVideoPlayer) Pause() {
 	}, false)
 	if peer != nil {
 		go peer.Pause()
+	}
+}
+
+// FlushAudioCodec flushes the audio codec's internal buffers and drains
+// pre-buffered PCM chunks. Used on unpause to discard stale packets.
+func (v *InlineVideoPlayer) FlushAudioCodec() {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng != nil {
+		eng.FlushAudioCodec()
 	}
 }
 

@@ -546,7 +546,7 @@ func (e *Engine) videoDecodeLoop() {
 			}
 		}
 
-		rawPkt, ok := e.videoQueue.TryGet()
+		rawPkt, ok := e.videoQueue.TimedGet(20 * time.Millisecond)
 		if !ok {
 			if e.videoQueue.IsClosedOrEOF() {
 				e.lockMu()
@@ -559,7 +559,6 @@ func (e *Engine) videoDecodeLoop() {
 					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 				}
 			}
-			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
@@ -777,10 +776,9 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		e.lastVideoPTSBits.Store(math.Float64bits(pts))
 		e.lastGoodFrame.Store(img)
 
-		e.subtitleCodecMu.Lock()
-		hasSubCtx := e.subtitleCodecCtx != nil
-		e.subtitleCodecMu.Unlock()
-		if hasSubCtx {
+		// Fast-path: skip subtitle decode entirely when no track is active.
+		// Avoids acquiring subtitleCodecMu 30x/sec in the common case.
+		if e.hasSubtitleActive.Load() {
 			sub := e.decodeSubtitle(pts)
 			if sub != nil {
 				img = e.RenderSubtitles(img, pts)
@@ -824,6 +822,20 @@ func (e *Engine) Pause() {
 func (e *Engine) DrainAudio() {
 	if e.audioPlayer != nil {
 		e.audioPlayer.DrainPCM()
+	}
+}
+
+// FlushAudioCodec flushes the audio codec's internal buffers and drains
+// pre-buffered PCM chunks. Used on unpause to discard stale packets without
+// the expensive full-pipeline seek that was causing 50-200ms stutter.
+func (e *Engine) FlushAudioCodec() {
+	if e.audioPlayer != nil {
+		e.audioPlayer.DrainPCM()
+		e.audioPlayer.codecMu.Lock()
+		if e.audioPlayer.codecCtx != nil {
+			C.avcodec_flush_buffers(e.audioPlayer.codecCtx)
+		}
+		e.audioPlayer.codecMu.Unlock()
 	}
 }
 
