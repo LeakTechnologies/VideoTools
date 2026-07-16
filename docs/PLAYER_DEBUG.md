@@ -5,7 +5,7 @@ Update this file whenever a player issue is found or fixed.
 
 ---
 
-## Current Status (dev50)
+## Current Status (dev54)
 
 | Check | State |
 |-------|-------|
@@ -46,10 +46,16 @@ Update this file whenever a player issue is found or fixed.
 | Error resilience (libavcodec) | ✅ `setVideoCodecErrorFlags`: `error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` explicit on both video codec init paths |
 | Playlist / sequential play | ✅ `Enqueue(path)` / `ClearPlaylist()` / `PlaylistLen()`; auto-advance on EOF; manual `Load` resets queue |
 | Per-codec HW blacklist UI | ✅ `PrefsConfig.HWCodecDenyList` + Settings → Player text field; `SetHWCodecDenyList` wires into `codecCanUseHWDevice` |
+| Decode loop CPU spin fixed | ✅ `TimedGet(20ms)` replaces `TryGet()` + 1ms poll — no more 100% CPU when queue empty |
+| Seek-on-resume stutter fixed | ✅ `FlushAudioCodec()` replaces full `Seek()` on unpause — removes 50-200ms stutter |
+| Slider update congestion fixed | ✅ Throttled to ~15fps (66ms min interval) — reduces GUI thread pressure |
+| Per-frame subtitle lock eliminated | ✅ `hasSubtitleActive` atomic bool replaces `subtitleCodecMu` lock/unlock 30x/sec |
+| sws_scale performance improved | ✅ `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC` for same-res intermediate conversion |
+| Decode loop paused check optimized | ✅ `pausedAtomic` (atomic.Bool) replaces `lockMu()` for paused flag check |
 
 ---
 
-## Known Issues (dev51)
+## Known Issues (dev54)
 
 ### P0 — User-visible bugs
 

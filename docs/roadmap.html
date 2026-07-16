@@ -790,7 +790,20 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev53', date: 'July 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev54', date: 'July 2026', tag: 'current', sections: [
+    { title: 'Player Performance', items: [
+      'Decode loop CPU spin fixed: TimedGet(20ms) replaces TryGet() + 1ms poll — eliminates 100% CPU when frame queue empty',
+      'Seek-on-resume stutter fixed: FlushAudioCodec() replaces full Seek() on unpause — removes 50-200ms audio stutter',
+      'Slider update congestion fixed: SetCurrentTime() throttled to ~15fps (66ms min interval) — reduces GUI thread pressure',
+      'Per-frame subtitle lock eliminated: hasSubtitleActive atomic.Bool replaces subtitleCodecMu lock/unlock 30x/sec',
+      'sws_scale performance improved: SWS_FAST_BILINEAR replaces SWS_BICUBIC for same-resolution intermediate format conversion',
+      'Decode loop paused check optimized: pausedAtomic (atomic.Bool) replaces lockMu() — ~1ns atomic read vs ~50ns mutex round-trip',
+    ]},
+    { title: 'Convert Module', items: [
+      'Layout state persistence: player/metadata/settings panel collapsed/expanded state survives app restarts',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev53', date: 'July 2026', tag: 'shipped', sections: [
     { title: 'Infrastructure', items: [
       'Update checker migrated from Forgejo API (git.leaktechnologies.dev) to GitHub API (api.github.com/repos/LeakTechnologies/VideoTools/) — tags, releases-by-tag, and releases page URL all updated',
     ]},

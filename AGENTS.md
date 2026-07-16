@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev53` — open. dev52 shipped (CI/infra hardening, update checker migrated to GitHub). dev53 opened with the update checker migration.
+- **Cycle:** `v0.1.1-dev54` — open. dev53 shipped (update checker migrated to GitHub). dev54 opened with player performance fixes.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues

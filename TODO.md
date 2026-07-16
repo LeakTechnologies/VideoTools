@@ -20,7 +20,16 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
 - [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
-## Dev50-53 Scope (current — preparing to ship)
+## Dev50-54 Scope (current — preparing to ship)
+
+### Player Performance Fixes (dev54)
+
+- [x] **Decode loop CPU spin** — `TimedGet(20ms)` replaces `TryGet()` + 1ms poll
+- [x] **Seek-on-resume stutter** — `FlushAudioCodec()` replaces full `Seek()` on unpause
+- [x] **Slider update congestion** — Throttled to ~15fps (66ms min interval)
+- [x] **Per-frame subtitle lock** — `hasSubtitleActive` atomic.Bool replaces mutex
+- [x] **sws_scale performance** — `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC`
+- [x] **Decode loop paused check** — `pausedAtomic` replaces `lockMu()`
 
 ### Player Overlay & Cleanup (dev51)
 
