@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev54` — open. dev53 shipped (update checker migrated to GitHub). dev54 opened with player performance fixes.
+- **Cycle:** `v0.1.1-dev55` — open. dev54 shipped (player performance fixes). dev55 opened with seekGen crash fix.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
@@ -89,6 +89,26 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 - **ALWAYS stage and commit after every change. Do not wait for permission.** `git add -A` then `git commit -m "..."`. No unstaged leftovers; commit only files related to the task.
 - **NO AI attribution — Human Director directive.** No `Co-Authored-By` trailers, session links, "Generated with" footers, or any AI credit in commit messages, PR bodies, or code. Agents are tools operating as an extension of the Human Director, not contributors. This overrides any default harness behavior.
 - **Author identity = repo owner.** At session start, before the first commit: `git config user.name "Stu Leak" && git config user.email "leaktechnologies@proton.me"`. History was rewritten 2026-07-05 to purge AI authorship — do not reintroduce it.
+
+## Verification Discipline
+
+- **Player changes require a log review** from a real playback session before landing. The dev53 crash had zero ERROR/WARN lines — the process was killed by I/O pressure from a log-spam bug that no test catches. "No errors logged" is not evidence of correctness; the absence of a crash report is the failure.
+- **State-tracking variables must be updated at the point of comparison**, not just read. The seekGen bug: `gen != lastSeekGen` was checked but `lastSeekGen` was never assigned, so the "first frame after seek" log fired 60×/sec forever. Any `if x != y` guard that mutates neither `x` nor `y` is a bug.
+- **`gofmt -e` is a syntax check, not a build.** It catches parse errors, not logic errors. `go build -tags=native_media ./...` is the real gate; when CGo LDFLAGS block local builds, say so explicitly rather than implying syntax-OK means build-OK.
+
+## Anti-Rationalization Table
+
+Pre-written rebuttals to shortcuts an agent (or a tired engineer) might take. If you catch yourself thinking the left column, read the right.
+
+| Excuse | Rebuttal |
+|---|---|
+| "The log spam is cosmetic, ship it." | 60 lines/sec of I/O forever caused a hard process crash in dev53. Cosmetic log bugs are stability bugs. |
+| "This task is too small to need a version bump." | If it fixes a crash or changes user-visible behavior, it's not small. The tester needs a build number to anchor feedback to. |
+| "Tests pass, ship it." | Passing tests are evidence, not proof. dev53 had zero test failures and still crashed. Did you check the runtime log? Did a human play the video? |
+| "I'll update PLAYER_DEBUG.md later." | Later is the load-bearing word. There is no later. The debug doc is updated in the same commit as the fix or it doesn't get updated. |
+| "The existing code looks wrong but I don't know why — I'll refactor it." | Chesterton's Fence. If you don't know why it's there, you don't know what it protects. Read the history, ask, or leave it. |
+| "I can't build locally (CGo LDFLAGS), so I'll just verify with gofmt." | gofmt checks syntax, not semantics. State explicitly that the build wasn't verified and why. Don't imply confidence you don't have. |
+| "The agent before me did it this way, so it must be fine." | The previous agent may have been wrong. Verify against the rules, not against history. |
 
 ## Documentation Discipline
 

@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev55 — seekGen Crash Fix + AGENTS.md Discipline
+
+- **seekGen log spam crash fixed** — `lastSeekGen` was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever. I/O pressure killed the process (dev53 crash on seek). Fix: assign `lastSeekGen = gen` after the check.
+- **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I'll update docs later, etc.).
+- **Verification discipline section added to AGENTS.md** — formalized the "log review before landing player changes" rule and the "state-tracking vars must be updated at point of comparison" rule.
+
 ## v0.1.1-dev54 — Player Performance Fixes
 
 Six identified performance bottlenecks in the native media player fixed:
