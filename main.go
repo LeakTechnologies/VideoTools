@@ -1165,6 +1165,15 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	cfg.AspectUserSet = norm.AspectUserSet
 	cfg.FrameRate = norm.FrameRate
 	cfg.BitrateMode = norm.BitrateMode
+
+	// Migration: pre-dev54 configs don't have layout fields. When all three
+	// are false, assume old config and default to all-open.
+	if !cfg.PlayerOpen && !cfg.MetadataOpen && !cfg.SettingsOpen {
+		cfg.PlayerOpen = true
+		cfg.MetadataOpen = true
+		cfg.SettingsOpen = true
+	}
+
 	return cfg, nil
 }
 
@@ -9199,26 +9208,37 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// can capture it before the split container is created further down.
 	var leftColumn *container.Split
 
-	playerHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
+	playerHeader, playerHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
 		state.convert.PlayerOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
+			videoPanel.Show()
 			leftColumn.SetOffset(0.5)
 		} else {
+			videoPanel.Hide()
 			leftColumn.SetOffset(0.03)
 		}
 	})
+	playerHeaderUpdate(state.convert.PlayerOpen)
 	videoPanelWithHeader := container.NewBorder(playerHeader, nil, nil, nil, videoPanel)
+	if !state.convert.PlayerOpen {
+		videoPanel.Hide()
+	}
 
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
 		state.convert.MetadataOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
+			metaPanel.Show()
 			leftColumn.SetOffset(0.5)
 		} else {
+			metaPanel.Hide()
 			leftColumn.SetOffset(0.97)
 		}
 	})
+	if !state.convert.MetadataOpen {
+		metaPanel.Hide()
+	}
 	updateMetaCover = metaCoverUpdate
 
 	// Forward declare functions needed by formatContainer callback
@@ -12480,15 +12500,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.StrokeColor = gridColor
 	optionsRect.StrokeWidth = 1
 	settingsTabsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
-	settingsHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
+	settingsHeader, settingsHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
 		state.convert.SettingsOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
+			settingsTabsPanel.Show()
 			mainSplit.SetOffset(0.65)
 		} else {
+			settingsTabsPanel.Hide()
 			mainSplit.SetOffset(0.97)
 		}
 	})
+	if !state.convert.SettingsOpen {
+		settingsTabsPanel.Hide()
+	}
+	settingsHeaderUpdate(state.convert.SettingsOpen)
 	optionsPanel := container.NewBorder(settingsHeader, nil, nil, nil, settingsTabsPanel)
 
 	// Initialize snippet settings defaults
@@ -12823,7 +12849,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		addAllQueueBtn.Hide()
 	}
 
-	convertBtn = ui.MakePillButton(t.ConvertActionStart, ui.Magenta, func() {
+	convertBtn = ui.MakePillButton(t.ConvertActionStart, convertColor, func() {
 		state.persistConvertConfig()
 		state.executeConversion()
 	})
@@ -13304,7 +13330,8 @@ Metadata: %s`,
 		}
 	})
 
-	metaHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle, copyBtn, clearBtn)
+	metaHeader, metaHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle, copyBtn, clearBtn)
+	metaHeaderUpdate(state.convert.MetadataOpen)
 	top := fyne.CanvasObject(metaHeader)
 
 	// Cover art support removed - users can add cover art through metadata editor
