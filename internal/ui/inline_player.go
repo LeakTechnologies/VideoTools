@@ -455,9 +455,15 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 		}
 	}
 
-	eng.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
-		v.player.AddThumbnailFrame(t, img)
-	})
+	// Defer thumbnail extraction to avoid I/O contention during initial
+	// playback buffer fill. Running 154 seeks immediately competes with
+	// the main demuxer's sequential reads, causing choppy first ~8 seconds.
+	go func() {
+		time.Sleep(3 * time.Second)
+		eng.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
+			v.player.AddThumbnailFrame(t, img)
+		})
+	}()
 
 	readyAt := time.Now()
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {

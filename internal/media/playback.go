@@ -866,6 +866,44 @@ func (e *Engine) Resume() {
 	e.pausedAtomic.Store(false)
 	e.clock.SetPaused(false)
 
+	// Flush stale video packets that accumulated in the queues while paused.
+	// Without this, the decode loop would render frames from before the pause
+	// instead of catching up to the current clock position — causing a hard
+	// crash (SEH/panic) on resume after long pauses.
+	staleVideo := e.videoQueue.Size()
+	e.videoQueue.Flush()
+	staleAudio := e.audioQueue.Size()
+	e.audioQueue.Flush()
+	drained := 0
+drainLoop:
+	for {
+		select {
+		case <-e.frameQueue:
+			drained++
+		default:
+			break drainLoop
+		}
+	}
+	// Flush the video codec's internal buffers so it doesn't return stale
+	// B-frames from before the pause.
+	if e.videoCodecCtx != nil && e.videoDecoded {
+		e.lockVideoCodecMu()
+		SafeSendPacket(e.videoCodecCtx, nil) // flush signal
+		for {
+			ret, _ := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if ret != 0 {
+				break
+			}
+		}
+		C.avcodec_flush_buffers(e.videoCodecCtx)
+		e.unlockVideoCodecMu()
+	}
+	e.decodeEOFSent = false
+	e.seekFlushBefore.Store(0)
+	if staleVideo > 0 || staleAudio > 0 || drained > 0 {
+		logging.Info(logging.CatPlayer, "Resume: flushed %d video + %d audio packets, %d stale frames", staleVideo, staleAudio, drained)
+	}
+
 	if !e.decodeLoopActive {
 		e.decodeLoopActive = true
 		e.decodeLoopWg.Add(1)
