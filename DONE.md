@@ -1,10 +1,17 @@
 # VideoTools - Completed Features
 
-## v0.1.1-dev55 — seekGen Crash Fix + AGENTS.md Discipline
+## v0.1.1-dev55 — seekGen Crash Fix + Convert Layout + Resume Fix + VLC Decision
 
 - **seekGen log spam crash fixed** — `lastSeekGen` was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever. I/O pressure killed the process (dev53 crash on seek). Fix: assign `lastSeekGen = gen` after the check.
-- **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I'll update docs later, etc.).
-- **Verification discipline section added to AGENTS.md** — formalized the "log review before landing player changes" rule and the "state-tracking vars must be updated at point of comparison" rule.
+- **Settings panel collapse fix** — captured `settingsHeaderUpdate` callback, calls with `state.convert.SettingsOpen` on toggle; `settingsTabsPanel.Hide()`/`Show()` for visual collapse.
+- **Metadata header arrow sync** — captured `metaHeaderUpdate` callback, calls with `state.convert.MetadataOpen` on creation — arrow now reflects persisted state.
+- **Config migration** — pre-dev54 configs (all layout fields false) default to all panels expanded.
+- **Convert button colour** — changed from `ui.Magenta` to `convertColor` (#7225D0).
+- **Resume crash fix** — `Resume()` now flushes stale video+audio queues, drains `frameQueue`, flushes video codec buffers, resets `decodeEOFSent`/`seekFlushBefore` — eliminates crash on app restart from stale state.
+- **Thumbnail extraction deferred** — 3 seconds after load via goroutine; prevents thumbnail I/O from competing with initial playback.
+- **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts.
+- **Verification discipline section added to AGENTS.md** — formalized log-review-before-landing and state-tracking-var-must-be-updated rules.
+- **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 
 ## v0.1.1-dev54 — Player Performance Fixes
 

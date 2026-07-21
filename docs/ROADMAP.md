@@ -38,7 +38,7 @@ timeline
     v0.1.1-dev52 (Shipped) : CI & infra hardening : Three static binaries : Update checker migrated to GitHub API
     v0.1.1-dev53 (Shipped) : Update checker migrated from Forgejo to GitHub API
     v0.1.1-dev54 (Shipped) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
-    v0.1.1-dev55 (Current) : seekGen log spam crash fix : Anti-rationalization table added to AGENTS.md
+    v0.1.1-dev55 (Current) : seekGen log spam crash fix : Convert layout fixes : Resume crash fix : VLC backend decision
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -62,7 +62,8 @@ timeline
 ## Current State (v0.1.1-dev55)
 
 - All dev50-54 items shipped, including player performance fixes.
-- **Dev55 open**: seekGen log spam crash fix + AGENTS.md anti-rationalization table.
+- **Dev55 open**: seekGen crash fix, Convert layout fixes, resume crash fix, thumbnail deferral.
+- **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
 - Thread safety formalisation (lock hierarchy, lockdep, named helpers).
@@ -70,9 +71,10 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev53 — open)
+## Now (dev55 — open)
 
-- **Update checker migrated to GitHub API** — tags, releases-by-tag, and releases page URL all updated from Forgejo to GitHub
+- **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
+- Convert module layout state persistence (all panels expand/collapse)
 - Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
 
 ## Shipped (dev51)

@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev51 &mdash; Updated 20 June 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev55 &mdash; Updated 21 July 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -355,6 +355,10 @@ const roadmap = {
       { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded', status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'], deps: ['inline-player'], docs: [] },
       { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev42', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
       { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references — native_media build tag is the only player path', status: 'deprecated', cycle: 'dev42', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
+      { id: 'vlc-backend', title: 'libVLC Player Backend', desc: 'Replace FFmpeg demux/decode/sync engine with libVLC for stable seek/resume/A-V sync. Custom CGo wrapper for video callbacks (libvlc_video_set_callbacks) to render RGBA frames into Fyne widget. FFmpeg engine stays as long-term plan.', status: 'planned', cycle: 'dev56', files: ['internal/media/vlc_engine.go', 'internal/media/vlc_video.go', 'internal/media/vlc_glue.h'], deps: ['player-interface'], docs: ['docs/VLC_PLAYER.md'] },
+      { id: 'vlc-phase1', title: 'VLC Phase 1: Basic Playback', desc: 'PlaybackEngine interface extracted from InlineVideoPlayer. FFmpegBackend wraps existing Engine. VLCBackend with libVLC CGo wrapper. Basic play/pause/seek/load — no scrub, no trim, no thumbnails.', status: 'planned', cycle: 'dev56', files: ['internal/media/engine_interface.go', 'internal/media/ffmpeg_backend.go', 'internal/media/vlc_engine.go'], deps: ['vlc-backend'], docs: ['docs/VLC_PLAYER.md'] },
+      { id: 'vlc-phase2', title: 'VLC Phase 2: Full Feature Parity', desc: 'GrabFrame via libvlc_media_player_set_time, thumbnail extraction, track/chapter selection, speed control, EOF/error events', status: 'future', cycle: 'future', files: [], deps: ['vlc-phase1'], docs: ['docs/VLC_PLAYER.md'] },
+      { id: 'vlc-phase3', title: 'VLC Phase 3: Default Flip + Retire FFmpeg Player', desc: 'User validation of VLC backend; settings toggle for backend selection; flip default from FFmpeg to VLC; retire FFmpeg player code', status: 'future', cycle: 'future', files: [], deps: ['vlc-phase2'], docs: ['docs/VLC_PLAYER.md'] },
       { id: 'seeking', title: 'Seeking Performance', desc: 'Frame-accurate seeking — keyframe snapping in some containers, needs adaptive timing with drift correction', status: 'future', cycle: 'future', files: ['internal/media/player.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
       { id: 'dvd-menu-play', title: 'Native DVD Menu VM', desc: 'Full libdvdnav menu VM inside the player — button highlight, chapter navigation, conditional branching. External VLC/mpv launch is already available via Rip module "Play with Menus" button.', status: 'future', cycle: 'future', files: [], deps: ['dvdvideo'], docs: [] },
       { id: 'unified-arch', title: 'Unified FFmpeg Architecture', desc: 'Single FFmpeg process with multiplexed A/V output; master clock, PTS drift correction, ring buffers', status: 'future', cycle: 'future', files: ['internal/media/'], deps: ['engine'], docs: [] },
@@ -594,7 +598,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev50';
+const currentVersion = 'dev55';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -794,6 +798,23 @@ const changelogData = [
     { title: 'Player Crash Fix', items: [
       'seekGen log spam crash fixed: lastSeekGen was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever — I/O pressure killed the process (dev53 crash on seek)',
       'Also removed redundant per-frame "frame fmt=" log line that accompanied the seekGen spam',
+    ]},
+    { title: 'Convert Module', items: [
+      'Settings panel collapse fix: captured settingsHeaderUpdate callback, calls with state.convert.SettingsOpen on toggle; settingsTabsPanel Hide()/Show() for visual collapse',
+      'Metadata header arrow sync: captured metaHeaderUpdate callback, calls with state.convert.MetadataOpen on creation — arrow now reflects persisted state',
+      'Config migration: pre-dev54 configs (all layout fields false) default to all panels expanded',
+      'Convert button colour changed from ui.Magenta to convertColor (#7225D0)',
+    ]},
+    { title: 'Player Stability', items: [
+      'Resume crash fix: Resume() now flushes stale video+audio queues, drains frameQueue, flushes video codec buffers, resets decodeEOFSent/seekFlushBefore — eliminates crash on app restart from stale state',
+      'Thumbnail extraction deferred 3 seconds after load via goroutine — prevents thumbnail I/O from competing with initial playback',
+      'Rapid-seek analysis: every seek lands on same keyframe (pts=9.066), process dies silently after rapid seeking — architecture too complex to stabilise (6 goroutines, 4 mutexes, 3 packet queues)',
+    ]},
+    { title: 'Strategic Decision: libVLC Backend', items: [
+      'Decision: replace FFmpeg demux/decode/sync engine with libVLC for user-facing playback',
+      'FFmpeg engine stays as long-term plan when it matures to a usable state',
+      'Custom CGo wrapper needed — adrg/libvlc-go does not expose libvlc_video_set_callbacks (only native window rendering)',
+      'Design doc created: docs/VLC_PLAYER.md with phased implementation plan',
     ]},
     { title: 'Workflow Discipline', items: [
       'Anti-rationalization table added to AGENTS.md — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I will update docs later, etc.)',
@@ -1440,6 +1461,23 @@ const checklistData = [
     'Seek: dragging seek bar to any position shows correct frame (no mid-GOP corruption)',
     'Seek: accurate fallback lands at keyframe before target (no garbage for 1-3s after seek)',
     'Player consolidation: all modules share the same primary player instance',
+  ]},
+  { title: 'Player Module (VLC Backend — planned)', items: [
+    'PlaybackEngine interface implemented by both FFmpeg and VLC backends',
+    'VLC: Load and play MP4 (H.264 + AAC)',
+    'VLC: Load and play MKV (H.265 + AAC)',
+    'VLC: Seek to random positions (10+ rapid seeks without crash)',
+    'VLC: Pause and resume (position exact)',
+    'VLC: Resume after app restart (persisted position)',
+    'VLC: Volume control and mute',
+    'VLC: Playback speed (0.5×, 1×, 2×)',
+    'VLC: Audio/subtitle track selection',
+    'VLC: EOF notification fires',
+    'VLC: Error handling (corrupt file)',
+    'VLC: Thumbnail extraction',
+    'VLC: Smooth scrubbing (slider drag)',
+    'VLC: Trim in/out markers',
+    'Settings toggle for backend selection (FFmpeg vs VLC)',
   ]},
   { title: 'Burn Module', items: [
     'isoburn.exe (Windows) burns DVD without errors',

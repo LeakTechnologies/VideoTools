@@ -22,6 +22,17 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev50-54 Scope (current — preparing to ship)
 
+### libVLC Player Backend (dev56 — next)
+
+- [ ] **PlaybackEngine interface** — Extract formal Go interface from InlineVideoPlayer's Engine usage; `internal/media/engine_interface.go`
+- [ ] **FFmpegBackend** — Wrap existing Engine to implement PlaybackEngine interface; `internal/media/ffmpeg_backend.go`
+- [ ] **VLCBackend (Phase 1)** — Basic libVLC CGo wrapper: load, play, pause, seek, RGBA frame callbacks; `internal/media/vlc_engine.go`, `vlc_video.go`, `vlc_glue.h`
+- [ ] **InlineVideoPlayer refactor** — Accept `PlaybackEngine` interface instead of concrete `*Engine`
+- [ ] **Build-tag gating** — `//go:build native_media && vlc` for VLC files; default `!vlc` until validated
+- [ ] **Settings toggle** — Backend selection (FFmpeg vs VLC) in Settings → Player
+- [ ] **VLC Phase 2** — GrabFrame, thumbnails, track/chapter selection, speed control, EOF/error events
+- [ ] **VLC Phase 3** — User validation, flip default, retire FFmpeg player
+
 ### Player Performance Fixes (dev54)
 
 - [x] **Decode loop CPU spin** — `TimedGet(20ms)` replaces `TryGet()` + 1ms poll
@@ -42,6 +53,19 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **P1: view.go component split** — 1442-line monolith → 5 focused files
 - [x] **P1: UDF thread safety** — mutex-guarded partitionStart, progress callbacks
 - [x] **Legacy alias vars removed** — 10 per-module vars cleaned from `native_media.go`
+
+### Player Crash Fixes + Convert Layout (dev55)
+
+- [x] **seekGen log spam crash fixed** — `lastSeekGen = gen` after comparison; removed redundant per-frame log
+- [x] **Settings panel collapse fix** — captured `settingsHeaderUpdate`, calls with `state.convert.SettingsOpen`
+- [x] **Metadata header arrow sync** — captured `metaHeaderUpdate`, calls with `state.convert.MetadataOpen`
+- [x] **Config migration** — pre-dev54 configs default to all panels expanded
+- [x] **Convert button colour** — `ui.Magenta` → `convertColor` (#7225D0)
+- [x] **Resume crash fix** — flush stale queues, drain frameQueue, flush codec buffers
+- [x] **Thumbnail extraction deferred** — 3 seconds after load via goroutine
+- [x] **Anti-rationalization table** — AGENTS.md pre-written rebuttals
+- [x] **Verification discipline** — AGENTS.md log-review and state-tracking rules
+- [x] **libVLC backend decision** — Design doc: `docs/VLC_PLAYER.md`
 
 ### Remaining high-priority items
 
