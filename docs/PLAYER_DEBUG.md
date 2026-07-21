@@ -58,6 +58,12 @@ Update this file whenever a player issue is found or fixed.
 
 ## Known Issues (dev55)
 
+### Strategic: libVLC Backend (HD approved)
+
+The custom FFmpeg engine has had 10+ crash-fix cycles across dev43–dev55. Its architecture (6 goroutines, 4 mutexes, 3 packet queues, frame queue, CGo SEH bridge) is fundamentally too complex to stabilise for user-facing playback. Decision: replace with libVLC for user-facing playback; FFmpeg engine stays as long-term plan. Design doc: `docs/VLC_PLAYER.md`.
+
+Key finding from dev55 crash analysis: every seek to 9.50/9.40/9.30 lands on `pts=9.066` (same keyframe). The decode-after-seek pipeline is unstable — rapid seeking causes the process to die silently (no SEH, no panic logged). The root cause is architectural complexity, not a single bug.
+
 ### P0 — User-visible bugs
 
 - [x] **Error/loading/buffering overlay indicators never rendered** — `loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator` were created and mutated by `SetLoading`/`SetBuffering`/`SetError`/`ClearError` but never included in `videoPlayerRenderer.Objects()` or positioned in `Layout()`. Callers like `inline_player.go:380` and `inline_player.go:983` called `SetError(...)` / `SetLoading(true)` but the user never saw anything. Fixed: all four widgets added to `Objects()`, `Layout()` positions them centred over the video area with proper z-ordering. Loading spinner shows during file open, buffering label shows during buffer underrun, red circle + error message shows on decode/stream errors.

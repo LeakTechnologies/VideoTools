@@ -5,7 +5,22 @@
 ### Player Crash Fix (seekGen log spam)
 
 - **seekGen log spam crash fixed** — `lastSeekGen` was compared against `e.seekGen` every decoded frame but never updated, causing "first frame after seek" to log 60×/sec forever. Over 40+ minutes this generated enough I/O pressure to kill the process (dev53 crash on seek). Fix: `lastSeekGen = gen` after the check, so only the actual first frame after a seek logs. Also removed the redundant per-frame "frame fmt=" log line.
-- **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I'll update docs later, etc.).
+
+### Convert Module Layout Fixes
+
+- **Settings panel collapse fix** — captured `settingsHeaderUpdate` callback, calls with `state.convert.SettingsOpen`; `settingsTabsPanel.Hide()`/`Show()` for visual collapse.
+- **Metadata header arrow sync** — captured `metaHeaderUpdate` callback, calls with `state.convert.MetadataOpen` on creation.
+- **Config migration** — pre-dev54 configs default to all panels expanded.
+- **Convert button colour** — changed from `ui.Magenta` to `convertColor` (#7225D0).
+
+### Player Stability
+
+- **Resume crash fix** — `Resume()` flushes stale video+audio queues, drains `frameQueue`, flushes video codec buffers, resets `decodeEOFSent`/`seekFlushBefore`.
+- **Thumbnail extraction deferred** — 3 seconds after load via goroutine.
+
+### Strategic Decision
+
+- **libVLC player backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 
 ## v0.1.1-dev54 (July 2026)
 

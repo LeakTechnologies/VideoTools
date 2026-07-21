@@ -14,10 +14,10 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 | Priority | Item | Notes |
 |---|---|---|
-| 1 | Tester verification of dev51 build | Release assets published; move roadmap cards `done` → `shipped` on sign-off |
-| 2 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
-| 3 | Dead-code retirement (post static-sidecar decision) | `scripts/windows/build-ffmpeg-shared.ps1`, DLL-folder branches in `ffmpeg_bootstrap.go`, `updateSidecars` DLL extraction — legacy-harmless, remove deliberately |
-| — | Player interface extraction | Deferred: 47 call sites, stub pattern suffices |
+| 1 | libVLC Player Backend (Phase 1) | `docs/VLC_PLAYER.md` — PlaybackEngine interface + VLCBackend CGo wrapper; FFmpeg engine stays as long-term plan |
+| 2 | Tester verification of dev51 build | Release assets published; move roadmap cards `done` → `shipped` on sign-off |
+| 3 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
+| 4 | Dead-code retirement (post static-sidecar decision) | `scripts/windows/build-ffmpeg-shared.ps1`, DLL-folder branches in `ffmpeg_bootstrap.go`, `updateSidecars` DLL extraction — legacy-harmless, remove deliberately |
 | — | Burn multi-drive batch / IMAPI2 COM | `docs/BURN_MODULE_DESIGN.md` §2–3 |
 | — | Main Menu refactor to `internal/app/modules/mainmenu/` | LOW — deferred until engine stable |
 | — | UDF 2.50/2.60 + BDMV; sparse/large-file UDF writer | Future |
@@ -29,6 +29,10 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 ## Settled Decisions
 
 Reached after failed attempts or Human Director ruling. **Do not change or re-litigate without explicit Human Director approval.**
+
+### libVLC Player Backend (2026-07-21, HD approved)
+
+Replace the custom FFmpeg demux/decode/sync engine with libVLC for user-facing playback. The FFmpeg engine stays as a long-term plan when it matures to a usable state. The custom engine has had 10+ crash-fix cycles across dev43–dev55; its architecture (6 goroutines, 4 mutexes, 3 packet queues) is too complex to stabilise. libVLC has solved these problems for 20+ years. `adrg/libvlc-go/v3` does NOT expose `libvlc_video_set_callbacks` — a custom CGo wrapper is required (~300 lines vs FFmpeg's ~1500). Design doc: `docs/VLC_PLAYER.md`.
 
 ### Windows Product: Three Fully Static Binaries (2026-07-04, HD approved)
 
