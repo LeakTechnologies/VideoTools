@@ -1593,6 +1593,12 @@ func av_get_pix_fmt_name(fmt C.enum_AVPixelFormat) *C.char {
 	return C.av_get_pix_fmt_name(fmt)
 }
 
+// NewScrubber returns a SmoothScrubbing instance for this engine.
+// Satisfies the PlaybackEngine interface.
+func (e *Engine) NewScrubber() Scrubber {
+	return NewSmoothScrubbing(e)
+}
+
 
 
 
