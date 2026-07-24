@@ -21,8 +21,8 @@ import (
 type InlineVideoPlayer struct {
 	mu          sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
 	player      *media.VideoPlayer
-	engine      *media.Engine
-	scrubber    *media.SmoothScrubbing
+	engine      media.PlaybackEngine
+	scrubber    media.Scrubber
 	playing     bool
 	currentPath string          // path of the most recently loaded file; used for EOF→reload
 	onProgress  func(float64)   // called from playbackLoop with current time in seconds
@@ -282,27 +282,27 @@ func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
-	return v.loadViaOpen(path, true, func(eng *media.Engine) error { return eng.OpenAuto(path) })
+	return v.loadViaOpen(path, true, func(eng media.PlaybackEngine) error { return eng.OpenAuto(path) })
 }
 
 // LoadDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) in the
 // player using FFmpeg's dvdvideo demuxer (libdvdnav/libdvdread). title=0
 // selects the longest title automatically; title>0 selects by DVD title number.
 func (v *InlineVideoPlayer) LoadDVD(devicePath string, title int) (err error) {
-	return v.loadViaOpen(devicePath, true, func(eng *media.Engine) error { return eng.OpenDVD(devicePath, title) })
+	return v.loadViaOpen(devicePath, true, func(eng media.PlaybackEngine) error { return eng.OpenDVD(devicePath, title) })
 }
 
 // LoadURL opens a network stream or URL. opts may be nil to use sensible
 // defaults (60s timeout, reconnect on error). Supported schemes: http,
 // https, hls, dash, rtsp, rtmp, mms, tcp, udp.
 func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) (err error) {
-	return v.loadViaOpen(url, true, func(eng *media.Engine) error { return eng.OpenURL(url, opts) })
+	return v.loadViaOpen(url, true, func(eng media.PlaybackEngine) error { return eng.OpenURL(url, opts) })
 }
 
 // loadViaOpen is the shared implementation of Load, LoadDVD and LoadURL.
 // resetPlaylist clears the pending playlist queue (set true on all user-facing
 // load calls; false when the playlist auto-advance reuses this path internally).
-func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, openFn func(*media.Engine) error) (err error) {
+func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, openFn func(eng media.PlaybackEngine) error) (err error) {
 	logging.Info(logging.CatPlayer, "Load: called for %s", displayPath)
 	defer func() {
 		if r := recover(); r != nil {
@@ -421,19 +421,21 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
 
-	scrubber := media.NewSmoothScrubbing(eng)
-	scrubber.SetOnFrame(func(img *image.RGBA) {
-		logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetFrame(img)
-			v.mu.Lock()
-			fn := v.onFrame
-			v.mu.Unlock()
-			if fn != nil {
-				fn(img)
-			}
-		}, false)
-	})
+	scrubber := eng.NewScrubber()
+	if scrubber != nil {
+		scrubber.SetOnFrame(func(img *image.RGBA) {
+			logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				v.player.SetFrame(img)
+				v.mu.Lock()
+				fn := v.onFrame
+				v.mu.Unlock()
+				if fn != nil {
+					fn(img)
+				}
+			}, false)
+		})
+	}
 
 	// Briefly lock to publish the live engine and scrubber.
 	v.mu.Lock()
@@ -441,7 +443,9 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 	v.scrubber = scrubber
 	v.mu.Unlock()
 
-	scrubber.Start()
+	if scrubber != nil {
+		scrubber.Start()
+	}
 
 	// Auto-restore saved playback position (P1-2).
 	// Falls through to the SMPTE-bars placeholder if no saved position exists.
@@ -986,7 +990,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 
 				if nextPath != "" {
 					go func() {
-						if err := v.loadViaOpen(nextPath, false, func(eng *media.Engine) error { return eng.OpenAuto(nextPath) }); err != nil {
+						if err := v.loadViaOpen(nextPath, false, func(eng media.PlaybackEngine) error { return eng.OpenAuto(nextPath) }); err != nil {
 							logging.Error(logging.CatPlayer, "playbackLoop: playlist advance Load failed: %v", err)
 							return
 						}
