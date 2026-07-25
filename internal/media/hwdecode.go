@@ -139,6 +139,20 @@ func HWDecodeEnabled() bool {
 	return hwDecodeEnabled
 }
 
+// useVLC controls whether InlineVideoPlayer creates a libVLC or FFmpeg engine.
+// Only effective when built with the vlc tag; without it, FFmpeg is always used.
+var useVLC bool
+
+// SetUseVLC enables or disables the libVLC playback backend.
+func SetUseVLC(enabled bool) {
+	useVLC = enabled
+}
+
+// UseVLC reports whether the libVLC backend is selected.
+func UseVLC() bool {
+	return useVLC
+}
+
 // hwDeviceDetected caches the result of the one-time hardware detection so
 // that av_hwdevice_ctx_create is never called from a background goroutine
 // after the GLFW message loop has started (on Windows, D3D11VA device creation

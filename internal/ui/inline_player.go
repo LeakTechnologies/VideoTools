@@ -366,7 +366,7 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 	// All heavy work (engine open, GrabFrame) runs without v.mu so the main
 	// goroutine is never blocked acquiring v.mu while Load is inside FFmpeg.
 	// v.mu is held only briefly at the end to swap in the live engine/scrubber.
-	eng := media.NewEngine()
+	eng := newPlaybackEngine()
 	eng.SetSeekAccuracy(media.DefaultSeekAccuracy())
 	eng.SetAudioDelay(media.DefaultAudioDelay())
 	eng.SetDropFrames(true)

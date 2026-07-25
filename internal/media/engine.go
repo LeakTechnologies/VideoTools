@@ -537,6 +537,16 @@ func (e *Engine) parseChapters() {
 	}
 }
 
+// GetTitles returns available titles. FFmpeg does not expose title enumeration
+// for regular files; titles are selected at open time via OpenDVD's title option.
+func (e *Engine) GetTitles() []Title { return nil }
+
+// SelectTitle is a no-op for FFmpeg — titles are selected at open time.
+func (e *Engine) SelectTitle(index int) error { return nil }
+
+// GetCurrentTitle returns 0 (FFmpeg does not track active title).
+func (e *Engine) GetCurrentTitle() int { return 0 }
+
 func (e *Engine) SetSeekAccuracy(acc SeekAccuracy) {
 	e.seekAcc = acc
 }

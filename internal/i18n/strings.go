@@ -67,6 +67,8 @@ type Strings struct {
 	SettingsHWDecodeAutoHint string // "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails."
 	SettingsHWDenyList     string // "HW Decode Deny-List"
 	SettingsHWDenyListHint string // "Comma-separated FFmpeg codec names forced to SW decode (e.g. vc1,wmv3). Leave blank to use all HW-capable codecs."
+	SettingsUseVLC         string // "Use libVLC backend"
+	SettingsUseVLCHint     string // "Use libVLC for video playback instead of the built-in FFmpeg engine. libVLC is more stable for seek/resume but requires libVLC DLLs."
 	SettingsFont           string // "Player Font"
 	SettingsFontHint       string // "Font used in the player OSD and test pattern"
 	SettingsFontIBM        string // "IBM Plex Mono"
