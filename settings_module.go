@@ -1894,6 +1894,18 @@ func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) UsePlayerVLC() bool {
+	return a.s.prefs.UsePlayerVLC
+}
+
+func (a *preferencesAdapter) SetUsePlayerVLC(enabled bool) {
+	setUsePlayerVLC(enabled)
+	a.s.prefs.UsePlayerVLC = enabled
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetUsePlayerVLC save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) HWCodecDenyList() string {
 	return a.s.prefs.HWCodecDenyList
 }

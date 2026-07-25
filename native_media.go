@@ -55,6 +55,14 @@ func setHWCodecDenyList(s string) {
 	media.SetHWCodecDenyList(s)
 }
 
+func usePlayerVLC() bool {
+	return media.UseVLC()
+}
+
+func setUsePlayerVLC(enabled bool) {
+	media.SetUseVLC(enabled)
+}
+
 func seekAccuracyFromString(s string) media.SeekAccuracy {
 	switch s {
 	case "frame":

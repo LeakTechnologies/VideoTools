@@ -60,6 +60,8 @@ var enCA = Strings{
 	SettingsHWDecodeAutoHint:   "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails.",
 	SettingsHWDenyList:        "HW Decode Deny-List",
 	SettingsHWDenyListHint:    "Comma-separated FFmpeg codec names forced to SW decode (e.g. vc1,wmv3). Leave blank to use HW for all supported codecs.",
+	SettingsUseVLC:            "Use libVLC backend",
+	SettingsUseVLCHint:        "Use libVLC for video playback instead of the built-in FFmpeg engine. libVLC is more stable for seek/resume but requires libVLC DLLs.",
 	SettingsFont:              "Player Font",
 	SettingsFontHint:          "Font used in the player OSD and test pattern",
 	SettingsFontIBM:           "IBM Plex Mono",

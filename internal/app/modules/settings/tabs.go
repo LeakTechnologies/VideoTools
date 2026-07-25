@@ -325,6 +325,11 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	})
 	autoDeintCheck.SetChecked(prefs.AutoDeinterlace)
 
+	useVLCCheck := widget.NewCheck(t.SettingsUseVLC, func(enabled bool) {
+		cb.SetUsePlayerVLC(enabled)
+	})
+	useVLCCheck.SetChecked(prefs.UsePlayerVLC)
+
 	seekOptions := []string{t.SettingsSeekKeyframe, t.SettingsSeekFrame, t.SettingsSeekAccurate}
 	seekValues := []string{"keyframe", "frame", "accurate"}
 	seekSelect := widget.NewSelect(seekOptions, func(selected string) {
@@ -401,6 +406,9 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	playerCard := settingsCard(t.ModulePlayer,
 		autoDeintCheck,
 		hint(t.SettingsAutoDeinterlaceHint),
+		widget.NewSeparator(),
+		useVLCCheck,
+		hint(t.SettingsUseVLCHint),
 		widget.NewSeparator(),
 		settingsRow(t.SettingsSeekAccuracy, seekSelect),
 		hint(t.SettingsSeekAccuracyHint),

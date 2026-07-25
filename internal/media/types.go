@@ -7,6 +7,13 @@ type Chapter struct {
 	Title     string
 }
 
+type Title struct {
+	Index    int
+	Name     string
+	Duration float64 // seconds; 0 if unknown
+	IsMenu   bool
+}
+
 type StreamInfo struct {
 	Index     int
 	CodecName string

@@ -63,6 +63,11 @@ type PlaybackEngine interface {
 	// Chapters
 	GetChapters() []Chapter
 
+	// Titles (multi-title discs like DVDs)
+	GetTitles() []Title
+	SelectTitle(index int) error
+	GetCurrentTitle() int
+
 	// Tracks
 	GetAudioTracks() []StreamInfo
 	SelectAudioTrack(trackIndex int) error

@@ -52,6 +52,8 @@ var frCA = Strings{
 	SettingsHWDecodeAutoHint:     "Detection automatique et decodage video accelere par GPU (D3D11VA/VAAPI). Desactiver si la lecture echoue.",
 	SettingsHWDenyList:        "Liste de refus decode HW",
 	SettingsHWDenyListHint:    "Noms de codecs FFmpeg forces en decode logiciel (ex. vc1,wmv3). Laisser vide pour utiliser HW pour tous les codecs compatibles.",
+	SettingsUseVLC:            "Utiliser le backend libVLC",
+	SettingsUseVLCHint:        "Utiliser libVLC pour la lecture video au lieu du moteur FFmpeg integre. libVLC est plus stable pour la recherche/reprise mais necessite des DLL libVLC.",
 	SettingsFont:         "Police du lecteur",
 	SettingsFontHint:     "Police utilisee dans l'interface du lecteur et le motif de test",
 	SettingsFontIBM:      "IBM Plex Mono",
