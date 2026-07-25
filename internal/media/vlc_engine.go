@@ -3,8 +3,8 @@
 package media
 
 /*
-#cgo windows LDFLAGS: -LC:/vlc/lib -llibvlc
-#cgo windows CFLAGS: -IC:/vlc/include
+#cgo windows LDFLAGS: -LE:/vlc/lib -llibvlc
+#cgo windows CFLAGS: -IE:/vlc/include
 #cgo linux pkg-config: libvlc
 
 #include "vlc_glue.h"
