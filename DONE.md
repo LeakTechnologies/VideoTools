@@ -12,6 +12,10 @@
 - **Anti-rationalization table added to AGENTS.md** — pre-written rebuttals to common shortcuts.
 - **Verification discipline section added to AGENTS.md** — formalized log-review-before-landing and state-tracking-var-must-be-updated rules.
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
+- **dvdvideo demuxer actually ships (rip fix)** — libdvdread 6.1.3 + libdvdnav 6.1.1 built from source (static-only) in all three Windows workflows (dev, release, msix); FFmpeg configure gets `--enable-libdvdnav --enable-libdvdread`. `dvdnav.pc` rewritten after install so `-ldvdread` sits in `Libs` (x265.pc precedent — FFmpeg Windows configure calls pkg-config without `--static`, so the stock `Requires.private` was never expanded). Verify step gates on `ffmpeg -h demuxer=dvdvideo`.
+- **No-scan rips use dvdvideo** — executor no longer requires `TitleNumber > 0`; defaults to title 1. Eliminates the VOB-boundary PTS discontinuity crash on multi-VOB discs (~25–32% mark).
+- **Menu VOB audio tolerance** — `-map 0:a?` on menu VOB export paths so menu VOBs with no audio stream don't fail.
+- **CI cache keys bumped** — Windows ffmpeg cache `v5`→`v6` (dev + release), msix `v2`→`v3`.
 
 ## v0.1.1-dev54 — Player Performance Fixes
 

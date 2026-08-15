@@ -63,6 +63,7 @@ timeline
 
 - All dev50-54 items shipped, including player performance fixes.
 - **Dev55 open**: seekGen crash fix, Convert layout fixes, resume crash fix, thumbnail deferral.
+- **Rip dvdvideo demuxer now actually ships**: CI builds libdvdread 6.1.3 + libdvdnav 6.1.1 statically in all Windows workflows (dev/release/msix), enables `--enable-libdvdnav/--enable-libdvdread`, rewrites `dvdnav.pc` on Windows so `-ldvdread` lands in `Libs` (x265.pc precedent), and gates with a `Verify dvdvideo demuxer` step. Executor defaults title to 1 when no scan ran, so no-scan rips use the cell-accurate demuxer instead of the PTS-gap concat path.
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
@@ -75,6 +76,7 @@ timeline
 
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
 - Convert module layout state persistence (all panels expand/collapse)
+- **Tester verification of the dvdvideo rip fix** — re-run Sweethearts rip after the CI-shipped demuxer lands; confirm no crash at the VOB boundary
 - Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
 
 ## Shipped (dev51)

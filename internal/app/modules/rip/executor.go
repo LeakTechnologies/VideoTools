@@ -262,17 +262,17 @@ func BuildConcatList(files []string) (string, error) {
 
 // RipArgs holds parameters for BuildRipArgs.
 type RipArgs struct {
-	ListFile       string
-	OutputPath     string
-	Format         string
-	MetaFile       string   // path to ffmetadata file; empty = no chapter/title metadata
-	AudioLangs     []string // per-stream ISO 639-1 language codes; nil = no tagging
-	SubtitleLangs  []string // per-stream subtitle language codes; nil = no subs
-	DiscTitle      string   // embedded title tag; empty = skip
-	Interlaced      bool   // when true and format is H.264, adds yadif=mode=1 deinterlace filter
-	RegionConvert   string // "" (none), "pal2ntsc", "ntsc2pal"
-	VideoTSPath    string // VIDEO_TS directory for -f dvdvideo (seamless branching)
-	TitleNumber    int    // 1-based title index from VMG TT_SRPT for -f dvdvideo
+	ListFile      string
+	OutputPath    string
+	Format        string
+	MetaFile      string   // path to ffmetadata file; empty = no chapter/title metadata
+	AudioLangs    []string // per-stream ISO 639-1 language codes; nil = no tagging
+	SubtitleLangs []string // per-stream subtitle language codes; nil = no subs
+	DiscTitle     string   // embedded title tag; empty = skip
+	Interlaced    bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
+	RegionConvert string   // "" (none), "pal2ntsc", "ntsc2pal"
+	VideoTSPath   string   // VIDEO_TS directory for -f dvdvideo (seamless branching)
+	TitleNumber   int      // 1-based title index from VMG TT_SRPT for -f dvdvideo
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -526,10 +526,18 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	appendLog(fmt.Sprintf("Using title set: %s", set.Name))
 
 	// Prefer -f dvdvideo when available — it reads the IFO cell playback table
-	// natively, correctly handling seamless branching discs.
-	useDVDVideo := opts.ExtractMode != "full" && format != FormatArchivist && opts.TitleNumber > 0 && SupportsDVDVideo()
+	// natively, correctly handling seamless branching discs and producing
+	// continuous timestamps across VOB file boundaries (concat + -c copy can
+	// write raw PTS discontinuities that crash external players).
+	titleNum := opts.TitleNumber
+	useDVDVideo := opts.ExtractMode != "full" && format != FormatArchivist && SupportsDVDVideo()
 	if useDVDVideo {
-		appendLog("FFmpeg dvdvideo demuxer available — using cell-accurate title playback")
+		if titleNum == 0 {
+			titleNum = 1
+			appendLog("No title selected — dvdvideo demuxer will use title 1")
+		} else {
+			appendLog(fmt.Sprintf("FFmpeg dvdvideo demuxer available — using cell-accurate title playback (title %d)", titleNum))
+		}
 	} else {
 		if opts.TitleNumber > 0 && !SupportsDVDVideo() {
 			appendLog("FFmpeg dvdvideo demuxer not available — falling back to VOB concatenation (may break on seamless branching discs)")
@@ -570,7 +578,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 	if useDVDVideo {
 		ra.VideoTSPath = videoTSPath
-		ra.TitleNumber = opts.TitleNumber
+		ra.TitleNumber = titleNum
 	}
 
 	vtsName := set.Name // e.g. "VTS_01"

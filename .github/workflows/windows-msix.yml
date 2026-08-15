@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v2
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v3
 
       - name: Setup static FFmpeg (Windows)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -116,6 +116,44 @@ jobs:
           echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
 
+          echo "[INFO] Building libdvdread from source (static only)..."
+          rm -rf /tmp/libdvdread-src
+          wget -q -O /tmp/libdvdread.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2"
+          tar xjf /tmp/libdvdread.tar.bz2 -C /tmp
+          mv /tmp/libdvdread-6.1.3 /tmp/libdvdread-src
+          cd /tmp/libdvdread-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
+          make -j$(nproc) && make install
+          rm -rf /tmp/libdvdread-src /tmp/libdvdread.tar.bz2
+
+          echo "[INFO] Building libdvdnav from source (static only)..."
+          rm -rf /tmp/libdvdnav-src
+          wget -q -O /tmp/libdvdnav.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2"
+          tar xjf /tmp/libdvdnav.tar.bz2 -C /tmp
+          mv /tmp/libdvdnav-6.1.1 /tmp/libdvdnav-src
+          cd /tmp/libdvdnav-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
+          make -j$(nproc) && make install
+          rm -rf /tmp/libdvdnav-src /tmp/libdvdnav.tar.bz2
+
+          # FFmpeg's Windows configure calls pkg-config WITHOUT --static, so the
+          # dvdread entry in dvdnav's Requires.private is never expanded and the
+          # dvdnav_open2 link test fails. Rewrite dvdnav.pc so -ldvdread sits in
+          # Libs directly (same precedent as the x265.pc overwrite), then publish
+          # both pc files to the pkg-config default path.
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'libdir=${exec_prefix}/lib'        >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Name: libdvdnav'                  >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Description: DVD Navigation library' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Version: 6.1.1'                   >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Libs: -L${libdir} -ldvdnav -ldvdread' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc /c/ffmpeg-static/lib/pkgconfig/dvdread.pc /ucrt64/lib/pkgconfig/
+
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
@@ -131,6 +169,7 @@ jobs:
             --disable-doc --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
+            --enable-libdvdnav --enable-libdvdread \
             --disable-vaapi --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
             --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib -static' \
@@ -138,6 +177,18 @@ jobs:
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           echo "[INFO] FFmpeg ${ver} Windows build complete"
+
+      - name: Verify dvdvideo demuxer
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
+        run: |
+          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer"; then
+            echo "OK: dvdvideo demuxer present"
+          else
+            echo "ERROR: dvdvideo demuxer missing"
+            exit 1
+          fi
 
       - name: Build Windows binary (native_media)
         shell: pwsh
