@@ -302,7 +302,7 @@ func BuildRipArgs(ra RipArgs) []string {
 
 	// Stream mapping
 	args = append(args, "-map", "0:v:0")
-	args = append(args, "-map", "0:a")
+	args = append(args, "-map", "0:a?")
 	// dvd_subtitle (VOBSUB bitmap) is valid in MKV but not in MP4
 	if len(ra.SubtitleLangs) > 0 && ra.Format != FormatH264MP4 {
 		args = append(args, "-map", "0:s?")
@@ -880,7 +880,7 @@ func exportMenuVOB(ctx context.Context, opts ExecuteOptions, menuVOBPath, output
 		"-fflags", "+genpts",
 		"-i", menuVOBPath,
 		"-map", "0:v:0",
-		"-map", "0:a",
+		"-map", "0:a?",
 		"-map", "0:s?",
 		"-map_metadata", "-1",
 	}
@@ -1119,7 +1119,7 @@ func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, ou
 	// Subtitles are dropped on region conversion: VOBSUB PTS values are baked at the
 	// source frame rate and cannot be cleanly remapped by a simple stream copy.
 	args = append(args, "-map", "0:v:0")
-	args = append(args, "-map", "0:a")
+	args = append(args, "-map", "0:a?")
 	if vfFilter == "" {
 		// No region conversion: include subtitles as-is (PTS remain valid).
 		args = append(args, "-map", "0:s?")
