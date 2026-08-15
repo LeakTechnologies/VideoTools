@@ -9226,6 +9226,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoPanel.Hide()
 	}
 
+	// metaPanel is declared before buildMetadataPanel so the onToggle closure
+	// (passed into the builder) can reference it. A :=-declared variable is not
+	// in scope inside its own initializer's closure.
+	var metaPanel fyne.CanvasObject
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
 		state.convert.MetadataOpen = open
 		_ = savePersistedConvertConfig(state.convert)
