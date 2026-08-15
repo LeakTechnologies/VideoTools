@@ -10,6 +10,7 @@
 
 - **Settings panel collapse fix** — captured `settingsHeaderUpdate` callback, calls with `state.convert.SettingsOpen`; `settingsTabsPanel.Hide()`/`Show()` for visual collapse.
 - **Metadata header arrow sync** — captured `metaHeaderUpdate` callback, calls with `state.convert.MetadataOpen` on creation.
+- **Player/metadata collapse offset conflict fixed** — player and metadata onToggle callbacks each wrote their own `leftColumn.SetOffset`, so collapsing one panel could fight the other's persisted state (e.g. collapsing the player then toggling metadata reset the split to 50/50 with the player still hidden). Both headers now call a single `resolveLeftOffset()` closure (same pattern as Filters/Upscale) that derives the offset from both `PlayerOpen`+`MetadataOpen` states; used at build-time restore too.
 - **Config migration** — pre-dev54 configs default to all panels expanded.
 - **Convert button colour** — changed from `ui.Magenta` to `convertColor` (#7225D0).
 
