@@ -125,6 +125,7 @@ This file tracks upcoming features, improvements, and known issues.
 ### Collapsible Player Panel (Filters + Upscale)
 
 - [x] **Collapsible player panel in all five player modules** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` consistent across Convert, Filters, Upscale, Inspect, and Trim. Inspect: fixed GridWithColumns → HSplit; Trim: leftSide Border → VSplit so timeline stays visible when player collapses.
+- [x] **Player minimize actually collapses (dev55)** — Filters/Upscale/Inspect/Trim onToggle now `Hide()`/`Show()`s the video content (matching Convert); without this Fyne clamped the split to the video's 480×270 min size so the player frame stayed and metadata couldn't take the full column. Metadata toggle in Filters/Upscale hides its panel too.
 
 ### Playlist / Sequential Playback
 

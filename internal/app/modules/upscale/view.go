@@ -1254,8 +1254,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return 0.97
 	}
 
-	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200), upscaleColor, func(open bool) {
+	var metaPanel fyne.CanvasObject
+	metaPanel = buildMetadataPanel(opts, src, fyne.NewSize(0, 200), upscaleColor, func(open bool) {
 		metaOpen = open
+		if open {
+			metaPanel.Show()
+		} else {
+			metaPanel.Hide()
+		}
 		leftSplit.SetOffset(resolveOffset())
 	})
 
@@ -1285,6 +1291,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, upscaleColor, func(open bool) {
 		playerOpen = open
+		if open {
+			videoArea.Show()
+		} else {
+			videoArea.Hide()
+		}
 		leftSplit.SetOffset(resolveOffset())
 	})
 	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoArea)
