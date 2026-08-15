@@ -9209,16 +9209,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// can capture it before the split container is created further down.
 	var leftColumn *container.Split
 
+	// resolveLeftOffset is the single source of truth for the left-column split:
+	// both the player and metadata onToggle callbacks call it, so their offset
+	// decisions never fight each other (Filters/Upscale use the same pattern).
+	resolveLeftOffset := func() {
+		switch {
+		case state.convert.PlayerOpen && state.convert.MetadataOpen:
+			leftColumn.SetOffset(0.5) // Both open: 50/50
+		case state.convert.PlayerOpen:
+			leftColumn.SetOffset(0.97) // Player only: metadata collapsed
+		case state.convert.MetadataOpen:
+			leftColumn.SetOffset(0.03) // Metadata only: player collapsed
+		default:
+			leftColumn.SetOffset(0.5) // Both collapsed (shouldn't happen, default to 50/50)
+		}
+	}
+
 	playerHeader, playerHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
 		state.convert.PlayerOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			videoPanel.Show()
-			leftColumn.SetOffset(0.5)
 		} else {
 			videoPanel.Hide()
-			leftColumn.SetOffset(0.03)
 		}
+		resolveLeftOffset()
 	})
 	playerHeaderUpdate(state.convert.PlayerOpen)
 	videoPanelWithHeader := container.NewBorder(playerHeader, nil, nil, nil, videoPanel)
@@ -9235,11 +9250,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			metaPanel.Show()
-			leftColumn.SetOffset(0.5)
 		} else {
 			metaPanel.Hide()
-			leftColumn.SetOffset(0.97)
 		}
+		resolveLeftOffset()
 	})
 	if !state.convert.MetadataOpen {
 		metaPanel.Hide()
@@ -12768,15 +12782,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	metaPanelScroll := ui.NewFastVScroll(metaPanel)
 	leftColumn = container.NewVSplit(videoPanelWithHeader, metaPanelScroll)
 	// Restore vertical split from persisted layout state
-	if state.convert.PlayerOpen && state.convert.MetadataOpen {
-		leftColumn.SetOffset(0.5) // Both open: 50/50
-	} else if state.convert.PlayerOpen {
-		leftColumn.SetOffset(0.97) // Player only: metadata collapsed
-	} else if state.convert.MetadataOpen {
-		leftColumn.SetOffset(0.03) // Metadata only: player collapsed
-	} else {
-		leftColumn.SetOffset(0.5) // Both collapsed (shouldn't happen, default to 50/50)
-	}
+	resolveLeftOffset()
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit = container.NewHSplit(
