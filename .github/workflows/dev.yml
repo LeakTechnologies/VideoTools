@@ -103,13 +103,43 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v5' }}
+          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v6' }}
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
           export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
+          # libdvdread + libdvdnav from source (static-only) — required by
+          # FFmpeg's dvdvideo demuxer (cell-accurate DVD title playback).
+          curl -L "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2" | tar xj
+          cd libdvdread-6.1.3
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
+          make -j$(nproc)
+          make install
+          cd ..
+          curl -L "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2" | tar xj
+          cd libdvdnav-6.1.1
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
+          make -j$(nproc)
+          make install
+          cd ..
+          # FFmpeg's Windows configure calls pkg-config WITHOUT --static, so the
+          # dvdread entry in dvdnav's Requires.private is never expanded and the
+          # dvdnav_open2 link test fails. Rewrite dvdnav.pc so -ldvdread sits in
+          # Libs directly (same precedent as the x265.pc overwrite).
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'libdir=${exec_prefix}/lib'        >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Name: libdvdnav'                  >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Description: DVD Navigation library' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Version: 6.1.1'                   >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Libs: -L${libdir} -ldvdnav -ldvdread' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ
           cd ffmpeg-${FFMPEG_VERSION}
           # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
@@ -117,9 +147,20 @@ jobs:
           # product ships as three static binaries with no DLL/ folder.
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
+            --enable-libdvdnav --enable-libdvdread \
             --extra-ldflags="-static"
           make -j$(nproc)
           make install
+
+      - name: Verify dvdvideo demuxer
+        shell: msys2 {0}
+        run: |
+          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer"; then
+            echo "OK: dvdvideo demuxer present"
+          else
+            echo "ERROR: dvdvideo demuxer missing"
+            exit 1
+          fi
 
       - name: Build VideoTools (Windows)
         shell: msys2 {0}

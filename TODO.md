@@ -66,6 +66,9 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Anti-rationalization table** — AGENTS.md pre-written rebuttals
 - [x] **Verification discipline** — AGENTS.md log-review and state-tracking rules
 - [x] **libVLC backend decision** — Design doc: `docs/VLC_PLAYER.md`
+- [x] **dvdvideo demuxer ships in CI** — libdvdread 6.1.3 + libdvdnav 6.1.1 built statically in dev/release/msix Windows workflows; `--enable-libdvdnav/--enable-libdvdread`; `dvdnav.pc` rewritten on Windows (x265.pc precedent); Verify step gates on `ffmpeg -h demuxer=dvdvideo`; cache keys bumped (v5→v6, msix v2→v3)
+- [x] **No-scan rips use dvdvideo** — executor defaults title to 1 when `TitleNumber == 0`; kills the VOB-boundary PTS-discontinuity crash (~25–32% mark) on multi-VOB discs
+- [x] **Menu VOB audio tolerance** — `-map 0:a?` on menu VOB export paths
 
 ### Remaining high-priority items
 

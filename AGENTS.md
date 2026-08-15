@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev55` — open. dev54 shipped (player performance fixes). dev55 opened with seekGen crash fix.
+- **Cycle:** `v0.1.1-dev55` — open. dev54 shipped (player performance fixes). dev55 opened with seekGen crash fix. dvdvideo rip fix landed (dev55) — CI now ships the demuxer; tester verification pending.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
@@ -16,7 +16,8 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 |---|---|---|
 | 1 | libVLC Player Backend (Phase 1) | `docs/VLC_PLAYER.md` — PlaybackEngine interface + VLCBackend CGo wrapper; FFmpeg engine stays as long-term plan |
 | 2 | Tester verification of dev51 build | Release assets published; move roadmap cards `done` → `shipped` on sign-off |
-| 3 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
+| 3 | Tester verification of dvdvideo rip fix (dev55) | CI now builds libdvdread/libdvdnav + ships the dvdvideo demuxer; re-run a no-scan multi-VOB rip and confirm no crash at the VOB boundary |
+| 4 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
 | 4 | Dead-code retirement (post static-sidecar decision) | `scripts/windows/build-ffmpeg-shared.ps1`, DLL-folder branches in `ffmpeg_bootstrap.go`, `updateSidecars` DLL extraction — legacy-harmless, remove deliberately |
 | — | Burn multi-drive batch / IMAPI2 COM | `docs/BURN_MODULE_DESIGN.md` §2–3 |
 | — | Main Menu refactor to `internal/app/modules/mainmenu/` | LOW — deferred until engine stable |
@@ -38,12 +39,13 @@ Replace the custom FFmpeg demux/decode/sync engine with libVLC for user-facing p
 
 `VideoTools.exe`, `ffmpeg.exe`, `ffprobe.exe` are each fully self-contained. **No shared FFmpeg build. No DLL/ folder.** Enforced by objdump gates in CI that fail the job on any MinGW runtime DLL reference (`libbz2|liblzma|libiconv|libstdc++|libwinpthread|libgcc|zlib1`). App treats static sidecars as primary (`appcfg.StaticSidecarsWork()`); DLL-folder paths remain only as legacy-bundle support.
 
-### CI Toolchain — FFmpeg, x264, x265
+### CI Toolchain — FFmpeg, x264, x265, libdvdread/libdvdnav
 
 - **FFmpeg is built from source** — one static build per platform serves both the CGo link and the sidecar programs (`--extra-ldflags="-static"` on Windows; never `--disable-programs`).
 - **BtbN FFmpeg-Builds must NOT be used** — no static `.a` libs, moving-tag ABI drift.
 - **x264/x265 built from source, static-only** — MSYS2 prebuilt packages have `__declspec(dllimport)` headers that poison the static link.
 - **x265.pc must be overwritten after cmake install** (LF, POSIX paths). C++ deps (`-lstdc++ -lsupc++ -lm` Windows / `-lstdc++ -lm` Linux) go in **`Libs`**, not `Libs.private` — FFmpeg configure calls pkg-config without `--static`.
+- **dvdvideo demuxer: libdvdread 6.1.3 + libdvdnav 6.1.1 built from source, static-only**, in all Windows workflows (dev/release/msix), installed into the ffmpeg prefix, then `dvdnav.pc` overwritten so `-ldvdread` sits in **`Libs`** (same reasoning as x265.pc — FFmpeg's Windows configure calls pkg-config without `--static`, so the stock `Requires.private: dvdread` is never expanded and the `dvdnav_open2` link test fails). Linux needs no overwrite (`--pkg-config-flags="--static"` expands `Requires.private`). Each pipeline gates with `ffmpeg -h demuxer=dvdvideo`. Changing FFmpeg/dvd-lib setup invalidates the ffmpeg cache — bump the Windows `v6`/msix `v3` keys.
 - **cmake** in Linux apt deps; **nasm + mingw-w64-ucrt-x86_64-cmake** in Windows MSYS2 install.
 - Read the build log before changing FFmpeg setup. Ask before touching the FFmpeg build steps.
 

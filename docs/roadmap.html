@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev55 &mdash; Updated 21 July 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev55 &mdash; Updated 15 August 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -318,7 +318,7 @@ const roadmap = {
       { id: 'archivist', title: 'Archivist Mode', desc: 'Lossless extraction of elementary streams (m2v, ac3, sup) for manual DVD reconstruction', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'full-disc', title: 'Full-Disc Extraction', desc: 'Iterates all VTS sets + menu VOB with CSS decryption for complete disc backup', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'], deps: ['pal-ntsc'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
       { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'], deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
-      { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly. Shipped build now includes the demuxer: CI builds libdvdread 6.1.3 + libdvdnav 6.1.1 statically (dvdnav.pc rewritten on Windows so -ldvdread lands in Libs — x265.pc precedent), enables --enable-libdvdnav/--enable-libdvdread, and verifies with ffmpeg -h demuxer=dvdvideo. Executor defaults title to 1 when no scan ran, so no-scan rips use the demuxer instead of the PTS-gap concat path.', status: 'done', cycle: 'dev55', files: ['internal/app/modules/rip/executor.go', '.github/workflows/dev.yml', '.github/workflows/release.yml', '.github/workflows/windows-msix.yml'], deps: [], docs: [] },
       { id: 'rip-player', title: 'Rip DVD Player Pane', desc: 'InlineVideoPlayer at 40% width for disc preview after scan; title nav dropdown + VOB concat URL; "Play with Menus" button launches VLC or mpv for full libdvdnav interactive menu navigation', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/launch.go'], deps: ['dvdvideo', 'inline-player'], docs: [] },
       { id: 'menu-bleed', title: 'Menu VOB Bleed Fix', desc: 'CollectVOBSets excludes VTS_XX_0.VOB (menu VOB) from content title sets. Fixes menu frames glitching into output video and shifted chapter timestamps caused by menu VOB prepended to concat list.', status: 'shipped', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go'], deps: ['rip-player'], docs: ['docs/RIP_MODULE_REDESIGN.md'] },
       { id: 'chapter-diag', title: 'Chapter Diagnosis', desc: 'Verbose logging in executor: chapter count, first/last timestamps, embed/no-embed decision. Makes chapter issues debuggable from rip log.', status: 'done', cycle: 'dev49', files: ['internal/app/modules/rip/executor.go'], deps: ['ifo-scan'], docs: [] },
@@ -819,6 +819,11 @@ const changelogData = [
     { title: 'Workflow Discipline', items: [
       'Anti-rationalization table added to AGENTS.md — pre-written rebuttals to common shortcuts (log spam is cosmetic, tests pass ship it, I will update docs later, etc.)',
       'Verification discipline section added — formalized log-review-before-landing and state-tracking-var-must-be-updated rules',
+    ]},
+    { title: 'Rip Module', items: [
+      'dvdvideo demuxer now actually ships: CI builds libdvdread 6.1.3 + libdvdnav 6.1.1 statically in all Windows workflows (dev/release/msix), adds --enable-libdvdnav/--enable-libdvdread to FFmpeg configure, rewrites dvdnav.pc so -ldvdread sits in Libs (x265.pc precedent — FFmpeg Windows configure calls pkg-config without --static), and gates with a Verify dvdvideo demuxer step',
+      'Executor no longer requires TitleNumber > 0 to use dvdvideo: no-scan rips default to title 1 and use the cell-accurate demuxer instead of VOB concat (which wrote PTS discontinuities at VOB boundaries that crashed external players)',
+      'Rip module audio fix: -map 0:a? on menu VOB export paths tolerates menu VOBs with no audio stream',
     ]},
   ]},
   { version: 'v0.1.1-dev54', date: 'July 2026', tag: 'shipped', sections: [
@@ -1424,8 +1429,9 @@ const checklistData = [
     'Disc info (type/size/region) displayed at top of view',
     'Progress bar with ETA tracks encode correctly from out_time_us',
     'CSS encryption detected and warned on protected discs',
-    '-f dvdvideo demuxer handles seamless branching discs correctly',
+    '-f dvdvideo demuxer handles seamless branching discs correctly (no-scan rips default to title 1; CI-shipped demuxer)',
     'Rip DVD player pane shows preview after scan',
+    'No-scan rip of a multi-VOB disc completes without the player crash at VOB boundary (~25-32% mark)',
     'Title selection UI queues multiple titles correctly',
     'Menu VOBs excluded from content sets — no menu bleed in output video',
     'Chapters appear in output file with correct timestamps',

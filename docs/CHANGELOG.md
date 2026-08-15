@@ -23,6 +23,13 @@
 
 - **libVLC player backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 
+### Rip Module — dvdvideo demuxer actually ships
+
+- **dvdvideo demuxer wired into CI** — libdvdread 6.1.3 + libdvdnav 6.1.1 are now built from source (static-only) in all three Windows workflows (dev, release, msix); FFmpeg configure gets `--enable-libdvdnav --enable-libdvdread`. `dvdnav.pc` is rewritten after install so `-ldvdread` sits in `Libs` directly — FFmpeg's Windows configure calls pkg-config *without* `--static`, so the stock `Requires.private: dvdread` entry was never expanded and the `dvdnav_open2` link test failed (same precedent as the x265.pc overwrite). A `Verify dvdvideo demuxer` step gates each pipeline on `ffmpeg -h demuxer=dvdvideo`.
+- **Executor: no-scan rips now use dvdvideo** — `useDVDVideo` no longer requires `TitleNumber > 0`; when no scan ran, title defaults to 1 with a log line, and `ra.TitleNumber` carries the resolved value. Previously such rips fell through to the concat path, which wrote raw PTS discontinuities at VOB boundaries (the ~25–32% player crash on multi-VOB discs).
+- **Menu VOB audio tolerance** — menu VOB export paths use `-map 0:a?` so menu VOBs with no audio stream no longer fail.
+- **CI cache keys bumped** — Windows ffmpeg cache `v5`→`v6` (dev + release), msix `v2`→`v3`, forcing a rebuild with the dvd libs.
+
 ## v0.1.1-dev54 (July 2026)
 
 ### Player Performance Fixes (6 bottlenecks)
