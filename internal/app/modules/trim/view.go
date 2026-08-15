@@ -348,8 +348,10 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	var leftVSplit *container.Split
 	playerHdr, _ := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, trimColor, func(open bool) {
 		if open {
+			videoContainer.Show()
 			leftVSplit.SetOffset(0.65)
 		} else {
+			videoContainer.Hide()
 			leftVSplit.SetOffset(0.03)
 		}
 	})

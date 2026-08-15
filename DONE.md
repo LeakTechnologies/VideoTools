@@ -16,6 +16,7 @@
 - **No-scan rips use dvdvideo** — executor no longer requires `TitleNumber > 0`; defaults to title 1. Eliminates the VOB-boundary PTS discontinuity crash on multi-VOB discs (~25–32% mark).
 - **Menu VOB audio tolerance** — `-map 0:a?` on menu VOB export paths so menu VOBs with no audio stream don't fail.
 - **CI cache keys bumped** — Windows ffmpeg cache `v5`→`v6` (dev + release), msix `v2`→`v3`.
+- **Player minimize now frees the full column for metadata** — Filters/Upscale/Inspect/Trim collapsible player headers only moved the split offset; the video content was never hidden, so Fyne's `Split` clamped to the video's 480×270 min size and the player frame stayed on screen while the metadata panel stayed squashed. Player `onToggle` now calls `Hide()`/`Show()` on the video area (`videoArea` in Filters/Upscale, `videoContainer` in Inspect/Trim), mirroring Convert — collapsing the player shrinks the split to just the header bar so metadata (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim) take the full column. Filters/Upscale metadata toggle also `Hide()`/`Show()`s its panel so a folded metadata pane frees the full column for the player; Upscale's `metaPanel` was restructured to var-then-assign so the `onToggle` closure can reference it (Convert's existing pattern).
 
 ## v0.1.1-dev54 — Player Performance Fixes
 

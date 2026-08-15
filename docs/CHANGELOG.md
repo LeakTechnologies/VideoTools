@@ -14,6 +14,11 @@
 - **Config migration** — pre-dev54 configs default to all panels expanded.
 - **Convert button colour** — changed from `ui.Magenta` to `convertColor` (#7225D0).
 
+### Player Minimize — Metadata Full Column
+
+- **Player collapse now actually collapses in Filters/Upscale/Inspect/Trim** — the collapsible headers only moved the split offset; the video content was never hidden, so Fyne's `Split` clamped to the video's 480×270 minimum and the player frame stayed on screen while the metadata panel stayed squashed. Fix mirrors the Convert pattern: player `onToggle` now calls `Hide()`/`Show()` on the video area (`videoArea` in Filters/Upscale, `videoContainer` in Inspect/Trim), so the split shrinks to just the header bar and the metadata panel (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim) get the full column.
+- **Filters/Upscale metadata toggle hides its panel too** — matching Convert, a folded metadata pane frees the full column for the player. Upscale's `metaPanel` was restructured to var-then-assign so the `onToggle` closure can reference it (Convert already used this pattern).
+
 ### Player Stability
 
 - **Resume crash fix** — `Resume()` flushes stale video+audio queues, drains `frameQueue`, flushes video codec buffers, resets `decodeEOFSent`/`seekFlushBefore`.

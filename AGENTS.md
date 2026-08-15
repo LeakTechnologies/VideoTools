@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev55` — open. dev54 shipped (player performance fixes). dev55 opened with seekGen crash fix. dvdvideo rip fix landed (dev55) — CI now ships the demuxer; tester verification pending.
+- **Cycle:** `v0.1.1-dev55` — open. dev54 shipped (player performance fixes). dev55 opened with seekGen crash fix. dvdvideo rip fix landed (dev55) — CI now ships the demuxer; tester verification pending. Player-minimize layout fix landed (dev55) — collapsing the player now hides the video content in all modules so metadata/info/timeline take the full column.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues

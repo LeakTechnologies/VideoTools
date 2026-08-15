@@ -805,6 +805,12 @@ const changelogData = [
       'Config migration: pre-dev54 configs (all layout fields false) default to all panels expanded',
       'Convert button colour changed from ui.Magenta to convertColor (#7225D0)',
     ]},
+    { title: 'Player Minimize — Metadata Full Column', items: [
+      'Player collapse in Filters/Upscale/Inspect/Trim only moved the split offset — the video content was never hidden, so Fyne clamped the split to the video min size (480×270) and the player frame stayed on screen while the metadata panel stayed squashed',
+      'Fix mirrors Convert: player onToggle now calls videoArea/videoContainer Hide()/Show() (Filters/Upscale hide videoArea, Inspect/Trim hide videoContainer) so the split collapses to just the header bar and metadata (Filters/Upscale) / info tabs (Inspect) / timeline+toolbar (Trim) take the full column',
+      'Metadata toggle in Filters/Upscale also Hide()/Show()s its panel, matching Convert so a folded metadata pane frees the full column for the player',
+      'Upscale metaPanel restructured to var-then-assign so the onToggle closure can reference it (same pattern Convert already uses)',
+    ]},
     { title: 'Player Stability', items: [
       'Resume crash fix: Resume() now flushes stale video+audio queues, drains frameQueue, flushes video codec buffers, resets decodeEOFSent/seekFlushBefore — eliminates crash on app restart from stale state',
       'Thumbnail extraction deferred 3 seconds after load via goroutine — prevents thumbnail I/O from competing with initial playback',
@@ -945,6 +951,7 @@ const changelogData = [
       'Upscale module: same resolveOffset pattern; both open=0.60, player closed=0.03, meta closed=0.97; buildUpscaleBox replaced with BuildCollapsibleHeader for video section',
       'Inspect module: GridWithColumns(2) → container.NewHSplit; playerHdr drives mainSplit.SetOffset(0.5/0.03); tabbed info panel expands when player folded',
       'Trim module: leftSide Border → container.NewVSplit (leftVSplit 0.65); player collapses to 0.03; timeline+toolbar+in-out controls always visible in lower half',
+      'dev55 follow-up: Filters/Upscale/Inspect/Trim player onToggle now also Hide()/Show()s the video content (Convert already did) — the split no longer clamps to the 480×270 video min size, so collapsing the player gives the full column to metadata/info/timeline',
     ]},
     { title: 'CI + Logging + Updater', items: [
       'logging.Clear() Windows fix: close→O_TRUNC→O_APPEND — avoids Access Denied on O_APPEND handle',
