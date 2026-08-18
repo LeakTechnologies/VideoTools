@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v6' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v7' }}
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
