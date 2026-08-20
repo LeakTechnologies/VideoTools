@@ -109,6 +109,15 @@ type DiscScanResult struct {
 	Titles    []DiscTitle
 }
 
+// MenuButton describes a clickable button on a DVD menu for preview purposes.
+type MenuButton struct {
+	ID      string
+	Label   string
+	Command string
+	X0, Y0  int
+	X1, Y1  int
+}
+
 // ExecuteOptions holds everything the executor needs (no UI access).
 type ExecuteOptions struct {
 	SourcePath string

@@ -308,66 +308,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return gap
 	}
 
-	// ── DVD Player ───────────────────────────────────────────────────────────
+	// ── Content Browser ─────────────────────────────────────────────────────
+	contentBrowser := NewContentBrowser()
+	contentBrowser.SetOnSelect(func(titleNum int, selected bool) {
+		vs.selectedTitles[titleNum] = selected
+	})
+	contentBrowser.SetOnPreview(func(titleNum int) {
+		contentBrowser.SetFocused(titleNum)
+		discRoot := resolveDVDRoot(vs.sourcePath)
+		go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
+	})
+
+	// ── Menu Preview ───────────────────────────────────────────────────────
+	menuPreview := NewMenuPreview()
+
+	// ── DVD Player (for background playback; hidden from main layout) ──────
 	dvdPlayer := ui.NewInlineVideoPlayer()
 	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
-
-	var playerCanvas fyne.CanvasObject
-	if w := dvdPlayer.Widget(); w != nil {
-		playerCanvas = ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
-	} else {
-		// Non-native build: static dark placeholder
-		bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-		bg.CornerRadius = 8
-		bg.StrokeColor = ui.GridColor
-		bg.StrokeWidth = 1
-		txt := canvas.NewText("LOAD DISC TO RIP", color.NRGBA{R: 80, G: 80, B: 80, A: 255})
-		txt.TextStyle = fyne.TextStyle{Monospace: true}
-		txt.Alignment = fyne.TextAlignCenter
-		playerCanvas = container.NewMax(bg, container.NewCenter(txt))
-	}
-
-	// Title navigation (revealed when a multi-title disc is loaded)
-	titleIdx := 0
-	var titleNavSelect *widget.Select
-	var prevTitleBtn, nextTitleBtn *ui.PillButton
-
-	prevTitleBtn = ui.MakePillButton("◀", ui.BorderDim, func() {
-		if vs.scanResult == nil || titleIdx <= 0 {
-			return
-		}
-		titleIdx--
-		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
-	})
-	nextTitleBtn = ui.MakePillButton("▶", ui.BorderDim, func() {
-		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 {
-			return
-		}
-		titleIdx++
-		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
-	})
-
-	titleNavSelect = widget.NewSelect(nil, func(s string) {
-		if vs.scanResult == nil {
-			return
-		}
-		for i, dt := range vs.scanResult.Titles {
-			if buildTitleNavLabel(dt) == s {
-				titleIdx = i
-				discRoot := resolveDVDRoot(vs.sourcePath)
-				go func() { _ = dvdPlayer.LoadDVD(discRoot, dt.Number) }()
-				return
-			}
-		}
-	})
-
-	titleNavRow := container.NewHBox(
-		widget.NewLabel("Title:"),
-		titleNavSelect,
-		prevTitleBtn,
-		nextTitleBtn,
-	)
-	titleNavRow.Hide()
 
 	openInPlayerBtn := ui.MakePillButton("▶  Open in Player", opts.ModuleColor, func() {
 		if vs.sourcePath == "" {
@@ -379,21 +336,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	playerPane := container.NewBorder(nil, titleNavRow, nil, nil, playerCanvas)
-
+	// rebuildTitleNav now updates the ContentBrowser with scan results.
 	rebuildTitleNav = func() {
-		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 {
-			titleNavRow.Hide()
-			return
+		contentBrowser.SetScanResult(vs.scanResult, vs.sourcePath)
+		if vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
+			menuPreview.SetSourcePath(vs.sourcePath)
 		}
-		navOpts := make([]string, len(vs.scanResult.Titles))
-		for i, dt := range vs.scanResult.Titles {
-			navOpts[i] = buildTitleNavLabel(dt)
-		}
-		titleNavSelect.SetOptions(navOpts)
-		titleIdx = 0
-		titleNavSelect.SetSelected(navOpts[0])
-		titleNavRow.Show()
 	}
 
 	applyControls := func() {
@@ -688,25 +636,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	buildTitleCheckLabel := func(dt DiscTitle, isMain bool) string {
-		label := fmt.Sprintf("Title %d — %s, %d chapters", dt.Number, FormatDuration(dt.Duration), dt.NumChapters)
-		if isMain {
-			label += " ★ (main feature)"
-		}
-		if len(dt.Audio) > 0 {
-			parts := make([]string, 0, len(dt.Audio))
-			for _, a := range dt.Audio {
-				c := strings.ToUpper(a.Codec)
-				if a.Language != "" {
-					c += " [" + strings.ToUpper(a.Language) + "]"
-				}
-				parts = append(parts, c)
-			}
-			label += " — " + strings.Join(parts, ", ")
-		}
-		return label
-	}
-
 	rebuildEnrich = func() {
 		var mainTitle *DiscTitle
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
@@ -817,29 +746,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
-			// Find the main feature (longest duration) for display purposes.
-			mainFeatureNum := 0
-			mainDur := 0.0
-			for _, dt := range vs.scanResult.Titles {
-				if dt.Duration > mainDur {
-					mainDur = dt.Duration
-					mainFeatureNum = dt.Number
-				}
-			}
-
 			objs = append(objs, widget.NewSeparator())
 			objs = append(objs,
 				widget.NewLabelWithStyle(
-					fmt.Sprintf("Titles on disc (%d) — select to rip:", len(vs.scanResult.Titles)),
+					fmt.Sprintf("Titles on disc (%d) — select in Content Browser", len(vs.scanResult.Titles)),
 					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-			for _, dt := range vs.scanResult.Titles {
-				dt := dt // capture
-				ch := widget.NewCheck(buildTitleCheckLabel(dt, dt.Number == mainFeatureNum), func(v bool) {
-					vs.selectedTitles[dt.Number] = v
-				})
-				ch.SetChecked(vs.selectedTitles[dt.Number])
-				objs = append(objs, ch)
-			}
 		}
 
 		enrichContent.Objects = objs
@@ -977,6 +888,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			enrichContent,
 		)),
 		sectionGap(),
+		menuPreview.GetContainer(),
+		sectionGap(),
 		buildRipBox(t.LabelOutput, container.NewVBox(
 			outputEntry,
 			container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
@@ -988,11 +901,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)),
 	)
 
+	leftPane := contentBrowser.GetContainer()
 	mainSplit := container.NewHSplit(
-		playerPane,
+		leftPane,
 		container.NewVScroll(container.NewPadded(controls)),
 	)
-	mainSplit.SetOffset(0.65)
+	mainSplit.SetOffset(0.40)
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
@@ -1004,11 +918,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		logVSplit,
 	)
-}
-
-// buildTitleNavLabel builds the display label for a disc title in the nav dropdown.
-func buildTitleNavLabel(dt DiscTitle) string {
-	return fmt.Sprintf("T%02d  %s  (%d chap)", dt.Number, FormatDuration(dt.Duration), dt.NumChapters)
 }
 
 // collectVTSVOBFiles returns the content VOB paths for a VTS set in playback order.
