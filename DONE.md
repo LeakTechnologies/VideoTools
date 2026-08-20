@@ -17,6 +17,10 @@
 - **Menu VOB audio tolerance** — `-map 0:a?` on menu VOB export paths so menu VOBs with no audio stream don't fail.
 - **CI cache keys bumped** — Windows ffmpeg cache `v5`→`v6` (dev + release), msix `v2`→`v3`.
 - **Player minimize now frees the full column for metadata** — Filters/Upscale/Inspect/Trim collapsible player headers only moved the split offset; the video content was never hidden, so Fyne's `Split` clamped to the video's 480×270 min size and the player frame stayed on screen while the metadata panel stayed squashed. Player `onToggle` now calls `Hide()`/`Show()` on the video area (`videoArea` in Filters/Upscale, `videoContainer` in Inspect/Trim), mirroring Convert — collapsing the player shrinks the split to just the header bar so metadata (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim) take the full column. Filters/Upscale metadata toggle also `Hide()`/`Show()`s its panel so a folded metadata pane frees the full column for the player; Upscale's `metaPanel` was restructured to var-then-assign so the `onToggle` closure can reference it (Convert's existing pattern).
+- **ContentBrowser replaces rip player pane** — scrollable list with cycling-still thumbnails (5 keyframes per title via ffmpeg), duration, chapter/audio/subtitle counts, and per-title selection checkboxes. Left accent bar: teal = selected for export, pink = not selected. Header with Select All / Deselect All. Card tap focuses for preview.
+- **MenuPreview widget** — static menu frame capture via ffmpeg with Preserve Menus and Main Feature toggles. Placed between Format and Output in the rip view. Falls back to placeholder when no menu VOB found.
+- **UDF reader fix** — `ReadDescriptor` had two bugs: `header[12:14]` read wrong bytes (should be `header[10:12]` for `DescriptorCRCLen`), and returned data excluded the 16-byte tag header that all caller structs expect. ISO scanning now succeeds on real-world discs.
+- **CI Node.js 24 migration** — all GitHub Actions upgraded to Node 24-compatible versions; cache keys bumped (v7→v8 dev/release, v3→v4 msix).
 
 ## v0.1.1-dev54 — Player Performance Fixes
 
