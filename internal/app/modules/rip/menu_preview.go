@@ -50,7 +50,7 @@ func NewMenuPreview() *MenuPreview {
 
 	mp.menuImg = canvas.NewImageFromResource(nil)
 	mp.menuImg.FillMode = canvas.ImageFillContain
-	mp.menuImg.SetMinSize(fyne.NewSize(menuPreviewWidth, int(float64(menuPreviewWidth)*9.0/16.0)))
+	mp.menuImg.SetMinSize(fyne.NewSize(menuPreviewWidth, float32(float64(menuPreviewWidth)*9.0/16.0)))
 	mp.menuImg.Hide()
 
 	mp.loadingLbl = widget.NewLabel("Loading menu...")
@@ -112,6 +112,21 @@ func NewMenuPreview() *MenuPreview {
 	mp.ExtendBaseWidget(mp)
 	return mp
 }
+
+// CreateRenderer implements fyne.Widget.
+func (mp *MenuPreview) CreateRenderer() fyne.WidgetRenderer {
+	return &menuPreviewRenderer{content: mp.outerBox}
+}
+
+type menuPreviewRenderer struct {
+	content fyne.CanvasObject
+}
+
+func (r *menuPreviewRenderer) Destroy()                     {}
+func (r *menuPreviewRenderer) Layout(s fyne.Size)           { r.content.Resize(s) }
+func (r *menuPreviewRenderer) MinSize() fyne.Size           { return r.content.MinSize() }
+func (r *menuPreviewRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.content} }
+func (r *menuPreviewRenderer) Refresh()                     { r.content.Refresh() }
 
 // SetSourcePath sets the disc source for menu frame extraction.
 func (mp *MenuPreview) SetSourcePath(path string) {

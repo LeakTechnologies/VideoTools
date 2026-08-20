@@ -398,6 +398,21 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	}
 }
 
+// CreateRenderer implements fyne.Widget.
+func (cb *ContentBrowser) CreateRenderer() fyne.WidgetRenderer {
+	return &contentBrowserRenderer{content: cb.outerBox}
+}
+
+type contentBrowserRenderer struct {
+	content fyne.CanvasObject
+}
+
+func (r *contentBrowserRenderer) Destroy()                         {}
+func (r *contentBrowserRenderer) Layout(s fyne.Size)               { r.content.Resize(s) }
+func (r *contentBrowserRenderer) MinSize() fyne.Size               { return r.content.MinSize() }
+func (r *contentBrowserRenderer) Objects() []fyne.CanvasObject     { return []fyne.CanvasObject{r.content} }
+func (r *contentBrowserRenderer) Refresh()                         { r.content.Refresh() }
+
 // extractThumbnails runs ffmpeg to extract keyframes for a single title.
 func (cb *ContentBrowser) extractThumbnails(tc *titleCardState) {
 	cb.mu.Lock()
@@ -483,4 +498,12 @@ func extractTitleFrame(sourcePath string, titleNum int, timestamp float64, dvdVi
 	defer os.Remove(tmpFile)
 
 	return os.ReadFile(tmpFile)
+}
+
+func formatTimestamp(seconds float64) string {
+	h := int(seconds) / 3600
+	m := (int(seconds) % 3600) / 60
+	s := int(seconds) % 60
+	ms := int((seconds - float64(int(seconds))) * 1000)
+	return time.Date(0, 0, 0, h, m, s, ms*1000000, time.UTC).Format("15:04:05.000")
 }

@@ -308,6 +308,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return gap
 	}
 
+	// ── DVD Player (for background playback; hidden from main layout) ──────
+	dvdPlayer := ui.NewInlineVideoPlayer()
+	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
+
 	// ── Content Browser ─────────────────────────────────────────────────────
 	contentBrowser := NewContentBrowser()
 	contentBrowser.SetOnSelect(func(titleNum int, selected bool) {
@@ -321,10 +325,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	// ── Menu Preview ───────────────────────────────────────────────────────
 	menuPreview := NewMenuPreview()
-
-	// ── DVD Player (for background playback; hidden from main layout) ──────
-	dvdPlayer := ui.NewInlineVideoPlayer()
-	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
 
 	openInPlayerBtn := ui.MakePillButton("▶  Open in Player", opts.ModuleColor, func() {
 		if vs.sourcePath == "" {
