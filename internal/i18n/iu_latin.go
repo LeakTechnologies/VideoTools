@@ -618,6 +618,15 @@ var iuLatn = Strings{
 	RipCSSDecrypting:    "CSS Siuulliqpaujuq Ilusimajunga...",                                                               // Decrypting CSS...
 	RipCSSNotEncrypted:  "Siuulliqpaugannuqqaqtut",                                                                          // Not Encrypted
 	RipCSSStatusFmt:     "Siuulliqpauganngit: %s",                                                                           // Encryption: %s
+	RipContentBrowser:   "Illugaksaaq Titiraqtaujaraq",                                                                        // machine-generated, needs human review: Content Browser
+	RipSelectAll:        "Akiggut Inunnginnalirijjilugu",                                                                       // machine-generated, needs human review: Select All
+	RipDeselectAll:      "Akiggut Inunnginnalisimanngillugu",                                                                   // machine-generated, needs human review: Deselect All
+	RipMenuPreview:      "Tamaq Aputi",                                                                                        // machine-generated, needs human review: Disc Menu
+	RipPreserveMenus:    "Aputi Sanirlugu",                                                                                    // machine-generated, needs human review: Preserve menus
+	RipMainFeature:      "★ Maaggaqtuq",                                                                                       // machine-generated, needs human review: Main Feature
+	RipTitleCardFmt:     "T%02d  %s  %d titiraq",                                                                             // machine-generated, needs human review: T%02d %s %d chapters
+	RipClickToPreview:   "Takulugu takujautiinnik",                                                                            // machine-generated, needs human review: Click to preview
+	RipNoMenuFound:      "Aputi VOB nalunnaiqtausimanngillaq",                                                                 // machine-generated, needs human review: No menu VOB found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW

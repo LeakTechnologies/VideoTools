@@ -627,6 +627,15 @@ var iu = Strings{
 	RipCSSDecrypting:    "CSS ᓯᕗᓪᓕᖅᐸᐅᔪᑦ ᐃᓗᓯᒪᔪᑦ...",                                     // Decrypting CSS...
 	RipCSSNotEncrypted:  "ᓯᕗᓪᓕᖅᐸᐅᔪᖓᓄᖅᑲᖅᑐᑦ",                                             // Not Encrypted
 	RipCSSStatusFmt:     "ᓯᕗᓪᓕᖅᐸᐅᔪᖓ: %s",                                               // Encryption: %s
+	RipContentBrowser:   "ᐃᓚᒐᒃᓴᖅ ᑎᑎᕋᐅᔭᖅ",                                          // machine-generated, needs human review: Content Browser
+	RipSelectAll:        "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓗᒍ",                                          // machine-generated, needs human review: Select All
+	RipDeselectAll:      "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᑦᑎᓗᒍ",                                    // machine-generated, needs human review: Deselect All
+	RipMenuPreview:      "ᑎᑎᕋᖅ ᐊᑐᖅ",                                                  // machine-generated, needs human review: Disc Menu
+	RipPreserveMenus:    "ᐊᑐᖅ ᓴᓇᓗᑎᒃ",                                              // machine-generated, needs human review: Preserve menus
+	RipMainFeature:      "★ ᒫᓐᓇ ᑎᑎᕋᖅ",                                              // machine-generated, needs human review: Main Feature
+	RipTitleCardFmt:     "T%02d  %s  %d ᑎᑎᕋᖅ",                                    // machine-generated, needs human review: T%02d %s %d chapters
+	RipClickToPreview:   "ᑕᑯᒃᓴᐅᑎᑦ ᑕᑯ",                                             // machine-generated, needs human review: Click to preview
+	RipNoMenuFound:      "ᐊᑐᖅ VOB ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᓚᖅ",                               // machine-generated, needs human review: No menu VOB found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

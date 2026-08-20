@@ -708,6 +708,15 @@ type Strings struct {
 	RipCSSDecrypting    string // "Decrypting CSS..."
 	RipCSSNotEncrypted  string // "Not Encrypted"
 	RipCSSStatusFmt     string // "Encryption: %s"
+	RipContentBrowser   string // "Content Browser"
+	RipSelectAll        string // "Select All"
+	RipDeselectAll      string // "Deselect All"
+	RipMenuPreview      string // "Disc Menu"
+	RipPreserveMenus    string // "Preserve menus"
+	RipMainFeature      string // "★ Main Feature"
+	RipTitleCardFmt     string // "T%02d  %s  %d chapters"
+	RipClickToPreview   string // "Click to preview"
+	RipNoMenuFound      string // "No menu VOB found"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string

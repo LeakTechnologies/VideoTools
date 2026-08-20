@@ -696,6 +696,15 @@ var enCA = Strings{
 	RipCSSDecrypting:    "Decrypting CSS...",
 	RipCSSNotEncrypted:  "Not Encrypted",
 	RipCSSStatusFmt:     "Encryption: %s",
+	RipContentBrowser:   "Content Browser",
+	RipSelectAll:        "Select All",
+	RipDeselectAll:      "Deselect All",
+	RipMenuPreview:      "Disc Menu",
+	RipPreserveMenus:    "Preserve menus",
+	RipMainFeature:      "★ Main Feature",
+	RipTitleCardFmt:     "T%02d  %s  %d chapters",
+	RipClickToPreview:   "Click to preview",
+	RipNoMenuFound:      "No menu VOB found",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "UPSCALE NOW",
