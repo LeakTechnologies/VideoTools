@@ -17,17 +17,17 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /opt/ffmpeg
           key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
@@ -64,7 +64,7 @@ jobs:
         run: |
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
           tar czf "VideoTools_${VERSION}_linux_amd64.tar.gz" VideoTools
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: linux-amd64-release
           path: VideoTools_*.tar.gz
@@ -72,11 +72,11 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
 
@@ -98,10 +98,10 @@ jobs:
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v7' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v8' }}
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -149,6 +149,10 @@ jobs:
             --extra-ldflags="-static"
           make -j$(nproc)
           make install
+          # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
+          # is never saved to cache.
+          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer" \
+            || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: msys2 {0}
@@ -206,7 +210,7 @@ jobs:
           $version = git describe --tags --abbrev=0 2>$null
           if (-not $version) { $version = "unknown" }
           Compress-Archive -Path VideoTools.exe,ffmpeg.exe,ffprobe.exe -DestinationPath "VideoTools_${version}_windows_amd64.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows-amd64-release
           path: VideoTools_*.zip
@@ -217,7 +221,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
