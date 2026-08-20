@@ -69,6 +69,10 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **dvdvideo demuxer ships in CI** — libdvdread 6.1.3 + libdvdnav 6.1.1 built statically in dev/release/msix Windows workflows; `--enable-libdvdnav/--enable-libdvdread`; `dvdnav.pc` rewritten on Windows (x265.pc precedent); Verify step gates on `ffmpeg -h demuxer=dvdvideo`; cache keys bumped (v5→v6, msix v2→v3)
 - [x] **No-scan rips use dvdvideo** — executor defaults title to 1 when `TitleNumber == 0`; kills the VOB-boundary PTS-discontinuity crash (~25–32% mark) on multi-VOB discs
 - [x] **Menu VOB audio tolerance** — `-map 0:a?` on menu VOB export paths
+- [x] **UDF reader fix** — `ReadDescriptor` corrected: `header[12:14]` → `header[10:12]` for DescriptorCRCLen; returned data now includes 16-byte tag header expected by all caller structs
+- [x] **CI Node.js 24 migration** — GitHub Actions upgraded; cache keys bumped (v7→v8, msix v3→v4)
+- [x] **ContentBrowser** — scrollable title list with cycling-still thumbnails, per-title selection checkboxes, accent bars (teal=export, pink=no-export), Select All/Deselect All
+- [x] **MenuPreview widget** — static menu frame capture + Preserve Menus / Main Feature toggles
 
 ### Remaining high-priority items
 
