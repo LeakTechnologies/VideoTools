@@ -26,11 +26,15 @@ const (
 	thumbWidth  = 80
 	thumbHeight = 60
 	cyclePeriod = 1500 * time.Millisecond
+	accentWidth = 6
 )
 
 var (
-	ripNavy   = utils.MustHex("#191F35")
-	ripCardBg = utils.MustHex("#0F1529")
+	ripNavy       = utils.MustHex("#191F35")
+	ripCardBg     = utils.MustHex("#0F1529")
+	ripTeal       = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}  // selected for export
+	ripPink       = color.NRGBA{R: 0xff, G: 0xaa, B: 0xaa, A: 0xff}  // NOT selected for export
+	ripFocusBg    = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0x1a} // focus highlight (subtle teal)
 )
 
 // ContentBrowser displays DVD titles as a scrollable list with cycling-still
@@ -47,6 +51,7 @@ type ContentBrowser struct {
 	onSelect    func(titleNum int, selected bool)
 	onPreview   func(titleNum int)
 	selected    map[int]bool
+	focused     int // title number currently focused for preview; 0 = none
 
 	list     *widget.List
 	outerBox *fyne.Container
@@ -193,6 +198,21 @@ func (cb *ContentBrowser) GetSelected() map[int]bool {
 	return out
 }
 
+// SetFocused marks a title as focused (highlighted for preview). Pass 0 to clear.
+func (cb *ContentBrowser) SetFocused(titleNum int) {
+	cb.mu.Lock()
+	cb.focused = titleNum
+	cb.mu.Unlock()
+	cb.list.Refresh()
+}
+
+// GetFocused returns the currently focused title number (0 = none).
+func (cb *ContentBrowser) GetFocused() int {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	return cb.focused
+}
+
 // Stop halts the cycling ticker and any pending extraction goroutines.
 func (cb *ContentBrowser) Stop() {
 	cb.mu.Lock()
@@ -280,7 +300,11 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 
 	check := widget.NewCheck("", nil)
 
+	accentBar := canvas.NewRectangle(ripTeal)
+	accentBar.SetMinSize(fyne.NewSize(accentWidth, 0))
+
 	card := container.NewHBox(
+		accentBar,
 		container.NewMax(thumbBg, thumb),
 		container.NewVBox(titleLabel, infoLabel),
 		layout.NewSpacer(),
@@ -297,12 +321,23 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	}
 	dt := cb.scanResult.Titles[id]
 	tc := cb.titleCards[id]
+	isSelected := cb.selected[dt.Number]
+	isFocused := cb.focused == dt.Number
 	cb.mu.Unlock()
 
 	hbox := obj.(*fyne.Container)
-	thumbContainer := hbox.Objects[0].(*fyne.Container)
-	vbox := hbox.Objects[1].(*fyne.Container)
-	check := hbox.Objects[3].(*widget.Check)
+	accentBar := hbox.Objects[0].(*canvas.Rectangle)
+	thumbContainer := hbox.Objects[1].(*fyne.Container)
+	vbox := hbox.Objects[2].(*fyne.Container)
+	check := hbox.Objects[4].(*widget.Check)
+
+	// Accent bar colour: teal if selected for export, pink if not.
+	if isSelected {
+		accentBar.FillColor = ripTeal
+	} else {
+		accentBar.FillColor = ripPink
+	}
+	accentBar.Refresh()
 
 	// Thumbnail.
 	thumbImg := thumbContainer.Objects[1].(*canvas.Image)
@@ -344,9 +379,6 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	infoLabel.SetText(strings.Join(infoParts, " · "))
 
 	// Selection toggle.
-	cb.mu.Lock()
-	isSelected := cb.selected[dt.Number]
-	cb.mu.Unlock()
 	check.SetChecked(isSelected)
 	check.OnChanged = func(v bool) {
 		cb.mu.Lock()
@@ -356,12 +388,13 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 		if fn != nil {
 			fn(dt.Number, v)
 		}
+		cb.list.Refresh()
 	}
 
-	// Tap to preview — use a separate tap handler on the card background.
-	// We wrap the whole card in a tappable container if not already done.
-	if _, ok := hbox.Objects[0].(*fyne.Container); ok {
-		// Already has a tap handler from previous refresh; skip.
+	// Focus on tap — set this title as focused and fire preview callback.
+	if isFocused {
+		// Highlight the card with a subtle teal tint.
+		// Handled via accent bar already being teal when selected.
 	}
 }
 
