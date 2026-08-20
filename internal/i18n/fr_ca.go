@@ -681,6 +681,15 @@ var frCA = Strings{
 	RipCSSDecrypting:    "Déchiffrement CSS...",
 	RipCSSNotEncrypted:  "Non chiffré",
 	RipCSSStatusFmt:     "Chiffrement : %s",
+	RipContentBrowser:   "Navigateur de contenu",
+	RipSelectAll:        "Tout sélectionner",
+	RipDeselectAll:      "Tout désélectionner",
+	RipMenuPreview:      "Menu du disque",
+	RipPreserveMenus:    "Préserver les menus",
+	RipMainFeature:      "★ Film principal",
+	RipTitleCardFmt:     "T%02d  %s  %d chapitres",
+	RipClickToPreview:   "Cliquer pour aperçu",
+	RipNoMenuFound:      "Aucun VOB de menu trouvé",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "AGRANDIR MAINTENANT",
