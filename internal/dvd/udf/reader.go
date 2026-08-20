@@ -602,6 +602,10 @@ func (r *Reader) extractFile(ctx context.Context, icb LongAd, destPath string) e
 // ReadDescriptor reads a UDF descriptor from a specific sector.
 // The Seek and both ReadFull calls are performed under a single mutex hold
 // to prevent interleaving with concurrent callers.
+//
+// Returns the tagID and the full descriptor bytes (16-byte DescriptorTag +
+// payload) so callers can binary.Read directly into structs that begin with
+// a Tag DescriptorTag field.
 func (r *Reader) ReadDescriptor(sector uint32) (uint16, []byte, error) {
 	header := make([]byte, 16)
 	r.mu.Lock()
@@ -615,18 +619,23 @@ func (r *Reader) ReadDescriptor(sector uint32) (uint16, []byte, error) {
 		return 0, nil, err
 	}
 	tagID := binary.LittleEndian.Uint16(header[0:2])
-	dataLen := binary.LittleEndian.Uint16(header[12:14])
+	dataLen := binary.LittleEndian.Uint16(header[10:12]) // DescriptorCRCLen
 	if dataLen > SectorSize-16 {
 		dataLen = SectorSize - 16
 	}
-	data := make([]byte, dataLen)
-	_, err = io.ReadFull(r.rs, data)
+	payload := make([]byte, dataLen)
+	_, err = io.ReadFull(r.rs, payload)
 	r.mu.Unlock()
 	if err != nil {
 		return 0, nil, fmt.Errorf("read descriptor data at sector %d (tag=%d, dataLen=%d): %w",
 			sector, tagID, dataLen, err)
 	}
-	return tagID, data, nil
+	// Prepend the 16-byte tag header so callers can binary.Read into structs
+	// that include DescriptorTag as their first field.
+	full := make([]byte, 0, 16+int(dataLen))
+	full = append(full, header...)
+	full = append(full, payload...)
+	return tagID, full, nil
 }
 
 // ReadFileData returns the raw bytes of a single file identified by its UDF path
