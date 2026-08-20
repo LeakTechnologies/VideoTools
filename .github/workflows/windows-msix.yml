@@ -29,12 +29,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -68,10 +68,10 @@ jobs:
 
       - name: Cache static FFmpeg (Windows)
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v3
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v4
 
       - name: Setup static FFmpeg (Windows)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -177,6 +177,10 @@ jobs:
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           echo "[INFO] FFmpeg ${ver} Windows build complete"
+          # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
+          # is never saved to cache.
+          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer" \
+            || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
@@ -253,20 +257,20 @@ jobs:
           Set-Content -Path dist/windows/winget/VideoTools.yaml -Value $content
 
       - name: Upload MSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: VideoTools-msix
           path: dist/windows/msix/VideoTools.msix
 
       - name: Upload WinGet manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: VideoTools-winget
           path: dist/windows/winget/VideoTools.yaml
 
       - name: Upload MSIX artifact (consumed by release.yml)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: msix-artifact
           path: |
