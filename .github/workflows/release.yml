@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v8' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v9' }}
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -138,15 +138,17 @@ jobs:
           echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Libs: -L${libdir} -ldvdnav -ldvdread' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
-          curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ
-          cd ffmpeg-${FFMPEG_VERSION}
+          curl -L -o /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
+          tar xjf /tmp/ffmpeg.tar.bz2 -C /tmp
+          cd /tmp/ffmpeg-${FFMPEG_VERSION}
           # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
           # self-contained (no MinGW runtime DLLs) — the whole Windows
           # product ships as three static binaries with no DLL/ folder.
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
             --enable-libdvdnav --enable-libdvdread \
-            --extra-ldflags="-static"
+            --extra-ldflags="-static" \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc)
           make install
           # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
