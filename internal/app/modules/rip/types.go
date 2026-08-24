@@ -103,10 +103,11 @@ type DiscTitle struct {
 
 // DiscScanResult holds the outcome of scanning a disc source directory.
 type DiscScanResult struct {
-	DiscType  string // "DVD-5", "DVD-9", "DVD-10", "BD-25", "BD-50", or ""
-	TotalSize int64  // total size of all files in VIDEO_TS in bytes
-	Region    string // e.g. "Region 1", "Region Free", or ""
-	Titles    []DiscTitle
+	DiscType      string // "DVD-5", "DVD-9", "DVD-10", "BD-25", "BD-50", or ""
+	TotalSize     int64  // total size of all files in VIDEO_TS in bytes
+	Region        string // e.g. "Region 1", "Region Free", or ""
+	VideoStandard string // "NTSC", "PAL", or ""
+	Titles        []DiscTitle
 }
 
 // MenuButton describes a clickable button on a DVD menu for preview purposes.
