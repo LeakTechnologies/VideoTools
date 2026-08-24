@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v9' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v10' }}
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -144,29 +144,69 @@ jobs:
           # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
           # self-contained (no MinGW runtime DLLs) — the whole Windows
           # product ships as three static binaries with no DLL/ folder.
-          # Diagnose pkg-config before configure
-          echo "=== DEBUG: PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-          pkg-config --libs --cflags dvdnav 2>&1 || echo "WARN: pkg-config dvdnav not found"
-          pkg-config --libs --cflags dvdread 2>&1 || echo "WARN: pkg-config dvdread not found"
-          ls -la /c/ffmpeg-static/lib/pkgconfig/ 2>&1
+          #
+          # ── Phase 1: diagnose pkg-config BEFORE configure ──────────────
+          echo "=== PHASE 1: pkg-config diagnostics ==="
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          echo "cc=$(which cc 2>/dev/null || echo NOT-FOUND)"
+          echo "pkg-config=$(which pkg-config 2>/dev/null || echo NOT-FOUND)"
+          echo "--- dvdnav.pc ---"
           cat /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc 2>&1
+          echo "--- dvdread.pc ---"
           cat /c/ffmpeg-static/lib/pkgconfig/dvdread.pc 2>&1 || echo "WARN: dvdread.pc not found"
+          echo "--- pkg-config --exists tests ---"
+          pkg-config --exists "dvdnav >= 6.1.1" && echo "PASS: dvdnav >= 6.1.1" || echo "FAIL: dvdnav >= 6.1.1"
+          pkg-config --exists "dvdread >= 6.1.2" && echo "PASS: dvdread >= 6.1.2" || echo "FAIL: dvdread >= 6.1.2"
+          echo "--- pkg-config --libs (what configure will link) ---"
+          echo "dvdnav: $(pkg-config --libs dvdnav 2>&1)"
+          echo "dvdread: $(pkg-config --libs dvdread 2>&1)"
+          echo "--- pkg-config --cflags (what configure will compile with) ---"
+          echo "dvdnav: $(pkg-config --cflags dvdnav 2>&1)"
+          echo "dvdread: $(pkg-config --cflags dvdread 2>&1)"
+          echo "--- static archive files ---"
+          ls -la /c/ffmpeg-static/lib/libdvd* 2>&1
+          echo "=== END PHASE 1 ==="
+          #
+          # ── Phase 2: configure (save full output, NOT piped) ───────────
+          echo "=== PHASE 2: FFmpeg configure ==="
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
             --enable-libdvdnav --enable-libdvdread \
-            --extra-ldflags="-static" 2>&1 | tail -40
+            --extra-ldflags="-static" 2>&1 | tee /tmp/ffmpeg-configure.log
           RC=${PIPESTATUS[0]}
+          echo "=== configure exit code: $RC ==="
           if [ $RC -ne 0 ]; then
-            echo "=== configure FAILED (exit $RC) — config.log last 80 lines ==="
+            echo "=== configure FAILED — searching for dvd/dvdnav/dvdread errors ==="
+            grep -i "dvd\|dvdnav\|dvdread" /tmp/ffmpeg-configure.log || true
+            echo "=== config.log last 80 lines ==="
             tail -80 ffbuild/config.log 2>/dev/null
             exit $RC
           fi
-          # Check if dvdnav was actually detected
-          grep -i dvd ffbuild/config.log 2>/dev/null | tail -20 || true
+          #
+          # ── Phase 3: verify configure enabled dvdvideo ─────────────────
+          echo "=== PHASE 3: post-configure verification ==="
+          echo "--- config.mak dvdvideo/dvdnav/dvdread flags ---"
+          grep -iE "dvdvideo|dvdnav|dvdread" ffbuild/config.mak 2>/dev/null || echo "WARN: no dvd entries in config.mak"
+          echo "--- configure log dvd/dvdnav/dvdread lines ---"
+          grep -iE "dvd|dvdnav|dvdread" /tmp/ffmpeg-configure.log 2>/dev/null | grep -v "^#" | head -30 || echo "WARN: no dvd lines in configure log"
+          echo "--- config.log require_pkg_config results ---"
+          grep -i "require_pkg_config\|dvdnav_open2\|DVDOpen2\|dvd_reader" ffbuild/config.log 2>/dev/null | tail -20 || echo "WARN: no pkg-config test results in config.log"
+          echo "--- compile test objects exist? ---"
+          ls -la libavformat/dvdvideo* 2>/dev/null || echo "WARN: dvdvideo source not found in libavformat"
+          echo "=== END PHASE 3 ==="
+          #
           make -j$(nproc)
           make install
-          # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
-          # is never saved to cache.
+          #
+          # ── Phase 4: final verification ────────────────────────────────
+          echo "=== PHASE 4: post-build verification ==="
+          echo "--- dvdvideo object file ---"
+          ls -la libavformat/dvdvideodec.o 2>/dev/null || echo "WARN: dvdvideodec.o not found"
+          echo "--- ffmpeg -buildconf (dvdnav/dvdread flags) ---"
+          /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -i dvd || echo "WARN: no dvd flags in buildconf"
+          echo "--- ffmpeg -h demuxer=dvdvideo ---"
+          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | head -5
+          echo "=== END PHASE 4 ==="
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
 
