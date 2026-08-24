@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev56 — NTSC/PAL Detection + CI FFmpeg Build Fixes
+
+- **NTSC/PAL video standard detection on disc load** — `DiscScanResult.VideoStandard` set to `"NTSC"` or `"PAL"` from the first title's VTS IFO PGC frame-rate bits. The `IsNTSC` flag was already extracted by the IFO layer (`extract.go:175`) but never surfaced. Displayed in the disc-info label: `DVD-9 · NTSC · Region 1 · 7.2 GB`.
+- **CI: FFmpeg `.tar.xz` → `.tar.bz2`** — MSYS2 tar may lack xz decompression on current GitHub-hosted runners. dev.yml and release.yml now match the proven MSIX workflow format. Cache bumped to v9.
+- **CI: configure failure diagnostics** — `ffbuild/config.log` last 80 lines dumped on configure failure; dvdvideo diagnostic probes (pkg-config, dvdnav.pc dump, config.log grep) added before/after configure.
+- **Content browser build errors fixed** — 7 compile errors: `dvdPlayer` scope, ContentBrowser/MenuPreview `CreateRenderer`, `float32` conversion, `formatTimestamp` helper (`6a48fbe2`).
+
 ## v0.1.1-dev55 — seekGen Crash Fix + Convert Layout + Resume Fix + VLC Decision
 
 - **seekGen log spam crash fixed** — `lastSeekGen` was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever. I/O pressure killed the process (dev53 crash on seek). Fix: assign `lastSeekGen = gen` after the check.

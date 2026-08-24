@@ -73,6 +73,9 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **CI Node.js 24 migration** — GitHub Actions upgraded; cache keys bumped (v7→v8, msix v3→v4)
 - [x] **ContentBrowser** — scrollable title list with cycling-still thumbnails, per-title selection checkboxes, accent bars (teal=export, pink=no-export), Select All/Deselect All
 - [x] **MenuPreview widget** — static menu frame capture + Preserve Menus / Main Feature toggles
+- [x] **NTSC/PAL video standard detection** — `DiscScanResult.VideoStandard` from VTS IFO PGC frame-rate bits; displayed in disc-info label
+- [x] **CI: FFmpeg `.tar.xz` → `.tar.bz2`** — MSYS2 xz support gap; configure diagnostics added
+- [x] **Content browser build errors fixed** — 7 compile errors resolved (scope, CreateRenderer, float32, formatTimestamp)
 
 ### Remaining high-priority items
 
