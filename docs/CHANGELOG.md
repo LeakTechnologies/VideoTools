@@ -1,5 +1,21 @@
 # VideoTools Changelog
 
+## v0.1.1-dev56 (August 2026)
+
+### Rip Module — NTSC/PAL Video Standard Detection
+
+- **Video standard detected on disc load** — `DiscScanResult.VideoStandard` is now set to `"NTSC"` or `"PAL"` from the first title's VTS IFO PGC frame-rate bits (the `IsNTSC` flag was already extracted by the IFO layer but never surfaced). Displayed in the disc-info label: `DVD-9 · NTSC · Region 1 · 7.2 GB`.
+
+### CI — Windows FFmpeg Build Fixes
+
+- **FFmpeg download switched from `.tar.xz` to `.tar.bz2`** — MSYS2's `tar` may lack xz decompression support on current GitHub-hosted runner images. The MSIX workflow already used `.tar.bz2` successfully; dev.yml and release.yml now match. Cache bumped to v9 to force a fresh build.
+- **Configure failure diagnostics** — `ffbuild/config.log` (last 80 lines) is now dumped when FFmpeg's `./configure` fails, making the root cause visible in the Actions log without raw-log access.
+- **dvdvideo diagnostic probes** — pkg-config checks for dvdnav/dvdread, dvdnav.pc dump, and config.log grep for dvd-related entries are printed before and after configure, so silent detection failures are diagnosable.
+
+### Rip Module — Content Browser Build Fixes
+
+- **7 compile errors resolved** — `dvdPlayer` declaration reordered before ContentBrowser callback (was undefined), `CreateRenderer` + renderer structs added to ContentBrowser and MenuPreview (fyne.Widget interface), `float32` conversion fix in MenuPreview.SetMinSize, local `formatTimestamp` helper added to content_list.go (was referencing unexported function from `internal/ui`).
+
 ## v0.1.1-dev55 (July 2026)
 
 ### Player Crash Fix (seekGen log spam)

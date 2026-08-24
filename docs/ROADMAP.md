@@ -38,7 +38,8 @@ timeline
     v0.1.1-dev52 (Shipped) : CI & infra hardening : Three static binaries : Update checker migrated to GitHub API
     v0.1.1-dev53 (Shipped) : Update checker migrated from Forgejo to GitHub API
     v0.1.1-dev54 (Shipped) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
-    v0.1.1-dev55 (Current) : seekGen log spam crash fix : Convert layout fixes : Resume crash fix : VLC backend decision : Player minimize → metadata full column
+    v0.1.1-dev55 (Shipped) : seekGen log spam crash fix : Convert layout fixes : Resume crash fix : VLC backend decision : Player minimize → metadata full column
+    v0.1.1-dev56 (Current) : NTSC/PAL video standard detection : CI FFmpeg build fix (.tar.xz → .tar.bz2) : Content browser build fixes
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -50,7 +51,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev55 work** |
+| **Green** | **Current dev56 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -59,12 +60,10 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev55)
+## Current State (v0.1.1-dev56)
 
-- All dev50-54 items shipped, including player performance fixes.
-- **Dev55 open**: seekGen crash fix, Convert layout fixes, resume crash fix, thumbnail deferral.
-- **Player minimize now frees the full column for metadata** — Filters/Upscale/Inspect/Trim collapsible player headers only moved the split offset; the video content was never hidden, so the split clamped to the 480×270 video min size and the player frame stayed on screen. Player `onToggle` now `Hide()`/`Show()`s the video area (matching Convert), so collapsing the player gives the full column to metadata (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim); Filters/Upscale metadata toggle hides its panel too.
-- **Rip dvdvideo demuxer now actually ships**: CI builds libdvdread 6.1.3 + libdvdnav 6.1.1 statically in all Windows workflows (dev/release/msix), enables `--enable-libdvdnav/--enable-libdvdread`, rewrites `dvdnav.pc` on Windows so `-ldvdread` lands in `Libs` (x265.pc precedent), and gates with a `Verify dvdvideo demuxer` step. Executor defaults title to 1 when no scan ran, so no-scan rips use the cell-accurate demuxer instead of the PTS-gap concat path.
+- All dev50-55 items shipped, including seekGen crash fix, Convert layout fixes, resume crash fix, content browser redesign, and dvdvideo demuxer.
+- **Dev56 open**: NTSC/PAL video standard detection on disc load; CI FFmpeg build fix (.tar.xz → .tar.bz2); content browser build fixes.
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
@@ -73,11 +72,11 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev55 — open)
+## Now (dev56 — open)
 
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
-- Convert module layout state persistence (all panels expand/collapse)
-- **Tester verification of the dvdvideo rip fix** — re-run Sweethearts rip after the CI-shipped demuxer lands; confirm no crash at the VOB boundary
+- **Tester verification of dev55 build** — Release assets published; move roadmap cards `done` → `shipped` on sign-off
+- **Tester verification of dvdvideo rip fix** — re-run Sweethearts rip after the CI-shipped demuxer lands; confirm no crash at the VOB boundary
 - Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
 
 ## Shipped (dev51)

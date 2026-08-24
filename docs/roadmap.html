@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev55 &mdash; Updated 15 August 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev56 &mdash; Updated 24 August 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -311,6 +311,7 @@ const roadmap = {
       { id: 'ifo-scan', title: 'IFO Scanning', desc: 'Reads VMG TT_SRPT + per-VTS IFOs for titles, chapters, audio, subtitle tracks', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/ifo/extract.go', 'internal/dvd/ifo/vtsi.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: ['docs/RIP_ENRICHMENT_DESIGN.md'] },
       { id: 'iso-udf', title: 'ISO via UDF Reader', desc: 'Native Go UDF parser — extracts VIDEO_TS from ISO without 7zip or mounting', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/udf/reader.go'], deps: [], docs: [] },
       { id: 'region-detect', title: 'Region Detection', desc: 'VMG_Category parsing from VIDEO_TS.IFO for disc region display', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/scan.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: [] },
+      { id: 'ntsc-pal-detect', title: 'NTSC/PAL Detection', desc: 'Video standard detection from VTS IFO PGC frame-rate bits — displayed in disc-info label (e.g. DVD-9 · NTSC · Region 1 · 7.2 GB)', status: 'done', cycle: 'dev56', files: ['internal/app/modules/rip/types.go', 'internal/app/modules/rip/scan.go', 'internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
       { id: 'disc-info', title: 'Disc Info at Top', desc: 'Type/size/region shown as standalone label above controls — no card wrapper', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
       { id: 'progress-eta', title: 'Progress Bar + ETA', desc: 'Parses out_time_us from FFmpeg, computes encode rate, shows compact ETA in status', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'css-detect', title: 'CSS Encryption Detection', desc: 'Detects CSS-encrypted VOBs before ripping, logs warning', status: 'shipped', cycle: 'dev45', files: ['internal/dvd/css/css.go'], deps: [], docs: [] },
@@ -598,7 +599,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev55';
+const currentVersion = 'dev56';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -794,7 +795,21 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev55', date: 'July 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev56', date: 'August 2026', tag: 'current', sections: [
+    { title: 'NTSC/PAL Video Standard Detection', items: [
+      'DiscScanResult.VideoStandard set from VTS IFO PGC frame-rate bits (TitleInfo.IsNTSC)',
+      'Displayed in disc-info label as part of the type/size/region string (e.g. DVD-9 · NTSC · Region 1 · 7.2 GB)',
+    ]},
+    { title: 'CI Fixes', items: [
+      'FFmpeg download switched from .tar.xz to .tar.bz2 to fix MSYS2 missing xz support',
+      'Configure failure diagnostics added: probes dvdnav.pc, config.log entries, and configure error output before FFmpeg build',
+      'Cache keys bumped (v8→v9) to invalidate stale FFmpeg builds',
+    ]},
+    { title: 'Content Browser Build Fixes', items: [
+      'Fixed 7 compile errors: dvdPlayer scope, CreateRenderer missing for ContentBrowser/MenuPreview, float32 comparison, formatTimestamp helper',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev55', date: 'July 2026', tag: 'shipped', sections: [
     { title: 'Player Crash Fix', items: [
       'seekGen log spam crash fixed: lastSeekGen was never updated after comparison, causing 60×/sec "first frame after seek" log lines forever — I/O pressure killed the process (dev53 crash on seek)',
       'Also removed redundant per-frame "frame fmt=" log line that accompanied the seekGen spam',
@@ -1433,7 +1448,8 @@ const checklistData = [
     'IFO scanning reads titles, chapters, audio/subtitle tracks correctly',
     'ISO via UDF reader extracts VIDEO_TS without mounting',
     'Region detection shows correct disc region from VMG_Category',
-    'Disc info (type/size/region) displayed at top of view',
+    'NTSC/PAL video standard detection shows correct standard from VTS IFO PGC frame-rate bits',
+    'Disc info (type/size/region/standard) displayed at top of view',
     'Progress bar with ETA tracks encode correctly from out_time_us',
     'CSS encryption detected and warned on protected discs',
     '-f dvdvideo demuxer handles seamless branching discs correctly (no-scan rips default to title 1; CI-shipped demuxer)',
