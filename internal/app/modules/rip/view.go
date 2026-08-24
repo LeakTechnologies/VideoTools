@@ -714,6 +714,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			if vs.scanResult.DiscType != "" {
 				parts = append(parts, vs.scanResult.DiscType)
 			}
+			if vs.scanResult.VideoStandard != "" {
+				parts = append(parts, vs.scanResult.VideoStandard)
+			}
 			if vs.scanResult.Region != "" {
 				parts = append(parts, vs.scanResult.Region)
 			}

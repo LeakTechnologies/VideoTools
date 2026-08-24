@@ -107,6 +107,22 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 		TotalSize: discSize,
 		Region:    region,
 	}
+
+	// Determine video standard (NTSC/PAL) from the first title's VTS IFO.
+	// The IsNTSC flag is set from the PGC header frame-rate bits during
+	// ReadTitleInfo; we take it from whichever VTS was read first (typically
+	// the main feature).
+	if len(tsps) > 0 {
+		firstVTS := int(tsps[0].VTSNumber)
+		if ti, ok := vtsCache[firstVTS]; ok && ti != nil {
+			if ti.IsNTSC {
+				result.VideoStandard = "NTSC"
+			} else {
+				result.VideoStandard = "PAL"
+			}
+		}
+	}
+
 	for i, t := range tsps {
 		dt := DiscTitle{
 			Number:      i + 1,
@@ -148,8 +164,8 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 		}
 		result.Titles = append(result.Titles, dt)
 	}
-	logging.Info(logging.CatDVD, "ScanDisc: %d titles in VIDEO_TS, type=%s, size=%d, region=%s",
-		len(result.Titles), result.DiscType, result.TotalSize, result.Region)
+	logging.Info(logging.CatDVD, "ScanDisc: %d titles in VIDEO_TS, type=%s, size=%d, region=%s, std=%s",
+		len(result.Titles), result.DiscType, result.TotalSize, result.Region, result.VideoStandard)
 	return result, nil
 }
 
