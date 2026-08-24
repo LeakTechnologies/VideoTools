@@ -146,11 +146,25 @@ jobs:
           # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
           # self-contained (no MinGW runtime DLLs) — the whole Windows
           # product ships as three static binaries with no DLL/ folder.
+          # Diagnose pkg-config before configure
+          echo "=== DEBUG: PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          pkg-config --libs --cflags dvdnav 2>&1 || echo "WARN: pkg-config dvdnav not found"
+          pkg-config --libs --cflags dvdread 2>&1 || echo "WARN: pkg-config dvdread not found"
+          ls -la /c/ffmpeg-static/lib/pkgconfig/ 2>&1
+          cat /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc 2>&1
+          cat /c/ffmpeg-static/lib/pkgconfig/dvdread.pc 2>&1 || echo "WARN: dvdread.pc not found"
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
             --enable-libdvdnav --enable-libdvdread \
-            --extra-ldflags="-static" \
-            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+            --extra-ldflags="-static" 2>&1 | tail -40
+          RC=${PIPESTATUS[0]}
+          if [ $RC -ne 0 ]; then
+            echo "=== configure FAILED (exit $RC) — config.log last 80 lines ==="
+            tail -80 ffbuild/config.log 2>/dev/null
+            exit $RC
+          fi
+          # Check if dvdnav was actually detected
+          grep -i dvd ffbuild/config.log 2>/dev/null | tail -20 || true
           make -j$(nproc)
           make install
           # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
