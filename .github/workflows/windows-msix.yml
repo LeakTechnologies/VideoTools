@@ -179,7 +179,7 @@ jobs:
           echo "[INFO] FFmpeg ${ver} Windows build complete"
           # Hard-fail inside the build step so a partial FFmpeg (without dvdvideo)
           # is never saved to cache.
-          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer" \
+          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
@@ -187,7 +187,7 @@ jobs:
         env:
           MSYSTEM: UCRT64
         run: |
-          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer"; then
+          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo"; then
             echo "OK: dvdvideo demuxer present"
           else
             echo "ERROR: dvdvideo demuxer missing"

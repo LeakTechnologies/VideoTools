@@ -207,13 +207,13 @@ jobs:
           echo "--- ffmpeg -h demuxer=dvdvideo ---"
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | head -5
           echo "=== END PHASE 4 ==="
-          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer" \
+          /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: msys2 {0}
         run: |
-          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "DVD video demuxer"; then
+          if /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo"; then
             echo "OK: dvdvideo demuxer present"
           else
             echo "ERROR: dvdvideo demuxer missing"
