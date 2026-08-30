@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev56` — open. dev55 shipped (seekGen crash fix, Convert layout, content browser redesign, dvdvideo demuxer, VLC backend decision). dev56 opened with NTSC/PAL video standard detection. CI FFmpeg build fixed (.tar.xz → .tar.bz2). Windows FFmpeg build still failing (dvdvideo demuxer not detected by configure — diagnostic probes added).
+- **Cycle:** `v0.1.1-dev56` — open. dev55 shipped (seekGen crash fix, Convert layout, content browser redesign, dvdvideo demuxer, VLC backend decision). dev56 opened with NTSC/PAL video standard detection. CI FFmpeg build fixed (.tar.xz → .tar.bz2, dvdvideo verify grep now matches the `dvdvideo` short name — the demuxer's long_name is `DVD-Video` with a hyphen). **Windows FFmpeg builds are GREEN** (verified `69ec8610`). dvdvideo runtime probe fixed: `SupportsDVDVideo()` in the rip module was grepping the spaced long name and always returned false, silently forcing VOB concat on every rip — now greps `dvdvideo`.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues

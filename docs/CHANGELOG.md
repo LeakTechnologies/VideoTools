@@ -11,6 +11,11 @@
 - **FFmpeg download switched from `.tar.xz` to `.tar.bz2`** — MSYS2's `tar` may lack xz decompression support on current GitHub-hosted runner images. The MSIX workflow already used `.tar.bz2` successfully; dev.yml and release.yml now match. Cache bumped to v9 to force a fresh build.
 - **Configure failure diagnostics** — `ffbuild/config.log` (last 80 lines) is now dumped when FFmpeg's `./configure` fails, making the root cause visible in the Actions log without raw-log access.
 - **dvdvideo diagnostic probes** — pkg-config checks for dvdnav/dvdread, dvdnav.pc dump, and config.log grep for dvd-related entries are printed before and after configure, so silent detection failures are diagnosable.
+- **dvdvideo verify grep fixed** — the Build/Verify steps grepped `"DVD video demuxer"`, which never matches: the demuxer's `long_name` is `DVD-Video` (hyphenated), so the FATAL gate always fired on a correct build. Steps now grep the `dvdvideo` short name. **Windows FFmpeg builds are GREEN** (`69ec8610`).
+
+### Rip Module — dvdvideo runtime detection fix
+
+- **`SupportsDVDVideo()` probe fixed** — same root-cause string: it grepped `"DVD video demuxer"` (spaces) against `ffmpeg -h demuxer=dvdvideo`, which never matches FFmpeg 8.1's output. The probe always returned `false`, so **every rip silently fell back to VOB concat** (the PTS-discontinuity path) even on builds that ship the demuxer. Now greps the `dvdvideo` short name (safe: a missing demuxer exits non-zero and returns early at the `err` gate). This finally activates the cell-accurate dvdvideo path for normal rips — ready for the no-scan multi-VOB tester re-run.
 
 ### Rip Module — Content Browser Build Fixes
 

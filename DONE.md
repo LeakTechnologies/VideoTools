@@ -6,6 +6,7 @@
 - **CI: FFmpeg `.tar.xz` → `.tar.bz2`** — MSYS2 tar may lack xz decompression on current GitHub-hosted runners. dev.yml and release.yml now match the proven MSIX workflow format. Cache bumped to v9.
 - **CI: configure failure diagnostics** — `ffbuild/config.log` last 80 lines dumped on configure failure; dvdvideo diagnostic probes (pkg-config, dvdnav.pc dump, config.log grep) added before/after configure.
 - **Content browser build errors fixed** — 7 compile errors: `dvdPlayer` scope, ContentBrowser/MenuPreview `CreateRenderer`, `float32` conversion, `formatTimestamp` helper (`6a48fbe2`).
+- **dvdvideo detection string fixed in two places** — CI verify grep `"DVD video demuxer"` → `"dvdvideo"` (the demuxer's long_name is `DVD-Video`, hyphenated, so the FATAL gate always fired on a correct build; Windows pipelines now green, `69ec8610`), and the rip module's `SupportsDVDVideo()` runtime probe, which used the same spaced string and **always returned false — silently forcing VOB concat on every rip**. The probe now matches the short name (missing demuxer fails the command and returns early), so cell-accurate dvdvideo rips finally activate at runtime.
 
 ## v0.1.1-dev55 — seekGen Crash Fix + Convert Layout + Resume Fix + VLC Decision
 
