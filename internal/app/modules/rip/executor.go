@@ -44,7 +44,9 @@ func SupportsDVDVideo() bool {
 		logging.Debug(logging.CatDVD, "SupportsDVDVideo: ffmpeg -h demuxer=dvdvideo failed: %v", err)
 		return false
 	}
-	dvdVideoSupported = strings.Contains(string(out), "DVD video demuxer")
+	// Probe for the demuxer's short name: `ffmpeg -h demuxer=dvdvideo` prints
+	// "dvdvideo demuxer:" (long_name "DVD-Video" is hyphenated, not spaced).
+	dvdVideoSupported = strings.Contains(string(out), "dvdvideo")
 	logging.Info(logging.CatDVD, "SupportsDVDVideo: %v", dvdVideoSupported)
 	return dvdVideoSupported
 }
