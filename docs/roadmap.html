@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev56 &mdash; Updated 29 August 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev57 &mdash; Updated 31 August 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -599,7 +599,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev56';
+const currentVersion = 'dev57';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -795,7 +795,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev56', date: 'August 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev57', date: 'August 2026', tag: 'current', sections: [
+    { title: 'Release cut — dvdvideo detection fixes', items: [
+      'CI verify grep and rip SupportsDVDVideo() runtime probe both used the spaced long name "DVD video demuxer" (real long_name is "DVD-Video", hyphenated) — a correct build always failed the FATAL gate and every rip silently fell back to VOB concat',
+      'Both now match the "dvdvideo" short name (missing demuxer exits non-zero and returns early at the error gate) — Windows CI green (69ec8610), runtime probe verified against a real FFmpeg 8.1 binary, cell-accurate dvdvideo rips finally activate',
+      'Built on the dev56 fixes: NTSC/PAL detection, CI FFmpeg build fix (.tar.xz → .tar.bz2), content browser build fixes, dvdvideo demuxer shipping',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev56', date: 'August 2026', tag: 'shipped', sections: [
     { title: 'NTSC/PAL Video Standard Detection', items: [
       'DiscScanResult.VideoStandard set from VTS IFO PGC frame-rate bits (TitleInfo.IsNTSC)',
       'Displayed in disc-info label as part of the type/size/region string (e.g. DVD-9 · NTSC · Region 1 · 7.2 GB)',

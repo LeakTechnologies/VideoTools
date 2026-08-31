@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## v0.1.1-dev57 (August 2026)
+
+- **Release cut after dvdvideo detection fixes.** dev56 is closed and shipped as `v0.1.1-dev57`: the CI verify grep and the rip `SupportsDVDVideo()` runtime probe both used the spaced long name `"DVD video demuxer"` (real long_name is `DVD-Video`, hyphenated), so a correct build always failed the FATAL gate and every rip silently fell back to VOB concat. Both now match the `dvdvideo` short name — Windows CI green (`69ec8610`), runtime probe green (verified against a real FFmpeg 8.1 binary), and cell-accurate dvdvideo rips finally activate.
+
 ## v0.1.1-dev56 (August 2026)
 
 ### Rip Module — NTSC/PAL Video Standard Detection

@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev56` — open. dev55 shipped (seekGen crash fix, Convert layout, content browser redesign, dvdvideo demuxer, VLC backend decision). dev56 opened with NTSC/PAL video standard detection. CI FFmpeg build fixed (.tar.xz → .tar.bz2, dvdvideo verify grep now matches the `dvdvideo` short name — the demuxer's long_name is `DVD-Video` with a hyphen). **Windows FFmpeg builds are GREEN** (verified `69ec8610`). dvdvideo runtime probe fixed: `SupportsDVDVideo()` in the rip module was grepping the spaced long name and always returned false, silently forcing VOB concat on every rip — now greps `dvdvideo`.
+- **Cycle:** `v0.1.1-dev57` — open. dev56 shipped (NTSC/PAL detection, CI FFmpeg build fixes, content browser build fixes, dvdvideo detection-string fix in both the CI verify grep and the rip `SupportsDVDVideo()` runtime probe). **Windows FFmpeg builds are GREEN** (verified `69ec8610`) and the runtime probe no longer silently forces VOB concat — rips now activate the cell-accurate dvdvideo path, ready for the no-scan multi-VOB tester re-run. dev57 opened as the release cut after these fixes.
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
@@ -16,7 +16,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 |---|---|---|
 | 1 | libVLC Player Backend (Phase 1) | `docs/VLC_PLAYER.md` — PlaybackEngine interface + VLCBackend CGo wrapper; FFmpeg engine stays as long-term plan |
 | 2 | Tester verification of dev51 build | Release assets published; move roadmap cards `done` → `shipped` on sign-off |
-| 3 | Tester verification of dvdvideo rip fix (dev55) | CI now builds libdvdread/libdvdnav + ships the dvdvideo demuxer; re-run a no-scan multi-VOB rip and confirm no crash at the VOB boundary |
+| 3 | Tester verification of dvdvideo rip fix (dev55–dev57) | CI now builds libdvdread/libdvdnav + ships the dvdvideo demuxer, and the runtime probe no longer forces VOB concat; re-run a no-scan multi-VOB rip and confirm no crash at the VOB boundary |
 | 4 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
 | 4 | Dead-code retirement (post static-sidecar decision) | `scripts/windows/build-ffmpeg-shared.ps1`, DLL-folder branches in `ffmpeg_bootstrap.go`, `updateSidecars` DLL extraction — legacy-harmless, remove deliberately |
 | — | Burn multi-drive batch / IMAPI2 COM | `docs/BURN_MODULE_DESIGN.md` §2–3 |
