@@ -117,6 +117,23 @@ jobs:
           make -j$(nproc)
           make install
           cd ..
+          # Guard: dvdread.pc must be installed and visible to pkg-config before
+          # libdvdnav / FFmpeg configure, which query dvdread via $PKG_CONFIG.
+          # libdvdread's `make install` has intermittently dropped dvdread.pc;
+          # fail fast here with a clear message and the missing pc contents
+          # instead of failing confusingly later at FFmpeg configure
+          # ("Package 'dvdread' not found").
+          if [ ! -f /c/ffmpeg-static/lib/pkgconfig/dvdread.pc ]; then
+            echo "FATAL: dvdread.pc not installed at /c/ffmpeg-static/lib/pkgconfig/"
+            ls -la /c/ffmpeg-static/lib/pkgconfig/ 2>&1 || true
+            exit 1
+          fi
+          if ! pkg-config --exists dvdread; then
+            echo "FATAL: pkg-config cannot find dvdread (PKG_CONFIG_PATH=$PKG_CONFIG_PATH)"
+            cat /c/ffmpeg-static/lib/pkgconfig/dvdread.pc 2>&1
+            exit 1
+          fi
+          echo "OK: dvdread.pc present, pkg-config --exists dvdread passes"
           curl -L "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2" | tar xj
           cd libdvdnav-6.1.1
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
