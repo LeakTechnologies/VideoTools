@@ -124,6 +124,17 @@ jobs:
           cd /tmp/libdvdread-src
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
           make -j$(nproc) && make install
+          # Guard: dvdread.pc must be installed and visible to pkg-config before
+          # libdvdnav / FFmpeg configure, which query dvdread via $PKG_CONFIG.
+          # libdvdread's `make install` has intermittently dropped dvdread.pc;
+          # fail fast here with a clear message instead of confusingly later at
+          # FFmpeg configure ("Package 'dvdread' not found"). The pc file is
+          # published to the default /ucrt64/lib/pkgconfig path below.
+          if [ ! -f /c/ffmpeg-static/lib/pkgconfig/dvdread.pc ]; then
+            echo "FATAL: dvdread.pc not installed at /c/ffmpeg-static/lib/pkgconfig/"
+            ls -la /c/ffmpeg-static/lib/pkgconfig/ 2>&1 || true
+            exit 1
+          fi
           rm -rf /tmp/libdvdread-src /tmp/libdvdread.tar.bz2
 
           echo "[INFO] Building libdvdnav from source (static only)..."
