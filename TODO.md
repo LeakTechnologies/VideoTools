@@ -2,6 +2,12 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev57 Scope (current — release cut)
+
+- [x] **dvdvideo detection string fixed** — CI verify grep + rip `SupportsDVDVideo()` runtime probe now match the `dvdvideo` short name (long_name is `DVD-Video`, hyphenated). Windows CI green (`69ec8610`); runtime probe verified against FFmpeg 8.1. Rips no longer silently fall back to VOB concat.
+- [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3); move the dvdvideo roadmap card `done` → `shipped` on sign-off.
+- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+
 ## Dev48 Scope (closing)
 
 - [x] **Theme system** — `internal/theme/` package with VT_Navy palette, PillButton, PillIconButton, text primitives. See `DONE.md` for full dev48 changelog.

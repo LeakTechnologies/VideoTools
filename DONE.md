@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev57 — Release Cut: dvdvideo detection fixes
+
+- **dvdvideo detection string fixed everywhere** — both the CI verify grep and the rip module's `SupportsDVDVideo()` runtime probe used the spaced long name `"DVD video demuxer"`, which never matches FFmpeg 8.1 (real long_name is `DVD-Video`, hyphenated). The FATAL gate always fired on a correct build and the probe always returned false (silently forcing VOB concat on every rip). Both now match the `dvdvideo` short name — safe because a missing demuxer exits non-zero and returns early at the error gate.
+- **CI green** (`69ec8610`) — Windows FFmpeg builds pass the corrected verify grep; the demuxer ships in all three workflows.
+- **Runtime probe verified** against a real FFmpeg 8.1 binary (`ffmpeg -h demuxer=dvdvideo` → `True`). Cell-accurate dvdvideo rips finally activate.
+
 ## v0.1.1-dev56 — NTSC/PAL Detection + CI FFmpeg Build Fixes
 
 - **NTSC/PAL video standard detection on disc load** — `DiscScanResult.VideoStandard` set to `"NTSC"` or `"PAL"` from the first title's VTS IFO PGC frame-rate bits. The `IsNTSC` flag was already extracted by the IFO layer (`extract.go:175`) but never surfaced. Displayed in the disc-info label: `DVD-9 · NTSC · Region 1 · 7.2 GB`.

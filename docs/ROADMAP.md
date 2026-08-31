@@ -39,7 +39,8 @@ timeline
     v0.1.1-dev53 (Shipped) : Update checker migrated from Forgejo to GitHub API
     v0.1.1-dev54 (Shipped) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
     v0.1.1-dev55 (Shipped) : seekGen log spam crash fix : Convert layout fixes : Resume crash fix : VLC backend decision : Player minimize → metadata full column
-    v0.1.1-dev56 (Current) : NTSC/PAL video standard detection : CI FFmpeg build fix (.tar.xz → .tar.bz2) : Content browser build fixes : dvdvideo detection string fixed (CI grep + runtime probe)
+    v0.1.1-dev56 (Shipped) : NTSC/PAL video standard detection : CI FFmpeg build fix (.tar.xz → .tar.bz2) : Content browser build fixes : dvdvideo detection string fixed (CI grep + runtime probe)
+    v0.1.1-dev57 (Current) : Release cut after dvdvideo detection fixes : libVLC Player Backend (Phase 1)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -51,7 +52,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev56 work** |
+| **Green** | **Current dev57 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -60,10 +61,10 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev56)
+## Current State (v0.1.1-dev57)
 
-- All dev50-55 items shipped, including seekGen crash fix, Convert layout fixes, resume crash fix, content browser redesign, and dvdvideo demuxer.
-- **Dev56 open**: NTSC/PAL video standard detection on disc load; CI FFmpeg build fix (.tar.xz → .tar.bz2); content browser build fixes; dvdvideo detection fixed in both the CI verify grep and the rip `SupportsDVDVideo()` runtime probe (Windows CI green; rips now actually use the demuxer instead of silently falling back to VOB concat).
+- **Dev56 closed and shipped as `v0.1.1-dev57`**: NTSC/PAL detection, CI FFmpeg build fix (.tar.xz → .tar.bz2), content browser build fixes, and the dvdvideo detection string fixed in both the CI verify grep and the rip `SupportsDVDVideo()` runtime probe — Windows CI green (`69ec8610`), runtime probe verified against a real FFmpeg 8.1 binary, so rips now actually use the cell-accurate demuxer instead of silently falling back to VOB concat.
+- **Dev57 open**: tester verification of the dev57 release and the no-scan multi-VOB rip (now that the runtime probe no longer blocks the dvdvideo path); libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
@@ -72,11 +73,10 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev56 — open)
+## Now (dev57 — open)
 
+- **Tester verification of dev57 release + dvdvideo rip** — Release assets published; run the no-scan multi-VOB rip and confirm no crash at the VOB boundary (the runtime probe fix finally routes rips through the cell-accurate dvdvideo path); move roadmap cards `done` → `shipped` on sign-off
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
-- **Tester verification of dev55 build** — Release assets published; move roadmap cards `done` → `shipped` on sign-off
-- **Tester verification of dvdvideo rip fix** — CI now ships the demuxer (green) and the runtime probe no longer blocks it, so a no-scan multi-VOB rip finally exercises the cell-accurate path; re-run and confirm no crash at the VOB boundary
 - Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
 
 ## Shipped (dev51)
