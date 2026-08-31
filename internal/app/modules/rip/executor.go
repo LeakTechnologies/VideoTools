@@ -546,16 +546,18 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		}
 	}
 
-	listFile := ""
-	if !useDVDVideo {
-		var err error
-		listFile, err = BuildConcatList(set.Files)
-		if err != nil {
-			appendLog(fmt.Sprintf("Error building concat list: %v", err))
-			return fmt.Errorf("build concat list: %w", err)
-		}
-		defer os.Remove(listFile)
+	// Build the concat list up-front regardless of path. It is the reliable
+	// fallback when -f dvdvideo can't open the source (libdvdnav/libdvdread may
+	// reject the root IFO — e.g. a nonzero reserved field that fails its strict
+	// "Zero check failed" validation, or a source libdvdcss can't open). The list
+	// is cheap (a temp file); it lets us retry with VOB concat after a dvdvideo
+	// open/run failure instead of hard-failing the rip.
+	listFile, err := BuildConcatList(set.Files)
+	if err != nil {
+		appendLog(fmt.Sprintf("Error building concat list: %v", err))
+		return fmt.Errorf("build concat list: %w", err)
 	}
+	defer os.Remove(listFile)
 
 	// Create output directory if it doesn't exist.
 	outputDir := outputPath
@@ -653,13 +655,9 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		}
 	}
 
-	args := BuildRipArgs(ra)
-	// Insert progress tracking before the output path (last arg)
-	progressArgs := []string{"-progress", "pipe:1", "-nostats"}
-	args = append(args[:len(args)-1], append(progressArgs, args[len(args)-1])...)
-	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
-	updateProgress(10)
-
+	// runWithArgs builds the ffmpeg command from a RipArgs struct and runs it,
+	// returning any error. Extracted into a closure so the rip can be retried
+	// with the VOB concat path after a dvdvideo open/run failure.
 	dur := 0.0
 	if titleInfo != nil {
 		dur = titleInfo.Duration
@@ -676,7 +674,32 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			opts.OnSetStatus(msg)
 		}
 	}
-	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog, updateStatus); err != nil {
+	runWithArgs := func(r RipArgs) error {
+		args := BuildRipArgs(r)
+		// Insert progress tracking before the output path (last arg)
+		progressArgs := []string{"-progress", "pipe:1", "-nostats"}
+		args = append(args[:len(args)-1], append(progressArgs, args[len(args)-1])...)
+		appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
+		updateProgress(10)
+		return runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog, updateStatus)
+	}
+
+	err = runWithArgs(ra)
+	if err != nil && useDVDVideo && ctx.Err() == nil {
+		// -f dvdvideo opened/ran but failed (libdvdnav rejected the source IFO,
+		// CSS auth unavailable, etc.). Retry with the reliable VOB concat path.
+		// Chapter/audio/subtitle enrichment is preserved; only the demuxer input
+		// changes. Concat + -c copy can write PTS discontinuities at VOB
+		// boundaries, so log the fallback for diagnosis. Do NOT fall back on
+		// context cancellation (the user aborted the rip).
+		appendLog(fmt.Sprintf("dvdvideo demuxer failed (%v) — retrying with VOB concatenation", err))
+		ra.VideoTSPath = ""
+		ra.TitleNumber = 0
+		ra.ListFile = listFile
+		if err2 := runWithArgs(ra); err2 != nil {
+			return err2
+		}
+	} else if err != nil {
 		return err
 	}
 
