@@ -53,11 +53,11 @@ func NewMenuPreview() *MenuPreview {
 	mp.menuImg.SetMinSize(fyne.NewSize(menuPreviewWidth, float32(float64(menuPreviewWidth)*9.0/16.0)))
 	mp.menuImg.Hide()
 
-	mp.loadingLbl = widget.NewLabel("Loading menu...")
+	mp.loadingLbl = widget.NewLabel(i18n.T().RipLoadingMenu)
 	mp.loadingLbl.Alignment = fyne.TextAlignCenter
 	mp.loadingLbl.Hide()
 
-	mp.placeholder = canvas.NewText("NO MENU FOUND", color.NRGBA{R: 80, G: 80, B: 80, A: 255})
+	mp.placeholder = canvas.NewText(strings.ToUpper(i18n.T().RipNoMenuPlaceholder), color.NRGBA{R: 80, G: 80, B: 80, A: 255})
 	mp.placeholder.TextStyle = fyne.TextStyle{Monospace: true}
 	mp.placeholder.Alignment = fyne.TextAlignCenter
 

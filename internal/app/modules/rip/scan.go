@@ -9,6 +9,7 @@ import (
 
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/udf"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
 )
 
@@ -36,15 +37,16 @@ func classifyDiscType(totalBytes int64) string {
 // classifyDiscRegion reads the VMG_Category from the VMG_MAT and returns a
 // human-readable region string, or "" when it cannot be determined.
 func classifyDiscRegion(category uint32) string {
+	t := i18n.T()
 	regionMask := byte(category & 0xFF)
 	// All regions set or none set → region-free.
 	if regionMask == 0 || regionMask == 0xFF {
-		return "Region Free"
+		return t.RipRegionFree
 	}
 	// Bit 0 = region 1, bit 1 = region 2, etc.
 	for i := 0; i < 8; i++ {
 		if regionMask == (1 << i) {
-			return fmt.Sprintf("Region %d", i+1)
+			return fmt.Sprintf(t.RipRegionFmt, i+1)
 		}
 	}
 	// Multiple regions flagged → list them.
@@ -55,7 +57,7 @@ func classifyDiscRegion(category uint32) string {
 		}
 	}
 	if len(regions) > 0 {
-		return "Regions " + strings.Join(regions, ", ")
+		return fmt.Sprintf(t.RipRegionsFmt, strings.Join(regions, ", "))
 	}
 	return ""
 }

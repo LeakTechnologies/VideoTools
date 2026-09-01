@@ -649,6 +649,35 @@ var iu = Strings{
 	RipReadyNoSelection: "ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᔪᓐᓇᙱᑦᑐᑦ",                         // machine-generated, needs human review: No titles selected for rip.
 	RipReadyOne:         "1 ᐊᑕᐅᓯᖃᑦᑑᑎ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                       // machine-generated, needs human review: Ready to rip 1 title
 	RipReadyManyFmt:     "%d ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                   // machine-generated, needs human review: Ready to rip %d titles
+	RipLogOpen:          "▼ LOG",                                                    // machine-generated, needs human review: ▼ LOG
+	RipLogClose:         "▶ LOG",                                                    // machine-generated, needs human review: ▶ LOG
+	RipOpenInPlayer:     "▶ ᖃᕋᓴᐅᔭᕐᒧᑦ ᒪᑉᐱᐊᖅ",                                  // machine-generated, needs human review: Open in Player
+	RipErrNoDiscLoaded:  "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᑕᐅᓂᖏᑦᑐᖅ — ISO ᐅᕝᕙᓘᓐᓃᑦ VIDEO_TS ᐃᒻᒥᖅᓱᖅᓗᒍ",  // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
+	RipTitlePlaceholder: "ᑎᑎᕋᖅ / ᐊᔾᔨᙳᐊᖅᑕᐅᕗᑦ ᐊᑎᖓ (metadata)",                      // machine-generated, needs human review: Disc / movie title (embedded as metadata)
+	RipTitleLabel:       "ᐊᑎᖓ",                                                    // machine-generated, needs human review: Title
+	RipEmbedChapters:    "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ ᓇᓗᓇᐃᖅᑕᐅᓗᑎᒃ",                          // machine-generated, needs human review: Embed chapters
+	RipEmbedChaptersCountFmt: "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ ᓇᓗᓇᐃᖅᑕᐅᓗᑎᒃ (%d)",             // machine-generated, needs human review: Embed chapters (%d)
+	RipEmbedChaptersNone:     "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ (ᖃᓕᕈᓐᓂᒃ ᐊᑭᑐᐃᓐᓇᖅ)",           // machine-generated, needs human review: Embed chapters (none on disc)
+	RipAllAudioTracks:        "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ",                        // machine-generated, needs human review: All audio tracks
+	RipAllAudioTracksLangsFmt: "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ (%d: %s)",            // machine-generated, needs human review: All audio tracks (%d: %s)
+	RipAllAudioTracksCountFmt: "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ (%d)",            // machine-generated, needs human review: All audio tracks (%d)
+	RipIncludeSubtitles:       "ᑐᑭᓯᓐᓂᕐᒥ ᐃᓚᖅᑎᑦᑎ (DVD bitmap)",                     // machine-generated, needs human review: Include subtitles (DVD bitmap)
+	RipIncludeSubtitlesMP4:    "ᑐᑭᓯᓐᓂᕐᒥ ᐃᓚᖅᑎᑦᑎ (MP4 ᐱᔾᔪᑎᖃᙱᑦᑐᖅ)",             // machine-generated, needs human review: Include subtitles (not supported in MP4)
+	RipIncludeSubtitlesNone:   "ᑐᑭᓯᓐᓂᕐᒥ ᐃᓚᖅᑎᑦᑎ (ᖃᓕᕈᓐᓂᒃ ᐊᑭᑐᐃᓐᓇᖅ)",             // machine-generated, needs human review: Include subtitles (none on disc)
+	RipIncludeSubtitlesCountFmt: "ᑐᑭᓯᓐᓂᕐᒥ ᐃᓚᖅᑎᑦᑎ (%d ᓱᒃᑳᓯ)",                     // machine-generated, needs human review: Include subtitles (%d streams)
+	RipPreserveMenusFull:      "ᐊᑐᖅ ᓴᓇᓗᑎᒃ (ᐊᓯᖏᓐᓄᑦ ᑎᑎᕋᖅᑐᑎᒃ)",                    // machine-generated, needs human review: Preserve menus (separate files)
+	RipFullDiscExtraction:     "ᑕᒪᕐᒥᒃ ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᓅᖅᑎᑦᑎ (DVD-Video ᓄᑕᐅᑉ ᐊᑐᖃᓴᐅᑎᑎᐊᕐᕕᒃ IFO)", // machine-generated, needs human review: Full disc extraction (DVD-Video with IFO regeneration)
+	RipRegionConversion:       "ᓇᒧᑦ ᐊᓯᙳᐊᖅᑕᐅᓕᑦᑎᓂᖅ",                                // machine-generated, needs human review: Region Conversion
+	RipRegionNone:             "ᓇᒧᑦ",                                                    // machine-generated, needs human review: None
+	RipRegionPALtoNTSC:        "PAL → NTSC",                                              // machine-generated, needs human review: PAL → NTSC
+	RipRegionNTSCtoPAL:        "NTSC → PAL",                                              // machine-generated, needs human review: NTSC → PAL
+	RipAdvancedOptions:        "ᐊᒥᐊᓐᑑᑦ",                                                // machine-generated, needs human review: Advanced
+	RipTitlesOnDiscFmt:        "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐊᑕᐅᓯᖃᑦᑑᑎ (%d) — Content Browser ᐃᓱᕐᕋᐃᖅᑕᐅᓗᒍ", // machine-generated, needs human review: Titles on disc (%d) — select in Content Browser
+	RipRegionFree:             "ᓇᒧᑦ ᐊᑕᖓᐅᑦᑎ",                                          // machine-generated, needs human review: Region Free
+	RipRegionFmt:              "ᓇᒧᑦ %d",                                                 // machine-generated, needs human review: Region %d
+	RipRegionsFmt:             "ᓇᒧᑦ %s",                                                 // machine-generated, needs human review: Regions %s
+	RipLoadingMenu:            "ᐊᑐᖅᓯᓂᖅ ᐃᒻᒥᖅᓱᖅᑐᖅ...",                                 // machine-generated, needs human review: Loading menu...
+	RipNoMenuPlaceholder:      "ᐊᑐᖅ ᓇᓗᓇᐃᖅᑕᐅᓂᖏᑦᑐᖅ",                                   // machine-generated, needs human review: No menu found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

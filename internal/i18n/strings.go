@@ -730,6 +730,35 @@ type Strings struct {
 	RipReadyNoSelection string // "No titles selected for rip."
 	RipReadyOne         string // "Ready to rip 1 title"
 	RipReadyManyFmt     string // "Ready to rip %d titles"
+	RipLogOpen          string // "▼ LOG" (log toggle, expanded)
+	RipLogClose         string // "▶ LOG" (log toggle, collapsed)
+	RipOpenInPlayer     string // "Open in Player"
+	RipErrNoDiscLoaded  string // "no disc loaded — drop an ISO or VIDEO_TS folder"
+	RipTitlePlaceholder string // "Disc / movie title (embedded as metadata)"
+	RipTitleLabel       string // "Title" (output-title field header)
+	RipEmbedChapters    string // "Embed chapters"
+	RipEmbedChaptersCountFmt string // "Embed chapters (%d)"
+	RipEmbedChaptersNone     string // "Embed chapters (none on disc)"
+	RipAllAudioTracks        string // "All audio tracks"
+	RipAllAudioTracksLangsFmt string // "All audio tracks (%d: %s)"
+	RipAllAudioTracksCountFmt string // "All audio tracks (%d)"
+	RipIncludeSubtitles       string // "Include subtitles (DVD bitmap)"
+	RipIncludeSubtitlesMP4    string // "Include subtitles (not supported in MP4)"
+	RipIncludeSubtitlesNone   string // "Include subtitles (none on disc)"
+	RipIncludeSubtitlesCountFmt string // "Include subtitles (%d streams)"
+	RipPreserveMenusFull      string // "Preserve menus (separate files)"
+	RipFullDiscExtraction     string // "Full disc extraction (DVD-Video with IFO regeneration)"
+	RipRegionConversion       string // "Region Conversion"
+	RipRegionNone             string // "None" (no region conversion)
+	RipRegionPALtoNTSC        string // "PAL → NTSC"
+	RipRegionNTSCtoPAL        string // "NTSC → PAL"
+	RipAdvancedOptions        string // "Advanced"
+	RipTitlesOnDiscFmt        string // "Titles on disc (%d) — select in Content Browser"
+	RipRegionFree             string // "Region Free"
+	RipRegionFmt              string // "Region %d"
+	RipRegionsFmt             string // "Regions %s"
+	RipLoadingMenu            string // "Loading menu..."
+	RipNoMenuPlaceholder      string // "No menu found"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string
