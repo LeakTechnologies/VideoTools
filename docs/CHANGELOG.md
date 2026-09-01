@@ -1,5 +1,17 @@
 # VideoTools Changelog
 
+## v0.1.1-dev58 (August 2026)
+
+### Rip Module Overhaul (UX)
+
+- **Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow** — the old two-panel split (Content Browser dominating the screen) is replaced by a single vertical flow: Source box → Disc summary → Content Browser (reused as the TITLES section) → Format → Menu preview → Output → Action box. The discard-heavy browsing pane no longer owns the screen.
+- **Disc info populates reliably on load** — two fixes behind it. (1) `ScanDisc` read a per-VTS cache entry before the cache was populated, so `VideoStandard` was never set and NTSC/PAL never surfaced; the standard is now derived from the first title's VTS after the loop (real disc verified: DVD-9, PAL, Region Free, 4 titles). (2) The disc summary is decoupled from the heavier enrichment rebuild into a dedicated `updateDiscInfo()` that runs on scan completion, so a partial enrichment failure can never hide disc info.
+- **Dedicated `DiscSummary` card** — explicit empty / scanning / scanned / error states, showing type · standard · region · size · title count, plus ★ Main Feature (the longest title). Scrollable with the rest of the flow, not an afterthought label.
+- **Advanced accordion** — common output options (chapters, audio, subtitles) stay first-class; uncommon ones (Preserve menus as separate files, PAL≠NTSC conversion, full-disc extraction with IFO regeneration) are grouped under an Advanced accordion. Format-aware visibility preserved (lossless/archivist formats still hide region/full-disc controls).
+- **Readiness line + action area** — "Ready to rip N title(s)" (or a load/selection prompt) updates on scan completion and per-title selection change, driving RIP NOW / Add to Queue / Open in Player in a dedicated action box.
+- **Compact log** — the rip log is now a collapsible strip (default 0.92 offset, ▼/▶ LOG toggle) rather than a full-height pane.
+- **i18n pass** — every hardcoded rip label, option, dialog, and region string ("Embed chapters", "All audio tracks", "Include subtitles", "Preserve menus (separate files)", "Full disc extraction", "Region Conversion", "Advanced", "Loading menu...", "Region Free/Region N/Regions N...") moved into `internal/i18n` across en/fr/iu/iu_latin.
+
 ## v0.1.1-dev57 (August 2026)
 
 - **Release cut after dvdvideo detection fixes.** dev56 is closed and shipped as `v0.1.1-dev57`: the CI verify grep and the rip `SupportsDVDVideo()` runtime probe both used the spaced long name `"DVD video demuxer"` (real long_name is `DVD-Video`, hyphenated), so a correct build always failed the FATAL gate and every rip silently fell back to VOB concat. Both now match the `dvdvideo` short name — Windows CI green (`69ec8610`), runtime probe green (verified against a real FFmpeg 8.1 binary), and cell-accurate dvdvideo rips finally activate.

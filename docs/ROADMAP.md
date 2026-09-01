@@ -40,7 +40,8 @@ timeline
     v0.1.1-dev54 (Shipped) : Player performance fixes (6 bottlenecks) : Convert layout state persistence
     v0.1.1-dev55 (Shipped) : seekGen log spam crash fix : Convert layout fixes : Resume crash fix : VLC backend decision : Player minimize → metadata full column
     v0.1.1-dev56 (Shipped) : NTSC/PAL video standard detection : CI FFmpeg build fix (.tar.xz → .tar.bz2) : Content browser build fixes : dvdvideo detection string fixed (CI grep + runtime probe)
-    v0.1.1-dev57 (Current) : Release cut after dvdvideo detection fixes : libVLC Player Backend (Phase 1)
+    v0.1.1-dev57 (Shipped) : Release cut after dvdvideo detection fixes : dvdvideo→VOB concat runtime fallback : dvdread.pc fail-fast guard
+    v0.1.1-dev58 (Current) : Rip module overhaul (linear workflow, DiscSummary, Advanced accordion, readiness line, i18n pass)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -52,7 +53,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev57 work** |
+| **Green** | **Current dev58 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -61,10 +62,11 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev57)
+## Current State (v0.1.1-dev58)
 
-- **Dev56 closed and shipped as `v0.1.1-dev57`**: NTSC/PAL detection, CI FFmpeg build fix (.tar.xz → .tar.bz2), content browser build fixes, and the dvdvideo detection string fixed in both the CI verify grep and the rip `SupportsDVDVideo()` runtime probe — Windows CI green (`69ec8610`), runtime probe verified against a real FFmpeg 8.1 binary, so rips now actually use the cell-accurate demuxer instead of silently falling back to VOB concat.
-- **Dev57 open**: tester verification of the dev57 release and the no-scan multi-VOB rip (now that the runtime probe no longer blocks the dvdvideo path); libVLC Player Backend (Phase 1).
+- **Dev57 closed and shipped**: dvdvideo detection string captured (release cut), plus the dvdvideo→VOB concat runtime fallback and the CI dvdread.pc fail-fast guard.
+- **Dev58 open — rip module overhaul (UX) landed**: linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `ScanDisc.VideoStandard` fixed (was read before the VTS cache filled) with disc info decoupled into `updateDiscInfo()`, dedicated `DiscSummary` card with explicit empty/scanning/scanned/error states, Advanced accordion for menus/PAL↔NTSC/full-disc options, "Ready to rip N title(s)" readiness line, compact collapsible log, and a full i18n pass (en/fr/iu/iu_latin).
+- **Dev58 gates**: tester verification of the dev58 build (disc-info populates on ISO/VIDEO_TS load, scan flow reads clean) and of the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.

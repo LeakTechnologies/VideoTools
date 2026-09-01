@@ -1,5 +1,16 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev58 — Rip Module Overhaul (UX) + release cut
+
+- **Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow** — single vertical flow replaces the two-panel split where the Content Browser dominated the screen. Source box → DiscSummary card → Content Browser (TITLES) → Format → Menu preview → Output → Action box (RIP NOW / Add to Queue / Open in Player).
+- **Disc info populates reliably on load** — `ScanDisc.VideoStandard` was read before the VTS cache filled (NTSC/PAL never surfaced); detection moved after the loop (verified on a real disc: DVD-9, PAL, Region Free, 4 titles). Disc info decoupled into `updateDiscInfo()` so an enrichment failure can't hide it.
+- **Dedicated `DiscSummary` card** — explicit empty/scanning/scanned/error states; type · standard · region · size · title count + ★ Main Feature (longest title).
+- **Advanced accordion** — menus preservation, PAL↔NTSC conversion, and full-disc extraction grouped; common chapter/audio/subtitle options stay first-class. Format-aware visibility preserved.
+- **Readiness line** — "Ready to rip N title(s)" updates on scan and selection change, anchoring the action box.
+- **Compact collapsible log** — default 0.92 split offset, ▼/▶ LOG toggle.
+- **i18n pass** — all rip module hardcoded labels/options/dialogs/region strings localized across en/fr/iu/iu_latin.
+- **Tester gate (dev58):** confirm disc-info populates on ISO/VIDEO_TS load, scan flow reads clean, and the dev58 build passes sign-off.
+
 ## v0.1.1-dev57 — Release Cut: dvdvideo detection fixes
 
 - **dvdvideo detection string fixed everywhere** — both the CI verify grep and the rip module's `SupportsDVDVideo()` runtime probe used the spaced long name `"DVD video demuxer"`, which never matches FFmpeg 8.1 (real long_name is `DVD-Video`, hyphenated). The FATAL gate always fired on a correct build and the probe always returned false (silently forcing VOB concat on every rip). Both now match the `dvdvideo` short name — safe because a missing demuxer exits non-zero and returns early at the error gate.
