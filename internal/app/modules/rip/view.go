@@ -760,11 +760,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			chaptersCheck,
 			allAudioCheck,
 			subsCheck,
-			menusCheck,
-			widget.NewSeparator(),
-			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			ntscSelect,
-			fullDiscCheck,
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
@@ -774,6 +769,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 					fmt.Sprintf("Titles on disc (%d) — select in Content Browser", len(vs.scanResult.Titles)),
 					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		}
+
+		// Uncommon options live in an Advanced accordion so the day-to-day
+		// output path stays clean: menus preservation, PAL↔NTSC conversion,
+		// and full-disc extraction.
+		advanced := container.NewVBox(
+			menusCheck,
+			widget.NewSeparator(),
+			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			ntscSelect,
+			fullDiscCheck,
+		)
+		objs = append(objs, widget.NewSeparator())
+		objs = append(objs, widget.NewAccordion(widget.NewAccordionItem("Advanced", advanced)))
 
 		enrichContent.Objects = objs
 		enrichContent.Refresh()
