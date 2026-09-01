@@ -645,6 +645,10 @@ var iu = Strings{
 	RipDiscScanned:      "ᐸᕐᓇᐃᖅᓱᑎᓪᓗᒍ ✓",                                         // machine-generated, needs human review: SCANNED ✓
 	RipTitleCount:       "ᐊᑕᐅᓯᖃᑦᑑᑎᑦ",                                             // machine-generated, needs human review: titles
 	RipTitleShort:       "ᐊᑕᐅᓯᖃᑦᑑᑎ",                                                // machine-generated, needs human review: Title
+	RipReadyNoTitles:    "Aᐊᔾᔨᙳᐊᓗᒍ ᐃᒻᒥᖅᓱᖅᑕᐅᓗᒍ",                                  // machine-generated, needs human review: Load a disc to begin.
+	RipReadyNoSelection: "ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᔪᓐᓇᙱᑦᑐᑦ",                         // machine-generated, needs human review: No titles selected for rip.
+	RipReadyOne:         "1 ᐊᑕᐅᓯᖃᑦᑑᑎ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                       // machine-generated, needs human review: Ready to rip 1 title
+	RipReadyManyFmt:     "%d ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                   // machine-generated, needs human review: Ready to rip %d titles
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

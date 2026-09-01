@@ -636,6 +636,10 @@ var iuLatn = Strings{
 	RipDiscScanned:      "Parnaiqsutillugu ✓",                                                                                 // machine-generated, needs human review: SCANNED ✓
 	RipTitleCount:       "Atausiqattutit",                                                                                     // machine-generated, needs human review: titles
 	RipTitleShort:       "Atausiqattut",                                                                                        // machine-generated, needs human review: Title
+	RipReadyNoTitles:    "Ajjigiattiarvik immiqsuqtaujuq aallariigiami.",                                                     // machine-generated, needs human review: Load a disc to begin.
+	RipReadyNoSelection: "Atausiqattut isumagijaujunnaqtungittut",                                                            // machine-generated, needs human review: No titles selected for rip.
+	RipReadyOne:         "1 atasuiqattut isumagijauq qanuilirqtuq",                                                           // machine-generated, needs human review: Ready to rip 1 title
+	RipReadyManyFmt:     "%d atasuiqattuit isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip %d titles
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW

@@ -20,7 +20,7 @@ import (
 // (empty / scanning / ok / error), each of which updates independently as the
 // scan progresses. All Set* methods must be called from the UI thread.
 type DiscSummary struct {
-	outer     *fyne.Container // rounded navy box (header + body)
+	outer *fyne.Container // rounded navy box (header + body)
 
 	titleLbl  *widget.Label
 	statusLbl *widget.Label

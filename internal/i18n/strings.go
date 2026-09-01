@@ -726,6 +726,10 @@ type Strings struct {
 	RipDiscScanned      string // "SCANNED ✓"
 	RipTitleCount       string // "titles"
 	RipTitleShort       string // "Title"
+	RipReadyNoTitles    string // "Load a disc to begin."
+	RipReadyNoSelection string // "No titles selected for rip."
+	RipReadyOne         string // "Ready to rip 1 title"
+	RipReadyManyFmt     string // "Ready to rip %d titles"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string
