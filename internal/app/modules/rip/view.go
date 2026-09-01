@@ -259,13 +259,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
 
 	var collapseLogBtn *ui.PillButton
-	collapseLogBtn = ui.MakePillButton("▼ LOG", ui.BorderDim, func() {
+	collapseLogBtn = ui.MakePillButton(t.RipLogOpen, ui.BorderDim, func() {
 		if logVSplit.Offset > 0.9 {
 			logVSplit.SetOffset(0.60)
-			collapseLogBtn.SetText("▼ LOG")
+			collapseLogBtn.SetText(t.RipLogOpen)
 		} else {
 			logVSplit.SetOffset(0.97)
-			collapseLogBtn.SetText("▶ LOG")
+			collapseLogBtn.SetText(t.RipLogClose)
 		}
 	})
 
@@ -332,9 +332,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// ── Menu Preview ───────────────────────────────────────────────────────
 	menuPreview := NewMenuPreview()
 
-	openInPlayerBtn := ui.MakePillButton("▶  Open in Player", opts.ModuleColor, func() {
+	openInPlayerBtn := ui.MakePillButton(t.RipOpenInPlayer, opts.ModuleColor, func() {
 		if vs.sourcePath == "" {
-			dialog.ShowError(fmt.Errorf("no disc loaded — drop an ISO or VIDEO_TS folder"), opts.Window)
+			dialog.ShowError(fmt.Errorf("%s", t.RipErrNoDiscLoaded), opts.Window)
 			return
 		}
 		if opts.OnOpenInPlayer != nil {
@@ -597,36 +597,36 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	// ── Enrichment options ───────────────────────────────────────────────────
 	titleEntry := widget.NewEntry()
-	titleEntry.SetPlaceHolder("Disc / movie title (embedded as metadata)")
+	titleEntry.SetPlaceHolder(t.RipTitlePlaceholder)
 	titleEntry.SetText(vs.discTitle)
 	titleEntry.OnChanged = func(v string) { vs.discTitle = strings.TrimSpace(v) }
 
-	chaptersCheck := widget.NewCheck("Embed chapters", func(v bool) {
+	chaptersCheck := widget.NewCheck(t.RipEmbedChapters, func(v bool) {
 		vs.embedChapters = v
 		vs.persistConfig()
 	})
 	chaptersCheck.SetChecked(vs.embedChapters)
 
-	allAudioCheck := widget.NewCheck("All audio tracks", func(v bool) {
+	allAudioCheck := widget.NewCheck(t.RipAllAudioTracks, func(v bool) {
 		vs.allAudioTracks = v
 		vs.persistConfig()
 	})
 	allAudioCheck.SetChecked(vs.allAudioTracks)
 
-	subsCheck := widget.NewCheck("Include subtitles (DVD bitmap)", func(v bool) {
+	subsCheck := widget.NewCheck(t.RipIncludeSubtitles, func(v bool) {
 		vs.includeSubtitles = v
 		vs.persistConfig()
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
-	menusCheck := widget.NewCheck("Preserve menus (separate files)", func(v bool) {
+	menusCheck := widget.NewCheck(t.RipPreserveMenusFull, func(v bool) {
 		vs.includeMenus = v
 		vs.persistConfig()
 	})
 	menusCheck.SetChecked(vs.includeMenus)
 
 	var fullDiscCheck *widget.Check // assigned below; referenced by ntscSelect callback
-	fullDiscCheck = widget.NewCheck("Full disc extraction (DVD-Video with IFO regeneration)", func(v bool) {
+	fullDiscCheck = widget.NewCheck(t.RipFullDiscExtraction, func(v bool) {
 		if v && vs.regionConvert != "" {
 			vs.extractMode = "full"
 			vs.outputPath = FullDiscOutputPath(vs.sourcePath)
@@ -642,11 +642,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fullDiscCheck.SetChecked(false)
 	fullDiscCheck.Disable()
 
-	ntscSelect := widget.NewSelect([]string{"None", "PAL → NTSC", "NTSC → PAL"}, func(value string) {
+	ntscSelect := widget.NewSelect([]string{t.RipRegionNone, t.RipRegionPALtoNTSC, t.RipRegionNTSCtoPAL}, func(value string) {
 		switch value {
-		case "PAL → NTSC":
+		case t.RipRegionPALtoNTSC:
 			vs.regionConvert = "pal2ntsc"
-		case "NTSC → PAL":
+		case t.RipRegionNTSCtoPAL:
 			vs.regionConvert = "ntsc2pal"
 		default:
 			vs.regionConvert = ""
@@ -659,7 +659,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			fullDiscCheck.SetChecked(false)
 		}
 	})
-	ntscSelect.SetSelected("None")
+	ntscSelect.SetSelected(t.RipRegionNone)
 
 	enrichContent := container.NewVBox()
 
@@ -683,13 +683,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		// Chapter checkbox
-		chapLabel := "Embed chapters"
+		chapLabel := t.RipEmbedChapters
 		if mainTitle != nil {
 			if mainTitle.NumChapters > 1 {
-				chapLabel = fmt.Sprintf("Embed chapters (%d)", mainTitle.NumChapters)
+				chapLabel = fmt.Sprintf(t.RipEmbedChaptersCountFmt, mainTitle.NumChapters)
 				chaptersCheck.Enable()
 			} else {
-				chapLabel = "Embed chapters (none on disc)"
+				chapLabel = t.RipEmbedChaptersNone
 				chaptersCheck.SetChecked(false)
 				chaptersCheck.Disable()
 			}
@@ -700,30 +700,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 		chaptersCheck.Refresh()
 
 		// Audio checkbox
-		audioLabel := "All audio tracks"
+		audioLabel := t.RipAllAudioTracks
 		if mainTitle != nil && len(mainTitle.Audio) > 0 {
 			if langs := langList(mainTitle.Audio); langs != "" {
-				audioLabel = fmt.Sprintf("All audio tracks (%d: %s)", len(mainTitle.Audio), langs)
+				audioLabel = fmt.Sprintf(t.RipAllAudioTracksLangsFmt, len(mainTitle.Audio), langs)
 			} else {
-				audioLabel = fmt.Sprintf("All audio tracks (%d)", len(mainTitle.Audio))
+				audioLabel = fmt.Sprintf(t.RipAllAudioTracksCountFmt, len(mainTitle.Audio))
 			}
 		}
 		allAudioCheck.Text = audioLabel
 		allAudioCheck.Refresh()
 
 		// Subtitle checkbox
-		subsLabel := "Include subtitles (DVD bitmap)"
+		subsLabel := t.RipIncludeSubtitles
 		if vs.format == FormatH264MP4 {
-			subsLabel = "Include subtitles (not supported in MP4)"
+			subsLabel = t.RipIncludeSubtitlesMP4
 			subsCheck.SetChecked(false)
 			subsCheck.Disable()
 		} else if mainTitle != nil {
 			if len(mainTitle.Subtitles) == 0 {
-				subsLabel = "Include subtitles (none on disc)"
+				subsLabel = t.RipIncludeSubtitlesNone
 				subsCheck.SetChecked(false)
 				subsCheck.Disable()
 			} else {
-				subsLabel = fmt.Sprintf("Include subtitles (%d streams)", len(mainTitle.Subtitles))
+				subsLabel = fmt.Sprintf(t.RipIncludeSubtitlesCountFmt, len(mainTitle.Subtitles))
 				subsCheck.Enable()
 			}
 		} else {
@@ -753,9 +753,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		// scan completion.
 		updateDiscInfo()
 
-			// Rebuild content objects
+		// Rebuild content objects
 		objs := []fyne.CanvasObject{
-			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle(t.RipTitleLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
 			chaptersCheck,
 			allAudioCheck,
@@ -766,7 +766,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			objs = append(objs, widget.NewSeparator())
 			objs = append(objs,
 				widget.NewLabelWithStyle(
-					fmt.Sprintf("Titles on disc (%d) — select in Content Browser", len(vs.scanResult.Titles)),
+					fmt.Sprintf(t.RipTitlesOnDiscFmt, len(vs.scanResult.Titles)),
 					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		}
 
@@ -776,12 +776,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		advanced := container.NewVBox(
 			menusCheck,
 			widget.NewSeparator(),
-			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle(t.RipRegionConversion, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			ntscSelect,
 			fullDiscCheck,
 		)
 		objs = append(objs, widget.NewSeparator())
-		objs = append(objs, widget.NewAccordion(widget.NewAccordionItem("Advanced", advanced)))
+		objs = append(objs, widget.NewAccordion(widget.NewAccordionItem(t.RipAdvancedOptions, advanced)))
 
 		enrichContent.Objects = objs
 		enrichContent.Refresh()

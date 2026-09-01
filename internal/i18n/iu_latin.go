@@ -640,6 +640,35 @@ var iuLatn = Strings{
 	RipReadyNoSelection: "Atausiqattut isumagijaujunnaqtungittut",                                                            // machine-generated, needs human review: No titles selected for rip.
 	RipReadyOne:         "1 atasuiqattut isumagijauq qanuilirqtuq",                                                           // machine-generated, needs human review: Ready to rip 1 title
 	RipReadyManyFmt:     "%d atasuiqattuit isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip %d titles
+	RipLogOpen:          "▼ LOG",                                                                                             // machine-generated, needs human review: ▼ LOG
+	RipLogClose:         "▶ LOG",                                                                                             // machine-generated, needs human review: ▶ LOG
+	RipOpenInPlayer:     "▶ Qarasaujarmut Mappiraq",                                                                          // machine-generated, needs human review: Open in Player
+	RipErrNoDiscLoaded:  "Ajjigiattiarvik immiqsuqtauq — ISO uvvaluunniit VIDEO_TS immiqsuqlugu",                            // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
+	RipTitlePlaceholder: "Titiraq / Ajjigiattarvik atiginnguat (metadata)",                                                  // machine-generated, needs human review: Disc / movie title (embedded as metadata)
+	RipTitleLabel:       "Atigi",                                                                                             // machine-generated, needs human review: Title
+	RipEmbedChapters:    "Minittut nalunaiqtausilugit titiraqtuit",                                                          // machine-generated, needs human review: Embed chapters
+	RipEmbedChaptersCountFmt: "Minittut nalunaiqtausilugit titiraqtuit (%d)",                                               // machine-generated, needs human review: Embed chapters (%d)
+	RipEmbedChaptersNone:     "Minittut nalunaiqtausilugit titiraqtuit (nnga inngit)",                                      // machine-generated, needs human review: Embed chapters (none on disc)
+	RipAllAudioTracks:        "Tamarmik nipingit atasuiqattisimajut",                                                        // machine-generated, needs human review: All audio tracks
+	RipAllAudioTracksLangsFmt: "Tamarmik nipingit atasuiqattisimajut (%d: %s)",                                              // machine-generated, needs human review: All audio tracks (%d: %s)
+	RipAllAudioTracksCountFmt: "Tamarmik nipingit atasuiqattisimajut (%d)",                                                  // machine-generated, needs human review: All audio tracks (%d)
+	RipIncludeSubtitles:       "Ilaliqtititijauq takusanniit (DVD bitmap)",                                                  // machine-generated, needs human review: Include subtitles (DVD bitmap)
+	RipIncludeSubtitlesMP4:    "Ilaliqtititijauq takusanniit (MP4 pijuqanngittuq)",                                          // machine-generated, needs human review: Include subtitles (not supported in MP4)
+	RipIncludeSubtitlesNone:   "Ilaliqtititijauq takusanniit (nnga inngit)",                                                // machine-generated, needs human review: Include subtitles (none on disc)
+	RipIncludeSubtitlesCountFmt: "Ilaliqtititijauq takusanniit (%d sukkasit)",                                              // machine-generated, needs human review: Include subtitles (%d streams)
+	RipPreserveMenusFull:      "Aputi sanirlugu (asiginngit titiraqtuat)",                                                  // machine-generated, needs human review: Preserve menus (separate files)
+	RipFullDiscExtraction:     "Tamarmik ajjigiattiarvik ikajuqtauq (DVD-Video nutaaq IFO ikajuqtauniq)",                     // machine-generated, needs human review: Full disc extraction (DVD-Video with IFO regeneration)
+	RipRegionConversion:       "Nunakkuut asiqqijatittiauniq",                                                               // machine-generated, needs human review: Region Conversion
+	RipRegionNone:             "Nanukkuut",                                                                                  // machine-generated, needs human review: None
+	RipRegionPALtoNTSC:        "PAL → NTSC",                                                                                 // machine-generated, needs human review: PAL → NTSC
+	RipRegionNTSCtoPAL:        "NTSC → PAL",                                                                                 // machine-generated, needs human review: NTSC → PAL
+	RipAdvancedOptions:        "Amiguut",                                                                                    // machine-generated, needs human review: Advanced
+	RipTitlesOnDiscFmt:        "Ajjigiattiarvik atasuiqattuit (%d) — Content Browser irsuvainnaqtuq",                          // machine-generated, needs human review: Titles on disc (%d) — select in Content Browser
+	RipRegionFree:             "Nunakkuut agganngittut",                                                                     // machine-generated, needs human review: Region Free
+	RipRegionFmt:              "Nunakkuut %d",                                                                               // machine-generated, needs human review: Region %d
+	RipRegionsFmt:             "Nunakkuut %s",                                                                               // machine-generated, needs human review: Regions %s
+	RipLoadingMenu:            "Aputi immiqsuqtujuq...",                                                                     // machine-generated, needs human review: Loading menu...
+	RipNoMenuPlaceholder:      "Aputi nalunaiqtauningittuq",                                                                  // machine-generated, needs human review: No menu found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW
