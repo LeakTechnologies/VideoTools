@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev57 &mdash; Updated 31 August 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev59 &mdash; Working on blocked-straggler cleanup &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -600,7 +600,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev57';
+const currentVersion = 'dev59';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -796,7 +796,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev58', date: 'August 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev59', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Blocked-straggler cleanup', items: [
+      'Upscale legacy render-based dual player removed: OnDualPlayerSeek/OnDualPlayerRender (types.go) and the renderDualPlayerPreview no-op stub (native_media.go + stubbed) had no consumer — the modern InlineVideoPlayer SetPeer dual-pane model already mirrors seek/play/filters, so the stub/API were deleted instead of implemented',
+      'Local Windows builds unblocked: scripts/windows/dev-verify.ps1 sets CGO_ENABLED, CGO_LDFLAGS_ALLOW=-Wl,.* and a quoted gcc/g++, running go build -tags native_media ./... + go vet ./... (same env CI uses); AGENTS.md verification discipline now points at it',
+      'Stale blocker documentation retired: PillIconButton.SetIcon has existed since dev48 (the "lacks dynamic SetIcon" note was wrong — convert transport icons keep the green-square custom styling by design); the utils→ui→benchmark→utils import cycle was resolved by MakeIconButton reverting to widget.NewButton (commit history), full ./... build passes',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev58', date: 'August 2026', tag: 'shipped', sections: [
     { title: 'Rip module overhaul (UX)', items: [
       'Linear SOURCE → DISC → TITLES → OUTPUT → ACTION workflow replaces the old two-panel layout; the Content Browser is reused as the TITLES section instead of dominating the screen',
       'Disc info populates reliably on ISO/VIDEO_TS load: ScanDisc.VideoStandard was read before the VTS cache filled (NTSC/PAL never surfaced) — moved after the loop; disc info decoupled into updateDiscInfo()',

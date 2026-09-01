@@ -1,8 +1,6 @@
 package upscale
 
 import (
-	"time"
-
 	"fyne.io/fyne/v2"
 	"github.com/LeakTechnologies/VideoTools/internal/queue"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
@@ -35,10 +33,6 @@ type Options struct {
 	BuildPreviewPlayerPane  func() fyne.CanvasObject
 	// OnFilterChanged is called when any integrated filter setting changes.
 	OnFilterChanged func()
-
-	// Legacy render-based dual player (stub; kept for API compat)
-	OnDualPlayerSeek   func(seconds float64)
-	OnDualPlayerRender func(seconds float64, duration time.Duration)
 
 	UpscaleMethod              func() string
 	UpscaleTargetRes           func() string
