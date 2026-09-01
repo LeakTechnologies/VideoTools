@@ -139,6 +139,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// declared here so formatSelect and the drop handler can capture them by ref.
 	var rebuildEnrich func()
 	var rebuildTitleNav func()
+	var updateDiscInfo func()
 	var discInfoLabel *widget.Label
 	var logVSplit *container.Split
 
@@ -707,32 +708,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		// Disc info label at the top of the view
-		var discInfo string
-		if vs.scanResult != nil {
-			parts := []string{}
-			if vs.scanResult.DiscType != "" {
-				parts = append(parts, vs.scanResult.DiscType)
-			}
-			if vs.scanResult.VideoStandard != "" {
-				parts = append(parts, vs.scanResult.VideoStandard)
-			}
-			if vs.scanResult.Region != "" {
-				parts = append(parts, vs.scanResult.Region)
-			}
-			if vs.scanResult.TotalSize > 0 {
-				parts = append(parts, fmt.Sprintf("%.1f GB", float64(vs.scanResult.TotalSize)/1e9))
-			}
-			discInfo = strings.Join(parts, " · ")
-		}
-		if discInfoLabel != nil {
-			if discInfo != "" {
-				discInfoLabel.SetText("⏺  " + discInfo)
-				discInfoLabel.Show()
-			} else {
-				discInfoLabel.Hide()
-			}
-		}
+		// Disc info label at the top of the view — decoupled into its own
+		// function so a partial failure in the enrichment rebuild can never
+		// hide the disc summary, and so it can be called independently on
+		// scan completion.
+		updateDiscInfo()
 
 			// Rebuild content objects
 		objs := []fyne.CanvasObject{
@@ -766,6 +746,42 @@ func BuildView(opts Options) fyne.CanvasObject {
 	discInfoLabel = widget.NewLabel("")
 	discInfoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	discInfoLabel.Hide()
+
+	// updateDiscInfo renders the disc summary. It is called independently on
+	// scan completion (and from rebuildEnrich) so the summary reliably tracks
+	// scan state regardless of the rest of the enrichment panel.
+	updateDiscInfo = func() {
+		if discInfoLabel == nil {
+			return
+		}
+		var discInfo string
+		if vs.scanResult != nil {
+			parts := []string{}
+			if vs.scanResult.DiscType != "" {
+				parts = append(parts, vs.scanResult.DiscType)
+			}
+			if vs.scanResult.VideoStandard != "" {
+				parts = append(parts, vs.scanResult.VideoStandard)
+			}
+			if vs.scanResult.Region != "" {
+				parts = append(parts, vs.scanResult.Region)
+			}
+			if vs.scanResult.TotalSize > 0 {
+				parts = append(parts, fmt.Sprintf("%.1f GB", float64(vs.scanResult.TotalSize)/1e9))
+			}
+			n := len(vs.scanResult.Titles)
+			if n > 0 {
+				parts = append(parts, fmt.Sprintf("%d title(s)", n))
+			}
+			discInfo = strings.Join(parts, " · ")
+		}
+		if discInfo != "" {
+			discInfoLabel.SetText("⏺  " + discInfo)
+			discInfoLabel.Show()
+		} else {
+			discInfoLabel.Hide()
+		}
+	}
 
 	// loadDisc is the single entry-point for loading an ISO or VIDEO_TS path —
 	// shared by drop, Browse, and the old Folder picker path.
@@ -822,6 +838,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 						}
 						rebuildTitleNav()
 						rebuildEnrich()
+						updateDiscInfo()
 					}
 				}, false)
 			}()
@@ -855,6 +872,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 						}
 						rebuildTitleNav()
 						rebuildEnrich()
+						updateDiscInfo()
 					}
 				}, false)
 			}()
