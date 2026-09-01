@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev59 (September 2026)
+
+### Blocked-Straggler Cleanup
+
+- **Upscale legacy render-based dual player removed** — `OnDualPlayerSeek`/`OnDualPlayerRender` (`internal/app/modules/upscale/types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` + `native_media_stub.go`) had no consumer: the module's dual-pane uses the modern `InlineVideoPlayer` `SetPeer` model (mirrors play/pause/seek + re-applies the filter pipeline), so the legacy render API was dead surface. Deleted instead of implemented. `time` imports cleaned from all three files.
+- **Local Windows builds unblocked** — new `scripts/windows/dev-verify.ps1` sets `CGO_ENABLED=1`, `CGO_LDFLAGS_ALLOW=-Wl,.*` and a quoted gcc/g++, then runs `go build -tags native_media ./...` + `go vet ./...`. Same environment CI uses; bare `go build` on Windows was silently blocked at the CGo gate by the `-Wl,--stack,4194304` LDFLAG. AGENTS.md Verification Discipline now points at it.
+- **Stale blocker documentation retired** — AGENTS.md "Blocked stragglers" section and the `renderDualPlayerPreview` priority row removed. `PillIconButton.SetIcon` has existed since dev48 (the "lacks dynamic SetIcon" blocker note was wrong — the convert transport icons keep their green-square custom styling by design, not because the API was missing). The `utils → ui → benchmark → utils` import cycle was already resolved when `MakeIconButton` reverted to the plain `widget.NewButton` body.
+
 ## v0.1.1-dev58 (August 2026)
 
 ### Rip Module Overhaul (UX)

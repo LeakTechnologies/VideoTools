@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
@@ -331,10 +330,6 @@ func (s *appState) stepFrameNative(dir int) {
 
 func (s *appState) scrubNative(target float64) {
 	GetConvertPlayer().ScrubTo(target)
-}
-
-func (s *appState) renderDualPlayerPreview(seconds float64, duration time.Duration) {
-	logging.Warning(logging.CatPlayer, "renderDualPlayerPreview: not yet implemented (pos=%.1fs duration=%v)", seconds, duration)
 }
 
 func (s *appState) selectAudioTrackNative(idx int) {

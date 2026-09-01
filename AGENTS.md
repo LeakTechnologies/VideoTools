@@ -18,15 +18,10 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 | 2 | Tester verification of dev57 build | Release assets published; move roadmap cards `done` → `shipped` on sign-off |
 | 3 | Tester verification of dvdvideo rip + concat fallback (dev55–dev57) | CI now builds libdvdread/libdvdnav + ships the dvdvideo demuxer, runtime probe no longer forces VOB concat, and dvdvideo now falls back to concat when libdvdnav rejects a source. Re-run a no-scan multi-VOB rip and confirm no crash at the VOB boundary |
 | 4 | Tester verification of rip module overhaul (dev58) | Linear SOURCE→DISC→TITLES→OUTPUT→ACTION view, DiscSummary card, Advanced accordion, readiness line, localized rip strings — confirm the disc-info panel populates on ISO/VIDEO_TS load and scan flow reads clean. Roadmap card `rip-overhaul` (`done`) |
-| 4 | `renderDualPlayerPreview` stub | `native_media.go` — Upscale dual-player seek/render silently no-ops; needs preview-render design |
 | 4 | Dead-code retirement (post static-sidecar decision) | `scripts/windows/build-ffmpeg-shared.ps1`, DLL-folder branches in `ffmpeg_bootstrap.go`, `updateSidecars` DLL extraction — legacy-harmless, remove deliberately |
 | — | Burn multi-drive batch / IMAPI2 COM | `docs/BURN_MODULE_DESIGN.md` §2–3 |
 | — | Main Menu refactor to `internal/app/modules/mainmenu/` | LOW — deferred until engine stable |
 | — | UDF 2.50/2.60 + BDMV; sparse/large-file UDF writer | Future |
-
-**Blocked stragglers** (do not touch `cmd/`, `qr-demo/`, `scripts/legacy/`):
-- `convert_player_native.go` (11) + `main.go` transport icons (7) — PillIconButton lacks dynamic SetIcon
-- `internal/utils/utils.go` MakeIconButton — import cycle utils → ui → benchmark → utils
 
 ## Settled Decisions
 
@@ -102,6 +97,7 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 - **Player changes require a log review** from a real playback session before landing. The dev53 crash had zero ERROR/WARN lines — the process was killed by I/O pressure from a log-spam bug that no test catches. "No errors logged" is not evidence of correctness; the absence of a crash report is the failure.
 - **State-tracking variables must be updated at the point of comparison**, not just read. The seekGen bug: `gen != lastSeekGen` was checked but `lastSeekGen` was never assigned, so the "first frame after seek" log fired 60×/sec forever. Any `if x != y` guard that mutates neither `x` nor `y` is a bug.
 - **`gofmt -e` is a syntax check, not a build.** It catches parse errors, not logic errors. `go build -tags=native_media ./...` is the real gate; when CGo LDFLAGS block local builds, say so explicitly rather than implying syntax-OK means build-OK.
+- **Local Windows builds: use `scripts/windows/dev-verify.ps1`** (build `-tags=native_media ./...` + `go vet ./...`). Bare `go build` fails at the CGo gate on the `-Wl,--stack,4194304` LDFLAG because `CGO_LDFLAGS_ALLOW` is only set in CI/bash. The script sets `CGO_ENABLED=1`, `CGO_LDFLAGS_ALLOW=-Wl,.*`, and quotes a discovered gcc/g++ — the same env CI uses. Expect a long cold build (~9 min), then incremental runs are fast.
 
 ## Anti-Rationalization Table
 

@@ -79,7 +79,7 @@ timeline
 
 - **Tester verification of dev57 release + dvdvideo rip** — Release assets published; run the no-scan multi-VOB rip and confirm no crash at the VOB boundary (the runtime probe fix finally routes rips through the cell-accurate dvdvideo path); move roadmap cards `done` → `shipped` on sign-off
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
-- Next: renderDualPlayerPreview design, dead-code retirement, documentation pass
+- Next: dead-code retirement, documentation pass
 
 ## Shipped (dev51)
 
@@ -91,7 +91,7 @@ timeline
 - **P1 view.go split** — 1442-line monolith → 5 focused files
 - **UDF thread safety** — mutex-guarded partitionStart, progress callbacks, deferred cleanup
 - **Legacy alias vars removed** — 10 per-module vars cleaned from native_media.go
-- **Carry-forward deferred**: Player interface extraction, renderDualPlayerPreview stub, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup, UDF 2.50/2.60 + BDMV, UDF sparse writer
+- **Carry-forward deferred**: Player interface extraction, Burn multi-drive batch, IMAPI2 COM, Main Menu refactor, Linux CI speedup, UDF 2.50/2.60 + BDMV, UDF sparse writer
 
 ## Next (Phase 2)
 

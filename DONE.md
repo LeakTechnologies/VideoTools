@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev59 — Blocked-Straggler Cleanup
+
+- **Upscale legacy render-based dual player removed** — `OnDualPlayerSeek`/`OnDualPlayerRender` (`types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` / `native_media_stub.go`) had no consumer; the module's dual-pane uses the InlineVideoPlayer `SetPeer` model, so the legacy render API was dead surface and was deleted instead of implemented. Unused `time` imports removed.
+- **Local Windows builds unblocked** — `scripts/windows/dev-verify.ps1` sets the CGo stack-LDFLAG allow + quotes gcc/g++, then runs `go build -tags native_media ./...` + `go vet ./...`. Verified green cold (~9 min) and warm locally.
+- **Stale blocker docs retired** — AGENTS.md "Blocked stragglers" line + `renderDualPlayerPreview` priority removed; PillIconButton `SetIcon` (exists since dev48) and the utils→ui→benchmark→utils cycle (resolved at MakeIconButton revert) confirmed no longer blocks. Docs (AGENTS/TODO/roadmap/CHANGELOG/DONE) synced to dev59.
+
 ## v0.1.1-dev58 — Rip Module Overhaul (UX) + release cut
 
 - **Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow** — single vertical flow replaces the two-panel split where the Content Browser dominated the screen. Source box → DiscSummary card → Content Browser (TITLES) → Format → Menu preview → Output → Action box (RIP NOW / Add to Queue / Open in Player).

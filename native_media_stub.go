@@ -3,8 +3,6 @@
 package main
 
 import (
-	"time"
-
 	"fyne.io/fyne/v2"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
 )
@@ -32,7 +30,6 @@ func (s *appState) pauseNative()                      {}
 func (s *appState) seekNative(target float64)         {}
 func (s *appState) stepFrameNative(dir int)           {}
 func (s *appState) scrubNative(target float64)        {}
-func (s *appState) renderDualPlayerPreview(seconds float64, duration time.Duration) {}
 func (s *appState) selectAudioTrackNative(idx int)    {}
 func (s *appState) setVolumeNative(vol float64)       {}
 func (s *appState) setMutedNative(muted bool)         {}

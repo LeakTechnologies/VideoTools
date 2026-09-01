@@ -2,7 +2,6 @@ package main
 
 import (
 	"path/filepath"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/upscale"
@@ -201,10 +200,6 @@ func (s *appState) upscaleOptions() upscale.Options {
 			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
 		OnFilterChanged: func() { s.applyUpscalePreview() },
-		OnDualPlayerSeek: func(seconds float64) {
-			s.renderDualPlayerPreview(seconds, 5*time.Second)
-		},
-		OnDualPlayerRender: s.renderDualPlayerPreview,
 
 		UpscaleMethod:              func() string { return s.upscaleMethod },
 		UpscaleTargetRes:           func() string { return s.upscaleTargetRes },

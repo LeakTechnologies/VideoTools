@@ -29,7 +29,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Startup crash diagnostics** — `VT_STARTUP_DEBUG` env var, `logging.Sync()` pre-crash flush.
 - [x] **CI fixes** — cache guard, ci-build.ps1 encoding, Windows FFmpeg shared cache.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
-- [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
+- [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). The 18 transport icons in `convert_player_native.go` + `main.go` (dynamic play↔pause) and `utils.MakeIconButton` are deliberately left as `widget.NewButton` / `fyne.CanvasObject` — PillIconButton previously lacked `SetIcon`, but that was added (dev48); the convert transport row keeps its green-square custom styling by design.
 
 ## Dev50-54 Scope (current — preparing to ship)
 
@@ -100,7 +100,6 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **VTSM domain (audit A13)** — minimal in-title Root menu redirecting to VMGM; deferred design gap, not a bug.
 
 - [ ] **Player interface extraction** — Formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests.
-- [ ] **renderDualPlayerPreview stub** — `native_media.go` has a TODO stub, returns silently without actually rendering.
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
