@@ -690,6 +690,15 @@ var frCA = Strings{
 	RipTitleCardFmt:     "T%02d  %s  %d chapitres",
 	RipClickToPreview:   "Cliquer pour aperçu",
 	RipNoMenuFound:      "Aucun VOB de menu trouvé",
+	RipDiscSection:      "Disque",
+	RipDiscNone:         "Aucun disque chargé",
+	RipDiscNoneHint:     "Chargez un ISO ou un dossier VIDEO_TS pour commencer.",
+	RipDiscScanning:     "Analyse du disque...",
+	RipDiscScanningHint: "Lecture des informations du disque",
+	RipDiscScanFailed:   "Impossible d'analyser le disque",
+	RipDiscScanned:      "ANALYSÉ ✓",
+	RipTitleCount:       "titres",
+	RipTitleShort:       "Titre",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "AGRANDIR MAINTENANT",

@@ -705,6 +705,15 @@ var enCA = Strings{
 	RipTitleCardFmt:     "T%02d  %s  %d chapters",
 	RipClickToPreview:   "Click to preview",
 	RipNoMenuFound:      "No menu VOB found",
+	RipDiscSection:      "Disc",
+	RipDiscNone:         "No disc loaded",
+	RipDiscNoneHint:     "Load an ISO or VIDEO_TS folder to begin.",
+	RipDiscScanning:     "Scanning disc...",
+	RipDiscScanningHint: "Reading disc information",
+	RipDiscScanFailed:   "Unable to scan disc",
+	RipDiscScanned:      "SCANNED ✓",
+	RipTitleCount:       "titles",
+	RipTitleShort:       "Title",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "UPSCALE NOW",

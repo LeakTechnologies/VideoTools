@@ -182,6 +182,22 @@ func FormatDuration(seconds float64) string {
 	return fmt.Sprintf("%dm %02ds", m, s)
 }
 
+// shortScanError condenses a scan error into a short human-readable string for
+// the disc summary card, trimming wrapper prefixes like "read title list:".
+func shortScanError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if i := strings.LastIndex(msg, ": "); i >= 0 && i > 20 {
+		msg = msg[i+2:]
+	}
+	if len(msg) > 200 {
+		msg = msg[:200] + "…"
+	}
+	return msg
+}
+
 // scanISOViaUDF extracts IFO files from a DVD ISO image using the UDF reader,
 // runs ScanDisc on the extracted data, and returns a full DiscScanResult.
 // Disc size and type are taken from the ISO file itself (not from the temp dir).

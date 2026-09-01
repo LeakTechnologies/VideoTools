@@ -717,6 +717,15 @@ type Strings struct {
 	RipTitleCardFmt     string // "T%02d  %s  %d chapters"
 	RipClickToPreview   string // "Click to preview"
 	RipNoMenuFound      string // "No menu VOB found"
+	RipDiscSection      string // "Disc"
+	RipDiscNone         string // "No disc loaded"
+	RipDiscNoneHint     string // "Load an ISO or VIDEO_TS folder to begin."
+	RipDiscScanning     string // "Scanning disc..."
+	RipDiscScanningHint string // "Reading disc information"
+	RipDiscScanFailed   string // "Unable to scan disc"
+	RipDiscScanned      string // "SCANNED ✓"
+	RipTitleCount       string // "titles"
+	RipTitleShort       string // "Title"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string

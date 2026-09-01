@@ -627,6 +627,15 @@ var iuLatn = Strings{
 	RipTitleCardFmt:     "T%02d  %s  %d titiraq",                                                                             // machine-generated, needs human review: T%02d %s %d chapters
 	RipClickToPreview:   "Takulugu takujautiinnik",                                                                            // machine-generated, needs human review: Click to preview
 	RipNoMenuFound:      "Aputi VOB nalunnaiqtausimanngillaq",                                                                 // machine-generated, needs human review: No menu VOB found
+	RipDiscSection:      "Ajjigiattiarvik",                                                                                    // machine-generated, needs human review: Disc
+	RipDiscNone:         "Ajjigiattiarvik nalunnaiqtauq",                                                                      // machine-generated, needs human review: No disc loaded
+	RipDiscNoneHint:     "ISO uvvaluunniit VIDEO_TS nuvvikkutaq immiqsuqtaujunnaqtuq",                                       // machine-generated, needs human review: Load an ISO or VIDEO_TS folder to begin.
+	RipDiscScanning:     "Ajjigiattiarvik parnaiqtittiaqtuq",                                                                  // machine-generated, needs human review: Scanning disc...
+	RipDiscScanningHint: "Ajjigiattiarvik qaujisaiqutit uqausiqtuijjutit",                                                    // machine-generated, needs human review: Reading disc information
+	RipDiscScanFailed:   "Ajjigiattiarvik parnaiqsuni quvvanirtaumanngilaq",                                                   // machine-generated, needs human review: Unable to scan disc
+	RipDiscScanned:      "Parnaiqsutillugu ✓",                                                                                 // machine-generated, needs human review: SCANNED ✓
+	RipTitleCount:       "Atausiqattutit",                                                                                     // machine-generated, needs human review: titles
+	RipTitleShort:       "Atausiqattut",                                                                                        // machine-generated, needs human review: Title
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW

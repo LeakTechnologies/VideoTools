@@ -636,6 +636,15 @@ var iu = Strings{
 	RipTitleCardFmt:     "T%02d  %s  %d ᑎᑎᕋᖅ",                                    // machine-generated, needs human review: T%02d %s %d chapters
 	RipClickToPreview:   "ᑕᑯᒃᓴᐅᑎᑦ ᑕᑯ",                                             // machine-generated, needs human review: Click to preview
 	RipNoMenuFound:      "ᐊᑐᖅ VOB ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᓚᖅ",                               // machine-generated, needs human review: No menu VOB found
+	RipDiscSection:      "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ",                                          // machine-generated, needs human review: Disc
+	RipDiscNone:         "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᓇᓗᓇᐃᖅᑕᐅᓂᖅᐳᖅ",                          // machine-generated, needs human review: No disc loaded
+	RipDiscNoneHint:     "ISO ᐅᕝᕙᓘᓐᓃᑦ VIDEO_TS ᓇᕕᒃᑯᑕᖅ ᐃᒻᒥᖅᓱᖅᑕᐅᒍᓐᓇᖅᑐᖅ",            // machine-generated, needs human review: Load an ISO or VIDEO_TS folder to begin.
+	RipDiscScanning:     "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐸᕐᓇᐃᖅᓱᑦᑎᐊᖅᑐᖅ",                          // machine-generated, needs human review: Scanning disc...
+	RipDiscScanningHint: "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᖃᐅᔨᓴᐃᒍᑎᑦ ᐅᖃᐅᓯᖅᑐᐃᔾᔪᑎ",                 // machine-generated, needs human review: Reading disc information
+	RipDiscScanFailed:   "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐸᕐᓇᐃᖅᓱᓂ ᖁᕝᕙᓂᖅᑕᐅᙱᓚᖅ",                     // machine-generated, needs human review: Unable to scan disc
+	RipDiscScanned:      "ᐸᕐᓇᐃᖅᓱᑎᓪᓗᒍ ✓",                                         // machine-generated, needs human review: SCANNED ✓
+	RipTitleCount:       "ᐊᑕᐅᓯᖃᑦᑑᑎᑦ",                                             // machine-generated, needs human review: titles
+	RipTitleShort:       "ᐊᑕᐅᓯᖃᑦᑑᑎ",                                                // machine-generated, needs human review: Title
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

@@ -140,7 +140,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var rebuildEnrich func()
 	var rebuildTitleNav func()
 	var updateDiscInfo func()
-	var discInfoLabel *widget.Label
+	var discSummary *DiscSummary
 	var logVSplit *container.Split
 
 	vs := &viewState{
@@ -743,44 +743,29 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// Initial render of enrichment panel (no scan result yet)
 	rebuildEnrich()
 
-	discInfoLabel = widget.NewLabel("")
-	discInfoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	discInfoLabel.Hide()
+	discSummary = NewDiscSummary()
 
-	// updateDiscInfo renders the disc summary. It is called independently on
-	// scan completion (and from rebuildEnrich) so the summary reliably tracks
-	// scan state regardless of the rest of the enrichment panel.
+	// updateDiscInfo pushes the scan result into the disc summary card. It is
+	// called independently on scan completion (and from rebuildEnrich) so the
+	// summary reliably tracks scan state regardless of the rest of the
+	// enrichment panel.
 	updateDiscInfo = func() {
-		if discInfoLabel == nil {
+		if discSummary == nil {
 			return
 		}
-		var discInfo string
-		if vs.scanResult != nil {
-			parts := []string{}
-			if vs.scanResult.DiscType != "" {
-				parts = append(parts, vs.scanResult.DiscType)
-			}
-			if vs.scanResult.VideoStandard != "" {
-				parts = append(parts, vs.scanResult.VideoStandard)
-			}
-			if vs.scanResult.Region != "" {
-				parts = append(parts, vs.scanResult.Region)
-			}
-			if vs.scanResult.TotalSize > 0 {
-				parts = append(parts, fmt.Sprintf("%.1f GB", float64(vs.scanResult.TotalSize)/1e9))
-			}
-			n := len(vs.scanResult.Titles)
-			if n > 0 {
-				parts = append(parts, fmt.Sprintf("%d title(s)", n))
-			}
-			discInfo = strings.Join(parts, " · ")
+		if vs.scanResult == nil {
+			discSummary.SetEmpty()
+			return
 		}
-		if discInfo != "" {
-			discInfoLabel.SetText("⏺  " + discInfo)
-			discInfoLabel.Show()
-		} else {
-			discInfoLabel.Hide()
+		discTitle := vs.discTitle
+		if discTitle == "" && vs.sourcePath != "" {
+			base := filepath.Base(strings.TrimSuffix(vs.sourcePath, string(filepath.Separator)))
+			if strings.EqualFold(base, "VIDEO_TS") {
+				base = filepath.Base(filepath.Dir(vs.sourcePath))
+			}
+			discTitle = strings.TrimSuffix(base, filepath.Ext(base))
 		}
+		discSummary.SetResult(vs.scanResult, discTitle)
 	}
 
 	// loadDisc is the single entry-point for loading an ISO or VIDEO_TS path —
@@ -796,12 +781,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		isISO := strings.HasSuffix(lower, ".iso")
 		isVideoTS := strings.Contains(lower, "video_ts")
 		if !isISO && !isVideoTS {
-			discInfoLabel.SetText("⏺  " + t.RipErrNotDisc)
-			discInfoLabel.Show()
+			if discSummary != nil {
+				discSummary.SetError(t.RipErrNotDisc)
+			}
 			return
 		}
-		discInfoLabel.SetText("⏺  Scanning…")
-		discInfoLabel.Show()
+		if discSummary != nil {
+			discSummary.SetScanning()
+		}
 
 		vs.sourcePath = path
 		sourceEntry.SetText(path)
@@ -825,8 +812,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
-						discInfoLabel.SetText("⏺  Could not read disc info")
-						discInfoLabel.Show()
+						if discSummary != nil {
+							discSummary.SetError(shortScanError(scanErr))
+						}
 					} else {
 						vs.scanResult = result
 						if len(result.Titles) > 0 {
@@ -848,8 +836,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 				if err != nil {
 					logging.Warning(logging.CatDVD, "ResolveVideoTSPath failed: %v", err)
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						discInfoLabel.SetText("⏺  Could not locate VIDEO_TS")
-						discInfoLabel.Show()
+						if discSummary != nil {
+							discSummary.SetError(shortScanError(err))
+						}
 					}, false)
 					return
 				}
@@ -857,8 +846,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
-						discInfoLabel.SetText("⏺  Could not read disc info")
-						discInfoLabel.Show()
+						if discSummary != nil {
+							discSummary.SetError(shortScanError(scanErr))
+						}
 					} else {
 						vs.scanResult = result
 						vs.videoTSPath = vtsp
@@ -901,8 +891,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 					}
 				}),
 			),
-			discInfoLabel,
 		)),
+		sectionGap(),
+		discSummary.GetContainer(),
 		sectionGap(),
 		buildRipBox(t.RipFormatLabel, container.NewVBox(
 			formatSelect,
