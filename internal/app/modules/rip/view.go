@@ -140,7 +140,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var rebuildEnrich func()
 	var rebuildTitleNav func()
 	var updateDiscInfo func()
+	var updateRipSummary func()
 	var discSummary *DiscSummary
+	var ripSummaryLbl *widget.Label
 	var logVSplit *container.Split
 
 	vs := &viewState{
@@ -317,6 +319,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	contentBrowser := NewContentBrowser()
 	contentBrowser.SetOnSelect(func(titleNum int, selected bool) {
 		vs.selectedTitles[titleNum] = selected
+		if updateRipSummary != nil {
+			updateRipSummary()
+		}
 	})
 	contentBrowser.SetOnPreview(func(titleNum int) {
 		contentBrowser.SetFocused(titleNum)
@@ -503,6 +508,40 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
 	})
+
+	// countSelected returns the number of titles currently ticked for rip.
+	countSelected := func() int {
+		n := 0
+		for _, dt := range vs.scanResult.Titles {
+			if vs.selectedTitles[dt.Number] {
+				n++
+			}
+		}
+		return n
+	}
+	// updateRipSummary refreshes the CTA line ("Ready to rip N title(s)").
+	updateRipSummary = func() {
+		if ripSummaryLbl == nil {
+			return
+		}
+		if vs.scanResult == nil || len(vs.scanResult.Titles) == 0 {
+			ripSummaryLbl.SetText(t.RipReadyNoTitles)
+			return
+		}
+		sel := countSelected()
+		if sel == 0 {
+			ripSummaryLbl.SetText(t.RipReadyNoSelection)
+			return
+		}
+		if sel == 1 {
+			ripSummaryLbl.SetText(t.RipReadyOne)
+			return
+		}
+		ripSummaryLbl.SetText(fmt.Sprintf(t.RipReadyManyFmt, sel))
+	}
+	ripSummaryLbl = widget.NewLabel("")
+	ripSummaryLbl.Importance = widget.MediumImportance
+	ripSummaryLbl.Wrapping = fyne.TextWrapWord
 	loadCfgBtn := ui.MakePillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
@@ -738,6 +777,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		enrichContent.Objects = objs
 		enrichContent.Refresh()
+
+		if updateRipSummary != nil {
+			updateRipSummary()
+		}
 	}
 
 	// Initial render of enrichment panel (no scan result yet)
@@ -881,7 +924,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		d.Show()
 	})
 
-	controls := container.NewVBox(
+	// ── Linear workflow: SOURCE → DISC → TITLES → OUTPUT → ACTION ──────────
+	flow := container.NewVBox(
 		buildRipBox(t.RipSource, container.NewVBox(
 			container.NewBorder(nil, nil, nil,
 				container.NewHBox(browseBtn, clearISOBtn),
@@ -894,6 +938,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)),
 		sectionGap(),
 		discSummary.GetContainer(),
+		sectionGap(),
+		// Titles: the Content Browser lists each title with selection toggles,
+		// main-feature badge and metadata — reused as the workflow centerpiece.
+		contentBrowser.GetContainer(),
 		sectionGap(),
 		buildRipBox(t.RipFormatLabel, container.NewVBox(
 			formatSelect,
@@ -908,25 +956,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)),
 		sectionGap(),
 		buildRipBox(t.LabelStatus, container.NewVBox(
+			ripSummaryLbl,
 			statusLabel,
 			progressBar,
+			container.NewHBox(addQueueBtn, layout.NewSpacer(), openInPlayerBtn, runNowBtn),
 		)),
 	)
-
-	leftPane := contentBrowser.GetContainer()
-	mainSplit := container.NewHSplit(
-		leftPane,
-		container.NewVScroll(container.NewPadded(controls)),
-	)
-	mainSplit.SetOffset(0.40)
+	mainScroll := container.NewVScroll(container.NewPadded(flow))
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
-		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), openInPlayerBtn, runNowBtn), opts.OnGetStatsBar())
+		bottomBar = opts.OnModuleFooter(opts.ModuleColor, nil, opts.OnGetStatsBar())
 	}
 
-	logVSplit = container.NewVSplit(mainSplit, logSection)
-	logVSplit.SetOffset(0.60)
+	logVSplit = container.NewVSplit(mainScroll, logSection)
+	// Default to a compact log strip; the ▼▶ LOG toggle expands it during a rip.
+	logVSplit.SetOffset(0.92)
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		logVSplit,
 	)

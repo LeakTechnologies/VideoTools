@@ -699,6 +699,10 @@ var frCA = Strings{
 	RipDiscScanned:      "ANALYSÉ ✓",
 	RipTitleCount:       "titres",
 	RipTitleShort:       "Titre",
+	RipReadyNoTitles:    "Chargez un disque pour commencer.",
+	RipReadyNoSelection: "Aucun titre sélectionné pour l'extraction.",
+	RipReadyOne:         "Prêt à extraire 1 titre",
+	RipReadyManyFmt:     "Prêt à extraire %d titres",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "AGRANDIR MAINTENANT",

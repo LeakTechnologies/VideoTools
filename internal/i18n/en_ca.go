@@ -714,6 +714,10 @@ var enCA = Strings{
 	RipDiscScanned:      "SCANNED ✓",
 	RipTitleCount:       "titles",
 	RipTitleShort:       "Title",
+	RipReadyNoTitles:    "Load a disc to begin.",
+	RipReadyNoSelection: "No titles selected for rip.",
+	RipReadyOne:         "Ready to rip 1 title",
+	RipReadyManyFmt:     "Ready to rip %d titles",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "UPSCALE NOW",
