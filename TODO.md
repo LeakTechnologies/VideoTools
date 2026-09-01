@@ -2,11 +2,16 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev57 Scope (current — release cut)
+## Dev58 Scope (current — rip module overhaul shipped)
 
-- [x] **dvdvideo detection string fixed** — CI verify grep + rip `SupportsDVDVideo()` runtime probe now match the `dvdvideo` short name (long_name is `DVD-Video`, hyphenated). Windows CI green (`69ec8610`); runtime probe verified against FFmpeg 8.1. Rips no longer silently fall back to VOB concat.
+- [x] **Rip module overhaul (UX)** — linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `DiscSummary` card, `VideoStandard` scan fix + `updateDiscInfo()` decoupling, Advanced accordion, "Ready to rip N title(s)" readiness line, compact collapsible log, full i18n pass. Roadmap card `rip-overhaul` → `done`.
+- [ ] **Tester verify: rip module overhaul (dev58)** — confirm disc-info populates on ISO/VIDEO_TS load, scan flow reads clean, selection flow works; move roadmap card `done` → `shipped` on sign-off (AGENTS.md priority 4).
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3); move the dvdvideo roadmap card `done` → `shipped` on sign-off.
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+
+## Dev57 Scope (closed — release cut)
+
+- [x] **dvdvideo detection string fixed** — CI verify grep + rip `SupportsDVDVideo()` runtime probe now match the `dvdvideo` short name (long_name is `DVD-Video`, hyphenated). Windows CI green (`69ec8610`); runtime probe verified against FFmpeg 8.1. Rips no longer silently fall back to VOB concat.
 
 ## Dev48 Scope (closing)
 

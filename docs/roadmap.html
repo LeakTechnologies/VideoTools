@@ -328,7 +328,7 @@ const roadmap = {
       { id: 'css-bypass', title: 'CSS Decryption Wiring', desc: 'Full CSS decryptor package exists (DecryptSector, DecryptVOB, DecryptReader) — needs wiring into the VOB concat and dvdvideo rip pipeline to unblock commercial encrypted disc ripping', status: 'planned', cycle: 'dev50', files: ['internal/dvd/css/css.go', 'internal/dvd/css/detect.go', 'internal/app/modules/rip/executor.go'], deps: ['css-detect'], docs: [] },
       { id: 'm2ts-support', title: '.m2ts File Support', desc: 'Handle .m2ts files in CollectVOBSets (currently only .vob is matched)', status: 'future', cycle: 'future', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'future', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
-      { id: 'rip-overhaul', title: 'Rip Module Overhaul', desc: 'Major UX/interface rework: disc-info (type, size, region, NTSC/PAL, title count) must be surfaced reliably on disc load — currently the info panel does not populate when a disc is loaded, and the overall load/scan/rip flow feels clunky (standalone ::disc element, CSS-decrypt state, title selection). Includes surfacing libdvdnav/libdvdread open failures so the rip module can proactively pick dvdvideo vs concat instead of failing over silently.', status: 'planned', cycle: 'future', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/scan.go', 'internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'rip-overhaul', title: 'Rip Module Overhaul', desc: 'Major UX/interface rework, dev58: a linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow replaces the old clunky layout. Disc info now populates reliably on ISO/VIDEO_TS load (ScanDisc.VideoStandard was read before the VTS cache filled — NTSC/PAL never surfaced; disc info decoupled into updateDiscInfo()), shown in a dedicated DiscSummary card with explicit empty/scanning/scanned/error states (type · standard · region · size · title count, ★ Main Feature = longest title). The Content Browser is reused as the TITLES section instead of dominating the screen. Common output options stay first-class (chapters/audio/subtitles); uncommon ones (Preserve menus, PAL↔NTSC conversion, full-disc extraction) moved into an Advanced accordion. "Ready to rip N title(s)" readiness line drives the RIP NOW / Add to Queue / Open in Player actions; log is a compact collapsible strip. Full i18n pass over the module hardcoded labels/dialogs/region strings (en/fr/iu/iu_latin).', status: 'done', cycle: 'dev58', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/scan.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/rip/menu_preview.go', 'internal/i18n/strings.go', 'internal/i18n/en_ca.go', 'internal/i18n/fr_ca.go', 'internal/i18n/iu.go', 'internal/i18n/iu_latin.go'], deps: ['dvdvideo'], docs: [] },
       { id: 'clone-disc', title: 'Clone Disc to ISO', desc: 'Sector-by-sector disc copy with queue integration — see CLONE_DISC_DESIGN.md', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CLONE_DISC_DESIGN.md'] },
     ]
   },
@@ -796,7 +796,18 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev57', date: 'August 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev58', date: 'August 2026', tag: 'current', sections: [
+    { title: 'Rip module overhaul (UX)', items: [
+      'Linear SOURCE → DISC → TITLES → OUTPUT → ACTION workflow replaces the old two-panel layout; the Content Browser is reused as the TITLES section instead of dominating the screen',
+      'Disc info populates reliably on ISO/VIDEO_TS load: ScanDisc.VideoStandard was read before the VTS cache filled (NTSC/PAL never surfaced) — moved after the loop; disc info decoupled into updateDiscInfo()',
+      'Dedicated DiscSummary card with explicit empty/scanning/scanned/error states: type · standard · region · size · title count, plus ★ Main Feature (longest title)',
+      'Common output options stay first-class; uncommon ones (Preserve menus, PAL↔NTSC conversion, full-disc extraction) moved into an Advanced accordion',
+      '"Ready to rip N title(s)" readiness line drives the RIP NOW / Add to Queue / Open in Player actions',
+      'Compact collapsible log strip (▼/▶ LOG toggle)',
+      'Full i18n pass over the module hardcoded labels/options/dialogs/region strings across en/fr/iu/iu_latin',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev57', date: 'August 2026', tag: 'shipped', sections: [
     { title: 'Release cut — dvdvideo detection fixes', items: [
       'CI verify grep and rip SupportsDVDVideo() runtime probe both used the spaced long name "DVD video demuxer" (real long_name is "DVD-Video", hyphenated) — a correct build always failed the FATAL gate and every rip silently fell back to VOB concat',
       'Both now match the "dvdvideo" short name (missing demuxer exits non-zero and returns early at the error gate) — Windows CI green (69ec8610), runtime probe verified against a real FFmpeg 8.1 binary, cell-accurate dvdvideo rips finally activate',
@@ -1475,6 +1486,12 @@ const checklistData = [
     'Chapters appear in output file with correct timestamps',
     'Menu preservation checkbox exports menu VOBs as separate files',
     'Main feature (longest title) uses main output path; extras get _Extra suffix',
+    'Disc info panel populates on ISO/VIDEO_TS load (type/standard/region/size/title count)',
+    'DiscSummary card shows explicit empty/scanning/scanned/error states',
+    'Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow renders correctly',
+    'Advanced accordion groups menus/PAL↔NTSC/full-disc options',
+    '"Ready to rip N title(s)" readiness line updates with selection',
+    'Rip labels/dialogs/regions render in en/fr/iu/iu_latin',
   ]},
   { title: 'Player Module (dev50 gap fixes)', items: [
     'DegradeToSoftware(): HW decode fails after N attempts → permanent SW degradation (no per-frame retry thrash)',
