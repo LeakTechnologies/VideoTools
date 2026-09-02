@@ -1588,6 +1588,48 @@ func NewSectionLabel(text string) *widget.Label {
 	return l
 }
 
+// SectionBox creates a compact section with a coloured header bar and a
+// navy body. It replaces the duplicated buildRipBox/sectionBox patterns
+// across the rip module (view.go, disc_summary.go, content_list.go,
+// menu_preview.go) and will serve other modules as the global header
+// treatment.
+//
+// bgCol is the navy background; accentCol is the teal header bar colour.
+// Optional trailing actions (e.g. Select All / Deselect All) are placed
+// at the right edge of the header row and do NOT increase the header height.
+func SectionBox(bgCol, accentCol color.Color, title string, content fyne.CanvasObject, actions ...fyne.CanvasObject) fyne.CanvasObject {
+	bg := canvas.NewRectangle(bgCol)
+	bg.CornerRadius = 10
+	bg.StrokeColor = GridColor
+	bg.StrokeWidth = 1
+
+	headerBg := canvas.NewRectangle(accentCol)
+	headerBg.CornerRadius = 10
+	headerBg.SetMinSize(fyne.NewSize(0, 28))
+
+	titleTxt := canvas.NewText(strings.ToUpper(title), color.White)
+	titleTxt.TextStyle = fyne.TextStyle{Bold: true}
+	titleTxt.TextSize = 12
+
+	var headerRow fyne.CanvasObject
+	if len(actions) > 0 {
+		right := container.NewHBox(actions...)
+		headerRow = container.NewHBox(titleTxt, layout.NewSpacer(), right)
+	} else {
+		headerRow = container.NewHBox(titleTxt, layout.NewSpacer())
+	}
+
+	header := container.NewMax(
+		headerBg,
+		container.NewPadded(headerRow),
+	)
+
+	body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
+	layers := NoisyBackgroundObjects(bg)
+	layers = append(layers, body)
+	return container.NewMax(layers...)
+}
+
 // NewWrappingLabel creates body text with word wrapping enabled.
 // Use for instructions, descriptions, and multi-line status messages.
 func NewWrappingLabel(text string) *widget.Label {
