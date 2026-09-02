@@ -161,24 +161,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	buildUpscaleBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		headerBg := canvas.NewRectangle(upscaleColor)
-		headerBg.CornerRadius = 10
-		headerBg.SetMinSize(fyne.NewSize(0, 34))
-		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
-		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-		headerTitle.TextSize = 12
-		header := container.NewMax(
-			headerBg,
-			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
-		)
-		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, body)
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, upscaleColor, title, content)
 	}
 
 	methodLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleMethodFmt, opts.UpscaleMethod()))
@@ -290,7 +273,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleManualCRF(int(v))
 		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
 	}
-		crfHint := newWrappingLabel(t.UpscaleCRFHint)
+	crfHint := newWrappingLabel(t.UpscaleCRFHint)
 	crfHint.TextStyle = fyne.TextStyle{Italic: true}
 	crfHint.Wrapping = fyne.TextWrapWord
 	crfSection := container.NewVBox(
@@ -368,7 +351,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		currentPreset = "2.5 Mbps - Medium"
 	}
 	bitratePresetSelect.SetSelected(currentPreset)
-		bitrateHint := newWrappingLabel(t.UpscaleBitrateHint)
+	bitrateHint := newWrappingLabel(t.UpscaleBitrateHint)
 	bitrateSection := container.NewVBox(
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleBitrateValueLabel),
@@ -482,7 +465,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	skinToneSelect.SetSelected(opts.UpscaleSkinTone())
 
-		colourHint := newWrappingLabel(t.UpscaleColourHint)
+	colourHint := newWrappingLabel(t.UpscaleColourHint)
 	colourHint.TextStyle = fyne.TextStyle{Italic: true}
 	colourHint.Wrapping = fyne.TextWrapWord
 
@@ -527,7 +510,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 	})
-		motionInterpHint := newWrappingLabel(t.UpscaleMotionHint)
+	motionInterpHint := newWrappingLabel(t.UpscaleMotionHint)
 	motionInterpHint.TextStyle = fyne.TextStyle{Italic: true}
 	motionInterpHint.Wrapping = fyne.TextWrapWord
 

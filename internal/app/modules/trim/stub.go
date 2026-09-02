@@ -68,16 +68,8 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	state := &trimState{inPointMs: 0, outPointMs: 0}
 
-	section := func(title string, content fyne.CanvasObject) *fyne.Container {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		body := container.NewVBox()
-		body.Add(widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-		body.Add(widget.NewSeparator())
-		body.Add(content)
-		return container.NewMax(bg, container.NewPadded(body))
+	section := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		return ui.SectionBox(navyBlue, trimColor, title, content)
 	}
 
 	timeLabel := widget.NewLabel("00:00:00.000")

@@ -249,18 +249,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	timestampRow := container.NewBorder(nil, nil, timestampCheck, nil, timestampToggle)
 
 	buildThumbBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-		)
-		body := container.NewBorder(header, nil, nil, nil, content)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, thumbColor, title, content)
 	}
 
 	columnsFmt := or(opts.ColumnsFmt, "Columns: %d")

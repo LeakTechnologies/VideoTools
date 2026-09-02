@@ -48,7 +48,7 @@ type Options struct {
 	FiltersFilePath     string
 	FilterActiveChain   []string
 
-	HardwareAccel func() string
+	HardwareAccel    func() string
 	SetHardwareAccel func(s string)
 
 	OnShowMainMenu       func()
@@ -102,7 +102,7 @@ type Options struct {
 	BuildPreviewPlayerPane  func() fyne.CanvasObject
 	// OnFilterChanged is called after every filter parameter change so the host
 	// can rebuild and apply the filter pipeline to the preview player.
-	OnFilterChanged func()
+	OnFilterChanged   func()
 	OnGetModuleFooter func(color.Color, fyne.CanvasObject, *ui.ConversionStatsBar) fyne.CanvasObject
 	BuildMetadataPane func(onToggle func(bool)) fyne.CanvasObject
 }
@@ -169,11 +169,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		var videoContainer fyne.CanvasObject
 		if opts.FiltersFile != nil {
 			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), opts.FiltersFile, nil)
-	} else {
-		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
+		} else {
+			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
+		}
+		videoArea = videoContainer
 	}
-	videoArea = videoContainer
-}
 
 	loadBtn.OnTapped = func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
@@ -198,24 +198,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	buildFilterBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		headerBg := canvas.NewRectangle(filtersColor)
-		headerBg.CornerRadius = 10
-		headerBg.SetMinSize(fyne.NewSize(0, 34))
-		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
-		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-		headerTitle.TextSize = 12
-		header := container.NewMax(
-			headerBg,
-			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
-		)
-		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, body)
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, filtersColor, title, content)
 	}
 
 	brightnessSlider := ui.MakeSlider(-1.0, 1.0)

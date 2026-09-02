@@ -172,24 +172,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
 }
 
-func buildAudioBox(title string, content fyne.CanvasObject) fyne.CanvasObject {
-	// Use same styling as Convert module
-	bg := canvas.NewRectangle(navyBlue)
-	bg.CornerRadius = 10
-	bg.StrokeColor = gridColor
-	bg.StrokeWidth = 1
-
-	body := container.NewVBox(
-		widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewSeparator(),
-		content,
-	)
-
-	layers := ui.NoisyBackgroundObjects(bg)
-	layers = append(layers, container.NewPadded(body))
-	return container.NewMax(layers...)
-}
-
 func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
@@ -405,19 +387,12 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	progressBar := ui.MakeProgressBar()
 	progressBar.Hide()
 
+	audioColor := opts.ModuleColor
+	if audioColor == nil {
+		audioColor = utils.MustHex("#9A7500")
+	}
 	buildAudioBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			content,
-		)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, audioColor, title, content)
 	}
 
 	rightContent := container.NewVBox(

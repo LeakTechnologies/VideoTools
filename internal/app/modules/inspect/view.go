@@ -82,18 +82,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	buildInspectBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-		)
-		body := container.NewBorder(header, nil, nil, nil, content)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, inspectColor, title, content)
 	}
 
 	makeValuePill := func(text string) fyne.CanvasObject {
@@ -572,7 +561,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		h := int(pts) / 3600
 		m := (int(pts) % 3600) / 60
 		s := int(pts) % 60
-		ms := int((pts-float64(int(pts)))*1000)
+		ms := int((pts - float64(int(pts))) * 1000)
 		return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, s, ms)
 	}
 
