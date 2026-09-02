@@ -21,7 +21,7 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
-const menuPreviewWidth = 320
+const menuPreviewWidth = 280
 
 // MenuPreview displays a static capture of the DVD menu with toggle overlays
 // for Preserve Menus and Main Feature options.

@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	thumbWidth  = 80
-	thumbHeight = 60
+	thumbWidth  = 56
+	thumbHeight = 42
 	cyclePeriod = 1500 * time.Millisecond
 	accentWidth = 6
 )
