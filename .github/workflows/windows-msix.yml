@@ -81,6 +81,11 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
+          # libdvdnav/FFmpeg configure query dvdread (and each other) via
+          # $PKG_CONFIG; without this export pkg-config never searches the
+          # ffmpeg-static prefix and libdvdnav configure fails with
+          # "Package 'dvdread' not found" (dev/release carry this export too).
+          export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           mkdir -p /c/ffmpeg-static/lib/pkgconfig
           mkdir -p /c/ffmpeg-static/include
 
@@ -125,17 +130,23 @@ jobs:
           cd /tmp/libdvdread-src
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
           make -j$(nproc) && make install
-          # Guard: dvdread.pc must be installed and visible to pkg-config before
+          # Guard: dvdread.pc must be installed AND visible to pkg-config before
           # libdvdnav / FFmpeg configure, which query dvdread via $PKG_CONFIG.
           # libdvdread's `make install` has intermittently dropped dvdread.pc;
           # fail fast here with a clear message instead of confusingly later at
-          # FFmpeg configure ("Package 'dvdread' not found"). The pc file is
-          # published to the default /ucrt64/lib/pkgconfig path below.
+          # libdvdnav/FFmpeg configure ("Package 'dvdread' not found"). The pc
+          # file is published to the default /ucrt64/lib/pkgconfig path below.
           if [ ! -f /c/ffmpeg-static/lib/pkgconfig/dvdread.pc ]; then
             echo "FATAL: dvdread.pc not installed at /c/ffmpeg-static/lib/pkgconfig/"
             ls -la /c/ffmpeg-static/lib/pkgconfig/ 2>&1 || true
             exit 1
           fi
+          if ! pkg-config --exists dvdread; then
+            echo "FATAL: pkg-config cannot find dvdread (PKG_CONFIG_PATH=$PKG_CONFIG_PATH)"
+            cat /c/ffmpeg-static/lib/pkgconfig/dvdread.pc 2>&1
+            exit 1
+          fi
+          echo "OK: dvdread.pc installed and visible to pkg-config"
           rm -rf /tmp/libdvdread-src /tmp/libdvdread.tar.bz2
 
           echo "[INFO] Building libdvdnav from source (static only)..."

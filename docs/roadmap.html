@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev60 &mdash; Release cut (rip crash fix + CI FFmpeg build resilience) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev60 &mdash; Published 2026-09-02 (rip crash fix + CI FFmpeg build resilience) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -797,6 +797,13 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev60', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Release published — both platform assets live', items: [
+      'v0.1.1-dev60 GitHub Release published 2026-09-02 with both assets (windows_amd64.zip 58.3 MB, linux_amd64.tar.gz 27.4 MB); the tag run\'s cold FFmpeg builds (with retries) went green on both platforms on the first attempt — the resilience fix held',
+    ]},
+    { title: 'MSIX Setup static FFmpeg fixed', items: [
+      'The msix step copied the dev/release dvdvideo block but dropped its export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig — libdvdnav configure failed twice with "Package dvdread not found" because dvdread.pc was never on the pkg-config search path and the .pc copy to /ucrt64/lib/pkgconfig ran only after configure',
+      'Added the PKG_CONFIG_PATH export plus a pkg-config --exists dvdread fail-fast guard (matching dev/release) so this class of configure failure dies early with a clear message',
+    ]},
     { title: 'Release cut — dev59 content + CI FFmpeg build resilience', items: [
       'dev59 was tagged but its GitHub Release never published: the release job (needs: linux, windows) was skipped when the windows FFmpeg cold build red\'d on a transient source flake, and re-running failed jobs never re-runs skipped jobs — the publish step stayed skipped. dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) ships now as dev60 so the tester gets a build',
       'CI FFmpeg build resilience: all five cache steps (dev/release × linux/windows, msix) gained restore-keys so tag runs reuse the previous tag\'s cached FFmpeg instead of a ~16 min cold rebuild; curl source downloads retry (--retry 3 --retry-delay 5 --retry-all-errors) and msix wget retries (--tries=5 --retry-connrefused --waitretry=5). dev #65 had "passed" only by cache-hit luck while the tag pipelines died in the real cold build',

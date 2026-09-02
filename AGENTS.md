@@ -74,7 +74,7 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 
 - `.github/workflows/dev.yml` — push to master; Linux + Windows; artifact zips. FFmpeg cache steps carry `restore-keys` so a tag/branch ref reuses the prior ref's cached build.
 - `.github/workflows/release.yml` — `v*` tags; same builds + GitHub Release. FFmpeg cache `restore-keys` + curl `--retry 3` on source downloads (a cold tag build that hits a transient source-mirror flake previously red'd the whole run).
-- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. FFmpeg cache `restore-keys`; wget `--tries=5` source downloads. **Green** (verified 2026-07-06: full static pipeline incl. x264/x265, static sidecars, makeappx).
+- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. FFmpeg cache `restore-keys`; wget `--tries=5` source downloads. **Green** (dev60 fix verified: the `Setup static FFmpeg` step must keep `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` — without it libdvdnav configure fails on missing `dvdread` even though `dvdread.pc` exists; confirmed via two consecutive tag-run failures, dev59/dev60, fixed 2026-09-02).
 - `.forgejo/workflows/dev-packages.yml` — legacy Forgejo; aligned; runs only on Forgejo.
 - Go `1.26`; `ubuntu-latest` (Noble — no `libxcb-fakekey-dev`); Windows via `msys2/setup-msys2` UCRT64.
 
