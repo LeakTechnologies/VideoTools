@@ -42,7 +42,7 @@ timeline
     v0.1.1-dev56 (Shipped) : NTSC/PAL video standard detection : CI FFmpeg build fix (.tar.xz → .tar.bz2) : Content browser build fixes : dvdvideo detection string fixed (CI grep + runtime probe)
     v0.1.1-dev57 (Shipped) : Release cut after dvdvideo detection fixes : dvdvideo→VOB concat runtime fallback : dvdread.pc fail-fast guard
     v0.1.1-dev58 (Shipped) : Rip module overhaul (linear workflow, DiscSummary, Advanced accordion, readiness line, i18n pass)
-    v0.1.1-dev59 (Current) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired
+    v0.1.1-dev59 (Current) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired : CI FFmpeg build resilience (cache restore-keys + download retries)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -67,6 +67,7 @@ timeline
 
 - **Dev58 closed and shipped**: rip module overhaul (linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `DiscSummary` card, `VideoStandard` scan fix, Advanced accordion, readiness line, compact collapsible log, i18n pass). Release tag `v0.1.1-dev58` published.
 - **Dev59 open — cleanup + crash fix**: blocked-straggler cleanup landed (`scripts/windows/dev-verify.ps1`, legacy upscale dual-player API removed, stale blocker docs retired); **rip view crash on open fixed** (`updateDiscInfo` assigned after the initial `rebuildEnrich()` call → nil-closure panic during first render, escaping `setContent`'s recover; now assigned before, plus a `showRipView` recover that logs a stack trace to `crashes.log`); Codeberg mirror retired (GitHub-only remote).
+- **Dev59 CI hardening — FFmpeg build resilience**: all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so tag runs reuse the previous tag's cached FFmpeg instead of a cold rebuild that a transient source-download flake can red; `curl` downloads got `--retry 3 --retry-delay 5 --retry-all-errors` and msix `wget` got `--tries=5 --retry-connrefused --waitretry=5` (release #14 + MSIX #19 failed on the cold build while dev #65 "passed" on a cache hit).
 - **Dev59 gates**: tester verification of the dev58 build (disc-info populates on ISO/VIDEO_TS load, scan flow reads clean) and of the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).

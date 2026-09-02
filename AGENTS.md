@@ -4,7 +4,7 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
-- **Cycle:** `v0.1.1-dev59` — **current**. dev58 shipped + released the rip module overhaul (UX), then dev59 opened with: (1) the **rip view opening crash** fixed — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` AFTER the initial `rebuildEnrich()` call, which invokes it, so the first render panicked on a nil closure, escaping `setContent`'s recover (the `buildRipView()` argument is evaluated before the recover arms) → silent process death with no `crashes.log` entry. Fixed by assigning `discSummary`/`updateDiscInfo` before the first `rebuildEnrich()`; `showRipView` also recovered+logs a stack trace to `crashes.log` before re-panicking; (2) **Codeberg mirror retired** (Codeberg will not host majority machine-generated code; Git recorded only GitHub remote); (3) blocked-straggler cleanup (`scripts/windows/dev-verify.ps1`, legacy upscale dual-player render API removed, stale blocker docs retired). **Windows FFmpeg builds are GREEN** (verified `69ec8610`).
+- **Cycle:** `v0.1.1-dev59` — **current**. dev58 shipped + released the rip module overhaul (UX), then dev59 opened with: (1) the **rip view opening crash** fixed — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` AFTER the initial `rebuildEnrich()` call, which invokes it, so the first render panicked on a nil closure, escaping `setContent`'s recover (the `buildRipView()` argument is evaluated before the recover arms) → silent process death with no `crashes.log` entry. Fixed by assigning `discSummary`/`updateDiscInfo` before the first `rebuildEnrich()`; `showRipView` also recovered+logs a stack trace to `crashes.log` before re-panicking; (2) **Codeberg mirror retired** (Codeberg will not host majority machine-generated code; Git recorded only GitHub remote); (3) **CI FFmpeg build resilience** — all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so tag runs reuse the previous tag's cached FFmpeg build, and all source downloads retry (curl `--retry 3 --retry-delay 5 --retry-all-errors` / msix wget `--tries=5 --retry-connrefused --waitretry=5`) — release #14 + MSIX #19 red'd on a transient cold-build source flake while dev #65 "passed" only via cache hit; (4) blocked-straggler cleanup (`scripts/windows/dev-verify.ps1`, legacy upscale dual-player render API removed, stale blocker docs retired). **Windows FFmpeg builds are GREEN** (verified `69ec8610`).
 - **Public/stable baseline:** `v0.1.1`.
 - **Planning sources:** `TODO.md` (scope), `docs/roadmap.html` (canonical tracker), `DONE.md` + `docs/CHANGELOG.md` (shipped history).
 - **Issue tracker:** https://github.com/LeakTechnologies/VideoTools/issues
@@ -72,9 +72,9 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 
 ### CI Workflows
 
-- `.github/workflows/dev.yml` — push to master; Linux + Windows; artifact zips. **Green.**
-- `.github/workflows/release.yml` — `v*` tags; same builds + GitHub Release. **Green.**
-- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. **Green** (verified 2026-07-06: full static pipeline incl. x264/x265, static sidecars, makeappx).
+- `.github/workflows/dev.yml` — push to master; Linux + Windows; artifact zips. FFmpeg cache steps carry `restore-keys` so a tag/branch ref reuses the prior ref's cached build.
+- `.github/workflows/release.yml` — `v*` tags; same builds + GitHub Release. FFmpeg cache `restore-keys` + curl `--retry 3` on source downloads (a cold tag build that hits a transient source-mirror flake previously red'd the whole run).
+- `.github/workflows/windows-msix.yml` — tags/dispatch; MSIX + WinGet. FFmpeg cache `restore-keys`; wget `--tries=5` source downloads. **Green** (verified 2026-07-06: full static pipeline incl. x264/x265, static sidecars, makeappx).
 - `.forgejo/workflows/dev-packages.yml` — legacy Forgejo; aligned; runs only on Forgejo.
 - Go `1.26`; `ubuntu-latest` (Noble — no `libxcb-fakekey-dev`); Windows via `msys2/setup-msys2` UCRT64.
 
