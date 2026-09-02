@@ -296,6 +296,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return gap
 	}
 
+	// subsectionLabel is a compact plain-text label for minor subsections
+	// (e.g. OUTPUT PATH) that don't warrant their own coloured SectionBox.
+	subsectionLabel := func(text string) fyne.CanvasObject {
+		lbl := widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+		lbl.Truncation = fyne.TextTruncateEllipsis
+		return lbl
+	}
+
 	// ── DVD Player (for background playback; hidden from main layout) ──────
 	dvdPlayer := ui.NewInlineVideoPlayer()
 	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
@@ -957,10 +965,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 				enrichContent,
 			)),
 			sectionGap(),
-			buildRipBox(t.LabelOutput, container.NewVBox(
+			// OUTPUT PATH is a plain subsection (not a major coloured section):
+			// a small bold label above the path entry, rather than a full
+			// SectionBox header.
+			container.NewVBox(
+				subsectionLabel(t.LabelOutput),
 				outputEntry,
 				container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
-			)),
+			),
 			sectionGap(),
 			// Monitoring: rip status text + progress. The readiness line and
 			// action buttons live in the full-width action bar below.
