@@ -1,6 +1,11 @@
 # VideoTools - Completed Features
 
-## v0.1.1-dev59 — Blocked-Straggler Cleanup + Rip Crash Fix
+## v0.1.1-dev60 — Release Cut (dev59 content + CI FFmpeg build resilience)
+
+- **Ship happened as dev60, not dev59** — dev59 was tagged (`a188ed7c`) but its GitHub Release was never published: the tag run's windows FFmpeg cold build red'd on a transient source flake, the `release` job (`needs: [linux, windows]`) got skipped, and GitHub's "Re-run failed jobs" does not re-run skipped jobs. dev59's content (below) + the CI resilience shipped from the hardened `07a10c03` as `v0.1.1-dev60`, published with both platform assets.
+- **CI FFmpeg build resilience** — all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so a new tag reuses the previous tag's FFmpeg build instead of a ~16 min cold rebuild; `curl` source downloads retry (`--retry 3 --retry-delay 5 --retry-all-errors`) and msix `wget` retries (`--tries=5 --retry-connrefused --waitretry=5`). release #14 + MSIX #19 had red'd on the cold build while dev #65 "passed" only via cache hit — dev-status is not evidence a cold build path is healthy.
+
+## v0.1.1-dev59 — Blocked-Straggler Cleanup + Rip Crash Fix (content shipped as dev60)
 
 - **Rip view crash on open fixed** — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` after the initial `rebuildEnrich()` call, but that call invokes it: nil-closure panic during `buildRipView()`, which escapes `setContent`'s recover (argument evaluated before recover armed) → silent process death, no `crashes.log`. Now `discSummary`/`updateDiscInfo` are assigned first; `showRipView` also gained a recover that logs a stack trace to `crashes.log` before re-panicking.
 - **Codeberg mirror retired** — Codeberg will not host majority machine-generated code; the Codeberg push URL was removed from `origin` (GitHub is now the only remote). TODO.md mirror-validation item marked done.

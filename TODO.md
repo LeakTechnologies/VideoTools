@@ -2,7 +2,14 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev59 Scope (current — cleanup + crash fix)
+## Dev60 Scope (current — release cut)
+
+- [x] **Release cut (dev59 content ships as dev60)** — dev59 was tagged but its GitHub Release never published (windows cold-build flake red'd the tag run; the `release` publish job got skipped and "Re-run failed jobs" doesn't re-run skipped jobs). dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience cut from hardened `07a10c03` as `v0.1.1-dev60`; both platform assets published.
+- [ ] **Tester verify: dev60 release** — confirm the rip module opens without crash, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped`.
+- [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
+- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+
+## Dev59 Scope (closed — shipped as dev60)
 
 - [x] **Rip view crash on open fixed** — `updateDiscInfo` assigned after the initial `rebuildEnrich()` call in `internal/app/modules/rip/view.go` → nil-closure panic during first render, escaping `setContent`'s recover (argument evaluated before recover armed) → silent process death. Assigned before; `showRipView` now recovers + logs a stack trace to `crashes.log`, then re-panics.
 - [x] **Codeberg mirror retired** — pushed to GitHub only; Codeberg push URL removed from `origin` (Codeberg will not host majority machine-generated code).
