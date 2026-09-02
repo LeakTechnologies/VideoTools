@@ -1352,15 +1352,17 @@ func fetchReleaseAssetURL(tag string) (downloadURL string, isZip bool, err error
 
 	// Ordered list of suffixes to try, most preferred first.
 	var candidates []string
+	// CI names assets `VideoTools_vX.Y.Z-devN_<os>_amd64.zip|.tar.gz`
+	// (Windows: zip archive, Linux: tar.gz or AppImage).
 	switch runtime.GOOS {
 	case "windows":
-		candidates = []string{"_windows.zip"}
+		candidates = []string{"_windows_amd64.zip"}
 	case "linux":
 		if os.Getenv("APPIMAGE") != "" {
-			// Running as AppImage; prefer the AppImage asset, fall back to zip.
-			candidates = []string{"_linux.AppImage", "_linux.zip"}
+			// Running as AppImage; prefer the AppImage asset, fall back to tar.gz.
+			candidates = []string{"_linux_amd64.AppImage", "_linux_amd64.tar.gz"}
 		} else {
-			candidates = []string{"_linux.zip"}
+			candidates = []string{"_linux_amd64.tar.gz"}
 		}
 	default:
 		return "", false, fmt.Errorf("auto-update not supported on %s", runtime.GOOS)
