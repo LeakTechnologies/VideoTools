@@ -919,52 +919,83 @@ func BuildView(opts Options) fyne.CanvasObject {
 		d.Show()
 	})
 
-	// ── Linear workflow: SOURCE → DISC → TITLES → OUTPUT → ACTION ──────────
-	flow := container.NewVBox(
-		buildRipBox(t.RipSource, container.NewVBox(
-			container.NewBorder(nil, nil, nil,
-				container.NewHBox(browseBtn, clearISOBtn),
-				ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
-					if opts.OnDropFirstLocal != nil {
-						loadDisc(opts.OnDropFirstLocal(items))
-					}
-				}),
-			),
-		)),
-		sectionGap(),
+	// ── Two-column workspace ────────────────────────────────────────────────
+	// Source spans the full width; below it a 55/45 HSplit divides CONTENT
+	// (disc summary + title list + menu preview) from PROCESSING (format,
+	// output path, monitoring). The action bar spans the full width above the
+	// log. SOURCE is the input to the whole operation; ACTION is the output of
+	// the whole operation — both belong outside the two semantic columns.
+
+	sourceBox := buildRipBox(t.RipSource, container.NewVBox(
+		container.NewBorder(nil, nil, nil,
+			container.NewHBox(browseBtn, clearISOBtn),
+			ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
+				if opts.OnDropFirstLocal != nil {
+					loadDisc(opts.OnDropFirstLocal(items))
+				}
+			}),
+		),
+	))
+
+	// LEFT = CONTENT. Disc summary pinned to the top, menu preview to the
+	// bottom, and the title list as the flexible centre that absorbs available
+	// height. The list scrolls internally; the disc card and menu preview keep
+	// their natural (bounded) heights.
+	leftColumn := container.NewBorder(
 		discSummary.GetContainer(),
-		sectionGap(),
-		// Titles: the Content Browser lists each title with selection toggles,
-		// main-feature badge and metadata — reused as the workflow centerpiece.
-		contentBrowser.GetContainer(),
-		sectionGap(),
-		buildRipBox(t.RipFormatLabel, container.NewVBox(
-			formatSelect,
-			enrichContent,
-		)),
-		sectionGap(),
 		menuPreview.GetContainer(),
-		sectionGap(),
-		buildRipBox(t.LabelOutput, container.NewVBox(
-			outputEntry,
-			container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
-		)),
-		sectionGap(),
-		buildRipBox(t.LabelStatus, container.NewVBox(
-			ripSummaryLbl,
-			statusLabel,
-			progressBar,
-			container.NewHBox(addQueueBtn, layout.NewSpacer(), openInPlayerBtn, runNowBtn),
-		)),
+		nil, nil,
+		contentBrowser.GetContainer(),
 	)
-	mainScroll := container.NewVScroll(container.NewPadded(flow))
+
+	// RIGHT = PROCESSING / OUTPUT. Format + enrichment + output path +
+	// monitoring, scrollable when the window is short.
+	rightColumn := container.NewVScroll(container.NewPadded(
+		container.NewVBox(
+			buildRipBox(t.RipFormatLabel, container.NewVBox(
+				formatSelect,
+				enrichContent,
+			)),
+			sectionGap(),
+			buildRipBox(t.LabelOutput, container.NewVBox(
+				outputEntry,
+				container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
+			)),
+			sectionGap(),
+			// Monitoring: rip status text + progress. The readiness line and
+			// action buttons live in the full-width action bar below.
+			buildRipBox(t.LabelStatus, container.NewVBox(
+				statusLabel,
+				progressBar,
+			)),
+		),
+	))
+
+	twoColumn := container.NewHSplit(leftColumn, rightColumn)
+	twoColumn.SetOffset(0.55)
+
+	// Full-width action bar: readiness line left, primary actions right.
+	actionBar := container.NewHBox(
+		ripSummaryLbl,
+		layout.NewSpacer(),
+		openInPlayerBtn,
+		runNowBtn,
+		addQueueBtn,
+	)
+
+	mainArea := container.NewBorder(
+		sourceBox,
+		actionBar,
+		nil, nil,
+		twoColumn,
+	)
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
 		bottomBar = opts.OnModuleFooter(opts.ModuleColor, nil, opts.OnGetStatsBar())
 	}
 
-	logVSplit = container.NewVSplit(mainScroll, logSection)
+	logVSplit = container.NewVSplit(mainArea, logSection)
 	// Default to a compact log strip; the ▼▶ LOG toggle expands it during a rip.
 	logVSplit.SetOffset(0.92)
 	return container.NewBorder(topBar, bottomBar, nil, nil,
