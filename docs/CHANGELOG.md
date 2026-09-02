@@ -1,6 +1,13 @@
 # VideoTools Changelog
 
-## v0.1.1-dev59 (September 2026)
+## v0.1.1-dev60 (September 2026)
+
+### Release Cut — dev59 content + CI FFmpeg Build Resilience
+
+- **dev59's GitHub Release was never published; its content ships here as dev60.** dev59 was tagged at `a188ed7c`, but the tag release run had its `release` job **skipped**: the windows FFmpeg cold build red'd on a transient source-download flake, `softprops/action-gh-release` needs `[linux, windows]`, and GitHub's "Re-run failed jobs" does not re-run **skipped** jobs — so the publish step never fired and `v0.1.1-dev58` remained latest. The dev59 content below (rip crash fix, Codeberg retirement, blocked-straggler cleanup) plus the CI resilience shipped here instead, cut from the hardened `07a10c03` where the tag pipeline uses the retry-enabled workflow.
+- **CI FFmpeg build resilience** — all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so a new tag reuses the previous tag's cached FFmpeg build; `curl` source downloads retry (`--retry 3 --retry-delay 5 --retry-all-errors`) and msix `wget` retries (`--tries=5 --retry-connrefused --waitretry=5`). release run #14 + MSIX #19 red'd on a transient cold-build source flake while dev #65 "passed" purely via cache hit — dev-status was not evidence the cold build path was healthy.
+
+## v0.1.1-dev59 (September 2026 — content shipped as dev60)
 
 ### Crash Fix — Rip Module Opening
 

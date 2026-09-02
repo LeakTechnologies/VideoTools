@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev59 &mdash; Working on blocked-straggler cleanup &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev60 &mdash; Release cut (rip crash fix + CI FFmpeg build resilience) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -600,7 +600,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev59';
+const currentVersion = 'dev60';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -796,14 +796,16 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev59', date: 'September 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev60', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Release cut — dev59 content + CI FFmpeg build resilience', items: [
+      'dev59 was tagged but its GitHub Release never published: the release job (needs: linux, windows) was skipped when the windows FFmpeg cold build red\'d on a transient source flake, and re-running failed jobs never re-runs skipped jobs — the publish step stayed skipped. dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) ships now as dev60 so the tester gets a build',
+      'CI FFmpeg build resilience: all five cache steps (dev/release × linux/windows, msix) gained restore-keys so tag runs reuse the previous tag\'s cached FFmpeg instead of a ~16 min cold rebuild; curl source downloads retry (--retry 3 --retry-delay 5 --retry-all-errors) and msix wget retries (--tries=5 --retry-connrefused --waitretry=5). dev #65 had "passed" only by cache-hit luck while the tag pipelines died in the real cold build',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev59', date: 'September 2026', tag: 'shipped', sections: [
     { title: 'Crash fix — rip module opening', items: [
       'Rip view panicked on open at first render: updateDiscInfo was assigned AFTER the initial rebuildEnrich() call, but rebuildEnrich invokes it — nil closure panic fired while buildRipView() was still being evaluated, escaping setContent\'s recover and killing the process with no crashes.log entry',
       'Fixed by assigning discSummary/updateDiscInfo before the first rebuildEnrich(); showRipView also gained a recover that writes a stack trace to crashes.log before re-panicking so future rip-view build failures are traceable',
-    ]},
-    { title: 'CI — FFmpeg build resilience', items: [
-      'Tag builds no longer force a cold FFmpeg rebuild: release/msix cache steps had no restore-keys, so each fresh tag ref missed the cache and rebuilt FFmpeg from source (~16 min), and a transient source-download flake red\'d the whole pipeline — dev #65 "passed" only by cache-hit luck while release #14 and MSIX #19 died in the real cold build',
-      'All five cache steps (dev/release × linux/windows, msix) define restore-keys: <key-prefix>- so a new tag reuses the previous tag\'s cached FFmpeg; curl source downloads now use --retry 3 --retry-delay 5 --retry-all-errors and msix wget uses --tries=5 --retry-connrefused --waitretry=5 so a one-off runner-side network blip no longer reds the build',
     ]},
     { title: 'Blocked-straggler cleanup', items: [
       'Upscale legacy render-based dual player removed: OnDualPlayerSeek/OnDualPlayerRender (types.go) and the renderDualPlayerPreview no-op stub (native_media.go + stubbed) had no consumer — the modern InlineVideoPlayer SetPeer dual-pane model already mirrors seek/play/filters, so the stub/API were deleted instead of implemented',
