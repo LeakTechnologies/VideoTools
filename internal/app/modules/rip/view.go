@@ -284,30 +284,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	ripNavy := utils.MustHex("#191F35")
-	buildRipBox := func(title string, content fyne.CanvasObject) *fyne.Container {
-		bg := canvas.NewRectangle(ripNavy)
-		bg.CornerRadius = 10
-		bg.StrokeColor = ui.GridColor
-		bg.StrokeWidth = 1
-		headerBg := canvas.NewRectangle(ripTeal)
-		headerBg.CornerRadius = 10
-		headerBg.SetMinSize(fyne.NewSize(0, 34))
-		headerTitle := canvas.NewText(strings.ToUpper(title), color.White)
-		headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-		headerTitle.TextSize = 12
-		header := container.NewMax(
-			headerBg,
-			container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
-		)
-		body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, body)
-		return container.NewMax(layers...)
+	// buildRipBox is a thin wrapper over the shared ui.SectionBox, binding the
+	// rip module's navy background and teal accent. See internal/ui/components.go.
+	buildRipBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		return ui.SectionBox(ripNavy, ripTeal, title, content)
 	}
 
 	sectionGap := func() fyne.CanvasObject {
 		gap := canvas.NewRectangle(color.Transparent)
-		gap.SetMinSize(fyne.NewSize(0, 10))
+		gap.SetMinSize(fyne.NewSize(0, 6))
 		return gap
 	}
 

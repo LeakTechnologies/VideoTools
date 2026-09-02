@@ -54,7 +54,7 @@ type ContentBrowser struct {
 	focused     int // title number currently focused for preview; 0 = none
 
 	list     *widget.List
-	outerBox *fyne.Container
+	outerBox fyne.CanvasObject
 }
 
 type titleCardState struct {
@@ -97,29 +97,14 @@ func NewContentBrowser() *ContentBrowser {
 		cb.setAllSelected(false)
 	})
 
-	headerBar := canvas.NewRectangle(ripTeal)
-	headerBar.CornerRadius = 10
-	headerBar.SetMinSize(fyne.NewSize(0, 34))
-	headerTitle := canvas.NewText(strings.ToUpper(t.RipContentBrowser), color.White)
-	headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-	headerTitle.TextSize = 12
-	header := container.NewMax(
-		headerBar,
-		container.NewPadded(container.NewHBox(
-			headerTitle,
-			layout.NewSpacer(),
-			selectAllBtn,
-			deselectAllBtn,
-		)),
-	)
-
 	cardBg := canvas.NewRectangle(ripCardBg)
 	cardBg.CornerRadius = 8
 	cardBg.StrokeColor = ui.GridColor
 	cardBg.StrokeWidth = 1
 
-	cb.outerBox = container.NewBorder(header, nil, nil, nil,
+	cb.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipContentBrowser,
 		container.NewStack(cardBg, cb.list),
+		selectAllBtn, deselectAllBtn,
 	)
 	cb.ExtendBaseWidget(cb)
 	return cb
