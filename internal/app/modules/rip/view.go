@@ -791,15 +791,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	// Initial render of enrichment panel (no scan result yet)
-	rebuildEnrich()
-
 	discSummary = NewDiscSummary()
 
 	// updateDiscInfo pushes the scan result into the disc summary card. It is
 	// called independently on scan completion (and from rebuildEnrich) so the
 	// summary reliably tracks scan state regardless of the rest of the
-	// enrichment panel.
+	// enrichment panel. It must be assigned BEFORE the initial rebuildEnrich()
+	// below — that call invokes it to render the empty state, and calling the
+	// still-nil closure panics the process.
 	updateDiscInfo = func() {
 		if discSummary == nil {
 			return
@@ -818,6 +817,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		discSummary.SetResult(vs.scanResult, discTitle)
 	}
+
+	// Initial render of enrichment panel (no scan result yet)
+	rebuildEnrich()
 
 	// loadDisc is the single entry-point for loading an ISO or VIDEO_TS path —
 	// shared by drop, Browse, and the old Folder picker path.

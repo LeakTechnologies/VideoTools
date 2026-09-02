@@ -1,7 +1,9 @@
 # VideoTools - Completed Features
 
-## v0.1.1-dev59 — Blocked-Straggler Cleanup
+## v0.1.1-dev59 — Blocked-Straggler Cleanup + Rip Crash Fix
 
+- **Rip view crash on open fixed** — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` after the initial `rebuildEnrich()` call, but that call invokes it: nil-closure panic during `buildRipView()`, which escapes `setContent`'s recover (argument evaluated before recover armed) → silent process death, no `crashes.log`. Now `discSummary`/`updateDiscInfo` are assigned first; `showRipView` also gained a recover that logs a stack trace to `crashes.log` before re-panicking.
+- **Codeberg mirror retired** — Codeberg will not host majority machine-generated code; the Codeberg push URL was removed from `origin` (GitHub is now the only remote). TODO.md mirror-validation item marked done.
 - **Upscale legacy render-based dual player removed** — `OnDualPlayerSeek`/`OnDualPlayerRender` (`types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` / `native_media_stub.go`) had no consumer; the module's dual-pane uses the InlineVideoPlayer `SetPeer` model, so the legacy render API was dead surface and was deleted instead of implemented. Unused `time` imports removed.
 - **Local Windows builds unblocked** — `scripts/windows/dev-verify.ps1` sets the CGo stack-LDFLAG allow + quotes gcc/g++, then runs `go build -tags native_media ./...` + `go vet ./...`. Verified green cold (~9 min) and warm locally.
 - **Stale blocker docs retired** — AGENTS.md "Blocked stragglers" line + `renderDualPlayerPreview` priority removed; PillIconButton `SetIcon` (exists since dev48) and the utils→ui→benchmark→utils cycle (resolved at MakeIconButton revert) confirmed no longer blocks. Docs (AGENTS/TODO/roadmap/CHANGELOG/DONE) synced to dev59.

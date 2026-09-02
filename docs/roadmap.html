@@ -797,6 +797,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev59', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Crash fix — rip module opening', items: [
+      'Rip view panicked on open at first render: updateDiscInfo was assigned AFTER the initial rebuildEnrich() call, but rebuildEnrich invokes it — nil closure panic fired while buildRipView() was still being evaluated, escaping setContent\'s recover and killing the process with no crashes.log entry',
+      'Fixed by assigning discSummary/updateDiscInfo before the first rebuildEnrich(); showRipView also gained a recover that writes a stack trace to crashes.log before re-panicking so future rip-view build failures are traceable',
+    ]},
     { title: 'Blocked-straggler cleanup', items: [
       'Upscale legacy render-based dual player removed: OnDualPlayerSeek/OnDualPlayerRender (types.go) and the renderDualPlayerPreview no-op stub (native_media.go + stubbed) had no consumer — the modern InlineVideoPlayer SetPeer dual-pane model already mirrors seek/play/filters, so the stub/API were deleted instead of implemented',
       'Local Windows builds unblocked: scripts/windows/dev-verify.ps1 sets CGO_ENABLED, CGO_LDFLAGS_ALLOW=-Wl,.* and a quoted gcc/g++, running go build -tags native_media ./... + go vet ./... (same env CI uses); AGENTS.md verification discipline now points at it',

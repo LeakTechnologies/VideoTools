@@ -2,6 +2,10 @@
 
 ## v0.1.1-dev59 (September 2026)
 
+### Crash Fix — Rip Module Opening
+
+- **Rip view panics immediately on open** — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` (the DiscSummary update closure) **after** the initial `rebuildEnrich()` call, but `rebuildEnrich` calls `updateDiscInfo()` during that first render. The nil closure panic bypassed `setContent`'s recover (the panic fired while `buildRipView()` was being evaluated as an argument, before the recover was armed), so the process died silently with no `crashes.log` entry — only the `showModule: dispatching to module handler for rip` line in `videotools.log`. Fixed by assigning `discSummary`/`updateDiscInfo` before the initial `rebuildEnrich()`; also added a `showRipView` recover that logs a full stack trace to `crashes.log` before re-panicking, so any future rip-view build failure is traceable. Bonus: found the bug by reading the log the user reported (`videotools.log` stops right after the rip dispatch line).
+
 ### Blocked-Straggler Cleanup
 
 - **Upscale legacy render-based dual player removed** — `OnDualPlayerSeek`/`OnDualPlayerRender` (`internal/app/modules/upscale/types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` + `native_media_stub.go`) had no consumer: the module's dual-pane uses the modern `InlineVideoPlayer` `SetPeer` model (mirrors play/pause/seek + re-applies the filter pipeline), so the legacy render API was dead surface. Deleted instead of implemented. `time` imports cleaned from all three files.
