@@ -2,13 +2,10 @@ package rip
 
 import (
 	"fmt"
-	"image/color"
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
@@ -20,7 +17,7 @@ import (
 // (empty / scanning / ok / error), each of which updates independently as the
 // scan progresses. All Set* methods must be called from the UI thread.
 type DiscSummary struct {
-	outer *fyne.Container // rounded navy box (header + body)
+	outer fyne.CanvasObject // rounded navy box (header + body)
 
 	titleLbl  *widget.Label
 	statusLbl *widget.Label
@@ -50,7 +47,6 @@ func NewDiscSummary() *DiscSummary {
 	body := container.NewVBox(
 		d.titleLbl,
 		d.statusLbl,
-		layout.NewSpacer(),
 		d.techLbl,
 		d.mainLbl,
 	)
@@ -142,22 +138,6 @@ func (d *DiscSummary) SetError(msg string) {
 // sectionBox wraps content in the app's standard rounded navy box with a teal
 // header bar, matching the other rip sections. Extracted here so both the disc
 // summary and the rest of the view share one implementation.
-func sectionBox(title string, content fyne.CanvasObject) *fyne.Container {
-	bg := canvas.NewRectangle(ripNavy)
-	bg.CornerRadius = 10
-	bg.StrokeColor = ui.GridColor
-	bg.StrokeWidth = 1
-
-	headerBg := canvas.NewRectangle(ripTeal)
-	headerBg.CornerRadius = 10
-	headerBg.SetMinSize(fyne.NewSize(0, 34))
-	headerTitle := canvas.NewText(title, color.White)
-	headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-	headerTitle.TextSize = 12
-	header := container.NewMax(
-		headerBg,
-		container.NewPadded(container.NewHBox(headerTitle, layout.NewSpacer())),
-	)
-	body := container.NewBorder(header, nil, nil, nil, container.NewPadded(content))
-	return container.NewMax(bg, body)
+func sectionBox(title string, content fyne.CanvasObject) fyne.CanvasObject {
+	return ui.SectionBox(ripNavy, ripTeal, title, content)
 }

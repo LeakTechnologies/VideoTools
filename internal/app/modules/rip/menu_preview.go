@@ -14,7 +14,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
@@ -35,7 +34,7 @@ type MenuPreview struct {
 	menuImg     *canvas.Image
 	loadingLbl  *widget.Label
 	placeholder *canvas.Text
-	outerBox    *fyne.Container
+	outerBox    fyne.CanvasObject
 
 	onTogglePreserve func(preserve bool)
 	onToggleMain     func(main bool)
@@ -80,34 +79,12 @@ func NewMenuPreview() *MenuPreview {
 		}
 	})
 
-	headerBg := canvas.NewRectangle(ripTeal)
-	headerBg.CornerRadius = 10
-	headerBg.SetMinSize(fyne.NewSize(0, 34))
-	headerTitle := canvas.NewText(strings.ToUpper(t.RipMenuPreview), color.White)
-	headerTitle.TextStyle = fyne.TextStyle{Bold: true}
-	headerTitle.TextSize = 12
-	header := container.NewMax(
-		headerBg,
-		container.NewPadded(container.NewHBox(
-			headerTitle,
-			layout.NewSpacer(),
-		)),
-	)
-
 	body := container.NewVBox(
-		container.NewPadded(previewArea),
-		container.NewPadded(container.NewVBox(preserveCheck, mainCheck)),
+		previewArea,
+		container.NewVBox(preserveCheck, mainCheck),
 	)
 
-	innerBg := canvas.NewRectangle(ripNavy)
-	innerBg.CornerRadius = 10
-	innerBg.StrokeColor = ui.GridColor
-	innerBg.StrokeWidth = 1
-
-	mp.outerBox = container.NewMax(
-		ui.NoisyBackgroundObjects(innerBg)...,
-	)
-	mp.outerBox.Add(container.NewBorder(header, nil, nil, nil, body))
+	mp.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipMenuPreview, body)
 
 	mp.ExtendBaseWidget(mp)
 	return mp
