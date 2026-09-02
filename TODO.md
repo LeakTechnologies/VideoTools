@@ -2,9 +2,11 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev58 Scope (current — rip module overhaul shipped)
+## Dev59 Scope (current — cleanup + crash fix)
 
-- [x] **Rip module overhaul (UX)** — linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `DiscSummary` card, `VideoStandard` scan fix + `updateDiscInfo()` decoupling, Advanced accordion, "Ready to rip N title(s)" readiness line, compact collapsible log, full i18n pass. Roadmap card `rip-overhaul` → `done`.
+- [x] **Rip view crash on open fixed** — `updateDiscInfo` assigned after the initial `rebuildEnrich()` call in `internal/app/modules/rip/view.go` → nil-closure panic during first render, escaping `setContent`'s recover (argument evaluated before recover armed) → silent process death. Assigned before; `showRipView` now recovers + logs a stack trace to `crashes.log`, then re-panics.
+- [x] **Codeberg mirror retired** — pushed to GitHub only; Codeberg push URL removed from `origin` (Codeberg will not host majority machine-generated code).
+- [x] **Blocked-straggler cleanup** — legacy upscale dual-player render API removed, `scripts/windows/dev-verify.ps1`, stale blocker docs retired.
 - [ ] **Tester verify: rip module overhaul (dev58)** — confirm disc-info populates on ISO/VIDEO_TS load, scan flow reads clean, selection flow works; move roadmap card `done` → `shipped` on sign-off (AGENTS.md priority 4).
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3); move the dvdvideo roadmap card `done` → `shipped` on sign-off.
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.

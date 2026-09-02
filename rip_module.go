@@ -20,6 +20,13 @@ import (
 )
 
 func (s *appState) showRipView() {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatModule, "panic building rip view: %v", r)
+			logging.Error(logging.CatModule, "panic building rip view: %v", r)
+			panic(r)
+		}
+	}()
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "rip"
