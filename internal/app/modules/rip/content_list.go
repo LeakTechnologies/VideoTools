@@ -30,11 +30,11 @@ const (
 )
 
 var (
-	ripNavy       = utils.MustHex("#191F35")
-	ripCardBg     = utils.MustHex("#0F1529")
-	ripTeal       = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}  // selected for export
-	ripPink       = color.NRGBA{R: 0xff, G: 0xaa, B: 0xaa, A: 0xff}  // NOT selected for export
-	ripFocusBg    = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0x1a} // focus highlight (subtle teal)
+	ripNavy    = utils.MustHex("#191F35")
+	ripCardBg  = utils.MustHex("#0F1529")
+	ripTeal    = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff} // selected for export
+	ripPink    = color.NRGBA{R: 0xff, G: 0xaa, B: 0xaa, A: 0xff} // NOT selected for export
+	ripFocusBg = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0x1a} // focus highlight (subtle teal)
 )
 
 // ContentBrowser displays DVD titles as a scrollable list with cycling-still
@@ -42,16 +42,16 @@ var (
 type ContentBrowser struct {
 	widget.BaseWidget
 
-	mu          sync.Mutex
-	scanResult  *DiscScanResult
-	sourcePath  string
-	titleCards  []*titleCardState
-	ticker      *time.Ticker
-	tickerDone  chan struct{}
-	onSelect    func(titleNum int, selected bool)
-	onPreview   func(titleNum int)
-	selected    map[int]bool
-	focused     int // title number currently focused for preview; 0 = none
+	mu         sync.Mutex
+	scanResult *DiscScanResult
+	sourcePath string
+	titleCards []*titleCardState
+	ticker     *time.Ticker
+	tickerDone chan struct{}
+	onSelect   func(titleNum int, selected bool)
+	onPreview  func(titleNum int)
+	selected   map[int]bool
+	focused    int // title number currently focused for preview; 0 = none
 
 	list     *widget.List
 	outerBox fyne.CanvasObject
@@ -392,11 +392,11 @@ type contentBrowserRenderer struct {
 	content fyne.CanvasObject
 }
 
-func (r *contentBrowserRenderer) Destroy()                         {}
-func (r *contentBrowserRenderer) Layout(s fyne.Size)               { r.content.Resize(s) }
-func (r *contentBrowserRenderer) MinSize() fyne.Size               { return r.content.MinSize() }
-func (r *contentBrowserRenderer) Objects() []fyne.CanvasObject     { return []fyne.CanvasObject{r.content} }
-func (r *contentBrowserRenderer) Refresh()                         { r.content.Refresh() }
+func (r *contentBrowserRenderer) Destroy()                     {}
+func (r *contentBrowserRenderer) Layout(s fyne.Size)           { r.content.Resize(s) }
+func (r *contentBrowserRenderer) MinSize() fyne.Size           { return r.content.MinSize() }
+func (r *contentBrowserRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.content} }
+func (r *contentBrowserRenderer) Refresh()                     { r.content.Refresh() }
 
 // extractThumbnails runs ffmpeg to extract keyframes for a single title.
 func (cb *ContentBrowser) extractThumbnails(tc *titleCardState) {
