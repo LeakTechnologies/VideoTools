@@ -43,7 +43,7 @@ timeline
     v0.1.1-dev57 (Shipped) : Release cut after dvdvideo detection fixes : dvdvideo→VOB concat runtime fallback : dvdread.pc fail-fast guard
     v0.1.1-dev58 (Shipped) : Rip module overhaul (linear workflow, DiscSummary, Advanced accordion, readiness line, i18n pass)
     v0.1.1-dev59 (Superseded) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired : CI FFmpeg build resilience — tagged but release never published (release job skipped after windows cold-build flake); content ships as dev60
-    v0.1.1-dev60 (Current) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`
+    v0.1.1-dev60 (Current) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`. **Rip density refinement** — two-column 55/45 workspace (CONTENT | PROCESSING), new ui.SectionBox shared component used by all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
