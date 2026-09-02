@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -311,18 +310,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	buildCompareBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-		)
-		body := container.NewBorder(header, nil, nil, nil, content)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+		return ui.SectionBox(navyBlue, compareColor, title, content)
 	}
 
 	instructionsRow := container.NewBorder(nil, nil, nil, container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), instructions)
@@ -630,7 +618,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
-
 
 func formatBitrate(bps int) string {
 	if bps == 0 {

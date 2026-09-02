@@ -55,10 +55,10 @@ type trimState struct {
 	inPoint   time.Duration
 	outPoint  time.Duration
 
-	currentTime    float64
-	duration       float64
-	previewActive  bool      // true while preview-region playback is running
-	lastSave       time.Time // throttles resume-position writes
+	currentTime   float64
+	duration      float64
+	previewActive bool      // true while preview-region playback is running
+	lastSave      time.Time // throttles resume-position writes
 
 	mode   string // "keep" or "cut"
 	export string // "copy" or "reencode"
@@ -97,7 +97,6 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	t := i18n.T()
 	trimColor := opts.ModuleColor
 	navyBlue := utils.MustHex("#191F35")
-	gridColor := utils.MustHex("#171C2A")
 
 	resume, err := state.NewResumeState("")
 	if err != nil {
@@ -182,19 +181,8 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 	})
 
-	buildTrimBox := func(title string, content fyne.CanvasObject) *fyne.Container {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			content,
-		)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+	buildTrimBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		return ui.SectionBox(navyBlue, trimColor, title, content)
 	}
 
 	// In/out point labels
