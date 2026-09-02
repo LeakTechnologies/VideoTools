@@ -4,8 +4,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev60 Scope (current — release cut)
 
+- [x] **Rip density refinement + global header migration** — two-column 55/45 workspace (LEFT = CONTENT: DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center; RIGHT = PROCESSING: Format/enrichment, Output as plain bold subsection, Status). New `ui.SectionBox` shared component backings all rip sections + 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim). Density: gaps 10px→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, DiscSummary empty-state spacer removed. Build + vet + gofmt green on all 9 commits.
 - [x] **Release cut (dev59 content ships as dev60)** — dev59 was tagged but its GitHub Release never published (windows cold-build flake red'd the tag run; the `release` publish job got skipped and "Re-run failed jobs" doesn't re-run skipped jobs). dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience cut from hardened `07a10c03` as `v0.1.1-dev60`; both platform assets published.
-- [ ] **Tester verify: dev60 release** — confirm the rip module opens without crash, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped`.
+- [ ] **Tester verify: dev60 release** — confirm the rip module opens without crash, two-column reads clean at ~1600×900 and 1280×720, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped`.
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
 
