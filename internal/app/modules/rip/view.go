@@ -389,10 +389,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		// Build list of (vtsNumber, outputPath, title) for each job to enqueue.
 		type titleJob struct {
-			vtsNumber    int
-			titleNumber  int
-			outputPath   string
-			jobTitle     string
+			vtsNumber   int
+			titleNumber int
+			outputPath  string
+			jobTitle    string
 		}
 		var jobs []titleJob
 
@@ -452,19 +452,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 				Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(j.outputPath), 40)),
 				InputFile:   vs.sourcePath,
 				OutputFile:  j.outputPath,
-			Config: map[string]interface{}{
-				"sourcePath":       vs.sourcePath,
-				"outputPath":       j.outputPath,
-				"format":           vs.format,
-				"embedChapters":    vs.embedChapters,
-				"allAudioTracks":   vs.allAudioTracks,
-				"includeSubtitles": vs.includeSubtitles,
-				"includeMenus":     vs.includeMenus,
-				"regionConvert":    vs.regionConvert,
-				"discTitle":        vs.discTitle,
-				"vtsNumber":        j.vtsNumber,
-				"titleNumber":      j.titleNumber,
-			},
+				Config: map[string]interface{}{
+					"sourcePath":       vs.sourcePath,
+					"outputPath":       j.outputPath,
+					"format":           vs.format,
+					"embedChapters":    vs.embedChapters,
+					"allAudioTracks":   vs.allAudioTracks,
+					"includeSubtitles": vs.includeSubtitles,
+					"includeMenus":     vs.includeMenus,
+					"regionConvert":    vs.regionConvert,
+					"discTitle":        vs.discTitle,
+					"vtsNumber":        j.vtsNumber,
+					"titleNumber":      j.titleNumber,
+				},
 			}
 			opts.AddJob(job)
 		}
