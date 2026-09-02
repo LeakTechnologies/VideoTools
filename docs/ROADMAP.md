@@ -43,7 +43,7 @@ timeline
     v0.1.1-dev57 (Shipped) : Release cut after dvdvideo detection fixes : dvdvideo→VOB concat runtime fallback : dvdread.pc fail-fast guard
     v0.1.1-dev58 (Shipped) : Rip module overhaul (linear workflow, DiscSummary, Advanced accordion, readiness line, i18n pass)
     v0.1.1-dev59 (Superseded) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired : CI FFmpeg build resilience — tagged but release never published (release job skipped after windows cold-build flake); content ships as dev60
-    v0.1.1-dev60 (Current) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries)
+    v0.1.1-dev60 (Current) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -68,6 +68,8 @@ timeline
 
 - **Dev58 closed and shipped**: rip module overhaul (linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `DiscSummary` card, `VideoStandard` scan fix, Advanced accordion, readiness line, compact collapsible log, i18n pass). Release tag `v0.1.1-dev58` published.
 - **Dev59 tagged but never released — ships as dev60**: dev59 (rip crash fix, Codeberg mirror retirement, blocked-straggler cleanup, CI FFmpeg build resilience) was tagged at `a188ed7c`, but the tag release run's publish job was **skipped** — the windows FFmpeg cold build red'd on a transient source-download flake, the `release` job (`needs: [linux, windows]`) never ran, and "Re-run failed jobs" does not re-run skipped jobs. The dev59 content (crash fix + Codeberg + cleanup) and the CI resilience now ship as `v0.1.1-dev60`, cut from the hardened `07a10c03` so the tag build uses the resilient workflow.
+- **Dev60 release published 2026-09-02** — GitHub Release live with both platform assets (`_windows_amd64.zip` 58.3 MB, `_linux_amd64.tar.gz` 27.4 MB); the tag run's cold FFmpeg builds (with retries) went green on both platforms on the first attempt.
+- **MSIX `Setup static FFmpeg` fixed** — the msix step lacked the `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` that dev/release carry; libdvdnav configure failed twice with `Package 'dvdread' not found` (`dvdread.pc` exists but was never on the pkg-config search path, and the `.pc` copy to `/ucrt64/lib/pkgconfig` ran only after configure). Added the export + a `pkg-config --exists dvdread` fail-fast guard.
 - **Rip view crash on open fixed**: `updateDiscInfo` assigned after the initial `rebuildEnrich()` call → nil-closure panic during first render, escaping `setContent`'s recover; now assigned before, plus a `showRipView` recover that logs a stack trace to `crashes.log`.
 - **Dev60 gates**: tester verification of the released build (rip module opens without crash, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean) and of the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
