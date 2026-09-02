@@ -72,6 +72,7 @@ jobs:
         with:
           path: C:\ffmpeg-static
           key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v4
+          restore-keys: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-
 
       - name: Setup static FFmpeg (Windows)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -118,7 +119,7 @@ jobs:
 
           echo "[INFO] Building libdvdread from source (static only)..."
           rm -rf /tmp/libdvdread-src
-          wget -q -O /tmp/libdvdread.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2"
+          wget -q --tries=5 --retry-connrefused --waitretry=5 -O /tmp/libdvdread.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2"
           tar xjf /tmp/libdvdread.tar.bz2 -C /tmp
           mv /tmp/libdvdread-6.1.3 /tmp/libdvdread-src
           cd /tmp/libdvdread-src
@@ -139,7 +140,7 @@ jobs:
 
           echo "[INFO] Building libdvdnav from source (static only)..."
           rm -rf /tmp/libdvdnav-src
-          wget -q -O /tmp/libdvdnav.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2"
+          wget -q --tries=5 --retry-connrefused --waitretry=5 -O /tmp/libdvdnav.tar.bz2 "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2"
           tar xjf /tmp/libdvdnav.tar.bz2 -C /tmp
           mv /tmp/libdvdnav-6.1.1 /tmp/libdvdnav-src
           cd /tmp/libdvdnav-src
@@ -167,7 +168,7 @@ jobs:
 
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
-          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          wget -q --tries=5 --retry-connrefused --waitretry=5 -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
           mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
           cd /tmp/ffmpeg-src

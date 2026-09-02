@@ -33,6 +33,7 @@ jobs:
         with:
           path: /opt/ffmpeg
           key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v3' }}
+          restore-keys: ffmpeg-${{ runner.os }}-
 
       - name: Install deps
         run: |
@@ -46,7 +47,7 @@ jobs:
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
           mkdir -p /opt/ffmpeg /tmp/ffmpeg-src
-          curl -L "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ -C /tmp/ffmpeg-src --strip=1
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar xJ -C /tmp/ffmpeg-src --strip=1
           cd /tmp/ffmpeg-src
           ./configure --prefix=/opt/ffmpeg --enable-static --disable-shared \
             --disable-programs --disable-doc \
@@ -104,6 +105,7 @@ jobs:
         with:
           path: C:\ffmpeg-static
           key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v10' }}
+          restore-keys: ffmpeg-${{ runner.os }}-
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -113,7 +115,7 @@ jobs:
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
           # libdvdread + libdvdnav from source (static-only) — required by
           # FFmpeg's dvdvideo demuxer (cell-accurate DVD title playback).
-          curl -L "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2" | tar xj
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2" | tar xj
           cd libdvdread-6.1.3
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
           make -j$(nproc)
@@ -136,7 +138,7 @@ jobs:
             exit 1
           fi
           echo "OK: dvdread.pc present, pkg-config --exists dvdread passes"
-          curl -L "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2" | tar xj
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://downloads.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2" | tar xj
           cd libdvdnav-6.1.1
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared
           make -j$(nproc)
@@ -157,7 +159,7 @@ jobs:
           echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Libs: -L${libdir} -ldvdnav -ldvdread' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
-          curl -L -o /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors -o /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
           tar xjf /tmp/ffmpeg.tar.bz2 -C /tmp
           cd /tmp/ffmpeg-${FFMPEG_VERSION}
           # --extra-ldflags=-static makes ffmpeg.exe/ffprobe.exe fully
