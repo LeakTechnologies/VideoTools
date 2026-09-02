@@ -918,8 +918,8 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
   - Confirm redundant Linux workflow removal doesn't break release publishing.
 - [X] **Forgejo dev-packages workflow**
   - Fixed YAML parsing in bundled deps note generation.
-- [ ] **Forgejo mirror validation**
-  - Confirm built-in push mirror updates Codeberg successfully.
+- [x] **Forgejo mirror retired (Codeberg)**
+  - Codeberg will not host majority machine-generated code; the Codeberg push mirror was removed from `origin` (2026-09-02). GitHub is the only remote.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
