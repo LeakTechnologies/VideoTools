@@ -64,6 +64,11 @@ func NewMenuPreview() *MenuPreview {
 	previewBg.CornerRadius = 8
 	previewBg.StrokeColor = ui.GridColor
 	previewBg.StrokeWidth = 1
+	// Bounded empty-state height: with no menu loaded only the placeholder
+	// text is visible (hidden children contribute no MinSize), so the 16:9
+	// image minimum no longer applies — the area collapses to a short strip
+	// instead of a tall empty box.
+	previewBg.SetMinSize(fyne.NewSize(0, 40))
 
 	previewArea := container.NewMax(previewBg, mp.placeholder, mp.loadingLbl, mp.menuImg)
 

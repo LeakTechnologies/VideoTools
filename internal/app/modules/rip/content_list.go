@@ -53,8 +53,9 @@ type ContentBrowser struct {
 	selected   map[int]bool
 	focused    int // title number currently focused for preview; 0 = none
 
-	list     *widget.List
-	outerBox fyne.CanvasObject
+	list      *widget.List
+	emptyHint *widget.Label
+	outerBox  fyne.CanvasObject
 }
 
 type titleCardState struct {
@@ -102,8 +103,16 @@ func NewContentBrowser() *ContentBrowser {
 	cardBg.StrokeColor = ui.GridColor
 	cardBg.StrokeWidth = 1
 
+	// Empty-state affordance: the title list is the flexible region of the
+	// left column, so when no disc is loaded it would otherwise read as a
+	// large blank void. A centred hint overlays the list area and hides as
+	// soon as titles exist.
+	cb.emptyHint = widget.NewLabel(t.RipDiscNoneHint)
+	cb.emptyHint.Alignment = fyne.TextAlignCenter
+	cb.emptyHint.Importance = widget.LowImportance
+
 	cb.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipContentBrowser,
-		container.NewStack(cardBg, cb.list),
+		container.NewStack(cardBg, cb.list, container.NewCenter(cb.emptyHint)),
 		selectAllBtn, deselectAllBtn,
 	)
 	cb.ExtendBaseWidget(cb)
@@ -142,6 +151,7 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 	cb.mu.Unlock()
 
 	if result != nil && len(result.Titles) > 0 {
+		cb.emptyHint.Hide()
 		cb.list.Refresh()
 		cb.startCycling()
 		// Extract thumbnails in background.
@@ -149,6 +159,7 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 			go cb.extractThumbnails(cb.titleCards[i])
 		}
 	} else {
+		cb.emptyHint.Show()
 		cb.list.Refresh()
 	}
 }
