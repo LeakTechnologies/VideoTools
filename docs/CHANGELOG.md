@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev62 (September 2026)
+
+### Rip Layout Correction Pass
+
+- **Giant action-button band fixed (root cause)** — the readiness label had `TextWrapWord` inside an HBox. Fyne HBox children stretch to the container's height, and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall — so the action bar grew into a huge band, `PillButton` (which fills whatever size it is given) stretched into tall boxes, the right column was clipped behind it, and the same label rendered one-character-per-line ("Load a disc to begin."). The bar is now a Border: buttons in the right edge at natural height, label as the centre with ellipsis truncation.
+- **DiscSummary compact empty state** — tech/main-feature rows are hidden in empty/scanning/error states (hidden rows contribute no MinSize, so the card collapses to title + hint); title label uses the `Truncation` field instead of a `TextTruncate` value assigned to `Wrapping`.
+- **MenuPreview bounded empty state** — `NO MENU FOUND` collapses to a 40px strip (the hidden 16:9 menu image no longer contributes MinSize in the stack); the full 280×158 preview returns when a menu loads.
+- **ContentBrowser empty-state hint** — a centred "Load an ISO or VIDEO_TS folder to begin." overlays the flexible title-list region and hides once titles load, so the empty left column reads as intentional rather than a blank void.
+- dev61→dev62 is the first end-to-end exercise of the fixed in-app updater.
+
 ## v0.1.1-dev61 (September 2026)
 
 ### Rip Density Refinement + Global Header Migration
