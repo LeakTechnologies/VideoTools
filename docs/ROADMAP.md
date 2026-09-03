@@ -43,7 +43,8 @@ timeline
     v0.1.1-dev57 (Shipped) : Release cut after dvdvideo detection fixes : dvdvideo→VOB concat runtime fallback : dvdread.pc fail-fast guard
     v0.1.1-dev58 (Shipped) : Rip module overhaul (linear workflow, DiscSummary, Advanced accordion, readiness line, i18n pass)
     v0.1.1-dev59 (Superseded) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired : CI FFmpeg build resilience — tagged but release never published (release job skipped after windows cold-build flake); content ships as dev60
-    v0.1.1-dev60 (Current) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`. **Rip density refinement** — two-column 55/45 workspace (CONTENT | PROCESSING), new ui.SectionBox shared component used by all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim)
+    v0.1.1-dev60 (Shipped) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`
+    v0.1.1-dev61 (Current) : **Rip density refinement** — two-column 55/45 workspace (CONTENT | PROCESSING), new ui.SectionBox shared component used by all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim). **In-app updater fixed** — asset-suffix mismatch (`_windows.zip` vs `_windows_amd64.zip`) had made Install Update always fail; from dev61 onward updates work in-app
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -55,7 +56,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev60 work** |
+| **Green** | **Current dev61 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -64,14 +65,13 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev60)
+## Current State (v0.1.1-dev61)
 
-- **Dev58 closed and shipped**: rip module overhaul (linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow, `DiscSummary` card, `VideoStandard` scan fix, Advanced accordion, readiness line, compact collapsible log, i18n pass). Release tag `v0.1.1-dev58` published.
-- **Dev59 tagged but never released — ships as dev60**: dev59 (rip crash fix, Codeberg mirror retirement, blocked-straggler cleanup, CI FFmpeg build resilience) was tagged at `a188ed7c`, but the tag release run's publish job was **skipped** — the windows FFmpeg cold build red'd on a transient source-download flake, the `release` job (`needs: [linux, windows]`) never ran, and "Re-run failed jobs" does not re-run skipped jobs. The dev59 content (crash fix + Codeberg + cleanup) and the CI resilience now ship as `v0.1.1-dev60`, cut from the hardened `07a10c03` so the tag build uses the resilient workflow.
-- **Dev60 release published 2026-09-02** — GitHub Release live with both platform assets (`_windows_amd64.zip` 58.3 MB, `_linux_amd64.tar.gz` 27.4 MB); the tag run's cold FFmpeg builds (with retries) went green on both platforms on the first attempt.
-- **MSIX `Setup static FFmpeg` fixed** — the msix step lacked the `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` that dev/release carry; libdvdnav configure failed twice with `Package 'dvdread' not found` (`dvdread.pc` exists but was never on the pkg-config search path, and the `.pc` copy to `/ucrt64/lib/pkgconfig` ran only after configure). Added the export + a `pkg-config --exists dvdread` fail-fast guard.
-- **Rip view crash on open fixed**: `updateDiscInfo` assigned after the initial `rebuildEnrich()` call → nil-closure panic during first render, escaping `setContent`'s recover; now assigned before, plus a `showRipView` recover that logs a stack trace to `crashes.log`.
-- **Dev60 gates**: tester verification of the released build (rip module opens without crash, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean) and of the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
+- **Dev60 shipped**: dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience (cache restore-keys, download retries) released 2026-09-02 with both platform assets; MSIX `Setup static FFmpeg` fixed (`PKG_CONFIG_PATH` export + `pkg-config --exists dvdread` guard).
+- **Dev61 = rip density refinement + global header migration**: the dev58 linear vertical rip layout became a two-column 55/45 workspace — LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center), RIGHT = PROCESSING (Format/enrichment, Output as plain bold subsection, Status); SOURCE + action bar span full width. New `ui.SectionBox` shared component (compact 28px teal header, navy body, optional header actions) replaces the per-module `buildXxxBox` duplication across all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim). Density: gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158.
+- **In-app updater fixed (dev61)**: `fetchReleaseAssetURL` searched for `_windows.zip`/`_linux.zip` but CI publishes `_windows_amd64.zip`/`_linux_amd64.tar.gz` — Install Update had always failed with "no compatible asset found" (broken since at least dev51; why every update was manual). From dev61 onward in-app updates work. Follow-ups: bake `buildCommit` via ldflags (patch detection dead), Linux tar.gz extraction, stale nightly-PATCH comment.
+- **Rip view crash on open fixed** (dev59/dev60): `updateDiscInfo` assigned after the initial `rebuildEnrich()` call → nil-closure panic during first render; now assigned before, plus a `showRipView` recover that logs a stack trace to `crashes.log`.
+- **Dev61 gates**: tester verification of the released build (rip module opens without crash, two-column reads clean at ~1600×900 and 1280×720, disc-info populates, scan flow reads clean) and of the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
@@ -80,10 +80,11 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev60 — open)
+## Now (dev61 — open)
 
-- **Tester verification of dev58 build + rip module** — Release assets published; open the rip module in three different index/UTC states and confirm no crash, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped` on sign-off
+- **Tester verification of dev61 release** — rip density refinement (two-column at ~1600×900 and 1280×720, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean) + all dev60 content; move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
+- **Updater hardening** — bake `buildCommit` via ldflags (CI change — ask first), Linux tar.gz extraction path, stale comment cleanup
 - Next: dead-code retirement, documentation pass
 
 ## Shipped (dev51)

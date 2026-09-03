@@ -1,5 +1,18 @@
 # VideoTools Changelog
 
+## v0.1.1-dev61 (September 2026)
+
+### Rip Density Refinement + Global Header Migration
+
+- **Two-column rip workspace** — the dev58 rip overhaul read as one long vertical scroll. Now a 55/45 HSplit: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as the flexible center with internal scroll), RIGHT = PROCESSING (Format + enrichment, Output, Status), with SOURCE spanning the top and the action bar (readiness line left, Add to Queue / Open in Player / RIP NOW right) spanning the bottom above the log.
+- **`ui.SectionBox` shared component** — compact 28px teal-accent header, navy body, optional header actions that don't grow the header. Replaces the per-module `buildXxxBox` duplication across the rip module plus 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + trim stub); trim's `*fyne.Container` return loosened to `fyne.CanvasObject`; audio's dead shadowed package-level helper removed.
+- **Density passes** — section gaps 10px→6px, title thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT PATH demoted from a coloured SectionBox to a plain bold subsection label, DiscSummary empty-state spacer removed so the card keeps natural height. Build + vet + gofmt green across all 9 commits.
+
+### In-App Updater Fixed
+
+- **Install Update always failed** — `fetchReleaseAssetURL` looked for assets ending `_windows.zip`/`_linux.zip`, but CI publishes `VideoTools_vX.Y.Z-devN_windows_amd64.zip`/`_linux_amd64.tar.gz`, so every install attempt died with "no compatible asset found in release" before downloading anything. Suffix now matches the real artifact names. From dev61 onward in-app updates work; dev60-and-older binaries still carry the bug, so dev61 is the last manual download.
+- **Known updater follow-ups (flagged in TODO)** — release builds don't bake `buildCommit` via ldflags, so the same-tag patch-detection path is dead (`patchesAvailable` always false); Linux has no tar.gz extraction path; the "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` is stale (no such job exists).
+
 ## v0.1.1-dev60 (September 2026)
 
 ### Release Cut — dev59 content + CI FFmpeg Build Resilience
@@ -8,7 +21,6 @@
 - **CI FFmpeg build resilience** — all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so a new tag reuses the previous tag's cached FFmpeg build; `curl` source downloads retry (`--retry 3 --retry-delay 5 --retry-all-errors`) and msix `wget` retries (`--tries=5 --retry-connrefused --waitretry=5`). release run #14 + MSIX #19 red'd on a transient cold-build source flake while dev #65 "passed" purely via cache hit — dev-status was not evidence the cold build path was healthy.
 - **dev60 release published 2026-09-02** — both platform assets live (windows_amd64.zip 58.3 MB, linux_amd64.tar.gz 27.4 MB) at https://github.com/LeakTechnologies/VideoTools/releases/tag/v0.1.1-dev60; the tag run's cold FFmpeg builds went green on both platforms.
 - **MSIX dvdread/ffmpeg configure fixed** — `Setup static FFmpeg (Windows)` failed twice (`dvdread` not found at libdvdnav configure) because the msix step set **no `PKG_CONFIG_PATH`**: `dvdread.pc` was written to `/c/ffmpeg-static/lib/pkgconfig` but pkg-config never searched that dir, and the `.pc` copy to `/ucrt64/lib/pkgconfig` ran only after configure had already failed. dev/release carry `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig`; msix did not. Added the export plus a `pkg-config --exists dvdread` guard, matching dev/release.
-- **Rip density refinement + global header migration** — the dev58 rip overhaul read as one long vertical scroll. Now a two-column 55/45 HSplit: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as the flexible center), RIGHT = PROCESSING (Format + Output + Status), with SOURCE spanning the top and the action bar spanning the bottom. All 7 modules' section headers unified on a shared `ui.SectionBox` (compact 28px teal header, navy body, optional header actions). Density: section gaps 10px→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT demoted from SectionBox to a plain bold subsection label. DiscSummary empty state no longer stretches to fill leftover space.
 
 ## v0.1.1-dev59 (September 2026 — content shipped as dev60)
 
