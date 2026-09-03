@@ -2,13 +2,20 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev60 Scope (current — release cut)
+## Dev61 Scope (current — rip density + updater fix)
 
 - [x] **Rip density refinement + global header migration** — two-column 55/45 workspace (LEFT = CONTENT: DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center; RIGHT = PROCESSING: Format/enrichment, Output as plain bold subsection, Status). New `ui.SectionBox` shared component backings all rip sections + 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim). Density: gaps 10px→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, DiscSummary empty-state spacer removed. Build + vet + gofmt green on all 9 commits.
-- [x] **Release cut (dev59 content ships as dev60)** — dev59 was tagged but its GitHub Release never published (windows cold-build flake red'd the tag run; the `release` publish job got skipped and "Re-run failed jobs" doesn't re-run skipped jobs). dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience cut from hardened `07a10c03` as `v0.1.1-dev60`; both platform assets published.
-- [ ] **Tester verify: dev60 release** — confirm the rip module opens without crash, two-column reads clean at ~1600×900 and 1280×720, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped`.
+- [x] **In-app updater asset-suffix fix** — `fetchReleaseAssetURL` searched for `_windows.zip`/`_linux.zip` but CI publishes `_windows_amd64.zip`/`_linux_amd64.tar.gz`, so Install Update always failed with "no compatible asset found". Fixed to match real artifact names; from dev61 onward in-app updates work (dev60-and-older still carry the bug — dev61 is the last manual download).
+- [ ] **Updater hardening (follow-ups)** — (a) bake `buildCommit` into release builds via ldflags (`-X main.buildCommit=<sha>`) so the same-tag patch-detection path works — CI change, ask before touching workflows; (b) Linux tar.gz extraction path (updater currently has zip-only extraction; Linux treats tar.gz as a direct binary); (c) fix the stale "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` (no such job exists).
+- [ ] **Tester verify: dev61 release** — confirm the rip module opens without crash, two-column reads clean at ~1600×900 and 1280×720, disc-info populates on ISO/VIDEO_TS load, scan flow reads clean; move roadmap cards `done` → `shipped` (covers all dev60 content + the refinement).
+- [ ] **Tester verify: in-app updater (from dev61 onward)** — a future dev62 release will exercise the fixed Install Update path end-to-end.
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+
+## Dev60 Scope (closed — released 2026-09-02)
+
+- [x] **Release cut (dev59 content ships as dev60)** — dev59 was tagged but its GitHub Release never published (windows cold-build flake red'd the tag run; the `release` publish job got skipped and "Re-run failed jobs" doesn't re-run skipped jobs). dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience cut from hardened `07a10c03` as `v0.1.1-dev60`; both platform assets published.
+- [x] **MSIX `PKG_CONFIG_PATH` fix** — msix workflow's `Setup static FFmpeg` missed the `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` that dev/release carry; added + a `pkg-config --exists dvdread` fail-fast guard.
 
 ## Dev59 Scope (closed — shipped as dev60)
 
