@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev61 &mdash; September 2026 (rip density refinement + global header migration + updater fix) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev62 &mdash; September 2026 (rip layout correction pass) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -329,7 +329,7 @@ const roadmap = {
       { id: 'm2ts-support', title: '.m2ts File Support', desc: 'Handle .m2ts files in CollectVOBSets (currently only .vob is matched)', status: 'future', cycle: 'future', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'future', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
       { id: 'rip-overhaul', title: 'Rip Module Overhaul', desc: 'Major UX/interface rework, dev58: a linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow replaces the old clunky layout. Disc info now populates reliably on ISO/VIDEO_TS load (ScanDisc.VideoStandard was read before the VTS cache filled — NTSC/PAL never surfaced; disc info decoupled into updateDiscInfo()), shown in a dedicated DiscSummary card with explicit empty/scanning/scanned/error states (type · standard · region · size · title count, ★ Main Feature = longest title). The Content Browser is reused as the TITLES section instead of dominating the screen. Common output options stay first-class (chapters/audio/subtitles); uncommon ones (Preserve menus, PAL↔NTSC conversion, full-disc extraction) moved into an Advanced accordion. "Ready to rip N title(s)" readiness line drives the RIP NOW / Add to Queue / Open in Player actions; log is a compact collapsible strip. Full i18n pass over the module hardcoded labels/dialogs/region strings (en/fr/iu/iu_latin).', status: 'done', cycle: 'dev58', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/scan.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/rip/menu_preview.go', 'internal/i18n/strings.go', 'internal/i18n/en_ca.go', 'internal/i18n/fr_ca.go', 'internal/i18n/iu.go', 'internal/i18n/iu_latin.go'], deps: ['dvdvideo'], docs: [] },
-      { id: 'rip-refinement', title: 'Rip Density Refinement', desc: 'Two-column workspace replaces the single vertical scroll: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center with internal scroll, 55%), RIGHT = PROCESSING (Format/enrichment, Output, Status, 45%), SOURCE + action bar span full width. New ui.SectionBox shared component (compact 28px teal header, navy body, optional header actions) now backings all rip sections plus the 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + stub). Density: gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT demoted to a plain bold subsection label, DiscSummary empty-state spacer removed.', status: 'done', cycle: 'dev61', files: ['internal/ui/components.go', 'internal/app/modules/rip/view.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/menu_preview.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/audio/view.go', 'internal/app/modules/upscale/view.go', 'internal/app/modules/thumbnail/view.go', 'internal/app/modules/inspect/view.go', 'internal/app/modules/compare/view.go', 'internal/app/modules/filters/view.go', 'internal/app/modules/trim/view.go', 'internal/app/modules/trim/stub.go'], deps: ['rip-overhaul'], docs: [] },
+      { id: 'rip-refinement', title: 'Rip Density Refinement', desc: 'Two-column workspace replaces the single vertical scroll: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center with internal scroll, 55%), RIGHT = PROCESSING (Format/enrichment, Output, Status, 45%), SOURCE + action bar span full width. New ui.SectionBox shared component (compact 28px teal header, navy body, optional header actions) now backings all rip sections plus the 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + stub). Density: gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT demoted to a plain bold subsection label, DiscSummary empty-state spacer removed. dev62 correction pass: action bar rebuilt as a Border (wrapping-label-in-HBox root cause had produced a giant button band, clipped right column, one-char-per-line label), DiscSummary hides empty tech/main rows, MenuPreview bounded 40px empty strip, ContentBrowser centred empty-state hint.', status: 'done', cycle: 'dev62', files: ['internal/ui/components.go', 'internal/app/modules/rip/view.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/menu_preview.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/audio/view.go', 'internal/app/modules/upscale/view.go', 'internal/app/modules/thumbnail/view.go', 'internal/app/modules/inspect/view.go', 'internal/app/modules/compare/view.go', 'internal/app/modules/filters/view.go', 'internal/app/modules/trim/view.go', 'internal/app/modules/trim/stub.go'], deps: ['rip-overhaul'], docs: [] },
       { id: 'clone-disc', title: 'Clone Disc to ISO', desc: 'Sector-by-sector disc copy with queue integration — see CLONE_DISC_DESIGN.md', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CLONE_DISC_DESIGN.md'] },
     ]
   },
@@ -601,7 +601,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev61';
+const currentVersion = 'dev62';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -797,7 +797,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev61', date: 'September 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev62', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Rip layout correction pass', items: [
+      'Giant action-button band fixed — root cause: the readiness label had TextWrapWord inside an HBox; Fyne HBox children stretch to the container height and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall, so the bar grew into a huge band, PillButton (fills any given size) stretched into tall boxes, the right column was clipped behind it, and the label rendered one-char-per-line. Now a Border: buttons right edge at natural height, label centre with ellipsis truncation',
+      'Compact empty states: DiscSummary hides tech/main rows in empty/scanning/error states and uses the Truncation field; MenuPreview collapses to a bounded 40px NO MENU FOUND strip; ContentBrowser overlays a centred "Load an ISO or VIDEO_TS folder to begin." hint that hides once titles load',
+      'dev61→dev62 is the first end-to-end exercise of the fixed in-app updater',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev61', date: 'September 2026', tag: 'shipped', sections: [
     { title: 'Rip density refinement + global header migration', items: [
       'dev58\'s linear vertical rip layout replaced with a two-column workspace: LEFT = CONTENT 55% (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center), RIGHT = PROCESSING 45% (Format, Output, Status); SOURCE + action bar span full width; readiness line now lives only in the action bar',
       'New ui.SectionBox shared component (compact 28px teal header, navy body, optional header actions) replaces the per-module buildXxxBox duplication across the rip module + 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + stub); gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT demoted to a plain bold subsection label, DiscSummary empty-state spacer removed. Build + vet + gofmt green across all 9 commits',
@@ -1526,6 +1533,10 @@ const checklistData = [
     'Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow renders correctly',
     'Advanced accordion groups menus/PAL↔NTSC/full-disc options',
     '"Ready to rip N title(s)" readiness line updates with selection',
+    'Two-column workspace: action buttons render as a compact full-width bar below the columns (never stretch vertically); readiness line stays on one line (truncates when tight)',
+    'No-disc empty state: DiscSummary shows only title+hint rows, MenuPreview collapses to a short NO MENU FOUND strip, ContentBrowser shows the centred load-a-disc hint',
+    'Right column Format/Output/Status fully visible at ~1600×900 and 1280×720 (nothing clipped behind the action bar)',
+    'In-app updater: a dev61 binary offers and installs dev62 from Settings (first end-to-end exercise of the asset-suffix fix)',
     'Rip labels/dialogs/regions render in en/fr/iu/iu_latin',
   ]},
   { title: 'Player Module (dev50 gap fixes)', items: [

@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev62 — Rip Layout Correction Pass
+
+- **Action-bar band root cause fixed** — the dev61 action bar (readiness label + three PillButtons in one HBox) rendered as a giant band with vertically stretched buttons and a one-character-per-line label, clipping the right column behind it. Root cause: the label had `TextWrapWord` inside an HBox — Fyne HBox children stretch to the container's height, and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall; `PillButton` fills whatever size it is given, so it stretched to match. The bar is now a Border: buttons in the right edge at natural height, label as the centre with ellipsis truncation (single line, absorbs leftover width).
+- **Compact empty states** — DiscSummary hides the tech/main-feature rows in empty/scanning/error states (hidden rows contribute no MinSize) and uses the proper `Truncation` field; MenuPreview collapses to a bounded 40px `NO MENU FOUND` strip (hidden 16:9 image min no longer contributes); ContentBrowser overlays a centred "Load an ISO or VIDEO_TS folder to begin." hint on the flexible title-list region that hides once titles load.
+- **First in-app update channel exercise** — dev61→dev62 is the first release pair where the fixed Install Update path (dev61's asset-suffix fix) can be tested end-to-end from a released binary.
+
 ## v0.1.1-dev61 — Rip Density Refinement + Global Header Migration + Updater Fix
 
 - **Two-column rip workspace** — dev58's linear vertical flow (SOURCE→DISC→TITLES→OUTPUT→ACTION as one long scroll) replaced with a two-column workspace: LEFT = CONTENT 55% (DiscSummary pinned top, MenuPreview pinned bottom, title list as the flexible center with internal scroll), RIGHT = PROCESSING 45% (Format/enrichment, Output as a plain bold subsection, Status); SOURCE + action bar (readiness line left, Add to Queue / Open in Player / RIP NOW right) span full width above/below.
