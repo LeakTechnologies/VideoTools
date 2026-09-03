@@ -31,7 +31,7 @@ func NewDiscSummary() *DiscSummary {
 
 	d.titleLbl = widget.NewLabel("")
 	d.titleLbl.TextStyle = fyne.TextStyle{Bold: true}
-	d.titleLbl.Wrapping = fyne.TextTruncate
+	d.titleLbl.Truncation = fyne.TextTruncateEllipsis
 
 	d.statusLbl = widget.NewLabel("")
 	d.statusLbl.Importance = widget.MediumImportance
@@ -64,8 +64,9 @@ func (d *DiscSummary) SetEmpty() {
 	d.titleLbl.SetText(i18n.T().RipDiscNone)
 	d.statusLbl.SetText(i18n.T().RipDiscNoneHint)
 	d.statusLbl.Importance = widget.MediumImportance
-	d.techLbl.SetText("")
-	d.mainLbl.SetText("")
+	// Hidden rows don't contribute MinSize, keeping the empty card compact.
+	d.techLbl.Hide()
+	d.mainLbl.Hide()
 }
 
 // SetScanning shows the "reading disc information" state while a scan runs.
@@ -73,8 +74,8 @@ func (d *DiscSummary) SetScanning() {
 	d.titleLbl.SetText(i18n.T().RipDiscScanning)
 	d.statusLbl.SetText(i18n.T().RipDiscScanningHint)
 	d.statusLbl.Importance = widget.MediumImportance
-	d.techLbl.SetText("")
-	d.mainLbl.SetText("")
+	d.techLbl.Hide()
+	d.mainLbl.Hide()
 }
 
 // SetResult fills the card with complete scan data. discTitle is the resolved
@@ -106,6 +107,7 @@ func (d *DiscSummary) SetResult(res *DiscScanResult, discTitle string) {
 		}
 	}
 	d.techLbl.SetText(strings.Join(tech, "      "))
+	d.techLbl.Show()
 
 	// Main feature = the longest title.
 	mainNum := 0
@@ -121,8 +123,10 @@ func (d *DiscSummary) SetResult(res *DiscScanResult, discTitle string) {
 	if mainNum > 0 {
 		d.mainLbl.SetText(fmt.Sprintf("%s    %s %02d    %s",
 			strings.ToUpper(i18n.T().RipMainFeature), i18n.T().RipTitleShort, mainNum, FormatDuration(mainDur)))
+		d.mainLbl.Show()
 	} else {
 		d.mainLbl.SetText("")
+		d.mainLbl.Hide()
 	}
 }
 
@@ -131,8 +135,8 @@ func (d *DiscSummary) SetError(msg string) {
 	d.titleLbl.SetText(i18n.T().RipDiscScanFailed)
 	d.statusLbl.SetText(msg)
 	d.statusLbl.Importance = widget.WarningImportance
-	d.techLbl.SetText("")
-	d.mainLbl.SetText("")
+	d.techLbl.Hide()
+	d.mainLbl.Hide()
 }
 
 // sectionBox wraps content in the app's standard rounded navy box with a teal

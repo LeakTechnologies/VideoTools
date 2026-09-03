@@ -534,7 +534,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	ripSummaryLbl = widget.NewLabel("")
 	ripSummaryLbl.Importance = widget.MediumImportance
-	ripSummaryLbl.Wrapping = fyne.TextWrapWord
+	// Single-line readiness line: it truncates rather than wraps. A wrapping
+	// label inside an HBox collapses to its narrowest word-boundary width and
+	// re-measures multi-line tall, which previously inflated the whole action
+	// bar into a giant band (buttons stretched to match).
+	ripSummaryLbl.Truncation = fyne.TextTruncateEllipsis
 	loadCfgBtn := ui.MakePillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
@@ -987,12 +991,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	twoColumn.SetOffset(0.55)
 
 	// Full-width action bar: readiness line left, primary actions right.
-	actionBar := container.NewHBox(
+	// The buttons live in a Border edge so they keep their natural height —
+	// HBox children stretch to the container's height, which is how the
+	// buttons previously turned into tall boxes. The label is the centre:
+	// it absorbs the leftover width and truncates instead of wrapping.
+	actionBar := container.NewBorder(nil, nil, nil,
+		container.NewHBox(openInPlayerBtn, runNowBtn, addQueueBtn),
 		ripSummaryLbl,
-		layout.NewSpacer(),
-		openInPlayerBtn,
-		runNowBtn,
-		addQueueBtn,
 	)
 
 	mainArea := container.NewBorder(
