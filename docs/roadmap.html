@@ -802,6 +802,7 @@ const changelogData = [
     { title: 'Base cycle + dev62 follow-up patches', items: [
       'Convert/Filters/Upscale metadata-panel fold bug fixed — folding a metadata panel hid its tappable METADATA header (the header lived inside the hidden metaPanel) so it could never be re-expanded; buildMetadataPanel gained initiallyOpen, the header stays visible and only the body hides, and the caller onToggle only persists the open state + adjusts the split offset',
       'Rip ISO-load scanning-state bug fixed — SetScanning() ran before rebuildEnrich() clobbered it with SetEmpty(); SetScanning() now runs after the enrich rebuild so loading an ISO shows "Reading disc information"',
+      'Rip ISO scan hardened — runISOScan wraps scanISOViaUDF so a UDF-reader panic converts to a visible SetError (was a process kill / stuck card), start/done/failure logged under CatDVD, and re-entering the rip module re-scans a previously chosen source path',
     ]},
   ]},
   { version: 'v0.1.1-dev62', date: 'September 2026', tag: 'shipped', sections: [

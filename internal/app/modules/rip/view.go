@@ -862,7 +862,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		if strings.HasSuffix(strings.ToLower(path), ".iso") {
 			go func() {
-				result, scanErr := scanISOViaUDF(path)
+				result, scanErr := runISOScan(path)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
@@ -1019,6 +1019,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 	logVSplit = container.NewVSplit(mainArea, logSection)
 	// Default to a compact log strip; the ▼▶ LOG toggle expands it during a rip.
 	logVSplit.SetOffset(0.92)
+
+	// Re-scan a previously selected source on re-entry. buildRipView creates a
+	// fresh viewState (scanResult always nil), so without this a path restored
+	// into the source field would show "No disc loaded" until the user browsed
+	// again. loadDisc is idempotent for an empty/restored path and skips when
+	// the entry is blank.
+	if vs.sourcePath != "" {
+		loadDisc(vs.sourcePath)
+	}
+
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		logVSplit,
 	)
