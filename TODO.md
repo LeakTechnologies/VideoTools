@@ -2,7 +2,16 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev62 Scope (current — rip layout corrections)
+## Dev63 Scope (current — dev62 follow-up patches)
+
+- [x] **Convert/Filters/Upscale metadata-panel fold bug** — folding a metadata panel hid its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel`, so a folded panel could never be re-expanded. `buildMetadataPanel` gained `initiallyOpen`; the header row stays visible and only the body hides; the caller's `onToggle` only persists the open state + adjusts the split offset (Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open). Build + vet green (`dev-verify.ps1`).
+- [x] **Rip ISO-load scanning-state bug** — `loadDisc` called `SetScanning()` before `rebuildEnrich()`, whose `updateDiscInfo()` renders `SetEmpty()` for a nil scan result, clobbering the scanning state. `SetScanning()` now runs after the enrich rebuild so the card shows "Reading disc information" while a scan is in flight.
+- [ ] **Tester verify: dev63 release** — the two dev62 follow-up patches above (metadata panel stays expandable; ISO load shows the scanning state) + all dev62 layout corrections (compact full-width action bar, compact empty states, right column visible at ~1600×900 and 1280×720) + the dev61→dev62 in-app update from a dev61 binary (first exercise of the asset-suffix fix); move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off.
+- [ ] **Updater hardening (follow-ups)** — (a) bake `buildCommit` into release builds via ldflags (`-X main.buildCommit=<sha>`) so the same-tag patch-detection path works — CI change, ask before touching workflows; (b) Linux tar.gz extraction path (updater currently has zip-only extraction; Linux treats tar.gz as a direct binary); (c) fix the stale "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` (no such job exists).
+- [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
+- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+
+## Dev62 Scope (closed — released 2026-09-03; follow-up patches landed in dev63)
 
 - [x] **Rip layout correction pass** — tester screenshots of dev61 found three structural bugs with one root cause: the readiness label had `TextWrapWord` inside an HBox (Fyne HBox children stretch to the container height; a wrapping label collapses narrow then re-measures tall) → the action bar became a giant band, PillButtons stretched into tall boxes, the right column clipped behind it, and the label rendered one-char-per-line. Fixes: action bar = Border (buttons right edge at natural height, label centre + ellipsis truncation); DiscSummary hides empty tech/main rows; MenuPreview bounded 40px empty strip; ContentBrowser centred empty-state hint in the flexible list region. Build + vet green (`dev-verify.ps1`).
 - [ ] **Tester verify: dev62 release** — action bar renders as a compact full-width row (buttons never stretch vertically, readiness line stays on one line), empty states compact (DiscSummary title+hint only, menu preview strip, content-browser hint), right column Format/Output/Status fully visible at ~1600×900 and 1280×720; move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off (covers dev61 + dev60 content).

@@ -62,7 +62,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		}(),
 		FilterActiveChain:    state.filterActiveChain,
 		HardwareAccel:        func() string { return state.convert.HardwareAccel },
-		SetHardwareAccel:      func(s string) { state.convert.HardwareAccel = s },
+		SetHardwareAccel:     func(s string) { state.convert.HardwareAccel = s },
 		OnShowMainMenu:       func() { state.showMainMenu() },
 		OnShowQueue:          func() { state.showQueue() },
 		OnShowUpscaleView:    func() { state.showUpscaleView() },
@@ -218,7 +218,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 160))
 		},
 		BuildMetadataPane: func(onToggle func(bool)) fyne.CanvasObject {
-			panel, _ := buildMetadataPanel(state, state.filtersFile, fyne.NewSize(0, 200), moduleColor("filters"), onToggle)
+			panel, _ := buildMetadataPanel(state, state.filtersFile, fyne.NewSize(0, 200), moduleColor("filters"), true, onToggle)
 			return panel
 		},
 		OnFilterChanged: func() { state.applyFiltersPreview() },

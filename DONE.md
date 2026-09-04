@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev63 — Base Cycle + dev62 Follow-up Patches
+
+- **Convert/Filters/Upscale metadata-panel fold bug fixed** — folding a metadata panel hid its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel` (folding hid the whole panel, so a folded panel could never be re-expanded). `buildMetadataPanel` gained an `initiallyOpen` param: the header row stays visible and only the body hides. The caller's `onToggle` no longer Show()/Hide()s the whole panel — it only persists the open state and adjusts the split offset. Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open.
+- **Rip ISO-load scanning-state bug fixed** — `loadDisc` called `SetScanning()` before `rebuildEnrich()`, whose `updateDiscInfo()` renders `SetEmpty()` for a nil scan result, clobbering the scanning state so loading an ISO never showed "Reading disc information". `SetScanning()` now runs after the enrich rebuild.
+
 ## v0.1.1-dev62 — Rip Layout Correction Pass
 
 - **Action-bar band root cause fixed** — the dev61 action bar (readiness label + three PillButtons in one HBox) rendered as a giant band with vertically stretched buttons and a one-character-per-line label, clipping the right column behind it. Root cause: the label had `TextWrapWord` inside an HBox — Fyne HBox children stretch to the container's height, and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall; `PillButton` fills whatever size it is given, so it stretched to match. The bar is now a Border: buttons in the right edge at natural height, label as the centre with ellipsis truncation (single line, absorbs leftover width).
