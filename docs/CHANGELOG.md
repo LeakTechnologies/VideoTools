@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+## v0.1.1-dev63 (September 2026)
+
+### Base Cycle + dev62 Follow-up Patches
+
+- **Convert/Filters/Upscale metadata-panel fold bug fixed (all three modules)** — the metadata panel folded away its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel` (folding hid the whole panel, so it could never be re-expanded). The header row now stays visible and only the body hides; `buildMetadataPanel` gained an `initiallyOpen` param and the caller's `onToggle` no longer Show()/Hide()s the whole panel (it only persists the open state and adjusts the split offset). Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open.
+- **Rip ISO-load scanning-state bug fixed** — `loadDisc` called `SetScanning()` before `rebuildEnrich()`, which calls `updateDiscInfo()` and renders `SetEmpty()` for a nil scan result, clobbering the scanning state. `SetScanning()` now runs after the enrich rebuild so the card actually shows "Reading disc information" while an ISO/folder scan is in flight.
+
+### Dev62 Patches (reported after release, landed here)
+
+- See dev62 section below for the released layout-correction pass; the above two items are the follow-up fixes requested for what the tester saw.
+
 ## v0.1.1-dev62 (September 2026)
 
 ### Rip Layout Correction Pass

@@ -45,7 +45,8 @@ timeline
     v0.1.1-dev59 (Superseded) : Blocked-straggler cleanup : Rip view crash fix : Codeberg mirror retired : CI FFmpeg build resilience — tagged but release never published (release job skipped after windows cold-build flake); content ships as dev60
     v0.1.1-dev60 (Shipped) : Release cut — dev59 content (rip crash fix, Codeberg, cleanup) + CI FFmpeg build resilience (cache restore-keys + download retries). **Published 2026-09-02** (both platform assets); MSIX `Setup static FFmpeg` fixed — missing `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig` made libdvdnav configure fail on `dvdread`
     v0.1.1-dev61 (Shipped) : **Rip density refinement** — two-column 55/45 workspace (CONTENT | PROCESSING), new ui.SectionBox shared component used by all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim). **In-app updater fixed** — asset-suffix mismatch (`_windows.zip` vs `_windows_amd64.zip`) had made Install Update always fail; from dev61 onward updates work in-app. Tester screenshots found layout bugs — fixed in dev62
-    v0.1.1-dev62 (Current) : **Rip layout correction pass** — action-bar Border fix (wrapping-label-in-HBox root cause behind the giant button band, clipped right column, one-char-per-line label) : compact empty states (DiscSummary rows hidden, MenuPreview 40px strip, ContentBrowser centred hint) : first in-app update exercise (dev61→dev62)
+    v0.1.1-dev62 (Shipped) : **Rip layout correction pass** — action-bar Border fix (wrapping-label-in-HBox root cause behind the giant button band, clipped right column, one-char-per-line label) : compact empty states (DiscSummary rows hidden, MenuPreview 40px strip, ContentBrowser centred hint) : first in-app update exercise (dev61→dev62) : published 2026-09-03 (tag v0.1.1-dev62, ccb4f213), all pipelines green
+    v0.1.1-dev63 (Current) : **dev62 follow-up patches** — Convert/Filters/Upscale metadata-fold fix (tappable METADATA header stays visible, only the body hides) : rip ISO-load scanning-state fix (SetScanning no longer clobbered by rebuildEnrich's SetEmpty)
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
 ```
@@ -57,7 +58,7 @@ timeline
 | Blue | Shipped in dev47 |
 | Teal | Shipped in dev48 |
 | Purple | Shipped in dev49 |
-| **Green** | **Current dev62 work** |
+| **Green** | **Current dev63 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -66,16 +67,17 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev62)
+## Current State (v0.1.1-dev63)
 
-- **Dev62 = rip layout correction pass**: tester screenshots of dev61 exposed three structural bugs with one root cause — the readiness label had `TextWrapWord` inside an HBox (Fyne HBox children stretch to the container height; a wrapping label collapses narrow then re-measures tall) → giant action-button band, clipped right column, one-char-per-line label. Fixed: action bar = Border (buttons right edge at natural height, label centre + ellipsis truncation), DiscSummary hides empty rows, MenuPreview bounded 40px empty strip, ContentBrowser centred empty-state hint. dev61→dev62 is the first in-app updater exercise.
+- **Dev63 = dev62 follow-up patches**: (1) **Convert/Filters/Upscale metadata-panel fold bug** — folding a metadata panel hid its tappable `METADATA` header because the header lived inside the hidden panel, so it could never be re-expanded; `buildMetadataPanel` gained `initiallyOpen`, the header stays visible and only the body hides, and the caller's `onToggle` only persists open state + adjusts the split offset (Convert honours `state.convert.MetadataOpen`, Filters/Upscale default open). (2) **Rip ISO-load scanning-state bug** — `SetScanning()` ran before `rebuildEnrich()` clobbered it with `SetEmpty()`, so loading an ISO never showed "Reading disc information"; it now runs after the enrich rebuild.
+- **Dev62 shipped** (published 2026-09-03, tag `v0.1.1-dev62`, `ccb4f213`, all pipelines green): rip layout correction pass — tester screenshots of dev61 exposed three structural bugs with one root cause (readiness label `TextWrapWord` inside an HBox → giant action-button band, clipped right column, one-char-per-line label). Fixed: action bar = Border, DiscSummary hides empty rows, MenuPreview bounded 40px empty strip, ContentBrowser centred empty-state hint. dev61→dev62 is the first in-app updater exercise.
 - **Dev61 shipped**: rip density refinement (two-column 55/45 workspace, `ui.SectionBox` across all 8 module helpers, gaps 10→6px, thumbnails 56×42, menu preview 280×158) + in-app updater asset-suffix fix. Layout bugs found in tester screenshots; corrected in dev62.
 
 - **Dev60 shipped**: dev59 content (rip crash fix, Codeberg retirement, blocked-straggler cleanup) + CI FFmpeg build resilience (cache restore-keys, download retries) released 2026-09-02 with both platform assets; MSIX `Setup static FFmpeg` fixed (`PKG_CONFIG_PATH` export + `pkg-config --exists dvdread` guard).
 - **Dev61 = rip density refinement + global header migration**: the dev58 linear vertical rip layout became a two-column 55/45 workspace — LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center), RIGHT = PROCESSING (Format/enrichment, Output as plain bold subsection, Status); SOURCE + action bar span full width. New `ui.SectionBox` shared component (compact 28px teal header, navy body, optional header actions) replaces the per-module `buildXxxBox` duplication across all 8 module helpers (rip + audio/upscale/thumbnail/inspect/compare/filters/trim). Density: gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158.
 - **In-app updater fixed (dev61)**: `fetchReleaseAssetURL` searched for `_windows.zip`/`_linux.zip` but CI publishes `_windows_amd64.zip`/`_linux_amd64.tar.gz` — Install Update had always failed with "no compatible asset found" (broken since at least dev51; why every update was manual). From dev61 onward in-app updates work. Follow-ups: bake `buildCommit` via ldflags (patch detection dead), Linux tar.gz extraction, stale nightly-PATCH comment.
 - **Rip view crash on open fixed** (dev59/dev60): `updateDiscInfo` assigned after the initial `rebuildEnrich()` call → nil-closure panic during first render; now assigned before, plus a `showRipView` recover that logs a stack trace to `crashes.log`.
-- **Dev62 gates**: tester verification of the released build (compact action bar, no stretched buttons, no collapsed labels, compact empty states, right column fully visible at ~1600×900 and 1280×720) plus the dev61→dev62 in-app update and the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
+- **Dev63 gates**: tester verification of the dev63 release (metadata fold keeps the tappable header visible; ISO load now shows "Reading disc information") plus the dev62 layout corrections (compact action bar, no stretched buttons, no collapsed labels, compact empty states, right column fully visible at ~1600×900 and 1280×720), the dev61→dev62 in-app update, and the no-scan multi-VOB rip; libVLC Player Backend (Phase 1).
 - **Strategic decision: libVLC backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 - Engine-level bwdif deinterlace (libavfilter, Settings toggle default on).
 - Player singleton consolidation (10→2 shared instances); per-module getters retained as wrappers.
@@ -84,9 +86,9 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers — all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev62 — open)
+## Now (dev63 — open)
 
-- **Tester verification of dev62 release** — layout corrections (compact action bar with natural-height buttons, single-line readiness label, compact empty states, right column Format/Output/Status fully visible at ~1600×900 and 1280×720) + all dev61 content; move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off
+- **Tester verification of dev63 release** — dev62 follow-up patches (metadata panel stays expandable when folded; ISO load shows "Reading disc information") + all dev62 layout corrections (compact full-width action bar with natural-height buttons, single-line readiness label, compact empty states, right column Format/Output/Status fully visible at ~1600×900 and 1280×720) + all dev61 content; move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off
 - **Tester verification of in-app updater** — a dev61 binary should offer and install dev62 from Settings (first end-to-end exercise of the dev61 asset-suffix fix)
 - **libVLC Player Backend (Phase 1)** — PlaybackEngine interface + VLCBackend CGo wrapper; design doc at `docs/VLC_PLAYER.md`
 - **Updater hardening** — bake `buildCommit` via ldflags (CI change — ask first), Linux tar.gz extraction path, stale comment cleanup

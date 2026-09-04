@@ -55,7 +55,7 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/player"
 	"github.com/LeakTechnologies/VideoTools/internal/queue"
 	"github.com/LeakTechnologies/VideoTools/internal/smpte"
-	statepkg 	"github.com/LeakTechnologies/VideoTools/internal/state"
+	statepkg "github.com/LeakTechnologies/VideoTools/internal/state"
 	"github.com/LeakTechnologies/VideoTools/internal/sysinfo"
 	"github.com/LeakTechnologies/VideoTools/internal/thumbnail"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
@@ -104,7 +104,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev62"
+	appVersion         = "v0.1.1-dev63"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -933,12 +933,12 @@ type convertConfig struct {
 	Rotation               string // 0, 90, 180, 270 (clockwise rotation in degrees)
 
 	// Audio encoding settings
-	AudioCodec      string // AAC, Opus, MP3, FLAC, Copy
-	AudioBitrate    string // 128k, 192k, 256k, 320k
-	AudioChannels   string // Source, Mono, Stereo, 5.1
-	AudioSampleRate string // Source, 44100, 48000
-	NormalizeAudio  bool   // Force stereo + 48kHz for compatibility
-	NormalizeLUFS   float64 // LUFS target (default -16)
+	AudioCodec        string  // AAC, Opus, MP3, FLAC, Copy
+	AudioBitrate      string  // 128k, 192k, 256k, 320k
+	AudioChannels     string  // Source, Mono, Stereo, 5.1
+	AudioSampleRate   string  // Source, 44100, 48000
+	NormalizeAudio    bool    // Force stereo + 48kHz for compatibility
+	NormalizeLUFS     float64 // LUFS target (default -16)
 	NormalizeTruePeak float64 // TruePeak max (default -1.5)
 
 	// Other settings
@@ -1030,7 +1030,7 @@ func userPresetFromConfig(name string, cfg convertConfig) userPreset {
 		AudioChannels:          cfg.AudioChannels,
 		AudioSampleRate:        cfg.AudioSampleRate,
 		NormalizeAudio:         cfg.NormalizeAudio,
-		NormalizeLUFS:           cfg.NormalizeLUFS,
+		NormalizeLUFS:          cfg.NormalizeLUFS,
 		NormalizeTruePeak:      cfg.NormalizeTruePeak,
 		OutputAspect:           cfg.OutputAspect,
 		AspectHandling:         cfg.AspectHandling,
@@ -1104,12 +1104,12 @@ func defaultConvertConfig() convertConfig {
 		FlipVertical:           false,
 		Rotation:               "0",
 
-		AudioCodec:      "AAC",
-		AudioBitrate:    "192k",
-		AudioChannels:   "Source",
-		AudioSampleRate: "Source",
-		NormalizeAudio:  false,
-		NormalizeLUFS:   -16.0,
+		AudioCodec:        "AAC",
+		AudioBitrate:      "192k",
+		AudioChannels:     "Source",
+		AudioSampleRate:   "Source",
+		NormalizeAudio:    false,
+		NormalizeLUFS:     -16.0,
 		NormalizeTruePeak: -1.5,
 
 		InverseTelecine:  true,
@@ -1534,8 +1534,8 @@ type appState struct {
 	autoPreview          bool   // Enable auto-preview functionality
 
 	// Module pipeline state ("" = off, "step1" = waiting for step1 job, "step2" = waiting for step2 job)
-	pipelineStep        string
-	pipelineStep1ID     string // Job ID of the step1 job once queued
+	pipelineStep         string
+	pipelineStep1ID      string // Job ID of the step1 job once queued
 	pipelineStep1OutFile string // Expected output file of step1 (for reference)
 }
 
@@ -4284,22 +4284,22 @@ func (s *appState) showMergeView() {
 				chEntry.OnChanged = func(val string) {
 					s.mergeClips[idx].Chapter = val
 				}
-			upBtn := ui.MakePillButton("↑", ui.BorderDim, func() {
-				if idx > 0 {
-					s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
+				upBtn := ui.MakePillButton("↑", ui.BorderDim, func() {
+					if idx > 0 {
+						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
+						buildList()
+					}
+				})
+				downBtn := ui.MakePillButton("↓", ui.BorderDim, func() {
+					if idx < len(s.mergeClips)-1 {
+						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
+						buildList()
+					}
+				})
+				delBtn := ui.MakePillButton("Remove", ui.BorderDim, func() {
+					s.mergeClips = append(s.mergeClips[:idx], s.mergeClips[idx+1:]...)
 					buildList()
-				}
-			})
-			downBtn := ui.MakePillButton("↓", ui.BorderDim, func() {
-				if idx < len(s.mergeClips)-1 {
-					s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
-					buildList()
-				}
-			})
-			delBtn := ui.MakePillButton("Remove", ui.BorderDim, func() {
-				s.mergeClips = append(s.mergeClips[:idx], s.mergeClips[idx+1:]...)
-				buildList()
-			})
+				})
 				row := container.NewBorder(
 					nil, nil,
 					container.NewVBox(upBtn, downBtn),
@@ -8078,7 +8078,7 @@ func main() {
 	logging.Init()
 	defer logging.Close()
 	defer logging.RecoverPanic() // Catch and log any panics with stack trace
-	utils.InitJobObject() // Create Windows Job Object (no-op on Linux)
+	utils.InitJobObject()        // Create Windows Job Object (no-op on Linux)
 
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
@@ -8363,9 +8363,9 @@ func runGUI() {
 		audioSelectedTracks: make(map[int]bool),
 		recentFiles:         recentfiles.New(),
 		// Filter defaults (must be set to avoid grey video)
-		filterBrightness:    0,
-		filterContrast:      1.0,
-		filterSaturation:    1.0,
+		filterBrightness: 0,
+		filterContrast:   1.0,
+		filterSaturation: 1.0,
 		// Application Preferences defaults
 		defaultOutputDir:     "",
 		defaultVideoCodec:    "libx264",
@@ -9241,23 +9241,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoPanel.Hide()
 	}
 
-	// metaPanel is declared before buildMetadataPanel so the onToggle closure
-	// (passed into the builder) can reference it. A :=-declared variable is not
-	// in scope inside its own initializer's closure.
-	var metaPanel fyne.CanvasObject
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, func(open bool) {
+	// The panel body hides on fold; the header toggle row stays visible (built
+	// inside buildMetadataPanel), so the user can always expand it again. The
+	// onToggle here only drives persistence + the VSplit offset.
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, state.convert.MetadataOpen, func(open bool) {
 		state.convert.MetadataOpen = open
 		_ = savePersistedConvertConfig(state.convert)
-		if open {
-			metaPanel.Show()
-		} else {
-			metaPanel.Hide()
-		}
 		resolveLeftOffset()
 	})
-	if !state.convert.MetadataOpen {
-		metaPanel.Hide()
-	}
 	updateMetaCover = metaCoverUpdate
 
 	// Forward declare functions needed by formatContainer callback
@@ -9463,7 +9454,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
-		bitrateModeRadio          *widget.RadioGroup
+		bitrateModeRadio           *widget.RadioGroup
 		bitratePresetSelect        *widget.Select
 		videoBitrateEntry          *widget.Entry
 		manualBitrateRow           *fyne.Container
@@ -13135,7 +13126,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(layers...)
 }
 
-func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, onToggle func(open bool)) (fyne.CanvasObject, func()) {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, initiallyOpen bool, onToggle func(open bool)) (fyne.CanvasObject, func()) {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
@@ -13145,11 +13136,25 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accent
 	// outer.SetMinSize(min)
 
 	if src == nil {
-		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle)
-		noSrcBody := container.NewBorder(nilHeader, nil, nil, nil,
-			container.NewPadded(container.NewVBox(widget.NewLabel(t.ConvertInspectHint))))
+		var noSrcBody fyne.CanvasObject = container.NewPadded(container.NewVBox(widget.NewLabel(t.ConvertInspectHint)))
+		open := initiallyOpen
+		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, func(o bool) {
+			open = o
+			if o {
+				noSrcBody.Show()
+			} else {
+				noSrcBody.Hide()
+			}
+			if onToggle != nil {
+				onToggle(o)
+			}
+		})
+		if !open {
+			noSrcBody.Hide()
+		}
+		noSrcPanel := container.NewBorder(nilHeader, nil, nil, nil, noSrcBody)
 		layers := ui.NoisyBackgroundObjects(outer)
-		layers = append(layers, noSrcBody)
+		layers = append(layers, noSrcPanel)
 		return container.NewMax(layers...), func() {}
 	}
 
@@ -13341,8 +13346,26 @@ Metadata: %s`,
 		}
 	})
 
-	metaHeader, metaHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, onToggle, copyBtn, clearBtn)
-	metaHeaderUpdate(state.convert.MetadataOpen)
+	// The header toggle row stays visible even when the panel is folded, so the
+	// user can always expand it again — the hidden part is the body only. The
+	// callers' onToggle() (split offset / persistence) fires alongside.
+	var metaBody fyne.CanvasObject
+	metaOpen := initiallyOpen
+	var metaHeader fyne.CanvasObject
+	var metaHeaderUpdate func(bool)
+	metaHeader, metaHeaderUpdate = ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, func(o bool) {
+		metaOpen = o
+		if o {
+			metaBody.Show()
+		} else {
+			metaBody.Hide()
+		}
+		metaHeaderUpdate(o)
+		if onToggle != nil {
+			onToggle(o)
+		}
+	}, copyBtn, clearBtn)
+	metaHeaderUpdate(initiallyOpen)
 	top := fyne.CanvasObject(metaHeader)
 
 	// Cover art support removed - users can add cover art through metadata editor
@@ -13450,10 +13473,10 @@ Metadata: %s`,
 		// Preview button (only show if deinterlacing is recommended)
 		var previewSection fyne.CanvasObject
 		if result.SuggestDeinterlace {
-		ui.MakePillButton("Generate Deinterlace Preview", ui.BorderDim, func() {
-			if state.source == nil {
-				return
-			}
+			ui.MakePillButton("Generate Deinterlace Preview", ui.BorderDim, func() {
+				if state.source == nil {
+					return
+				}
 
 				go func() {
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -13534,8 +13557,11 @@ Metadata: %s`,
 	// No inner VScroll here — the caller wraps metaPanel in ui.NewFastVScroll
 	// (see showConvertView). A double-scroll causes the inner one to never
 	// activate because NewMax gives it unlimited height equal to content.
-	contentBody := container.NewPadded(container.NewVBox(contentArea, interlaceSection))
-	body := container.NewBorder(top, nil, nil, nil, contentBody)
+	metaBody = container.NewPadded(container.NewVBox(contentArea, interlaceSection))
+	if !metaOpen {
+		metaBody.Hide()
+	}
+	body := container.NewBorder(top, nil, nil, nil, metaBody)
 	layers := ui.NoisyBackgroundObjects(outer)
 	layers = append(layers, body)
 	return container.NewMax(layers...), updateCoverDisplay
@@ -17480,7 +17506,7 @@ func (s *appState) generateJobThumbnail(job *queue.Job) {
 	go func() {
 		tmpDir := os.TempDir()
 		thumbPath := filepath.Join(tmpDir, fmt.Sprintf("vt-thumb-%s.jpg", job.ID))
-		
+
 		// Use the thumbnail generator to extract a midpoint frame
 		generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
 		duration := 0.0
@@ -17493,13 +17519,13 @@ func (s *appState) generateJobThumbnail(job *queue.Job) {
 			duration = 60.0
 		}
 		midpoint := duration / 2.0
-		
+
 		err := generator.ExtractFrame(context.Background(), job.InputFile, midpoint, thumbPath, 120, 68)
 		if err != nil {
 			logging.Debug(logging.CatSystem, "failed to generate thumbnail for job %s: %v", job.ID, err)
 			return
 		}
-		
+
 		// Update the job's ThumbnailPath and refresh the queue card
 		job.ThumbnailPath = thumbPath
 		logging.Debug(logging.CatSystem, "generated thumbnail for job %s: %s", job.ID, thumbPath)

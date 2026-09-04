@@ -836,9 +836,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			return
 		}
-		if discSummary != nil {
-			discSummary.SetScanning()
-		}
 
 		vs.sourcePath = path
 		sourceEntry.SetText(path)
@@ -855,6 +852,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.scanResult = nil
 		vs.selectedTitles = nil
 		rebuildEnrich()
+
+		// Set the scanning state AFTER the enrich rebuild — rebuildEnrich()
+		// calls updateDiscInfo() which renders SetEmpty for a nil scan result,
+		// so SetScanning() above would be clobbered immediately.
+		if discSummary != nil {
+			discSummary.SetScanning()
+		}
 
 		if strings.HasSuffix(strings.ToLower(path), ".iso") {
 			go func() {

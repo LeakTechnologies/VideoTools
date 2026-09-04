@@ -559,13 +559,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	var metaPane fyne.CanvasObject
 	if opts.BuildMetadataPane != nil {
+		// The metadata panel hides only its body on fold; the tappable header
+		// row stays visible so the user can always expand it again.
 		metaPane = opts.BuildMetadataPane(func(open bool) {
 			metaOpen = open
-			if open {
-				metaPane.Show()
-			} else {
-				metaPane.Hide()
-			}
 			leftSplit.SetOffset(resolveOffset())
 		})
 	} else {
@@ -573,17 +570,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 		outer.CornerRadius = 8
 		outer.StrokeColor = gridColor
 		outer.StrokeWidth = 1
+		hintBody := container.NewPadded(widget.NewLabel("Load a video to inspect its technical details."))
 		hdr, _ := ui.BuildCollapsibleHeader("Source Metadata", filtersColor, func(open bool) {
 			metaOpen = open
 			if open {
-				metaPane.Show()
+				hintBody.Show()
 			} else {
-				metaPane.Hide()
+				hintBody.Hide()
 			}
 			leftSplit.SetOffset(resolveOffset())
 		})
-		body := container.NewBorder(hdr, nil, nil, nil,
-			container.NewPadded(widget.NewLabel("Load a video to inspect its technical details.")))
+		body := container.NewBorder(hdr, nil, nil, nil, hintBody)
 		layers := ui.NoisyBackgroundObjects(outer)
 		layers = append(layers, body)
 		metaPane = container.NewMax(layers...)
