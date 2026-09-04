@@ -286,6 +286,29 @@ func scanISOViaUDF(isoPath string) (*DiscScanResult, error) {
 	return result, nil
 }
 
+// runISOScan wraps scanISOViaUDF for the UI goroutine. A malformed UDF image or
+// nil-deref in the reader would otherwise panic inside the background goroutine
+// (killing the whole process) or return a silent non-result; this converts any
+// panic into a normal error so the disc summary always settles to a visible
+// state, and logs start/done so a stalled scan is diagnosable from the log.
+func runISOScan(isoPath string) (result *DiscScanResult, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("ISO scan panicked: %v", r)
+			logging.Error(logging.CatDVD, "runISOScan: scanISOViaUDF panicked for %s: %v", isoPath, r)
+		}
+	}()
+	logging.Info(logging.CatDVD, "runISOScan: scanning ISO %s", isoPath)
+	result, err = scanISOViaUDF(isoPath)
+	if err != nil {
+		logging.Warning(logging.CatDVD, "runISOScan: failed for %s: %v", isoPath, err)
+		return nil, err
+	}
+	logging.Info(logging.CatDVD, "runISOScan: %s: %d titles, type=%s, size=%d, region=%s, std=%s",
+		isoPath, len(result.Titles), result.DiscType, result.TotalSize, result.Region, result.VideoStandard)
+	return result, nil
+}
+
 // langList returns a comma-separated list of unique uppercase language codes.
 func langList(tracks []DiscTitleTrack) string {
 	seen := map[string]bool{}

@@ -4,6 +4,7 @@
 
 - **Convert/Filters/Upscale metadata-panel fold bug fixed** — folding a metadata panel hid its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel` (folding hid the whole panel, so a folded panel could never be re-expanded). `buildMetadataPanel` gained an `initiallyOpen` param: the header row stays visible and only the body hides. The caller's `onToggle` no longer Show()/Hide()s the whole panel — it only persists the open state and adjusts the split offset. Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open.
 - **Rip ISO-load scanning-state bug fixed** — `loadDisc` called `SetScanning()` before `rebuildEnrich()`, whose `updateDiscInfo()` renders `SetEmpty()` for a nil scan result, clobbering the scanning state so loading an ISO never showed "Reading disc information". `SetScanning()` now runs after the enrich rebuild.
+- **Rip ISO scan hardened** — `runISOScan` wraps `scanISOViaUDF` for the UI goroutine: a UDF-reader panic (malformed descriptor/data) converts to a visible `SetError` instead of killing the process or a silently stuck card, start/done/failure are logged under `CatDVD`, and re-entering the rip module re-scans a previously selected source (the view builds fresh scan state per entry, which previously left a restored path on "No disc loaded").
 
 ## v0.1.1-dev62 — Rip Layout Correction Pass
 

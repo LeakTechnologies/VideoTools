@@ -10,6 +10,7 @@
 ### Dev62 Patches (reported after release, landed here)
 
 - See dev62 section below for the released layout-correction pass; the above two items are the follow-up fixes requested for what the tester saw.
+- **ISO scan hardening (dev63)** — the scan goroutine now runs through `runISOScan`: a panic in the UDF reader (malformed descriptor lengths, bad `pageLen` in `parseFIDs`) converts to a visible `SetError` instead of killing the whole process or leaving the card stuck at "No disc loaded", and start/done/failure are logged under `CatDVD` so a stalled image is diagnosable. Re-entering the rip module also re-triggers the scan for a previously chosen source path (the view builds a fresh scan state each entry, which previously left the restored path showing "No disc loaded" until browsed again).
 
 ## v0.1.1-dev62 (September 2026)
 
