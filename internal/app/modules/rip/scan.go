@@ -334,15 +334,22 @@ func runISOScan(isoPath string, onNote func(string)) (result *DiscScanResult, er
 
 // langList returns a comma-separated list of unique uppercase language codes.
 func langList(tracks []DiscTitleTrack) string {
+	return strings.Join(uniqueSubtitleLangs(tracks), ", ")
+}
+
+// uniqueSubtitleLangs returns the distinct uppercase language codes in disc
+// order, used to build the per-language subtitle checkboxes.
+func uniqueSubtitleLangs(tracks []DiscTitleTrack) []string {
 	seen := map[string]bool{}
-	var parts []string
+	var out []string
 	for _, t := range tracks {
-		if t.Language != "" && !seen[t.Language] {
-			seen[t.Language] = true
-			parts = append(parts, strings.ToUpper(t.Language))
+		l := strings.ToUpper(t.Language)
+		if l != "" && !seen[l] {
+			seen[l] = true
+			out = append(out, l)
 		}
 	}
-	return strings.Join(parts, ", ")
+	return out
 }
 
 // titleSnippet renders one compact scan-as-you-go note for a single title:

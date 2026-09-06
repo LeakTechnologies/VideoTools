@@ -41,18 +41,19 @@ func savePersistedRipConfig(cfg ripConfig) error {
 
 // viewState holds local UI state while the rip view is active.
 type viewState struct {
-	sourcePath       string
-	outputPath       string
-	format           string
-	embedChapters    bool
-	allAudioTracks   bool
-	includeSubtitles bool
-	includeMenus     bool
-	regionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
-	extractMode      string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
-	discTitle        string
-	logText          string
-	progress         float64
+	sourcePath            string
+	outputPath            string
+	format                string
+	embedChapters         bool
+	allAudioTracks        bool
+	includeSubtitles      bool
+	selectedSubtitleLangs []string // nil = not yet configured (legacy or disc-dependent)
+	includeMenus          bool
+	regionConvert         string // "" (none), "pal2ntsc", "ntsc2pal"
+	extractMode           string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
+	discTitle             string
+	logText               string
+	progress              float64
 
 	scanResult     *DiscScanResult
 	selectedTitles map[int]bool // title Number → selected
@@ -69,16 +70,18 @@ func (vs *viewState) applyConfig(cfg ripConfig) {
 	vs.embedChapters = cfg.EmbedChapters
 	vs.allAudioTracks = cfg.AllAudioTracks
 	vs.includeSubtitles = cfg.IncludeSubtitles
+	vs.selectedSubtitleLangs = cfg.SelectedSubtitleLangs // nil signals "migrate on first disc load"
 	vs.includeMenus = cfg.IncludeMenus
 }
 
 func (vs *viewState) persistConfig() {
 	cfg := ripConfig{
-		Format:           vs.format,
-		EmbedChapters:    vs.embedChapters,
-		AllAudioTracks:   vs.allAudioTracks,
-		IncludeSubtitles: vs.includeSubtitles,
-		IncludeMenus:     vs.includeMenus,
+		Format:                vs.format,
+		EmbedChapters:         vs.embedChapters,
+		AllAudioTracks:        vs.allAudioTracks,
+		IncludeSubtitles:      vs.includeSubtitles,
+		SelectedSubtitleLangs: vs.selectedSubtitleLangs,
+		IncludeMenus:          vs.includeMenus,
 	}
 	if err := savePersistedRipConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist rip config: %v", err)
@@ -408,18 +411,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 				InputFile:   vs.sourcePath,
 				OutputFile:  vs.outputPath,
 				Config: map[string]interface{}{
-					"sourcePath":       vs.sourcePath,
-					"outputPath":       vs.outputPath,
-					"format":           vs.format,
-					"embedChapters":    vs.embedChapters,
-					"allAudioTracks":   vs.allAudioTracks,
-					"includeSubtitles": vs.includeSubtitles,
-					"includeMenus":     vs.includeMenus,
-					"regionConvert":    vs.regionConvert,
-					"discTitle":        vs.discTitle,
-					"vtsNumber":        vtsNum,
-					"titleNumber":      titleNum,
-					"extractMode":      "main",
+					"sourcePath":            vs.sourcePath,
+					"outputPath":            vs.outputPath,
+					"format":                vs.format,
+					"embedChapters":         vs.embedChapters,
+					"allAudioTracks":        vs.allAudioTracks,
+					"includeSubtitles":      vs.includeSubtitles,
+					"selectedSubtitleLangs": append([]string{}, vs.selectedSubtitleLangs...),
+					"includeMenus":          vs.includeMenus,
+					"regionConvert":         vs.regionConvert,
+					"discTitle":             vs.discTitle,
+					"vtsNumber":             vtsNum,
+					"titleNumber":           titleNum,
+					"extractMode":           "main",
 				},
 			}
 			opts.AddJob(job)
@@ -498,17 +502,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 				InputFile:   vs.sourcePath,
 				OutputFile:  j.outputPath,
 				Config: map[string]interface{}{
-					"sourcePath":       vs.sourcePath,
-					"outputPath":       j.outputPath,
-					"format":           vs.format,
-					"embedChapters":    vs.embedChapters,
-					"allAudioTracks":   vs.allAudioTracks,
-					"includeSubtitles": vs.includeSubtitles,
-					"includeMenus":     vs.includeMenus,
-					"regionConvert":    vs.regionConvert,
-					"discTitle":        vs.discTitle,
-					"vtsNumber":        j.vtsNumber,
-					"titleNumber":      j.titleNumber,
+					"sourcePath":            vs.sourcePath,
+					"outputPath":            j.outputPath,
+					"format":                vs.format,
+					"embedChapters":         vs.embedChapters,
+					"allAudioTracks":        vs.allAudioTracks,
+					"includeSubtitles":      vs.includeSubtitles,
+					"selectedSubtitleLangs": append([]string{}, vs.selectedSubtitleLangs...),
+					"includeMenus":          vs.includeMenus,
+					"regionConvert":         vs.regionConvert,
+					"discTitle":             vs.discTitle,
+					"vtsNumber":             j.vtsNumber,
+					"titleNumber":           j.titleNumber,
 				},
 			}
 			opts.AddJob(job)
@@ -666,11 +671,74 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	allAudioCheck.SetChecked(vs.allAudioTracks)
 
-	subsCheck := widget.NewCheck(t.RipIncludeSubtitles, func(v bool) {
-		vs.includeSubtitles = v
-		vs.persistConfig()
-	})
-	subsCheck.SetChecked(vs.includeSubtitles)
+	// Subtitles render as one checkbox per distinct language on the main
+	// title (rebuilt by rebuildEnrich after each scan). Checking a language
+	// adds it to the rip selection; the master includeSubtitles flag is
+	// derived from the selection so legacy configs keep working. The header
+	// flips to the MP4 note when that format can't carry bitmap subs.
+	var subLangChecks []*widget.Check
+	subsHeader := widget.NewLabelWithStyle(t.RipIncludeSubtitles, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	buildSubtitleRow := func(mt *DiscTitle) []fyne.CanvasObject {
+		if vs.format == FormatH264MP4 {
+			subsHeader.SetText(t.RipIncludeSubtitlesMP4)
+			subLangChecks = nil
+			return []fyne.CanvasObject{subsHeader}
+		}
+
+		var avail []string
+		if mt != nil {
+			avail = uniqueSubtitleLangs(mt.Subtitles)
+		}
+
+		// A legacy config that only persisted includeSubtitles=true migrates to
+		// "select every language" on the first scan (nil + false stays off).
+		sel := vs.selectedSubtitleLangs
+		if sel == nil && vs.includeSubtitles {
+			sel = avail
+			vs.selectedSubtitleLangs = avail
+		}
+		if len(avail) == 0 {
+			subLangChecks = nil
+			if vs.scanResult == nil {
+				subsHeader.SetText(t.RipIncludeSubtitles)
+			} else {
+				subsHeader.SetText(t.RipIncludeSubtitlesNone)
+			}
+			return []fyne.CanvasObject{subsHeader}
+		}
+
+		subsHeader.SetText(t.RipIncludeSubtitles)
+		selSet := map[string]bool{}
+		for _, l := range sel {
+			selSet[l] = true
+		}
+
+		subLangChecks = nil
+		objects := []fyne.CanvasObject{subsHeader}
+		for _, lang := range avail {
+			lang := lang
+			ck := widget.NewCheck(lang, nil)
+			ck.SetChecked(selSet[lang])
+			ck.OnChanged = func(v bool) {
+				if v {
+					vs.selectedSubtitleLangs = append(vs.selectedSubtitleLangs, lang)
+				} else {
+					keep := vs.selectedSubtitleLangs[:0]
+					for _, l := range vs.selectedSubtitleLangs {
+						if l != lang {
+							keep = append(keep, l)
+						}
+					}
+					vs.selectedSubtitleLangs = keep
+				}
+				vs.includeSubtitles = len(vs.selectedSubtitleLangs) > 0
+				vs.persistConfig()
+			}
+			subLangChecks = append(subLangChecks, ck)
+			objects = append(objects, ck)
+		}
+		return objects
+	}
 
 	// Rip mode: selected scenes (title by title) or the single main feature
 	// (longest title). Full-disc extraction is forced by region conversion, so
@@ -819,27 +887,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		allAudioCheck.Text = audioLabel
 		allAudioCheck.Refresh()
 
-		// Subtitle checkbox
-		subsLabel := t.RipIncludeSubtitles
-		if vs.format == FormatH264MP4 {
-			subsLabel = t.RipIncludeSubtitlesMP4
-			subsCheck.SetChecked(false)
-			subsCheck.Disable()
-		} else if mainTitle != nil {
-			if len(mainTitle.Subtitles) == 0 {
-				subsLabel = t.RipIncludeSubtitlesNone
-				subsCheck.SetChecked(false)
-				subsCheck.Disable()
-			} else {
-				subsLabel = fmt.Sprintf(t.RipIncludeSubtitlesCountFmt, len(mainTitle.Subtitles))
-				subsCheck.Enable()
-			}
-		} else {
-			subsCheck.Enable()
-		}
-		subsCheck.Text = subsLabel
-		subsCheck.Refresh()
-
 		// Region conversion dropdown — only shown on H.264 re-encode formats.
 		if vs.format == FormatLosslessMKV || vs.format == FormatArchivist {
 			ntscSelect.Hide()
@@ -874,9 +921,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			titleEntry,
 			chaptersCheck,
 			allAudioCheck,
-			subsCheck,
-			modeRadio,
 		}
+		objs = append(objs, buildSubtitleRow(mainTitle)...)
+		objs = append(objs, modeRadio)
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
 			objs = append(objs, widget.NewSeparator())

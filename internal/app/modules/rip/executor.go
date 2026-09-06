@@ -270,6 +270,7 @@ type RipArgs struct {
 	MetaFile      string   // path to ffmetadata file; empty = no chapter/title metadata
 	AudioLangs    []string // per-stream ISO 639-1 language codes; nil = no tagging
 	SubtitleLangs []string // per-stream subtitle language codes; nil = no subs
+	SubtitleSel   []int    // source stream indices of the selected subs (parallel to SubtitleLangs); empty = map all
 	DiscTitle     string   // embedded title tag; empty = skip
 	Interlaced    bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
 	RegionConvert string   // "" (none), "pal2ntsc", "ntsc2pal"
@@ -306,8 +307,17 @@ func BuildRipArgs(ra RipArgs) []string {
 	args = append(args, "-map", "0:v:0")
 	args = append(args, "-map", "0:a?")
 	// dvd_subtitle (VOBSUB bitmap) is valid in MKV but not in MP4
+	// Map only the subtitle streams the user selected, targeting each chosen
+	// stream's source index (VTS subpicture order = demuxed stream order).
+	// SubtitleSel empty + SubtitleLangs set = map all (legacy callers).
 	if len(ra.SubtitleLangs) > 0 && ra.Format != FormatH264MP4 {
-		args = append(args, "-map", "0:s?")
+		if len(ra.SubtitleSel) == 0 {
+			args = append(args, "-map", "0:s?")
+		} else {
+			for _, idx := range ra.SubtitleSel {
+				args = append(args, "-map", "0:s:"+strconv.Itoa(idx))
+			}
+		}
 	}
 
 	// Metadata source
@@ -646,12 +656,27 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			}
 		}
 
-		// Subtitle streams
+		// Subtitle streams — map only the languages the user chose. VTS subpicture
+		// order defines the demuxed subtitle stream order, so each chosen
+		// language's source index is recorded in SubtitleSel and the -map flags
+		// will target exactly those streams. An empty selection list maps every
+		// subtitle stream (legacy include-all behaviour).
 		if opts.IncludeSubtitles && len(titleInfo.Subtitles) > 0 {
-			for _, t := range titleInfo.Subtitles {
-				ra.SubtitleLangs = append(ra.SubtitleLangs, t.Language)
+			selected := map[string]bool{}
+			for _, l := range opts.SelectedSubtitleLangs {
+				selected[strings.ToUpper(l)] = true
 			}
-			appendLog(fmt.Sprintf("Including %d subtitle stream(s)", len(titleInfo.Subtitles)))
+			for i, t := range titleInfo.Subtitles {
+				if len(selected) > 0 && !selected[strings.ToUpper(t.Language)] {
+					continue
+				}
+				ra.SubtitleLangs = append(ra.SubtitleLangs, t.Language)
+				ra.SubtitleSel = append(ra.SubtitleSel, i)
+			}
+			if len(ra.SubtitleLangs) > 0 {
+				appendLog(fmt.Sprintf("Including %d subtitle stream(s): %s",
+					len(ra.SubtitleLangs), strings.Join(ra.SubtitleLangs, ", ")))
+			}
 		}
 	}
 

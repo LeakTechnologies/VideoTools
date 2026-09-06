@@ -1818,6 +1818,28 @@ func toString(v interface{}) string {
 	}
 }
 
+func toStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	switch t := v.(type) {
+	case []interface{}:
+		out := make([]string, 0, len(t))
+		for _, elem := range t {
+			switch s := elem.(type) {
+			case string:
+				out = append(out, s)
+			default:
+				out = append(out, fmt.Sprintf("%v", s))
+			}
+		}
+		return out
+	case []string:
+		return t
+	}
+	return nil
+}
+
 func toFloat(v interface{}) float64 {
 	switch t := v.(type) {
 	case float64:
