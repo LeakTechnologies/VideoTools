@@ -20,11 +20,13 @@ type DiscSummary struct {
 	outer fyne.CanvasObject // rounded navy box (header + body)
 	body  *fyne.Container   // inner VBox; children swapped per state
 
-	titleRow  *fyne.Container // Border: title left, status badge right (result state)
-	titleLbl  *widget.Label
-	statusLbl *widget.Label
-	techLbl   *widget.Label
-	mainLbl   *widget.Label
+	titleRow     *fyne.Container // Border: title left, status badge right (result state)
+	titleLbl     *widget.Label
+	statusLbl    *widget.Label
+	techLbl      *widget.Label
+	mainLbl      *widget.Label
+	snippetLbl   *widget.Label // scan-as-you-go notes, appended while scanning
+	snippetShown bool          // snippetLbl is a member of body only once non-empty
 }
 
 // NewDiscSummary builds an empty disc summary card in the "no disc" state.
@@ -46,6 +48,11 @@ func NewDiscSummary() *DiscSummary {
 	d.mainLbl = widget.NewLabel("")
 	d.mainLbl.Importance = widget.MediumImportance
 	d.mainLbl.Wrapping = fyne.TextWrapWord
+
+	d.snippetLbl = widget.NewLabel("")
+	d.snippetLbl.Importance = widget.MediumImportance
+	d.snippetLbl.Wrapping = fyne.TextWrapWord
+	d.snippetLbl.Hide()
 
 	// Result state: title and "SCANNED ✓" badge share one row.
 	d.titleRow = container.NewBorder(nil, nil, nil, d.statusLbl, d.titleLbl)
@@ -73,6 +80,8 @@ func (d *DiscSummary) SetEmpty() {
 	// Hidden rows don't contribute MinSize, keeping the empty card compact.
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.snippetShown = false
+	d.snippetLbl.Hide()
 	d.setBody(d.titleLbl, d.statusLbl)
 }
 
@@ -83,7 +92,31 @@ func (d *DiscSummary) SetScanning() {
 	d.statusLbl.Importance = widget.MediumImportance
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.snippetShown = false
+	d.snippetLbl.SetText("")
+	d.snippetLbl.Hide()
 	d.setBody(d.titleLbl, d.statusLbl)
+}
+
+// SetSnippet appends one scan-as-you-go note (region, standard, disc type, or a
+// per-title fact line) to the running list shown under the scanning hint. Must
+// be called from the UI thread; the snippet row only appears once a note lands.
+func (d *DiscSummary) SetSnippet(line string) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return
+	}
+	if d.snippetLbl.Text != "" {
+		d.snippetLbl.SetText(d.snippetLbl.Text + "\n" + line)
+	} else {
+		d.snippetLbl.SetText(line)
+	}
+	if !d.snippetShown {
+		d.snippetShown = true
+		d.body.Objects = append(d.body.Objects, d.snippetLbl)
+	}
+	d.snippetLbl.Show()
+	d.body.Refresh()
 }
 
 // SetResult fills the card with complete scan data. discTitle is the resolved
@@ -138,6 +171,9 @@ func (d *DiscSummary) SetResult(res *DiscScanResult, discTitle string) {
 		d.mainLbl.Hide()
 	}
 
+	d.snippetShown = false
+	d.snippetLbl.Hide()
+
 	d.setBody(d.titleRow, d.techLbl, d.mainLbl)
 }
 
@@ -149,6 +185,8 @@ func (d *DiscSummary) SetError(msg string) {
 	d.statusLbl.Wrapping = fyne.TextWrapWord
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.snippetShown = false
+	d.snippetLbl.Hide()
 	d.setBody(d.titleLbl, d.statusLbl)
 }
 
