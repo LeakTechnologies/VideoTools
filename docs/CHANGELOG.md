@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev64 (September 2026)
+
+### Rip Modes + Per-Language Subtitle Selection + Convert SMPTE-Idle Restore
+
+- **Rip mode selection (Selected scenes / Full movie)** — a horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip of the longest title (one job through the existing per-title executor path with `extractMode "main"`; falls back to executor defaults when there is no scan result). Hidden while PAL↔NTSC conversion forces full-disc extraction. The readiness line reads "Ready to rip main feature: Title N · duration".
+- **Per-language subtitle selection** — the single "Include subtitles" checkbox becomes one checkbox per subtitle language on the main title. Selected languages map to per-stream `-map 0:s:<index>` arguments (VOBSUB pairs stay together), so only the selected languages are muxed into the output. Legacy configs (no recorded selection) default to all languages.
+- **Scan-as-you-go disc snippets** — the disc scan emits facts incrementally (region · type · title count, per-title `T0N duration · ch · audio · subs` lines, video standard) and the DiscSummary scanning state shows them as they are discovered.
+- **Convert SMPTE-idle restore** — visiting another module and returning to Convert via the menu re-showed the previous module's last frame instead of idle SMPTE bars. `InlineVideoPlayer` gained `CurrentPath()`, `Close()` now clears it, and `showConvertView` resets the shared primary player unless it already shows the convert source.
+
 ## v0.1.1-dev63 (September 2026)
 
 ### Base Cycle + dev62 Follow-up Patches
