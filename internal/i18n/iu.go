@@ -649,6 +649,10 @@ var iu = Strings{
 	RipReadyNoSelection: "ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᔪᓐᓇᙱᑦᑐᑦ",                         // machine-generated, needs human review: No titles selected for rip.
 	RipReadyOne:         "1 ᐊᑕᐅᓯᖃᑦᑑᑎ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                       // machine-generated, needs human review: Ready to rip 1 title
 	RipReadyManyFmt:     "%d ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                   // machine-generated, needs human review: Ready to rip %d titles
+	RipReadyMainFeatureFmt: "ᐊᐅᓚᑕᐅᔪᓐᓇᕐᑐᒥᑦ ᖃᐳᓇᐃᓕᐅᖅᑑᒐᕕᑦ: %s",                     // machine-generated, needs human review: Ready to rip main feature: %s
+	RipModeSection:         "Rip Mode: ",                                                // machine-generated, needs human review: Rip Mode
+	RipModeScenes:          "ᐃᓱᒪᒋᔭᐅᖃᑦᑑᑎᒃ",                                          // machine-generated, needs human review: Selected scenes
+	RipModeMainFeature:     "ᖃᐳᓇᓯᑎᐊᕈᑦ",                                                // machine-generated, needs human review: Full movie (main feature)
 	RipLogOpen:          "▼ LOG",                                                    // machine-generated, needs human review: ▼ LOG
 	RipLogClose:         "▶ LOG",                                                    // machine-generated, needs human review: ▶ LOG
 	RipOpenInPlayer:     "▶ ᖃᕋᓴᐅᔭᕐᒧᑦ ᒪᑉᐱᐊᖅ",                                  // machine-generated, needs human review: Open in Player

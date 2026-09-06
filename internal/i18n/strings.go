@@ -730,6 +730,10 @@ type Strings struct {
 	RipReadyNoSelection string // "No titles selected for rip."
 	RipReadyOne         string // "Ready to rip 1 title"
 	RipReadyManyFmt     string // "Ready to rip %d titles"
+	RipReadyMainFeatureFmt string // "Ready to rip main feature: %s"
+	RipModeSection         string // "Rip Mode"
+	RipModeScenes          string // "Selected scenes"
+	RipModeMainFeature     string // "Full movie (main feature)"
 	RipLogOpen          string // "▼ LOG" (log toggle, expanded)
 	RipLogClose         string // "▶ LOG" (log toggle, collapsed)
 	RipOpenInPlayer     string // "Open in Player"

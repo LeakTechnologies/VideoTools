@@ -76,8 +76,10 @@ func totalVideoTSSize(videoTSPath string) int64 {
 }
 
 // ScanDisc reads the VMG IFO and per-VTS IFOs to populate a DiscScanResult.
-// It is safe to call from a goroutine; it performs no UI work.
-func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
+// It is safe to call from a goroutine; it performs no UI work. When onNote is
+// non-nil it is invoked as facts become known (disc identity, standard, and a
+// per-title line) so the UI can show scan-as-you-go notes during the scan.
+func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) {
 	vmgPath := filepath.Join(videoTSPath, "VIDEO_TS.IFO")
 	tsps, err := ifo.ReadTitleList(vmgPath)
 	if err != nil {
@@ -99,6 +101,21 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 	// Calculate total disc size and classify.
 	discSize := totalVideoTSSize(videoTSPath)
 	discType := classifyDiscType(discSize)
+
+	// Scan-as-you-go: emit identity facts as soon as they are known, then one
+	// line per title as it parses. onNote is invoked from the scan goroutine —
+	// the caller marshals it to the UI thread.
+	if onNote != nil {
+		facts := make([]string, 0, 3)
+		if region != "" {
+			facts = append(facts, region)
+		}
+		if discType != "" {
+			facts = append(facts, discType)
+		}
+		facts = append(facts, fmt.Sprintf("%d %s", len(tsps), i18n.T().RipTitleCount))
+		onNote(strings.Join(facts, " · "))
+	}
 
 	// Cache per-VTS IFO reads — multiple titles can share a VTS.
 	type vtsKey = int
@@ -150,6 +167,9 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 			}
 		}
 		result.Titles = append(result.Titles, dt)
+		if onNote != nil {
+			onNote(titleSnippet(dt))
+		}
 	}
 
 	// Determine video standard (NTSC/PAL) from the first title's VTS IFO.
@@ -159,10 +179,13 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 	if len(tsps) > 0 {
 		firstVTS := int(tsps[0].VTSNumber)
 		if ti, ok := vtsCache[firstVTS]; ok && ti != nil {
+			std := "PAL"
 			if ti.IsNTSC {
-				result.VideoStandard = "NTSC"
-			} else {
-				result.VideoStandard = "PAL"
+				std = "NTSC"
+			}
+			result.VideoStandard = std
+			if onNote != nil {
+				onNote(fmt.Sprintf("Video: %s", std))
 			}
 		}
 	}
@@ -203,7 +226,7 @@ func shortScanError(err error) string {
 // scanISOViaUDF extracts IFO files from a DVD ISO image using the UDF reader,
 // runs ScanDisc on the extracted data, and returns a full DiscScanResult.
 // Disc size and type are taken from the ISO file itself (not from the temp dir).
-func scanISOViaUDF(isoPath string) (*DiscScanResult, error) {
+func scanISOViaUDF(isoPath string, onNote func(string)) (*DiscScanResult, error) {
 	fi, err := os.Stat(isoPath)
 	if err != nil {
 		return nil, fmt.Errorf("stat ISO: %w", err)
@@ -267,7 +290,7 @@ func scanISOViaUDF(isoPath string) (*DiscScanResult, error) {
 		}
 	}
 
-	result, scanErr := ScanDisc(vtsTempDir)
+	result, scanErr := ScanDisc(vtsTempDir, onNote)
 	if scanErr != nil {
 		logging.Warning(logging.CatDVD, "scanISOViaUDF: ScanDisc failed: %v", scanErr)
 		var region string
@@ -291,7 +314,7 @@ func scanISOViaUDF(isoPath string) (*DiscScanResult, error) {
 // (killing the whole process) or return a silent non-result; this converts any
 // panic into a normal error so the disc summary always settles to a visible
 // state, and logs start/done so a stalled scan is diagnosable from the log.
-func runISOScan(isoPath string) (result *DiscScanResult, err error) {
+func runISOScan(isoPath string, onNote func(string)) (result *DiscScanResult, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ISO scan panicked: %v", r)
@@ -299,7 +322,7 @@ func runISOScan(isoPath string) (result *DiscScanResult, err error) {
 		}
 	}()
 	logging.Info(logging.CatDVD, "runISOScan: scanning ISO %s", isoPath)
-	result, err = scanISOViaUDF(isoPath)
+	result, err = scanISOViaUDF(isoPath, onNote)
 	if err != nil {
 		logging.Warning(logging.CatDVD, "runISOScan: failed for %s: %v", isoPath, err)
 		return nil, err
@@ -320,4 +343,23 @@ func langList(tracks []DiscTitleTrack) string {
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+// titleSnippet renders one compact scan-as-you-go note for a single title:
+// number, duration, chapter/audio/subtitle counts where known.
+func titleSnippet(dt DiscTitle) string {
+	parts := []string{fmt.Sprintf("T%02d", dt.Number)}
+	if dt.Duration > 0 {
+		parts = append(parts, FormatDuration(dt.Duration))
+	}
+	if dt.NumChapters > 1 {
+		parts = append(parts, fmt.Sprintf("%d ch", dt.NumChapters))
+	}
+	if langs := langList(dt.Audio); langs != "" {
+		parts = append(parts, fmt.Sprintf("%s audio", langs))
+	}
+	if langs := langList(dt.Subtitles); langs != "" {
+		parts = append(parts, fmt.Sprintf("%s subs", langs))
+	}
+	return strings.Join(parts, " · ")
 }

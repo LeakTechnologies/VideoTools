@@ -49,7 +49,7 @@ type viewState struct {
 	includeSubtitles bool
 	includeMenus     bool
 	regionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
-	extractMode      string // "" (main feature) or "full" (full disc with IFO regen)
+	extractMode      string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
 	discTitle        string
 	logText          string
 	progress         float64
@@ -387,6 +387,51 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return nil
 		}
 
+		// Main-feature extraction is a single job for the longest title on the disc.
+		// Without a scan result we fall back to the executor's own main-feature
+		// defaults (largest VTS set / title 1).
+		if vs.extractMode == "main" {
+			vtsNum, titleNum := 0, 0
+			if vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
+				main := vs.scanResult.Titles[0]
+				for _, dt := range vs.scanResult.Titles {
+					if dt.Duration > main.Duration {
+						main = dt
+					}
+				}
+				vtsNum, titleNum = main.VTSNumber, main.Number
+			}
+			job := &queue.Job{
+				Type:        queue.JobTypeRip,
+				Title:       fmt.Sprintf("%s: %s", t.RipMainFeature, filepath.Base(vs.sourcePath)),
+				Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(vs.outputPath), 40)),
+				InputFile:   vs.sourcePath,
+				OutputFile:  vs.outputPath,
+				Config: map[string]interface{}{
+					"sourcePath":       vs.sourcePath,
+					"outputPath":       vs.outputPath,
+					"format":           vs.format,
+					"embedChapters":    vs.embedChapters,
+					"allAudioTracks":   vs.allAudioTracks,
+					"includeSubtitles": vs.includeSubtitles,
+					"includeMenus":     vs.includeMenus,
+					"regionConvert":    vs.regionConvert,
+					"discTitle":        vs.discTitle,
+					"vtsNumber":        vtsNum,
+					"titleNumber":      titleNum,
+					"extractMode":      "main",
+				},
+			}
+			opts.AddJob(job)
+			vs.resetLog()
+			vs.setStatus(t.RipJobQueuedMsg)
+			vs.setProgress(0)
+			if runNow && !jq.IsRunning() {
+				jq.Start()
+			}
+			return nil
+		}
+
 		// Build list of (vtsNumber, outputPath, title) for each job to enqueue.
 		type titleJob struct {
 			vtsNumber   int
@@ -521,6 +566,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 			ripSummaryLbl.SetText(t.RipReadyNoTitles)
 			return
 		}
+		if vs.extractMode == "main" {
+			main := vs.scanResult.Titles[0]
+			for _, dt := range vs.scanResult.Titles {
+				if dt.Duration > main.Duration {
+					main = dt
+				}
+			}
+			ripSummaryLbl.SetText(fmt.Sprintf(t.RipReadyMainFeatureFmt,
+				fmt.Sprintf("%s %02d · %s", t.RipTitleShort, main.Number, FormatDuration(main.Duration))))
+			return
+		}
 		sel := countSelected()
 		if sel == 0 {
 			ripSummaryLbl.SetText(t.RipReadyNoSelection)
@@ -616,6 +672,34 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
+	// Rip mode: selected scenes (title by title) or the single main feature
+	// (longest title). Full-disc extraction is forced by region conversion, so
+	// the radio only reflects the scenes vs main-feature choice. Constructed
+	// with a nil OnChanged so the initial SetSelected below doesn't fire the
+	// callback; re-ticking the selected option re-selects scenes to keep a
+	// valid option ticked at all times.
+	var modeRadio *widget.RadioGroup
+	modeRadio = widget.NewRadioGroup([]string{t.RipModeScenes, t.RipModeMainFeature}, nil)
+	modeRadio.Horizontal = true
+	modeRadio.SetSelected(t.RipModeScenes)
+	modeRadio.OnChanged = func(value string) {
+		// Region conversion forces full-disc extraction — the scenes /
+		// main-feature choice is inert for as long as it is active.
+		if vs.regionConvert != "" {
+			vs.extractMode = "full"
+			return
+		}
+		switch value {
+		case t.RipModeMainFeature:
+			vs.extractMode = "main"
+		default:
+			if value == "" {
+				modeRadio.SetSelected(t.RipModeScenes)
+			}
+			vs.extractMode = ""
+		}
+	}
+
 	menusCheck := widget.NewCheck(t.RipPreserveMenusFull, func(v bool) {
 		vs.includeMenus = v
 		vs.persistConfig()
@@ -628,7 +712,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 			vs.extractMode = "full"
 			vs.outputPath = FullDiscOutputPath(vs.sourcePath)
 		} else {
-			vs.extractMode = ""
+			if modeRadio.Selected == t.RipModeMainFeature {
+				vs.extractMode = "main"
+			} else {
+				vs.extractMode = ""
+			}
 			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
 		}
 		if opts.SetRipOutputPath != nil {
@@ -668,9 +756,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if vs.regionConvert != "" && vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
 			vs.extractMode = "full"
 			fullDiscCheck.SetChecked(true)
+			modeRadio.Hide()
 		} else {
-			vs.extractMode = ""
+			if modeRadio.Selected == t.RipModeMainFeature {
+				vs.extractMode = "main"
+			} else {
+				vs.extractMode = ""
+			}
 			fullDiscCheck.SetChecked(false)
+			modeRadio.Show()
 		}
 	})
 	ntscSelect.SetSelected(t.RipRegionNone)
@@ -752,6 +846,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 			fullDiscCheck.Hide()
 		} else {
 			ntscSelect.Show()
+			// Mode selector is hidden while region conversion forces full-disc
+			// extraction (neither scenes nor main-feature applies).
+			if vs.regionConvert != "" {
+				modeRadio.Hide()
+			} else {
+				modeRadio.Show()
+			}
 			// Full-disc checkbox is only relevant when region conversion is active
 			if vs.regionConvert != "" && vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
 				fullDiscCheck.Show()
@@ -774,6 +875,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			chaptersCheck,
 			allAudioCheck,
 			subsCheck,
+			modeRadio,
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
@@ -879,9 +981,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 			discSummary.SetScanning()
 		}
 
+		// pushDiscNote appends a scan-as-you-go fact line to the disc summary.
+		// Notes arrive from the scan goroutine, so marshal onto the UI thread.
+		pushDiscNote := func(note string) {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				if discSummary != nil {
+					discSummary.SetSnippet(note)
+				}
+			}, false)
+		}
+
 		if strings.HasSuffix(strings.ToLower(path), ".iso") {
 			go func() {
-				result, scanErr := runISOScan(path)
+				result, scanErr := runISOScan(path, pushDiscNote)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "ISO scan failed: %v", scanErr)
@@ -915,7 +1027,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					}, false)
 					return
 				}
-				result, scanErr := ScanDisc(vtsp)
+				result, scanErr := ScanDisc(vtsp, pushDiscNote)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					if scanErr != nil {
 						logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)

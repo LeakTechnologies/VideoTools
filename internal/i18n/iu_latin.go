@@ -640,6 +640,10 @@ var iuLatn = Strings{
 	RipReadyNoSelection: "Atausiqattut isumagijaujunnaqtungittut",                                                            // machine-generated, needs human review: No titles selected for rip.
 	RipReadyOne:         "1 atasuiqattut isumagijauq qanuilirqtuq",                                                           // machine-generated, needs human review: Ready to rip 1 title
 	RipReadyManyFmt:     "%d atasuiqattuit isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip %d titles
+	RipReadyMainFeatureFmt: "Munaluagijaq tungilirqtuq: %s",                                                                  // machine-generated, needs human review: Ready to rip main feature: %s
+	RipModeSection:         "Rip Mode: ",                                                                                     // machine-generated, needs human review: Rip Mode
+	RipModeScenes:          "Suliaq atausiq qanuilirqtuq",                                                                    // machine-generated, needs human review: Selected scenes
+	RipModeMainFeature:     "Full movie (main feature)",                                                                      // machine-generated, needs human review: Full movie (main feature)
 	RipLogOpen:          "▼ LOG",                                                                                             // machine-generated, needs human review: ▼ LOG
 	RipLogClose:         "▶ LOG",                                                                                             // machine-generated, needs human review: ▶ LOG
 	RipOpenInPlayer:     "▶ Qarasaujarmut Mappiraq",                                                                          // machine-generated, needs human review: Open in Player
