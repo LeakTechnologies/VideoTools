@@ -149,20 +149,21 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 	}
 
 	execOpts := ripmod.ExecuteOptions{
-		SourcePath:       sourcePath,
-		OutputPath:       outputPath,
-		Format:           format,
-		VTSNumber:        vtsNumber,
-		TitleNumber:      titleNumber,
-		ExtractMode:      toString(cfg["extractMode"]),
-		EmbedChapters:    toBool(cfg["embedChapters"]),
-		AllAudioTracks:   toBool(cfg["allAudioTracks"]),
-		IncludeSubtitles: toBool(cfg["includeSubtitles"]),
-		IncludeMenus:     toBool(cfg["includeMenus"]),
-		RegionConvert:    toString(cfg["regionConvert"]),
-		DiscTitle:        toString(cfg["discTitle"]),
-		GetLogsDir: getLogsDir,
-		LogSuffix:  conversionLogSuffix,
+		SourcePath:            sourcePath,
+		OutputPath:            outputPath,
+		Format:                format,
+		VTSNumber:             vtsNumber,
+		TitleNumber:           titleNumber,
+		ExtractMode:           toString(cfg["extractMode"]),
+		EmbedChapters:         toBool(cfg["embedChapters"]),
+		AllAudioTracks:        toBool(cfg["allAudioTracks"]),
+		IncludeSubtitles:      toBool(cfg["includeSubtitles"]),
+		SelectedSubtitleLangs: toStringSlice(cfg["selectedSubtitleLangs"]),
+		IncludeMenus:          toBool(cfg["includeMenus"]),
+		RegionConvert:         toString(cfg["regionConvert"]),
+		DiscTitle:             toString(cfg["discTitle"]),
+		GetLogsDir:            getLogsDir,
+		LogSuffix:             conversionLogSuffix,
 		OnProbeVideo: func(path string) (*ripmod.ProbeResult, error) {
 			src, err := probeVideo(path)
 			if err != nil {

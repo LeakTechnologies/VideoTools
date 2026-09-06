@@ -138,12 +138,13 @@ type ExecuteOptions struct {
 	ExtractMode string
 
 	// Enrichment options — all default to false/"" for backwards compat.
-	EmbedChapters    bool   // read IFO and write chapter metadata into output
-	AllAudioTracks   bool   // map every audio stream (not just the first)
-	IncludeSubtitles bool   // include dvd_subtitle bitmap streams (MKV only)
-	IncludeMenus     bool   // export menu VOBs as separate files (default false = skip menus)
-	DiscTitle        string // embedded as MKV/MP4 title tag; empty = skip
-	RegionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
+	EmbedChapters         bool     // read IFO and write chapter metadata into output
+	AllAudioTracks        bool     // map every audio stream (not just the first)
+	IncludeSubtitles      bool     // include dvd_subtitle bitmap streams (MKV only)
+	SelectedSubtitleLangs []string // languages selected by the user; nil = all (default)
+	IncludeMenus          bool     // export menu VOBs as separate files (default false = skip menus)
+	DiscTitle             string   // embedded as MKV/MP4 title tag; empty = skip
+	RegionConvert         string   // "" (none), "pal2ntsc", "ntsc2pal"
 
 	GetLogsDir   func() string
 	LogSuffix    string
