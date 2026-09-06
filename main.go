@@ -3795,6 +3795,19 @@ func (s *appState) showConvertView(file *videoSource) {
 	}
 	s.active = "convert"
 
+	// Every single-playback module shares primaryInlinePlayer, so menu-driven
+	// re-entry (file == nil) can otherwise surface a stale frame from another
+	// module instead of the idle SMPTE bars. Reset the player unless it is
+	// already showing Convert's own source (preserves a mid-session video).
+	if HasNativeMediaPlayer() {
+		if file == nil {
+			cp := GetPrimaryPlayer()
+			if s.source == nil || cp.CurrentPath() == "" || cp.CurrentPath() != s.source.Path {
+				s.closeNativePlayer()
+			}
+		}
+	}
+
 	// Build the content first
 	content := buildConvertView(s, file)
 
