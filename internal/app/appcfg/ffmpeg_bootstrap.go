@@ -5,11 +5,11 @@ package appcfg
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 // FFmpegDllDir returns the directory where FFmpeg DLLs are expected.
@@ -65,7 +65,8 @@ func StaticSidecarsWork() bool {
 	if _, err := os.Stat(ffprobe); err != nil {
 		return false
 	}
-	return exec.Command(ffprobe, "-version").Run() == nil
+	cmd := utils.CreateCommandRaw(ffprobe, "-version")
+	return cmd.Run() == nil
 }
 
 // AddFFmpegDllsToPath finds the FFmpeg DLL directory and prepends it to PATH
@@ -133,8 +134,9 @@ func ValidateFFmpegDLLs() error {
 
 	// — smoke test with bundled ffprobe (authoritative) —
 	ffprobe := filepath.Join(exeDir(), "ffprobe.exe")
+	probeCmd := utils.CreateCommandRaw(ffprobe, "-version")
 	if _, err := os.Stat(ffprobe); err == nil {
-		out, err := exec.Command(ffprobe, "-version").CombinedOutput()
+		out, err := probeCmd.CombinedOutput()
 		if err == nil {
 			logging.Debug(logging.CatSystem, "FFmpeg smoke test passed: ffprobe runs")
 			return nil

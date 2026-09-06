@@ -247,7 +247,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	vs.logEntry = logEntry
 	logScroll := container.NewVScroll(logEntry)
-	logScroll.SetMinSize(fyne.NewSize(0, 40))
+	logScroll.SetMinSize(fyne.NewSize(0, 24))
 	vs.logScroll = logScroll
 	if opts.SetRipLogEntry != nil {
 		opts.SetRipLogEntry(logEntry)
@@ -639,6 +639,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fullDiscCheck.SetChecked(false)
 	fullDiscCheck.Disable()
 
+	// Advanced options live under a collapsible header (same fold visual as
+	// the Filters/Upscale metadata panels) so the day-to-day output path stays
+	// clean: menus preservation, PAL↔NTSC conversion, and full-disc extraction.
+	// The header and body are persistent widgets — rebuildEnrich only swaps the
+	// body children, so the fold stays closed across re-scans instead of the
+	// old accordion cycling/overlapping the options above it.
+	advancedBody := container.NewVBox()
+	advancedHdr, advancedUpdate := ui.BuildCollapsibleHeader(t.RipAdvancedOptions, ripTeal, func(open bool) {
+		if open {
+			advancedBody.Show()
+		} else {
+			advancedBody.Hide()
+		}
+	})
+	advancedBody.Hide()
+	advancedUpdate(false) // start collapsed so the arrow matches the hidden body
+
 	ntscSelect := widget.NewSelect([]string{t.RipRegionNone, t.RipRegionPALtoNTSC, t.RipRegionNTSCtoPAL}, func(value string) {
 		switch value {
 		case t.RipRegionPALtoNTSC:
@@ -767,9 +784,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		}
 
-		// Uncommon options live in an Advanced accordion so the day-to-day
-		// output path stays clean: menus preservation, PAL↔NTSC conversion,
-		// and full-disc extraction.
+		// Uncommon options live in the collapsed Advanced fold (declared above);
+		// here we only swap the body children. Menus preservation, PAL↔NTSC
+		// conversion, and full-disc extraction.
 		advanced := container.NewVBox(
 			menusCheck,
 			widget.NewSeparator(),
@@ -777,8 +794,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 			ntscSelect,
 			fullDiscCheck,
 		)
+		advancedBody.Objects = advanced.Objects
+		advancedBody.Refresh()
 		objs = append(objs, widget.NewSeparator())
-		objs = append(objs, widget.NewAccordion(widget.NewAccordionItem(t.RipAdvancedOptions, advanced)))
+		objs = append(objs, advancedHdr, advancedBody)
 
 		enrichContent.Objects = objs
 		enrichContent.Refresh()

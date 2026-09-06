@@ -738,6 +738,7 @@ func probeSubtitleStreams(path string) ([]SubtitleStreamInfo, error) {
 		"-select_streams", "s",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout

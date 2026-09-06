@@ -138,6 +138,7 @@ func probeSubtitleStreams(path string) ([]subtitleStreamInfo, error) {
 		"-of", "json",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -207,6 +208,7 @@ func probeSubtitlePackets(path string, streamIndex int) ([]subtitlePacketInfo, e
 		"-of", "json",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
@@ -86,7 +86,7 @@ func NewMenuPreview() *MenuPreview {
 
 	body := container.NewVBox(
 		previewArea,
-		container.NewVBox(preserveCheck, mainCheck),
+		container.NewHBox(preserveCheck, layout.NewSpacer(), mainCheck),
 	)
 
 	mp.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipMenuPreview, body)
@@ -171,40 +171,64 @@ func (mp *MenuPreview) extractMenuFrame() {
 	mp.mu.Unlock()
 
 	go func() {
-		lower := filepath.Ext(path)
+		tmpFile := filepath.Join(os.TempDir(), "vt_menu_preview.png")
+		var inputPath string
 		var args []string
 
-		if len(lower) > 0 {
-			// ISO — try to read the first menu VOB via dvdvideo demuxer.
+		st, err := os.Stat(path)
+		if err == nil && st.IsDir() {
+			// VIDEO_TS / disc root — resolve to the parent of a VIDEO_TS
+			// folder so we never double-nest path/VIDEO_TS/VIDEO_TS/...
+			dvdRoot := path
+			if strings.EqualFold(filepath.Base(path), "VIDEO_TS") {
+				dvdRoot = filepath.Dir(path)
+			}
+			vtsDir := filepath.Join(dvdRoot, "VIDEO_TS")
+			menuVOB := filepath.Join(vtsDir, "VIDEO_TS.VOB")
+			if _, merr := os.Stat(menuVOB); merr != nil {
+				menuVOB = filepath.Join(vtsDir, "VTS_01_0.VOB")
+				if _, merr2 := os.Stat(menuVOB); merr2 != nil {
+					logging.Debug(logging.CatDVD, "menu_preview: no menu VOBs in %s", vtsDir)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						mp.showPlaceholder()
+					}, false)
+					return
+				}
+			}
+			inputPath = menuVOB
+		} else {
+			// ISO file — try dvdvideo demuxer (-title 0 = VMG menu).
+			inputPath = path
+		}
+
+		if strings.EqualFold(filepath.Ext(inputPath), ".VOB") {
+			args = []string{
+				"-hide_banner", "-loglevel", "error",
+				"-ss", "00:00:01",
+				"-i", inputPath,
+				"-frames:v", "1",
+				"-vf", fmt.Sprintf("scale=%d:-1", menuPreviewWidth),
+				"-q:v", "3",
+				"-y", tmpFile,
+			}
+		} else {
 			args = []string{
 				"-hide_banner", "-loglevel", "error",
 				"-f", "dvdvideo",
 				"-title", "0",
 				"-ss", "00:00:01",
-				"-i", path,
+				"-i", inputPath,
 				"-frames:v", "1",
 				"-vf", fmt.Sprintf("scale=%d:-1", menuPreviewWidth),
 				"-q:v", "3",
-				"-y", filepath.Join(os.TempDir(), "vt_menu_preview.png"),
-			}
-		} else {
-			// VIDEO_TS directory — find menu VOB directly.
-			args = []string{
-				"-hide_banner", "-loglevel", "error",
-				"-ss", "00:00:01",
-				"-i", filepath.Join(path, "VIDEO_TS", "VTS_01_0.VOB"),
-				"-frames:v", "1",
-				"-vf", fmt.Sprintf("scale=%d:-1", menuPreviewWidth),
-				"-q:v", "3",
-				"-y", filepath.Join(os.TempDir(), "vt_menu_preview.png"),
+				"-y", tmpFile,
 			}
 		}
 
-		tmpFile := args[len(args)-1]
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
+		cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 		if err := cmd.Run(); err != nil {
 			logging.Debug(logging.CatDVD, "menu_preview: frame extract failed: %v", err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {

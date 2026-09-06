@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -162,7 +161,7 @@ func extractPreviewFrame(path string, timestamp float64) ([]byte, error) {
 		tmpFile,
 	}
 
-	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}

@@ -18,7 +18,9 @@ import (
 // scan progresses. All Set* methods must be called from the UI thread.
 type DiscSummary struct {
 	outer fyne.CanvasObject // rounded navy box (header + body)
+	body  *fyne.Container   // inner VBox; children swapped per state
 
+	titleRow  *fyne.Container // Border: title left, status badge right (result state)
 	titleLbl  *widget.Label
 	statusLbl *widget.Label
 	techLbl   *widget.Label
@@ -39,25 +41,29 @@ func NewDiscSummary() *DiscSummary {
 
 	d.techLbl = widget.NewLabel("")
 	d.techLbl.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	d.techLbl.Truncation = fyne.TextTruncateEllipsis
 
 	d.mainLbl = widget.NewLabel("")
-	d.mainLbl.Importance = widget.LowImportance
+	d.mainLbl.Importance = widget.MediumImportance
 	d.mainLbl.Wrapping = fyne.TextWrapWord
 
-	body := container.NewVBox(
-		d.titleLbl,
-		d.statusLbl,
-		d.techLbl,
-		d.mainLbl,
-	)
+	// Result state: title and "SCANNED ✓" badge share one row.
+	d.titleRow = container.NewBorder(nil, nil, nil, d.statusLbl, d.titleLbl)
 
-	d.outer = sectionBox(i18n.T().RipDiscSection, body)
+	d.body = container.NewVBox()
+	d.outer = sectionBox(i18n.T().RipDiscSection, d.body)
 	d.SetEmpty()
 	return d
 }
 
 // GetContainer returns the root canvas object for embedding in the view.
 func (d *DiscSummary) GetContainer() fyne.CanvasObject { return d.outer }
+
+// setBody swaps the inner layout without rebuilding the section box.
+func (d *DiscSummary) setBody(objects ...fyne.CanvasObject) {
+	d.body.Objects = objects
+	d.body.Refresh()
+}
 
 // SetEmpty resets the card to the "no disc loaded" state.
 func (d *DiscSummary) SetEmpty() {
@@ -67,6 +73,7 @@ func (d *DiscSummary) SetEmpty() {
 	// Hidden rows don't contribute MinSize, keeping the empty card compact.
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.setBody(d.titleLbl, d.statusLbl)
 }
 
 // SetScanning shows the "reading disc information" state while a scan runs.
@@ -76,6 +83,7 @@ func (d *DiscSummary) SetScanning() {
 	d.statusLbl.Importance = widget.MediumImportance
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.setBody(d.titleLbl, d.statusLbl)
 }
 
 // SetResult fills the card with complete scan data. discTitle is the resolved
@@ -87,6 +95,7 @@ func (d *DiscSummary) SetResult(res *DiscScanResult, discTitle string) {
 	d.titleLbl.SetText(discTitle)
 	d.statusLbl.SetText(i18n.T().RipDiscScanned)
 	d.statusLbl.Importance = widget.SuccessImportance
+	d.statusLbl.Truncation = fyne.TextTruncateEllipsis
 
 	tech := make([]string, 0, 5)
 	if res != nil {
@@ -128,6 +137,8 @@ func (d *DiscSummary) SetResult(res *DiscScanResult, discTitle string) {
 		d.mainLbl.SetText("")
 		d.mainLbl.Hide()
 	}
+
+	d.setBody(d.titleRow, d.techLbl, d.mainLbl)
 }
 
 // SetError shows a scan failure state with a short human-readable message.
@@ -135,8 +146,10 @@ func (d *DiscSummary) SetError(msg string) {
 	d.titleLbl.SetText(i18n.T().RipDiscScanFailed)
 	d.statusLbl.SetText(msg)
 	d.statusLbl.Importance = widget.WarningImportance
+	d.statusLbl.Wrapping = fyne.TextWrapWord
 	d.techLbl.Hide()
 	d.mainLbl.Hide()
+	d.setBody(d.titleLbl, d.statusLbl)
 }
 
 // sectionBox wraps content in the app's standard rounded navy box with a teal
