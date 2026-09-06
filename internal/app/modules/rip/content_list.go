@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -109,7 +108,7 @@ func NewContentBrowser() *ContentBrowser {
 	// soon as titles exist.
 	cb.emptyHint = widget.NewLabel(t.RipDiscNoneHint)
 	cb.emptyHint.Alignment = fyne.TextAlignCenter
-	cb.emptyHint.Importance = widget.LowImportance
+	cb.emptyHint.Importance = widget.MediumImportance
 
 	cb.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipContentBrowser,
 		container.NewStack(cardBg, cb.list, container.NewCenter(cb.emptyHint)),
@@ -292,7 +291,7 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	infoLabel := widget.NewLabel("--")
 	infoLabel.Wrapping = fyne.TextWrapWord
 	infoLabel.TextStyle = fyne.TextStyle{Monospace: true}
-	infoLabel.Importance = widget.LowImportance
+	infoLabel.Importance = widget.MediumImportance
 
 	check := widget.NewCheck("", nil)
 
@@ -487,7 +486,7 @@ func extractTitleFrame(sourcePath string, titleNum int, timestamp float64, dvdVi
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg thumb extract: %w", err)
 	}

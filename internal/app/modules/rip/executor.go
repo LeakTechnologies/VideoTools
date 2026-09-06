@@ -38,7 +38,7 @@ func SupportsDVDVideo() bool {
 	}
 	dvdVideoChecked = true
 
-	cmd := exec.Command(utils.GetFFmpegPath(), "-hide_banner", "-h", "demuxer=dvdvideo")
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-h", "demuxer=dvdvideo")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		logging.Debug(logging.CatDVD, "SupportsDVDVideo: ffmpeg -h demuxer=dvdvideo failed: %v", err)
