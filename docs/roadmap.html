@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev63 &mdash; September 2026 (dev62 follow-up patches) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev64 &mdash; September 2026 (rip modes + per-language subtitle selection + SMPTE idle restore) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -330,6 +330,7 @@ const roadmap = {
       { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'future', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
       { id: 'rip-overhaul', title: 'Rip Module Overhaul', desc: 'Major UX/interface rework, dev58: a linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow replaces the old clunky layout. Disc info now populates reliably on ISO/VIDEO_TS load (ScanDisc.VideoStandard was read before the VTS cache filled — NTSC/PAL never surfaced; disc info decoupled into updateDiscInfo()), shown in a dedicated DiscSummary card with explicit empty/scanning/scanned/error states (type · standard · region · size · title count, ★ Main Feature = longest title). The Content Browser is reused as the TITLES section instead of dominating the screen. Common output options stay first-class (chapters/audio/subtitles); uncommon ones (Preserve menus, PAL↔NTSC conversion, full-disc extraction) moved into an Advanced accordion. "Ready to rip N title(s)" readiness line drives the RIP NOW / Add to Queue / Open in Player actions; log is a compact collapsible strip. Full i18n pass over the module hardcoded labels/dialogs/region strings (en/fr/iu/iu_latin). dev63 follow-up: SetScanning() was being clobbered by rebuildEnrich()'s SetEmpty() on load, so ISO loads never showed "Reading disc information"; it now runs after the enrich rebuild.', status: 'done', cycle: 'dev58', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/scan.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/rip/menu_preview.go', 'internal/i18n/strings.go', 'internal/i18n/en_ca.go', 'internal/i18n/fr_ca.go', 'internal/i18n/iu.go', 'internal/i18n/iu_latin.go'], deps: ['dvdvideo'], docs: [] },
       { id: 'rip-refinement', title: 'Rip Density Refinement', desc: 'Two-column workspace replaces the single vertical scroll: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as flexible center with internal scroll, 55%), RIGHT = PROCESSING (Format/enrichment, Output, Status, 45%), SOURCE + action bar span full width. New ui.SectionBox shared component (compact 28px teal header, navy body, optional header actions) now backings all rip sections plus the 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + stub). Density: gaps 10→6px, thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT demoted to a plain bold subsection label, DiscSummary empty-state spacer removed. dev62 correction pass: action bar rebuilt as a Border (wrapping-label-in-HBox root cause had produced a giant button band, clipped right column, one-char-per-line label), DiscSummary hides empty tech/main rows, MenuPreview bounded 40px empty strip, ContentBrowser centred empty-state hint.', status: 'done', cycle: 'dev62', files: ['internal/ui/components.go', 'internal/app/modules/rip/view.go', 'internal/app/modules/rip/disc_summary.go', 'internal/app/modules/rip/menu_preview.go', 'internal/app/modules/rip/content_list.go', 'internal/app/modules/audio/view.go', 'internal/app/modules/upscale/view.go', 'internal/app/modules/thumbnail/view.go', 'internal/app/modules/inspect/view.go', 'internal/app/modules/compare/view.go', 'internal/app/modules/filters/view.go', 'internal/app/modules/trim/view.go', 'internal/app/modules/trim/stub.go'], deps: ['rip-overhaul'], docs: [] },
+      { id: 'rip-modes-subs', title: 'Rip Modes + Per-Language Subtitle Selection (dev64)', desc: 'Rip mode radio (Selected scenes / Full movie): the full-movie rip targets the longest title via a single main-feature job through the existing per-title executor path (falls back to executor defaults with no scan result); hidden while PAL↔NTSC conversion forces full-disc extraction. Per-language subtitle selection: one checkbox per subtitle language on the main title, mapped to per-stream -map 0:s:<index> arguments (VOBSUB pairs stay together), only selected languages muxed into output, legacy configs default to all. Scan-as-you-go snippets: disc scan emits facts incrementally (region · type · title count, per-title T0N duration · ch · audio · subs, video standard) into the DiscSummary scanning state.', status: 'done', cycle: 'dev64', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/executor.go', 'internal/app/modules/rip/scan.go', 'rip_module.go', 'internal/app/modulecfg/rip.go'], deps: ['rip-refinement'], docs: [] },
       { id: 'clone-disc', title: 'Clone Disc to ISO', desc: 'Sector-by-sector disc copy with queue integration — see CLONE_DISC_DESIGN.md', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CLONE_DISC_DESIGN.md'] },
     ]
   },
@@ -385,6 +386,7 @@ const roadmap = {
       { id: 'conv-dragdrop', title: 'Fix Drag & Drop', desc: 'Files dragged onto the Convert module drop zone are not registered (carry-forward from dev32)', status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
       { id: 'conv-icon-pass', title: 'Convert UI Icon Pass', desc: 'Replace temporary ASCII-safe Convert control labels with proper icon resources', status: 'future', cycle: 'future', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
       { id: 'metadata-fold', title: 'Metadata Panel Fold Fix (dev63)', desc: 'Folding a metadata panel hid its tappable METADATA header because the header lived inside the hidden panel, so it could never be re-expanded — applied to Convert + Filters + Upscale. buildMetadataPanel gained initiallyOpen; the header row stays visible and only the body hides; caller onToggle only persists open state + adjusts the split offset (Convert honours state.convert.MetadataOpen, Filters/Upscale default open).', status: 'done', cycle: 'dev63', files: ['main.go', 'filters_module.go', 'internal/app/modules/filters/view.go', 'internal/app/modules/upscale/view.go'], deps: [], docs: [] },
+      { id: 'convert-idle-restore', title: 'Convert SMPTE-Idle Restore (dev64)', desc: 'Menu-driven re-entry to Convert left the previous module\'s frame on screen instead of the idle SMPTE bars. InlineVideoPlayer gained CurrentPath() and Close() now clears it; showConvertView resets the shared primary player to idle (via Close) on menu-driven re-entry unless it already shows the convert source.', status: 'done', cycle: 'dev64', files: ['main.go', 'internal/ui/inline_player.go', 'internal/ui/inline_player_stub.go'], deps: ['smpte-idle'], docs: [] },
     ]
   },
 
@@ -602,7 +604,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev63';
+const currentVersion = 'dev64';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -798,7 +800,15 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev63', date: 'September 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev64', date: 'September 2026', tag: 'current', sections: [
+    { title: 'Rip modes + per-language subtitle selection + Convert SMPTE-idle restore', items: [
+      'Rip mode selection — a horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip of the longest title (one job through the existing per-title executor path with extractMode "main"; falls back to executor defaults with no scan result); hidden while PAL↔NTSC conversion forces full-disc extraction; the readiness line shows "Ready to rip main feature: Title N · duration"',
+      'Per-language subtitle selection — the single "Include subtitles" checkbox becomes one checkbox per subtitle language on the main title; selected languages map to per-stream -map 0:s:<index> arguments (VOBSUB pairs stay together via source index) so only the selected languages are muxed into output; legacy configs (no recorded selection) default to all languages',
+      'Scan-as-you-go disc snippets — the disc scan emits facts incrementally (region · type · title count, per-title T0N duration · ch · audio · subs lines, video standard) and the DiscSummary scanning state shows them as they are discovered',
+      'Convert SMPTE-idle restore — InlineVideoPlayer gained CurrentPath() and Close() now clears it; showConvertView resets the shared primary player to idle on menu-driven re-entry unless it already shows the convert source, so returning from another module shows SMPTE bars instead of the previous frame',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev63', date: 'September 2026', tag: 'shipped', sections: [
     { title: 'Base cycle + dev62 follow-up patches', items: [
       'Convert/Filters/Upscale metadata-panel fold bug fixed — folding a metadata panel hid its tappable METADATA header (the header lived inside the hidden metaPanel) so it could never be re-expanded; buildMetadataPanel gained initiallyOpen, the header stays visible and only the body hides, and the caller onToggle only persists the open state + adjusts the split offset',
       'Rip ISO-load scanning-state bug fixed — SetScanning() ran before rebuildEnrich() clobbered it with SetEmpty(); SetScanning() now runs after the enrich rebuild so loading an ISO shows "Reading disc information"',
@@ -1519,6 +1529,7 @@ const checklistData = [
     'Presets dropdown loads/saves/removes user-defined named presets',
     'H.264 MKV/MP4 and Lossless MKV presets encode without crash',
     'i18n strings render in English (en-CA) and French (fr-CA)',
+    'Menu-driven re-entry after another playback module (e.g. Inspect → menu → Convert) shows idle SMPTE bars, not the previous module\'s last frame',
   ]},
   { title: 'Rip Module', items: [
     'IFO scanning reads titles, chapters, audio/subtitle tracks correctly',
@@ -1548,6 +1559,9 @@ const checklistData = [
     'Rip labels/dialogs/regions render in en/fr/iu/iu_latin',
     'Metadata folders in Convert/Filters/Upscale stay expandable when folded (the tappable header never hides)',
     'Loading an ISO shows "Reading disc information" while the scan runs (not "No disc loaded") until titles populate',
+    'Scan-as-you-go: DiscSummary shows incremental disc facts while scanning (region · type · title count, per-title T0N duration · ch · audio · subs, video standard)',
+    'Rip mode radio: "Selected scenes" (per-title) vs "Full movie (main feature)" — full-movie rip targets the longest title with a single job; hidden when region conversion forces full-disc extraction',
+    'Subtitle checkboxes: one per language of the main title; deselecting a language strips its streams from the ripped output; legacy configs default to all languages',
   ]},
   { title: 'Player Module (dev50 gap fixes)', items: [
     'DegradeToSoftware(): HW decode fails after N attempts → permanent SW degradation (no per-frame retry thrash)',
