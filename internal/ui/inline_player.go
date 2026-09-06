@@ -24,15 +24,15 @@ type InlineVideoPlayer struct {
 	engine      media.PlaybackEngine
 	scrubber    media.Scrubber
 	playing     bool
-	currentPath string          // path of the most recently loaded file; used for EOF→reload
-	onProgress  func(float64)   // called from playbackLoop with current time in seconds
-	onEnd       func()          // called on clean end-of-stream; NOT called on error
-	onFrame     func(*image.RGBA) // called on every rendered frame (playback + scrub)
-	onLoad      func(LoadEvent)  // fired on main goroutine at each load milestone
-	seekCh      chan float64     // capacity-1 channel; seekLoop drains it serially
+	currentPath string             // path of the most recently loaded file; used for EOF→reload
+	onProgress  func(float64)      // called from playbackLoop with current time in seconds
+	onEnd       func()             // called on clean end-of-stream; NOT called on error
+	onFrame     func(*image.RGBA)  // called on every rendered frame (playback + scrub)
+	onLoad      func(LoadEvent)    // fired on main goroutine at each load milestone
+	seekCh      chan float64       // capacity-1 channel; seekLoop drains it serially
 	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
-	resumeState *state.ResumeState  // persisted playback position (optional)
-	lastSave    time.Time           // throttle for resume auto-save
+	resumeState *state.ResumeState // persisted playback position (optional)
+	lastSave    time.Time          // throttle for resume auto-save
 
 	// Frame timing diagnostics (P1-8)
 	frameTimingVisible  bool
@@ -681,7 +681,7 @@ func (v *InlineVideoPlayer) nextChapter() {
 	if len(chapters) == 0 {
 		return
 	}
-current := v.player.GetCurrentChapter()
+	current := v.player.GetCurrentChapter()
 	if current >= len(chapters)-1 {
 		return
 	}
@@ -847,6 +847,16 @@ func (v *InlineVideoPlayer) DisableSubtitles() {
 	v.engine.DisableSubtitles()
 }
 
+// CurrentPath returns the path most recently opened by Load/LoadDVD/LoadURL,
+// or "" once Close has been called. Modules use it to detect whether the
+// shared primaryInlinePlayer is still showing a stale frame from another
+// module before rebuilding an idle stage.
+func (v *InlineVideoPlayer) CurrentPath() string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.currentPath
+}
+
 func (v *InlineVideoPlayer) Close() {
 	// Snapshot resources and clear all fields atomically under the lock so that
 	// any concurrent caller (seekLoop, playbackLoop, Seek, Load) immediately
@@ -855,6 +865,7 @@ func (v *InlineVideoPlayer) Close() {
 	// goroutine so the UI thread is never frozen when the user presses Back.
 	v.mu.Lock()
 	v.playing = false
+	v.currentPath = ""
 	scrubber := v.scrubber
 	engine := v.engine
 	seekCh := v.seekCh
