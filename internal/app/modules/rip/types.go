@@ -58,7 +58,8 @@ type Options struct {
 	OnShowQueue              func()
 	OnClearCompleted         func()
 	OnUpdateQueueButtonLabel func()
-	OnOpenInPlayer           func(path string) // open the loaded disc in the VT DVD player
+	OnOpenInPlayer           func(path string)               // open the loaded disc in the VT DVD player
+	OnLoadDisc               func() (string, error)          // detect optical drive, resolve VIDEO_TS; "" = user cancelled
 
 	// State setters.
 	SetRipSourcePath func(string)
@@ -81,6 +82,7 @@ type Options struct {
 	SetRipProgressBar func(*widget.ProgressBar)
 	SetRipLogEntry    func(*widget.Label)
 	SetRipLogScroll   func(*container.Scroll)
+	SetRipLogExpand   func(func()) // register an expand-the-log callback for the caller
 }
 
 // DiscTitleTrack describes one audio or subtitle stream on a disc title.

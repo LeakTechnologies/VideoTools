@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 )
 
 type BurnProgress struct {
@@ -44,6 +46,21 @@ func detectOpticalDrives() []string {
 	}
 
 	return drives
+}
+
+// resolveOpticalDriveVIDEOTS returns the VIDEO_TS folder on a mounted disc,
+// given a Windows drive letter such as "D:". An error means the disc has no
+// playable DVD-Video structure (or no disc in the drive).
+func resolveOpticalDriveVIDEOTS(drive string) (string, error) {
+	root := strings.TrimRight(drive, `\`)
+	if root == "" || !strings.HasSuffix(root, ":") {
+		return "", fmt.Errorf("invalid drive: %s", drive)
+	}
+	vtsp := filepath.Join(root, "VIDEO_TS")
+	if info, err := os.Stat(vtsp); err == nil && info.IsDir() {
+		return vtsp, nil
+	}
+	return "", fmt.Errorf("%s", i18n.T().RipErrNoDVD)
 }
 
 func getDriveInfo(drive string) (name, capacity string, err error) {

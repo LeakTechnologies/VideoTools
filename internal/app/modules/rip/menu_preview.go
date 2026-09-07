@@ -35,6 +35,8 @@ type MenuPreview struct {
 	loadingLbl  *widget.Label
 	placeholder *canvas.Text
 	outerBox    fyne.CanvasObject
+	checksRow   *fyne.Container // Preserve Menus / Main Feature toggles
+	hasMenu     bool            // true once a menu frame is actually shown
 
 	onTogglePreserve func(preserve bool)
 	onToggleMain     func(main bool)
@@ -84,9 +86,15 @@ func NewMenuPreview() *MenuPreview {
 		}
 	})
 
+	mp.checksRow = container.NewHBox(preserveCheck, layout.NewSpacer(), mainCheck)
+	// With no menu loaded the toggles have nothing to act on, so the row is
+	// hidden to keep the section a short strip. It appears only once a menu
+	// frame is actually on screen.
+	mp.checksRow.Hide()
+
 	body := container.NewVBox(
 		previewArea,
-		container.NewHBox(preserveCheck, layout.NewSpacer(), mainCheck),
+		mp.checksRow,
 	)
 
 	mp.outerBox = ui.SectionBox(ripNavy, ripTeal, t.RipMenuPreview, body)
@@ -153,6 +161,9 @@ func (mp *MenuPreview) showPlaceholder() {
 	mp.menuImg.Hide()
 	mp.loadingLbl.Hide()
 	mp.placeholder.Show()
+	mp.hasMenu = false
+	mp.checksRow.Hide()
+	mp.outerBox.Refresh()
 }
 
 func (mp *MenuPreview) extractMenuFrame() {
@@ -253,8 +264,11 @@ func (mp *MenuPreview) extractMenuFrame() {
 			mp.menuImg.Show()
 			mp.loadingLbl.Hide()
 			mp.placeholder.Hide()
+			mp.hasMenu = true
+			mp.checksRow.Show()
 			mp.menuImg.Refresh()
 			mp.mu.Unlock()
+			mp.outerBox.Refresh()
 		}, false)
 	}()
 }

@@ -694,6 +694,11 @@ type Strings struct {
 	RipAddToQueue       string
 	RipNow              string
 	RipClearISO         string
+	RipLoadDisc         string // "Load Disc"
+	RipErrNoDrive       string // "No optical drive detected"
+	RipErrNoDVD         string // "No DVD-Video structure found on the disc"
+	RipDriveNotMounted  string // "No disc in the drive"
+	RipSelectDriveTitle string // "Select a disc drive"
 	RipJobQueuedTitle   string
 	RipJobQueuedMsg     string
 	RipStartTitle       string
