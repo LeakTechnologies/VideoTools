@@ -9,7 +9,14 @@
 - **Scan-as-you-go disc snippets** — the disc scan emits facts incrementally (region · type · title count, per-title `T0N duration · ch · audio · subs` lines, video standard) and the DiscSummary scanning state shows them as they are discovered.
 - **Convert SMPTE-idle restore** — visiting another module and returning to Convert via the menu re-showed the previous module's last frame instead of idle SMPTE bars. `InlineVideoPlayer` gained `CurrentPath()`, `Close()` now clears it, and `showConvertView` resets the shared primary player unless it already shows the convert source.
 
-## v0.1.1-dev65 (September 2026)
+## v0.1.1-dev66 (September 2026)
+
+### Settings Keyboard Navigation + Updater Messaging
+
+- **Settings keyboard navigation** — PageUp / PageDown scroll the active Settings tab (Preferences/Dependencies/Benchmark) by one viewport; Home jumps to the top, End to the bottom. Each tab stays a `ui.NewFastVScroll`; a new `settings.Options.ActiveScroll` resolver captures the visible tab via `tabs.OnSelected`, and canvas shortcuts (`desktop.CustomShortcut`, registered only while the settings module is on screen and removed on the way out) drive `ScrollBy`. 480px viewport fallback when the container reports no height; ±1e6 deltas clamp Home/End.
+- **Updater error-message hardening** — the update check dialog now explains what actually went wrong instead of a bare network detail: connection/timeout failures, GitHub API 403 rate-limits ("wait about an hour"), releases not yet published (404), and missing platform assets all get distinct, actionable text. Raw errors are logged under `CatSystem`. The stale "PATCHed on every nightly run" comment in `fetchUpdateInfo` is corrected.
+
+## v0.1.1-dev65 (September 2026, released 2026-09-07)
 
 ### Rip Refinement Follow-up (vertical-space layout pass + Load Disc)
 
