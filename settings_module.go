@@ -4,10 +4,12 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +20,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/app/appcfg"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/settings"
@@ -1073,6 +1076,38 @@ const (
 	UpdateCheckBiMonthly  = 24 * 60 * time.Hour // Approx bi-monthly
 )
 
+// describeUpdateError turns a fetchUpdateInfo/fetchReleaseAssetURL error into a
+// user-actionable message instead of a raw API detail. The raw error is still
+// logged at the call site.
+func describeUpdateError(err error) string {
+	if err == nil {
+		return "unknown error"
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		var netErr net.Error
+		if errors.As(urlErr.Err, &netErr) {
+			if netErr.Timeout() {
+				return "The update server did not respond in time. Check your internet connection and try again."
+			}
+			return "Could not reach the update server. Check your internet connection and try again."
+		}
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "403"):
+		return "GitHub's API is rate-limiting update checks right now — wait about an hour and try again, or install from the Releases page."
+	case strings.Contains(msg, "404"):
+		return "The newest release has not finished publishing yet. Try again in a few minutes."
+	case strings.Contains(msg, "no tags"):
+		return "No releases or tags were found for this repository."
+	case strings.Contains(msg, "no compatible asset"):
+		return "The latest release does not include a build for this platform yet."
+	default:
+		return msg
+	}
+}
+
 func checkForUpdates(state *appState) {
 	progress := dialog.NewProgressInfinite("Checking for Updates", "Connecting to update server...", state.window)
 	progress.Show()
@@ -1082,7 +1117,8 @@ func checkForUpdates(state *appState) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			progress.Hide()
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("could not reach update server: %w", err), state.window)
+				logging.Warning(logging.CatSystem, "Update check failed: %v", err)
+				dialog.ShowError(fmt.Errorf("Update check failed: %s", describeUpdateError(err)), state.window)
 				return
 			}
 
@@ -1290,9 +1326,9 @@ func fetchUpdateInfo() (updateInfo, error) {
 	}
 	tagName := tags[0].Name
 
-	// Fetch the release to get target_commitish — the actual commit the CI
-	// built from. The tag's commit SHA is stale (set on first tag creation and
-	// never moved), but target_commitish is PATCHed on every nightly run.
+	// Fetch the release to get target_commitish — the commit the CI built for
+	// this tag. That is compared against buildCommit to detect same-tag
+	// patches when release builds eventually bake their commit via ldflags.
 	rResp, rErr := client.Get(githubReleasesTagAPI + tagName)
 	if rErr != nil {
 		return updateInfo{}, fmt.Errorf("releases API: %w", rErr)
@@ -2095,12 +2131,75 @@ func (s *appState) showSettingsView() {
 	s.lastModule = s.active
 	s.active = "settings"
 	s.maximizeWindow()
-	s.setContent(settings.BuildView(settings.Options{
+
+	var activeScroll func() *ui.FastVScroll
+	onBack := s.showMainMenu
+	opts := settings.Options{
 		Window:               s.window,
 		StatsBar:             s.statsBar,
-		OnBack:               s.showMainMenu,
+		OnBack:               func() { s.unregisterSettingsKeyShortcuts(); onBack() },
+		ActiveScroll:         &activeScroll,
 		BuildPreferencesTab:  func() fyne.CanvasObject { return settings.BuildPreferencesTab(&preferencesAdapter{s: s}) },
 		BuildDependenciesTab: func() fyne.CanvasObject { return settings.BuildDependenciesTab(&dependencyAdapter{s: s}) },
 		BuildBenchmarkTab:    func() fyne.CanvasObject { return settings.BuildBenchmarkTab(&benchmarkAdapter{s: s}) },
-	}))
+	}
+	s.registerSettingsKeyShortcuts(&activeScroll)
+	s.setContent(settings.BuildView(opts))
+}
+
+// scrollJumpLarge moves Home/End past the end of any settings tab so the
+// FastVScroll clamps to the very top or bottom.
+const scrollJumpLarge float32 = 1e6
+
+// registerSettingsKeyShortcuts wires PageUp/PageDown/Home/End to scroll the
+// active Settings tab by one page / to the top / to the bottom. activeScroll
+// resolves the scroll container of the currently visible tab and is filled in
+// by settings.BuildView. Called on entering the settings module; the shortcuts
+// are removed when leaving.
+func (s *appState) registerSettingsKeyShortcuts(activeScroll *func() *ui.FastVScroll) {
+	if activeScroll == nil {
+		return
+	}
+	canvas := s.window.Canvas()
+	s.settingsKeyShortcuts = nil
+	add := func(key fyne.KeyName, delta func(scroll *ui.FastVScroll) float32) {
+		sc := &desktop.CustomShortcut{KeyName: key}
+		s.settingsKeyShortcuts = append(s.settingsKeyShortcuts, sc)
+		canvas.AddShortcut(sc, func(fyne.Shortcut) {
+			get := *activeScroll
+			if get == nil {
+				return
+			}
+			scv := get()
+			if scv == nil {
+				return
+			}
+			scv.ScrollBy(delta(scv))
+		})
+	}
+
+	add(fyne.KeyPageDown, func(scroll *ui.FastVScroll) float32 {
+		h := scroll.Size().Height
+		if h <= 0 {
+			h = 480
+		}
+		return h
+	})
+	add(fyne.KeyPageUp, func(scroll *ui.FastVScroll) float32 {
+		h := scroll.Size().Height
+		if h <= 0 {
+			h = 480
+		}
+		return -h
+	})
+	add(fyne.KeyHome, func(*ui.FastVScroll) float32 { return -scrollJumpLarge })
+	add(fyne.KeyEnd, func(*ui.FastVScroll) float32 { return scrollJumpLarge })
+}
+
+func (s *appState) unregisterSettingsKeyShortcuts() {
+	canvas := s.window.Canvas()
+	for _, sc := range s.settingsKeyShortcuts {
+		canvas.RemoveShortcut(sc)
+	}
+	s.settingsKeyShortcuts = nil
 }

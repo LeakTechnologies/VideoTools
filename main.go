@@ -104,7 +104,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev65"
+	appVersion         = "v0.1.1-dev66"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1480,6 +1480,10 @@ type appState struct {
 	updateLastChecked time.Time
 	updateCachedTag   string // latest release tag ("" = up to date or not yet checked)
 	updateCachedPatch bool   // true when same tag but newer build commit available
+
+	// Settings keyboard-navigation shortcuts, registered while the settings
+	// module is on screen. PageUp/PageDown/Home/End scroll the active tab.
+	settingsKeyShortcuts []fyne.Shortcut
 
 	// Subtitles module state
 	subtitleVideoPath   string

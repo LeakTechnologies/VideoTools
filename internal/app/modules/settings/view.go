@@ -57,6 +57,11 @@ type Options struct {
 	BuildPreferencesTab  func() fyne.CanvasObject
 	BuildDependenciesTab func() fyne.CanvasObject
 	BuildBenchmarkTab    func() fyne.CanvasObject
+
+	// ActiveScroll, when non-nil, is assigned a closure resolving the scroll
+	// container of the currently visible tab. The settings host uses it to
+	// drive keyboard navigation (PageUp/PageDown/Home/End).
+	ActiveScroll *func() *ui.FastVScroll
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -73,12 +78,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bottomBar = container.NewHBox(layout.NewSpacer())
 	}
 
+	prefScroll := ui.NewFastVScroll(container.NewPadded(opts.BuildPreferencesTab()))
+	depScroll := ui.NewFastVScroll(container.NewPadded(opts.BuildDependenciesTab()))
+	benchScroll := ui.NewFastVScroll(container.NewPadded(opts.BuildBenchmarkTab()))
+	scrolls := []*ui.FastVScroll{prefScroll, depScroll, benchScroll}
+	activeScroll := 0
 	tabs := container.NewAppTabs(
-		container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(opts.BuildPreferencesTab()))),
-		container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(opts.BuildDependenciesTab()))),
-		container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(opts.BuildBenchmarkTab()))),
+		container.NewTabItem(t.SettingsTabPreferences, prefScroll),
+		container.NewTabItem(t.SettingsTabDependencies, depScroll),
+		container.NewTabItem(t.SettingsTabBenchmark, benchScroll),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
+	tabs.OnSelected = func(item *container.TabItem) {
+		for i, sc := range scrolls {
+			if item.Content == sc {
+				activeScroll = i
+				return
+			}
+		}
+	}
+	if opts.ActiveScroll != nil {
+		*opts.ActiveScroll = func() *ui.FastVScroll {
+			return scrolls[activeScroll]
+		}
+	}
 
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		container.New(&centeredPanel{maxWidth: settingsPanelMaxWidth}, tabs))
