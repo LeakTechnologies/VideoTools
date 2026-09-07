@@ -9,7 +9,9 @@
 - **Scan-as-you-go disc snippets** — the disc scan emits facts incrementally (region · type · title count, per-title `T0N duration · ch · audio · subs` lines, video standard) and the DiscSummary scanning state shows them as they are discovered.
 - **Convert SMPTE-idle restore** — visiting another module and returning to Convert via the menu re-showed the previous module's last frame instead of idle SMPTE bars. `InlineVideoPlayer` gained `CurrentPath()`, `Close()` now clears it, and `showConvertView` resets the shared primary player unless it already shows the convert source.
 
-### Post-Release Rip Refinement (committed, pending tester verification)
+## v0.1.1-dev65 (September 2026)
+
+### Rip Refinement Follow-up (vertical-space layout pass + Load Disc)
 
 - **Rip vertical-space layout pass** — the Content Browser (title list) is the flexible region of the left column but was starved by fixed-height consumers. The Rip Log is now a collapsed-by-default strip (VSplit offset 0.97, only the LOG pill control visible; expands to a bounded ~28% at 0.72; auto-opens on rip activity/errors via the new `SetRipLogExpand` hook) and the Disc Menu preview collapses to a ~40px strip until a menu frame loads (Preserve/Main check row hidden; Clear ISO resets it). The title list reclaims the freed height with no row/typography changes or 55/45 HSplit touch.
 - **Rip: load disc directly from an optical drive** — a new LOAD DISC button in the rip Source row detects optical drives (reuses the burn module's `detectOpticalDrives`), asks which one when several are present (radio custom-confirm dialog), resolves the disc's `VIDEO_TS` folder (Windows drive letter / Linux mount point from `/proc/mounts`), and feeds the normal load/scan/rip path. New i18n keys `RipLoadDisc`/`RipErrNoDrive`/`RipErrNoDVD`/`RipDriveNotMounted`/`RipSelectDriveTitle` (en/fr/iu/iu_latin). Design: `docs/RIP_LOAD_DISC.md`.

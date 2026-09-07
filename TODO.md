@@ -2,7 +2,7 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev64 Scope (current)
+## Dev64 Scope (closed — released 2026-09-06; content verification carried into dev65)
 
 - [x] **Rip mode selection (scenes / full movie)** — new horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip (longest title, one job through the existing per-title executor path with `vtsNumber`/`titleNumber` + `extractMode "main"`; falls back to executor defaults with no scan result). Hidden while region conversion forces full-disc extraction; CTA line shows "Ready to rip main feature: Title N · duration". i18n keys across en/fr/iu/iu_latin. Build + vet green (`dev-verify.ps1`).
 - [x] **Rip scan-as-you-go snippets** — `ScanDisc`/`scanISOViaUDF`/`runISOScan` gained an `onNote` callback that emits disc facts as they are known (region · type · title count, per-title `T0N duration · ch · audio · subs` lines, video standard), surfaced incrementally in the DiscSummary scanning state via a new `SetSnippet` (first note materialises the snippet row).
@@ -14,11 +14,11 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
 
-## Dev64 Follow-up (post-release, unverified — pending tester verdict)
+## Dev65 Scope (current — released 2026-09-07, pending tester verify)
 
 - [x] **Rip vertical-space layout pass** — tester feedback: Content Browser (title list) is the flexible region of the left column but was starved by fixed-height consumers. Fixes: (1) Rip Log demoted — starts fully collapsed (VSplit offset 0.97, only the LOG pill control visible), expands to a bounded ~28% (0.72) via the pill, and auto-pops open on rip activity/errors via `SetRipLogExpand`; (2) Menu Preview collapses to a ~40px strip when no menu frame is loaded (Preserve/Main check row hidden until a frame lands; Clear ISO resets it); Content Browser reclaims the freed space without changing rows/typography or the 55/45 HSplit. Build + vet green (`dev-verify.ps1`).
 - [x] **Rip: load disc directly from an optical drive** — new LOAD DISC button in the rip Source row (root `OnLoadDisc` callback): detects optical drives (`detectOpticalDrives`, reused from burn), asks which one when several are present (radio custom-confirm), resolves the disc's `VIDEO_TS` folder (Windows: drive letter; Linux: mount point from `/proc/mounts`), and feeds the normal load/scan/rip path. New i18n keys `RipLoadDisc`/`RipErrNoDrive`/`RipErrNoDVD`/`RipDriveNotMounted`/`RipSelectDriveTitle` (en/fr/iu/iu_latin). Design: `docs/RIP_LOAD_DISC.md`. Build + vet green (`dev-verify.ps1`).
-- [ ] **Tester verify: rip refinement (layout + load disc)** — Content Browser shows 4+ titles without scrolling at 1600×900 (internal scroll for many titles), Disc Menu compact strip when no menu, log minimal when collapsed with intentional/reversible expansion + auto-open on rip/error, action bar stays at bottom; LOAD DISC button loads a physical disc (drive picker when multiple drives). Then cut dev65.
+- [ ] **Tester verify: dev65 release** — Content Browser shows 4+ titles without scrolling at 1600×900 (internal scroll for many titles), Disc Menu compact strip when no menu, log minimal when collapsed with intentional/reversible expansion + auto-open on rip/error, action bar stays at bottom; LOAD DISC button loads a physical DVD (drive picker when multiple drives; data disc/empty/no drive → clean visible error); move cards `rip-refinement`/`rip-overhaul`/`rip-refine-followup` `done` → `shipped` on sign-off.
 
 ## Dev63 Scope (closed — released 2026-09-04, tag `v0.1.1-dev63`)
 
