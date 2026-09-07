@@ -261,16 +261,37 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
 
+	// Log split offsets: collapsed keeps only the console header row visible
+	// (a small "LOG" pill control), expanded bounds the log to ~28% of the
+	// column height so it can never crowd out the content browser.
+	const (
+		logCollapsedOffset = 0.97
+		logExpandedOffset  = 0.72
+	)
 	var collapseLogBtn *ui.PillButton
+	// expandLog brings the rip log into view; it is a no-op when the log is
+	// already expanded, so repeated calls on every log line stay cheap. It is
+	// handed to the root via SetRipLogExpand so an active rip (first line) or
+	// an error pops the log open automatically.
+	expandLog := func() {
+		if logVSplit != nil && logVSplit.Offset > 0.9 {
+			logVSplit.SetOffset(logExpandedOffset)
+			if collapseLogBtn != nil {
+				collapseLogBtn.SetText(t.RipLogOpen)
+			}
+		}
+	}
 	collapseLogBtn = ui.MakePillButton(t.RipLogOpen, ui.BorderDim, func() {
 		if logVSplit.Offset > 0.9 {
-			logVSplit.SetOffset(0.60)
-			collapseLogBtn.SetText(t.RipLogOpen)
+			expandLog()
 		} else {
-			logVSplit.SetOffset(0.97)
+			logVSplit.SetOffset(logCollapsedOffset)
 			collapseLogBtn.SetText(t.RipLogClose)
 		}
 	})
+	if opts.SetRipLogExpand != nil {
+		opts.SetRipLogExpand(expandLog)
+	}
 
 	logSection := ui.NewConsoleBox(
 		t.RipLog,
@@ -642,6 +663,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.scanResult = nil
 		vs.selectedTitles = nil
 		dvdPlayer.Close()
+		menuPreview.SetSourcePath("")
 		rebuildTitleNav()
 		rebuildEnrich()
 		if opts.SetRipSourcePath != nil {
@@ -1101,6 +1123,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
+	loadDiscBtn := ui.MakePillButton(t.RipLoadDisc, opts.ModuleColor, func() {
+		if opts.OnLoadDisc == nil {
+			return
+		}
+		discPath, err := opts.OnLoadDisc()
+		if err != nil {
+			dialog.ShowError(err, opts.Window)
+			return
+		}
+		if discPath != "" {
+			loadDisc(discPath)
+		}
+	})
+
 	browseBtn := ui.MakePillButton("...", ui.BorderDim, func() {
 		d := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -1122,7 +1158,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	sourceBox := buildRipBox(t.RipSource, container.NewVBox(
 		container.NewBorder(nil, nil, nil,
-			container.NewHBox(browseBtn, clearISOBtn),
+			container.NewHBox(loadDiscBtn, browseBtn, clearISOBtn),
 			ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 				if opts.OnDropFirstLocal != nil {
 					loadDisc(opts.OnDropFirstLocal(items))
@@ -1195,8 +1231,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	logVSplit = container.NewVSplit(mainArea, logSection)
-	// Default to a compact log strip; the ▼▶ LOG toggle expands it during a rip.
-	logVSplit.SetOffset(0.92)
+	// Start fully collapsed: only the LOG pill control row is visible. The log
+	// pops open via the pill or automatically when a rip starts / errors.
+	logVSplit.SetOffset(logCollapsedOffset)
 
 	// Re-scan a previously selected source on re-entry. buildRipView creates a
 	// fresh viewState (scanResult always nil), so without this a path restored

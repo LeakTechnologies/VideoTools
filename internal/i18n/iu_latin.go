@@ -605,6 +605,11 @@ var iuLatn = Strings{
 	RipAddToQueue:       "Nuatausimaujunut Ilalliujjilugu",                                                                  // Add Rip to Queue
 	RipNow:              "Maanna Nirunnasilugu",                                                                             // Rip Now
 	RipClearISO:         "Saqinngiitilugu ISO",                                                                              // Clear ISO
+	RipLoadDisc:         "Ajjigiattiarvik Immiqsuqlugu",                                                                   // machine-generated, needs human review: Load Disc
+	RipErrNoDrive:       "Ajjigiattiarvik Aturninga Nalunaiqtausimanngilaq",                                                // machine-generated, needs human review: No optical drive detected
+	RipErrNoDVD:         "Ajjigiattiarvik Ajjigiattiarviuninga DVD-Video Nalunaiqtausimanngilaq",                          // machine-generated, needs human review: No DVD-Video structure found on the disc
+	RipDriveNotMounted:  "Ajjigiattiarvik Immiqsuqtaunngitsuq",                                                             // machine-generated, needs human review: No disc in the drive
+	RipSelectDriveTitle: "Ajjigiattiarvik Immiqsivik Nalunaiqulugu",                                                       // machine-generated, needs human review: Select a disc drive
 	RipJobQueuedTitle:   "Nuatausimaujut",                                                                                   // Queue
 	RipJobQueuedMsg:     "Nirunnasilunnirmut pilirijaksaq nuatausimaujunut ilalliujjitaulauqtuq.",                           // Rip job added
 	RipStartTitle:       "Nirunnasilunniq",                                                                                  // Rip

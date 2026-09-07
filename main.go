@@ -1461,6 +1461,7 @@ type appState struct {
 	ripLogText     string
 	ripLogEntry    *widget.Label
 	ripLogScroll   *container.Scroll
+	ripLogExpand   func() // registered by the rip view; auto-expands the log on rip activity
 	ripProgress    float64
 	ripProgressBar *widget.ProgressBar
 	ripStatusLabel *widget.Label

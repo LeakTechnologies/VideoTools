@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 )
 
 type BurnProgress struct {
@@ -74,6 +76,33 @@ func detectOpticalDrives() []string {
 	}
 
 	return drives
+}
+
+// resolveOpticalDriveVIDEOTS locates the mount point for an optical device
+// (e.g. /dev/sr0) from /proc/mounts and returns its VIDEO_TS folder. An error
+// means the device is not mounted or the disc has no DVD-Video structure.
+func resolveOpticalDriveVIDEOTS(device string) (string, error) {
+	realDev, err := filepath.EvalSymlinks(device)
+	if err != nil {
+		realDev = device
+	}
+
+	mounts, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return "", fmt.Errorf("cannot read mounts: %w", err)
+	}
+	for _, line := range strings.Split(string(mounts), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != realDev {
+			continue
+		}
+		vtsp := filepath.Join(fields[1], "VIDEO_TS")
+		if info, err := os.Stat(vtsp); err == nil && info.IsDir() {
+			return vtsp, nil
+		}
+		return "", fmt.Errorf("%s", i18n.T().RipErrNoDVD)
+	}
+	return "", fmt.Errorf("%s (%s)", i18n.T().RipDriveNotMounted, device)
 }
 
 func getDriveInfo(path string) (name, capacity string, err error) {

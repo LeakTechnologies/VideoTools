@@ -9,6 +9,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	ripmod "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
@@ -52,6 +53,7 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		OnClearCompleted:         s.clearCompletedJobs,
 		OnUpdateQueueButtonLabel: s.updateQueueButtonLabel,
 		OnOpenInPlayer:           func(path string) { s.showDVDDiscView(path) },
+		OnLoadDisc:               s.loadDiscFromDrive,
 
 		SetRipSourcePath: func(p string) { s.ripSourcePath = p },
 		SetRipOutputPath: func(p string) { s.ripOutputPath = p },
@@ -93,8 +95,56 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		SetRipProgressBar: func(bar *widget.ProgressBar) { s.ripProgressBar = bar },
 		SetRipLogEntry:    func(l *widget.Label) { s.ripLogEntry = l },
 		SetRipLogScroll:   func(sc *container.Scroll) { s.ripLogScroll = sc },
+		SetRipLogExpand:   func(fn func()) { s.ripLogExpand = fn },
 	}
 	return ripmod.BuildView(opts)
+}
+
+// loadDiscFromDrive detects the optical drives, asks which one to use when
+// several are present, and resolves the disc's VIDEO_TS folder. It returns
+// ("", nil) when the user cancels, and a translated error when no usable DVD
+// is available. The caller feeds the resolved path into the rip module.
+func (s *appState) loadDiscFromDrive() (string, error) {
+	t := i18n.T()
+	drives := detectOpticalDrives()
+	if len(drives) == 0 {
+		return "", errors.New(t.RipErrNoDrive)
+	}
+
+	pick := drives[0]
+	if len(drives) > 1 {
+		got := make(chan string, 1)
+		radio := widget.NewRadioGroup(drives, nil)
+		radio.SetSelected(pick)
+		content := container.NewVBox(
+			widget.NewLabelWithStyle(t.RipSelectDriveTitle, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			radio,
+		)
+		d := dialog.NewCustomConfirm(
+			t.RipSelectDriveTitle,
+			t.ActionLoad, t.ActionCancel,
+			content,
+			func(ok bool) {
+				if ok && radio.Selected != "" {
+					got <- radio.Selected
+				} else {
+					got <- ""
+				}
+			},
+			s.window,
+		)
+		d.Show()
+		pick = <-got
+		if pick == "" {
+			return "", nil
+		}
+	}
+
+	vtsp, err := resolveOpticalDriveVIDEOTS(pick)
+	if err != nil {
+		return "", err
+	}
+	return vtsp, nil
 }
 
 func (s *appState) scanDVDStructure(path string) error {
@@ -245,6 +295,9 @@ func (s *appState) appendRipLog(line string) {
 	}
 	if s.ripLogScroll != nil {
 		s.ripLogScroll.ScrollToBottom()
+	}
+	if s.ripLogExpand != nil {
+		s.ripLogExpand()
 	}
 }
 

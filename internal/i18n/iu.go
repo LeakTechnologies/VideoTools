@@ -613,6 +613,11 @@ var iu = Strings{
 	RipAddToQueue:       "ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ",                                          // Add Rip to Queue
 	RipNow:              "ᒫᓐᓇ ᓂᕈᓐᓇᓯᓗᒍ",                                                 // Rip Now
 	RipClearISO:         "ᓴᕿᙱᑦᑎᓗᒍ ISO",                                                 // Clear ISO
+	RipLoadDisc:         "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᓗᒍ",                                            // machine-generated, needs human review: Load Disc
+	RipErrNoDrive:       "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐊᑐᕐᓂᖓ ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᓚᖅ",                             // machine-generated, needs human review: No optical drive detected
+	RipErrNoDVD:         "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᐅᓂᖓ DVD-Video ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᓚᖅ",      // machine-generated, needs human review: No DVD-Video structure found on the disc
+	RipDriveNotMounted:  "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᑕᐅᓯᒪᙱᔪᖅ",                                // machine-generated, needs human review: No disc in the drive
+	RipSelectDriveTitle: "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓯᕕᒃ ᓇᓗᓇᐃᖅᓗᒍ",                              // machine-generated, needs human review: Select a disc drive
 	RipJobQueuedTitle:   "ᓄᐊᑕᐅᓯᒪᔪᑦ",                                                    // Queue
 	RipJobQueuedMsg:     "ᓂᕈᓐᓇᓯᓂᕐᒧᑦ ᐱᓕᕆᒐᒃᓴᖅ ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᖅᑕᐅᓚᐅᖅᑐᖅ.",                   // Rip job added to queue
 	RipStartTitle:       "ᓂᕈᓐᓇᓯᓂᖅ",                                                     // Rip
