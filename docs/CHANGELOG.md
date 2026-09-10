@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev67 (September 2026)
+
+### Settings Keyboard-Nav Fix + Rip De-clutter + Default Rip Mode
+
+- **Settings keyboard navigation fixed** — the dev66 shortcuts were dead: the Fyne GLFW driver only synthesizes `desktop.CustomShortcut` when the modifier is non-zero (`internal/driver/glfw/window.go`), so unmodified PageUp/PageDown/Home/End never reached `canvas.AddShortcut`. The keys now dispatch through a focused 1×1 key-catcher widget (`settings.Options.KeyCatcher` — a `fyne.Focusable` + `desktop.Keyable` `settingsKeyNav` whose `TypedKey` serves every press including repeats), with canvas `desktop.Canvas` `SetOnKeyDown`/`SetOnKeyUp` as the fallback when nothing else has focus. Previous handlers are chained; keys are unregistered on leaving Settings.
+- **Rip: Disc Menu preview and in-app Rip Log removed** — tester-requested de-clutter so the Content Browser owns the full left-column height; rip activity/errors now surface only in the on-disk executor log. `menu_preview.go` deleted and `RipLog*`/`RipMenuPreview`/`RipPreserveMenus`/`RipLoadingMenu`/`RipNoMenuPlaceholder` i18n keys retired across en/fr/iu/iu_latin.
+- **Rip: "Full movie (main feature)" is now the default and first rip-mode radio option** (was "Selected scenes"); deselecting re-selects Main Feature.
+
 ## v0.1.1-dev64 (September 2026)
 
 ### Rip Modes + Per-Language Subtitle Selection + Convert SMPTE-Idle Restore

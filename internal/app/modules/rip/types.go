@@ -1,12 +1,12 @@
 package rip
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/queue"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
-	"image/color"
 )
 
 const (
@@ -43,15 +43,12 @@ type Options struct {
 	RipSourcePath string
 	RipOutputPath string
 	RipFormat     string
-	RipLogText    string
 	RipProgress   float64
 
 	// Widget refs set back on the caller via Set* callbacks.
 	QueueBtn       *ui.PillButton
 	RipStatusLabel *widget.Label
 	RipProgressBar *widget.ProgressBar
-	RipLogEntry    *widget.Label
-	RipLogScroll   *container.Scroll
 
 	// Navigation.
 	OnShowMainMenu           func()
@@ -80,9 +77,6 @@ type Options struct {
 	SetQueueBtn       func(*ui.PillButton)
 	SetRipStatusLabel func(*widget.Label)
 	SetRipProgressBar func(*widget.ProgressBar)
-	SetRipLogEntry    func(*widget.Label)
-	SetRipLogScroll   func(*container.Scroll)
-	SetRipLogExpand   func(func()) // register an expand-the-log callback for the caller
 }
 
 // DiscTitleTrack describes one audio or subtitle stream on a disc title.

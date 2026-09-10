@@ -609,7 +609,6 @@ var iu = Strings{
 	RipOutputPath:       "ᐅᐸᒃᑎᕕᒃ ᐊᑭᓕᒐᒃᓴᖓ",                                              // Output path
 	RipSource:           "ᓇᑭᑐᐃᓐᓇᖓ",                                                     // Source
 	RipFormatLabel:      "ᐊᕕᒃᑕᐅᓯᒪᓂᖓ",                                                   // Format
-	RipLog:              "ᓂᕈᓐᓇᓯᓂᕐᒧᑦ ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ",                                        // Rip Log
 	RipAddToQueue:       "ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ",                                          // Add Rip to Queue
 	RipNow:              "ᒫᓐᓇ ᓂᕈᓐᓇᓯᓗᒍ",                                                 // Rip Now
 	RipClearISO:         "ᓴᕿᙱᑦᑎᓗᒍ ISO",                                                 // Clear ISO
@@ -635,8 +634,6 @@ var iu = Strings{
 	RipContentBrowser:   "ᐃᓚᒐᒃᓴᖅ ᑎᑎᕋᐅᔭᖅ",                                          // machine-generated, needs human review: Content Browser
 	RipSelectAll:        "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓗᒍ",                                          // machine-generated, needs human review: Select All
 	RipDeselectAll:      "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᑦᑎᓗᒍ",                                    // machine-generated, needs human review: Deselect All
-	RipMenuPreview:      "ᑎᑎᕋᖅ ᐊᑐᖅ",                                                  // machine-generated, needs human review: Disc Menu
-	RipPreserveMenus:    "ᐊᑐᖅ ᓴᓇᓗᑎᒃ",                                              // machine-generated, needs human review: Preserve menus
 	RipMainFeature:      "★ ᒫᓐᓇ ᑎᑎᕋᖅ",                                              // machine-generated, needs human review: Main Feature
 	RipTitleCardFmt:     "T%02d  %s  %d ᑎᑎᕋᖅ",                                    // machine-generated, needs human review: T%02d %s %d chapters
 	RipClickToPreview:   "ᑕᑯᒃᓴᐅᑎᑦ ᑕᑯ",                                             // machine-generated, needs human review: Click to preview
@@ -658,8 +655,6 @@ var iu = Strings{
 	RipModeSection:         "Rip Mode: ",                                                // machine-generated, needs human review: Rip Mode
 	RipModeScenes:          "ᐃᓱᒪᒋᔭᐅᖃᑦᑑᑎᒃ",                                          // machine-generated, needs human review: Selected scenes
 	RipModeMainFeature:     "ᖃᐳᓇᓯᑎᐊᕈᑦ",                                                // machine-generated, needs human review: Full movie (main feature)
-	RipLogOpen:          "▼ LOG",                                                    // machine-generated, needs human review: ▼ LOG
-	RipLogClose:         "▶ LOG",                                                    // machine-generated, needs human review: ▶ LOG
 	RipOpenInPlayer:     "▶ ᖃᕋᓴᐅᔭᕐᒧᑦ ᒪᑉᐱᐊᖅ",                                  // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᑕᐅᓂᖏᑦᑐᖅ — ISO ᐅᕝᕙᓘᓐᓃᑦ VIDEO_TS ᐃᒻᒥᖅᓱᖅᓗᒍ",  // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "ᑎᑎᕋᖅ / ᐊᔾᔨᙳᐊᖅᑕᐅᕗᑦ ᐊᑎᖓ (metadata)",                      // machine-generated, needs human review: Disc / movie title (embedded as metadata)
@@ -685,8 +680,6 @@ var iu = Strings{
 	RipRegionFree:             "ᓇᒧᑦ ᐊᑕᖓᐅᑦᑎ",                                          // machine-generated, needs human review: Region Free
 	RipRegionFmt:              "ᓇᒧᑦ %d",                                                 // machine-generated, needs human review: Region %d
 	RipRegionsFmt:             "ᓇᒧᑦ %s",                                                 // machine-generated, needs human review: Regions %s
-	RipLoadingMenu:            "ᐊᑐᖅᓯᓂᖅ ᐃᒻᒥᖅᓱᖅᑐᖅ...",                                 // machine-generated, needs human review: Loading menu...
-	RipNoMenuPlaceholder:      "ᐊᑐᖅ ᓇᓗᓇᐃᖅᑕᐅᓂᖏᑦᑐᖅ",                                   // machine-generated, needs human review: No menu found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

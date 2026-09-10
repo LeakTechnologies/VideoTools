@@ -663,7 +663,6 @@ var frCA = Strings{
 	RipOutputPath:       "Chemin de sortie",
 	RipSource:           "Source",
 	RipFormatLabel:      "Format",
-	RipLog:              "Journal d'extraction",
 	RipAddToQueue:       "Ajouter l'extraction à la file",
 	RipNow:              "Extraire maintenant",
 	RipClearISO:         "Effacer l'ISO",
@@ -689,8 +688,6 @@ var frCA = Strings{
 	RipContentBrowser:   "Navigateur de contenu",
 	RipSelectAll:        "Tout sélectionner",
 	RipDeselectAll:      "Tout désélectionner",
-	RipMenuPreview:      "Menu du disque",
-	RipPreserveMenus:    "Préserver les menus",
 	RipMainFeature:      "★ Film principal",
 	RipTitleCardFmt:     "T%02d  %s  %d chapitres",
 	RipClickToPreview:   "Cliquer pour aperçu",
@@ -712,8 +709,6 @@ var frCA = Strings{
 	RipModeSection:         "Mode d'extraction",
 	RipModeScenes:          "Scènes sélectionnées",
 	RipModeMainFeature:     "Film complet (film principal)",
-	RipLogOpen:          "▼ JRNL",
-	RipLogClose:         "▶ JRNL",
 	RipOpenInPlayer:     "▶  Ouvrir dans le lecteur",
 	RipErrNoDiscLoaded:  "aucun disque chargé — déposez un ISO ou un dossier VIDEO_TS",
 	RipTitlePlaceholder: "Titre du disque / film (intégré comme métadonnées)",
@@ -739,8 +734,8 @@ var frCA = Strings{
 	RipRegionFree:             "Région libre",
 	RipRegionFmt:              "Région %d",
 	RipRegionsFmt:             "Régions %s",
-	RipLoadingMenu:            "Chargement du menu...",
-	RipNoMenuPlaceholder:      "Aucun menu trouvé",
+
+	// ── Upscale ──────────────────────────────────────────────────────────────────
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "AGRANDIR MAINTENANT",

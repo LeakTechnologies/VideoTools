@@ -43,7 +43,6 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		RipSourcePath: s.ripSourcePath,
 		RipOutputPath: s.ripOutputPath,
 		RipFormat:     s.ripFormat,
-		RipLogText:    s.ripLogText,
 		RipProgress:   s.ripProgress,
 
 		QueueBtn: s.queueBtn,
@@ -93,9 +92,6 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		},
 		SetRipStatusLabel: func(lbl *widget.Label) { s.ripStatusLabel = lbl },
 		SetRipProgressBar: func(bar *widget.ProgressBar) { s.ripProgressBar = bar },
-		SetRipLogEntry:    func(l *widget.Label) { s.ripLogEntry = l },
-		SetRipLogScroll:   func(sc *container.Scroll) { s.ripLogScroll = sc },
-		SetRipLogExpand:   func(fn func()) { s.ripLogExpand = fn },
 	}
 	return ripmod.BuildView(opts)
 }
@@ -231,14 +227,6 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		OnRunCommand: func(name string, args []string, logFn func(string)) error {
 			return runCommandWithLogger(ctx, name, args, logFn)
 		},
-		OnAppendLog: func(line string) {
-			app := fyne.CurrentApp()
-			if app != nil && app.Driver() != nil {
-				app.Driver().DoFromGoroutine(func() {
-					s.appendRipLog(line)
-				}, false)
-			}
-		},
 		OnSetProgress: func(percent float64) {
 			app := fyne.CurrentApp()
 			if app != nil && app.Driver() != nil {
@@ -273,32 +261,6 @@ func firstLocalPath(items []fyne.URI) string {
 		}
 	}
 	return ""
-}
-
-func (s *appState) resetRipLog() {
-	s.ripLogText = ""
-	if s.ripLogEntry != nil {
-		s.ripLogEntry.SetText("")
-	}
-	if s.ripLogScroll != nil {
-		s.ripLogScroll.ScrollToTop()
-	}
-}
-
-func (s *appState) appendRipLog(line string) {
-	if line == "" {
-		return
-	}
-	s.ripLogText += line + "\n"
-	if s.ripLogEntry != nil {
-		s.ripLogEntry.SetText(s.ripLogText)
-	}
-	if s.ripLogScroll != nil {
-		s.ripLogScroll.ScrollToBottom()
-	}
-	if s.ripLogExpand != nil {
-		s.ripLogExpand()
-	}
 }
 
 func (s *appState) setRipStatus(text string) {
@@ -345,7 +307,6 @@ func (s *appState) addRipToQueue(runNow bool) error {
 			"format":     s.ripFormat,
 		},
 	}
-	s.resetRipLog()
 	s.setRipStatus("Queued rip job...")
 	s.setRipProgress(0)
 	s.jobQueue.Add(job)

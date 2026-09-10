@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev67 — Settings Keyboard-Nav Fix + Rip De-clutter + Default Rip Mode
+
+- **Settings keyboard navigation fixed** — the dev66 shortcuts were dead: the Fyne GLFW driver only synthesizes `desktop.CustomShortcut` when the modifier is non-zero (`internal/driver/glfw/window.go`), so unmodified PageUp/PageDown/Home/End never fired. Rewritten: `settings.Options` gained `KeyHandler *func(fyne.KeyName) bool` and `KeyCatcher *fyne.Focusable`; a focused 1×1 transparent `settingsKeyNav` widget (`fyne.Focusable` + `desktop.Keyable`) serves `TypedKey` for every press including OS repeats, with canvas `desktop.Canvas` `SetOnKeyDown`/`SetOnKeyUp` as the fallback when nothing else has focus. Previous handlers are preserved; keys are unregistered on leaving Settings. PageUp/PageDown page the active tab by one viewport, Home/End jump to top/bottom.
+- **Rip de-clutter** — tester-requested: the Disc Menu preview panel and the in-app Rip Log strip are removed outright so the Content Browser owns the full left-column height; rip activity/errors stay in the on-disk executor log. `menu_preview.go` deleted; viewState/Options log fields, `appendRipLog`/`resetRipLog`, and the `RipLog*`/`RipMenuPreview`/`RipPreserveMenus`/`RipLoadingMenu`/`RipNoMenuPlaceholder` i18n keys retired across en/fr/iu/iu_latin.
+- **Rip: default rip mode** — the mode radio lists and defaults to "Full movie (main feature)" (was "Selected scenes"), so a fresh rip defaults to the full-movie path.
+
 ## v0.1.1-dev64 — Rip Modes + Per-Language Subtitle Selection + Convert SMPTE-Idle Restore
 
 - **Rip mode selection (scenes / full movie)** — a horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip of the longest title (one job through the existing per-title executor path with `vtsNumber`/`titleNumber` + `extractMode "main"`; falls back to executor defaults with no scan result). Hidden while region conversion forces full-disc extraction; the CTA line shows "Ready to rip main feature: Title N · duration". i18n keys added across en/fr/iu/iu_latin. Build + vet green (`dev-verify.ps1`).
