@@ -690,7 +690,6 @@ type Strings struct {
 	RipOutputPath       string
 	RipSource           string
 	RipFormatLabel      string
-	RipLog              string
 	RipAddToQueue       string
 	RipNow              string
 	RipClearISO         string
@@ -716,8 +715,6 @@ type Strings struct {
 	RipContentBrowser   string // "Content Browser"
 	RipSelectAll        string // "Select All"
 	RipDeselectAll      string // "Deselect All"
-	RipMenuPreview      string // "Disc Menu"
-	RipPreserveMenus    string // "Preserve menus"
 	RipMainFeature      string // "★ Main Feature"
 	RipTitleCardFmt     string // "T%02d  %s  %d chapters"
 	RipClickToPreview   string // "Click to preview"
@@ -739,8 +736,6 @@ type Strings struct {
 	RipModeSection         string // "Rip Mode"
 	RipModeScenes          string // "Selected scenes"
 	RipModeMainFeature     string // "Full movie (main feature)"
-	RipLogOpen          string // "▼ LOG" (log toggle, expanded)
-	RipLogClose         string // "▶ LOG" (log toggle, collapsed)
 	RipOpenInPlayer     string // "Open in Player"
 	RipErrNoDiscLoaded  string // "no disc loaded — drop an ISO or VIDEO_TS folder"
 	RipTitlePlaceholder string // "Disc / movie title (embedded as metadata)"
@@ -766,8 +761,6 @@ type Strings struct {
 	RipRegionFree             string // "Region Free"
 	RipRegionFmt              string // "Region %d"
 	RipRegionsFmt             string // "Regions %s"
-	RipLoadingMenu            string // "Loading menu..."
-	RipNoMenuPlaceholder      string // "No menu found"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string

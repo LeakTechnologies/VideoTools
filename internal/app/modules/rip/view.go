@@ -52,7 +52,6 @@ type viewState struct {
 	regionConvert         string // "" (none), "pal2ntsc", "ntsc2pal"
 	extractMode           string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
 	discTitle             string
-	logText               string
 	progress              float64
 
 	scanResult     *DiscScanResult
@@ -61,8 +60,6 @@ type viewState struct {
 
 	statusLabel *widget.Label
 	progressBar *widget.ProgressBar
-	logEntry    *widget.Label
-	logScroll   *container.Scroll
 }
 
 func (vs *viewState) applyConfig(cfg ripConfig) {
@@ -85,29 +82,6 @@ func (vs *viewState) persistConfig() {
 	}
 	if err := savePersistedRipConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist rip config: %v", err)
-	}
-}
-
-func (vs *viewState) resetLog() {
-	vs.logText = ""
-	if vs.logEntry != nil {
-		vs.logEntry.SetText("")
-	}
-	if vs.logScroll != nil {
-		vs.logScroll.ScrollToTop()
-	}
-}
-
-func (vs *viewState) appendLog(line string) {
-	if strings.TrimSpace(line) == "" {
-		return
-	}
-	vs.logText += line + "\n"
-	if vs.logEntry != nil {
-		vs.logEntry.SetText(vs.logText)
-	}
-	if vs.logScroll != nil {
-		vs.logScroll.ScrollToBottom()
 	}
 }
 
@@ -146,13 +120,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var updateRipSummary func()
 	var discSummary *DiscSummary
 	var ripSummaryLbl *widget.Label
-	var logVSplit *container.Split
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
 		outputPath: opts.RipOutputPath,
 		format:     opts.RipFormat,
-		logText:    opts.RipLogText,
 		progress:   opts.RipProgress,
 	}
 
@@ -242,70 +214,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetRipProgressBar(progressBar)
 	}
 
-	logEntry := widget.NewLabel("")
-	logEntry.Wrapping = fyne.TextWrapWord
-	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
-	if vs.logText != "" {
-		logEntry.SetText(vs.logText)
-	}
-	vs.logEntry = logEntry
-	logScroll := container.NewVScroll(logEntry)
-	logScroll.SetMinSize(fyne.NewSize(0, 24))
-	vs.logScroll = logScroll
-	if opts.SetRipLogEntry != nil {
-		opts.SetRipLogEntry(logEntry)
-	}
-	if opts.SetRipLogScroll != nil {
-		opts.SetRipLogScroll(logScroll)
-	}
-
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
-
-	// Log split offsets: collapsed keeps only the console header row visible
-	// (a small "LOG" pill control), expanded bounds the log to ~28% of the
-	// column height so it can never crowd out the content browser.
-	const (
-		logCollapsedOffset = 0.97
-		logExpandedOffset  = 0.72
-	)
-	var collapseLogBtn *ui.PillButton
-	// expandLog brings the rip log into view; it is a no-op when the log is
-	// already expanded, so repeated calls on every log line stay cheap. It is
-	// handed to the root via SetRipLogExpand so an active rip (first line) or
-	// an error pops the log open automatically.
-	expandLog := func() {
-		if logVSplit != nil && logVSplit.Offset > 0.9 {
-			logVSplit.SetOffset(logExpandedOffset)
-			if collapseLogBtn != nil {
-				collapseLogBtn.SetText(t.RipLogOpen)
-			}
-		}
-	}
-	collapseLogBtn = ui.MakePillButton(t.RipLogOpen, ui.BorderDim, func() {
-		if logVSplit.Offset > 0.9 {
-			expandLog()
-		} else {
-			logVSplit.SetOffset(logCollapsedOffset)
-			collapseLogBtn.SetText(t.RipLogClose)
-		}
-	})
-	if opts.SetRipLogExpand != nil {
-		opts.SetRipLogExpand(expandLog)
-	}
-
-	logSection := ui.NewConsoleBox(
-		t.RipLog,
-		ripTeal,
-		logScroll,
-		func() string {
-			if vs.logEntry != nil {
-				return vs.logEntry.Text
-			}
-			return vs.logText
-		},
-		opts.Window,
-		collapseLogBtn,
-	)
 
 	ripNavy := utils.MustHex("#191F35")
 	// buildRipBox is a thin wrapper over the shared ui.SectionBox, binding the
@@ -346,8 +255,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
 	})
 
-	// ── Menu Preview ───────────────────────────────────────────────────────
-	menuPreview := NewMenuPreview()
+	// ── Menu Preview (removed dev66→dev67 to free vertical space for the
+	// content browser) ──────────────────────────────────────────────────────
 
 	openInPlayerBtn := ui.MakePillButton(t.RipOpenInPlayer, opts.ModuleColor, func() {
 		if vs.sourcePath == "" {
@@ -362,9 +271,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// rebuildTitleNav now updates the ContentBrowser with scan results.
 	rebuildTitleNav = func() {
 		contentBrowser.SetScanResult(vs.scanResult, vs.sourcePath)
-		if vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
-			menuPreview.SetSourcePath(vs.sourcePath)
-		}
 	}
 
 	applyControls := func() {
@@ -402,7 +308,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 				},
 			}
 			opts.AddJob(job)
-			vs.resetLog()
 			vs.setStatus("Queued full-disc rip job...")
 			vs.setProgress(0)
 			if runNow && !jq.IsRunning() {
@@ -448,7 +353,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 				},
 			}
 			opts.AddJob(job)
-			vs.resetLog()
 			vs.setStatus(t.RipJobQueuedMsg)
 			vs.setProgress(0)
 			if runNow && !jq.IsRunning() {
@@ -540,7 +444,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.AddJob(job)
 		}
 
-		vs.resetLog()
 		vs.setStatus(fmt.Sprintf("Queued %d rip job(s)...", len(jobs)))
 		vs.setProgress(0)
 		if runNow && !jq.IsRunning() {
@@ -659,11 +562,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.sourcePath = ""
 		vs.outputPath = ""
 		vs.videoTSPath = ""
-		vs.resetLog()
 		vs.scanResult = nil
 		vs.selectedTitles = nil
 		dvdPlayer.Close()
-		menuPreview.SetSourcePath("")
 		rebuildTitleNav()
 		rebuildEnrich()
 		if opts.SetRipSourcePath != nil {
@@ -762,16 +663,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return objects
 	}
 
-	// Rip mode: selected scenes (title by title) or the single main feature
-	// (longest title). Full-disc extraction is forced by region conversion, so
-	// the radio only reflects the scenes vs main-feature choice. Constructed
-	// with a nil OnChanged so the initial SetSelected below doesn't fire the
-	// callback; re-ticking the selected option re-selects scenes to keep a
-	// valid option ticked at all times.
+	// Rip mode: the single main feature (longest title) or selected scenes
+	// (title by title). Full-disc extraction is forced by region conversion, so
+	// the radio only reflects the scenes vs main-feature choice. Full Movie is
+	// the first and default option. Constructed with a nil OnChanged so the
+	// initial SetSelected below doesn't fire the callback; the default-state
+	// extractMode is set explicitly alongside the selection.
 	var modeRadio *widget.RadioGroup
-	modeRadio = widget.NewRadioGroup([]string{t.RipModeScenes, t.RipModeMainFeature}, nil)
+	modeRadio = widget.NewRadioGroup([]string{t.RipModeMainFeature, t.RipModeScenes}, nil)
 	modeRadio.Horizontal = true
-	modeRadio.SetSelected(t.RipModeScenes)
+	modeRadio.SetSelected(t.RipModeMainFeature)
+	vs.extractMode = "main"
 	modeRadio.OnChanged = func(value string) {
 		// Region conversion forces full-disc extraction — the scenes /
 		// main-feature choice is inert for as long as it is active.
@@ -784,7 +686,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			vs.extractMode = "main"
 		default:
 			if value == "" {
-				modeRadio.SetSelected(t.RipModeScenes)
+				modeRadio.SetSelected(t.RipModeMainFeature)
 			}
 			vs.extractMode = ""
 		}
@@ -1151,10 +1053,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	// ── Two-column workspace ────────────────────────────────────────────────
 	// Source spans the full width; below it a 55/45 HSplit divides CONTENT
-	// (disc summary + title list + menu preview) from PROCESSING (format,
-	// output path, monitoring). The action bar spans the full width above the
-	// log. SOURCE is the input to the whole operation; ACTION is the output of
-	// the whole operation — both belong outside the two semantic columns.
+	// (disc summary + title list) from PROCESSING (format, output path,
+	// monitoring). The action bar spans the full width. SOURCE is the input to
+	// the whole operation; ACTION is the output of the whole operation — both
+	// belong outside the two semantic columns.
 
 	sourceBox := buildRipBox(t.RipSource, container.NewVBox(
 		container.NewBorder(nil, nil, nil,
@@ -1167,14 +1069,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		),
 	))
 
-	// LEFT = CONTENT. Disc summary pinned to the top, menu preview to the
-	// bottom, and the title list as the flexible centre that absorbs available
-	// height. The list scrolls internally; the disc card and menu preview keep
-	// their natural (bounded) heights.
+	// LEFT = CONTENT. Disc summary pinned to the top and the title list as the
+	// flexible centre that absorbs the available height. The list scrolls
+	// internally; the summary keeps its natural (bounded) height.
 	leftColumn := container.NewBorder(
 		discSummary.GetContainer(),
-		menuPreview.GetContainer(),
-		nil, nil,
+		nil, nil, nil,
 		contentBrowser.GetContainer(),
 	)
 
@@ -1230,11 +1130,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bottomBar = opts.OnModuleFooter(opts.ModuleColor, nil, opts.OnGetStatsBar())
 	}
 
-	logVSplit = container.NewVSplit(mainArea, logSection)
-	// Start fully collapsed: only the LOG pill control row is visible. The log
-	// pops open via the pill or automatically when a rip starts / errors.
-	logVSplit.SetOffset(logCollapsedOffset)
-
 	// Re-scan a previously selected source on re-entry. buildRipView creates a
 	// fresh viewState (scanResult always nil), so without this a path restored
 	// into the source field would show "No disc loaded" until the user browsed
@@ -1245,7 +1140,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	return container.NewBorder(topBar, bottomBar, nil, nil,
-		logVSplit,
+		mainArea,
 	)
 }
 

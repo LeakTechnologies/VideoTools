@@ -2133,73 +2133,113 @@ func (s *appState) showSettingsView() {
 	s.maximizeWindow()
 
 	var activeScroll func() *ui.FastVScroll
+	var keyHandler func(fyne.KeyName) bool
+	var keyCatcher fyne.Focusable
 	onBack := s.showMainMenu
+	keyHandler = func(key fyne.KeyName) bool {
+		return s.handleSettingsNavKey(&activeScroll, key)
+	}
 	opts := settings.Options{
 		Window:               s.window,
 		StatsBar:             s.statsBar,
-		OnBack:               func() { s.unregisterSettingsKeyShortcuts(); onBack() },
+		OnBack:               func() { s.unregisterSettingsKeyInput(); onBack() },
 		ActiveScroll:         &activeScroll,
+		KeyHandler:           &keyHandler,
+		KeyCatcher:           &keyCatcher,
 		BuildPreferencesTab:  func() fyne.CanvasObject { return settings.BuildPreferencesTab(&preferencesAdapter{s: s}) },
 		BuildDependenciesTab: func() fyne.CanvasObject { return settings.BuildDependenciesTab(&dependencyAdapter{s: s}) },
 		BuildBenchmarkTab:    func() fyne.CanvasObject { return settings.BuildBenchmarkTab(&benchmarkAdapter{s: s}) },
 	}
-	s.registerSettingsKeyShortcuts(&activeScroll)
+	s.registerSettingsKeyInput(&activeScroll)
 	s.setContent(settings.BuildView(opts))
+	if keyCatcher != nil {
+		s.window.Canvas().Focus(keyCatcher)
+	}
 }
 
 // scrollJumpLarge moves Home/End past the end of any settings tab so the
 // FastVScroll clamps to the very top or bottom.
 const scrollJumpLarge float32 = 1e6
 
-// registerSettingsKeyShortcuts wires PageUp/PageDown/Home/End to scroll the
-// active Settings tab by one page / to the top / to the bottom. activeScroll
-// resolves the scroll container of the currently visible tab and is filled in
-// by settings.BuildView. Called on entering the settings module; the shortcuts
-// are removed when leaving.
-func (s *appState) registerSettingsKeyShortcuts(activeScroll *func() *ui.FastVScroll) {
-	if activeScroll == nil {
-		return
+// settingsPageDelta is one viewport for a quick-pass scroll (PageUp/PageDown);
+// falls back to 480px before the tab has a real size.
+func settingsPageDelta(scroll *ui.FastVScroll) float32 {
+	h := scroll.Size().Height
+	if h <= 0 {
+		h = 480
 	}
-	canvas := s.window.Canvas()
-	s.settingsKeyShortcuts = nil
-	add := func(key fyne.KeyName, delta func(scroll *ui.FastVScroll) float32) {
-		sc := &desktop.CustomShortcut{KeyName: key}
-		s.settingsKeyShortcuts = append(s.settingsKeyShortcuts, sc)
-		canvas.AddShortcut(sc, func(fyne.Shortcut) {
-			get := *activeScroll
-			if get == nil {
-				return
-			}
-			scv := get()
-			if scv == nil {
-				return
-			}
-			scv.ScrollBy(delta(scv))
-		})
-	}
-
-	add(fyne.KeyPageDown, func(scroll *ui.FastVScroll) float32 {
-		h := scroll.Size().Height
-		if h <= 0 {
-			h = 480
-		}
-		return h
-	})
-	add(fyne.KeyPageUp, func(scroll *ui.FastVScroll) float32 {
-		h := scroll.Size().Height
-		if h <= 0 {
-			h = 480
-		}
-		return -h
-	})
-	add(fyne.KeyHome, func(*ui.FastVScroll) float32 { return -scrollJumpLarge })
-	add(fyne.KeyEnd, func(*ui.FastVScroll) float32 { return scrollJumpLarge })
+	return h
 }
 
-func (s *appState) unregisterSettingsKeyShortcuts() {
-	canvas := s.window.Canvas()
-	for _, sc := range s.settingsKeyShortcuts {
-		canvas.RemoveShortcut(sc)
+// handleSettingsNavKey routes PageUp/PageDown (one viewport) and Home/End (top
+// or bottom) to the active settings tab's scroll container. It returns true
+// when the key was a navigation key.
+func (s *appState) handleSettingsNavKey(activeScroll *func() *ui.FastVScroll, key fyne.KeyName) bool {
+	if activeScroll == nil {
+		return false
 	}
-	s.settingsKeyShortcuts = nil
+	get := *activeScroll
+	if get == nil {
+		return false
+	}
+	scv := get()
+	if scv == nil {
+		return false
+	}
+	switch key {
+	case fyne.KeyPageDown:
+		scv.ScrollBy(settingsPageDelta(scv))
+		return true
+	case fyne.KeyPageUp:
+		scv.ScrollBy(-settingsPageDelta(scv))
+		return true
+	case fyne.KeyHome:
+		scv.ScrollBy(-scrollJumpLarge)
+		return true
+	case fyne.KeyEnd:
+		scv.ScrollBy(scrollJumpLarge)
+		return true
+	}
+	return false
+}
+
+// registerSettingsKeyInput wires PageUp/PageDown/Home/End to scroll the active
+// Settings tab by one page / to the top / to the bottom. activeScroll resolves
+// the scroll container of the currently visible tab and is filled in by
+// settings.BuildView. Fyne's GLFW driver never routes unmodified keys through
+// Canvas.AddShortcut, so navigation works two ways depending on focus state:
+// the settings key-nav widget's TypedKey (focused on entry — also covers key
+// repeats) and the canvas-level SetOnKeyDown fallback (fires when no widget
+// has focus, e.g. after a button click). Called on entering the settings
+// module; both hooks are removed when leaving.
+func (s *appState) registerSettingsKeyInput(activeScroll *func() *ui.FastVScroll) {
+	s.settingsActiveScroll = activeScroll
+	ext, ok := s.window.Canvas().(desktop.Canvas)
+	if !ok {
+		return
+	}
+	s.settingsPrevKeyDown = ext.OnKeyDown()
+	s.settingsPrevKeyUp = ext.OnKeyUp()
+	ext.SetOnKeyDown(func(ev *fyne.KeyEvent) {
+		if s.active == "settings" {
+			s.handleSettingsNavKey(s.settingsActiveScroll, ev.Name)
+		}
+		if s.settingsPrevKeyDown != nil {
+			s.settingsPrevKeyDown(ev)
+		}
+	})
+	ext.SetOnKeyUp(func(ev *fyne.KeyEvent) {
+		if s.settingsPrevKeyUp != nil {
+			s.settingsPrevKeyUp(ev)
+		}
+	})
+}
+
+func (s *appState) unregisterSettingsKeyInput() {
+	if ext, ok := s.window.Canvas().(desktop.Canvas); ok {
+		ext.SetOnKeyDown(s.settingsPrevKeyDown)
+		ext.SetOnKeyUp(s.settingsPrevKeyUp)
+	}
+	s.settingsPrevKeyDown, s.settingsPrevKeyUp = nil, nil
+	s.settingsActiveScroll = nil
 }

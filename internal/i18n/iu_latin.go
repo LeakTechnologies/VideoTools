@@ -601,7 +601,6 @@ var iuLatn = Strings{
 	RipOutputPath:       "Upaktiivik Akiligaaksanga",                                                                        // Output path
 	RipSource:           "Naqituinanga",                                                                                     // Source
 	RipFormatLabel:      "Aviktausimaninga",                                                                                 // Format
-	RipLog:              "Nirunnasilunniq Titiraqtausimaujut",                                                               // Rip Log
 	RipAddToQueue:       "Nuatausimaujunut Ilalliujjilugu",                                                                  // Add Rip to Queue
 	RipNow:              "Maanna Nirunnasilugu",                                                                             // Rip Now
 	RipClearISO:         "Saqinngiitilugu ISO",                                                                              // Clear ISO
@@ -626,8 +625,6 @@ var iuLatn = Strings{
 	RipContentBrowser:   "Illugaksaaq Titiraqtaujaraq",                                                                        // machine-generated, needs human review: Content Browser
 	RipSelectAll:        "Akiggut Inunnginnalirijjilugu",                                                                       // machine-generated, needs human review: Select All
 	RipDeselectAll:      "Akiggut Inunnginnalisimanngillugu",                                                                   // machine-generated, needs human review: Deselect All
-	RipMenuPreview:      "Tamaq Aputi",                                                                                        // machine-generated, needs human review: Disc Menu
-	RipPreserveMenus:    "Aputi Sanirlugu",                                                                                    // machine-generated, needs human review: Preserve menus
 	RipMainFeature:      "★ Maaggaqtuq",                                                                                       // machine-generated, needs human review: Main Feature
 	RipTitleCardFmt:     "T%02d  %s  %d titiraq",                                                                             // machine-generated, needs human review: T%02d %s %d chapters
 	RipClickToPreview:   "Takulugu takujautiinnik",                                                                            // machine-generated, needs human review: Click to preview
@@ -649,8 +646,6 @@ var iuLatn = Strings{
 	RipModeSection:         "Rip Mode: ",                                                                                     // machine-generated, needs human review: Rip Mode
 	RipModeScenes:          "Suliaq atausiq qanuilirqtuq",                                                                    // machine-generated, needs human review: Selected scenes
 	RipModeMainFeature:     "Full movie (main feature)",                                                                      // machine-generated, needs human review: Full movie (main feature)
-	RipLogOpen:          "▼ LOG",                                                                                             // machine-generated, needs human review: ▼ LOG
-	RipLogClose:         "▶ LOG",                                                                                             // machine-generated, needs human review: ▶ LOG
 	RipOpenInPlayer:     "▶ Qarasaujarmut Mappiraq",                                                                          // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "Ajjigiattiarvik immiqsuqtauq — ISO uvvaluunniit VIDEO_TS immiqsuqlugu",                            // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "Titiraq / Ajjigiattarvik atiginnguat (metadata)",                                                  // machine-generated, needs human review: Disc / movie title (embedded as metadata)
@@ -676,8 +671,6 @@ var iuLatn = Strings{
 	RipRegionFree:             "Nunakkuut agganngittut",                                                                     // machine-generated, needs human review: Region Free
 	RipRegionFmt:              "Nunakkuut %d",                                                                               // machine-generated, needs human review: Region %d
 	RipRegionsFmt:             "Nunakkuut %s",                                                                               // machine-generated, needs human review: Regions %s
-	RipLoadingMenu:            "Aputi immiqsuqtujuq...",                                                                     // machine-generated, needs human review: Loading menu...
-	RipNoMenuPlaceholder:      "Aputi nalunaiqtauningittuq",                                                                  // machine-generated, needs human review: No menu found
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW

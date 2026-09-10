@@ -104,7 +104,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev66"
+appVersion = "v0.1.1-dev67"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1458,10 +1458,6 @@ type appState struct {
 	ripSourcePath  string
 	ripOutputPath  string
 	ripFormat      string
-	ripLogText     string
-	ripLogEntry    *widget.Label
-	ripLogScroll   *container.Scroll
-	ripLogExpand   func() // registered by the rip view; auto-expands the log on rip activity
 	ripProgress    float64
 	ripProgressBar *widget.ProgressBar
 	ripStatusLabel *widget.Label
@@ -1481,9 +1477,13 @@ type appState struct {
 	updateCachedTag   string // latest release tag ("" = up to date or not yet checked)
 	updateCachedPatch bool   // true when same tag but newer build commit available
 
-	// Settings keyboard-navigation shortcuts, registered while the settings
-	// module is on screen. PageUp/PageDown/Home/End scroll the active tab.
-	settingsKeyShortcuts []fyne.Shortcut
+	// Settings keyboard navigation state, active while the settings module is
+	// on screen: resolver for the visible tab's scroll container plus the
+	// previous canvas key handlers (chained so other modules keep theirs).
+	// PageUp/PageDown/Home/End scroll the active tab.
+	settingsActiveScroll *func() *ui.FastVScroll
+	settingsPrevKeyDown   func(*fyne.KeyEvent)
+	settingsPrevKeyUp     func(*fyne.KeyEvent)
 
 	// Subtitles module state
 	subtitleVideoPath   string
