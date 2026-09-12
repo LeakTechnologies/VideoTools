@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/ifo"
+	"github.com/LeakTechnologies/VideoTools/internal/dvd/iso9660"
 	"github.com/LeakTechnologies/VideoTools/internal/dvd/udf"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/logging"
@@ -226,6 +227,8 @@ func shortScanError(err error) string {
 // scanISOViaUDF extracts IFO files from a DVD ISO image using the UDF reader,
 // runs ScanDisc on the extracted data, and returns a full DiscScanResult.
 // Disc size and type are taken from the ISO file itself (not from the temp dir).
+// When the image has no usable UDF volume it falls back to the native ISO 9660
+// reader so ISO 9660-only burns scan like any other disc.
 func scanISOViaUDF(isoPath string, onNote func(string)) (*DiscScanResult, error) {
 	fi, err := os.Stat(isoPath)
 	if err != nil {
@@ -246,10 +249,18 @@ func scanISOViaUDF(isoPath string, onNote func(string)) (*DiscScanResult, error)
 	defer f.Close()
 
 	udfReader := udf.NewReader(f)
+	readFile := udfReader.ReadFileData
 
-	vmgData, err := udfReader.ReadFileData("VIDEO_TS/VIDEO_TS.IFO")
+	vmgData, err := readFile("VIDEO_TS/VIDEO_TS.IFO")
 	if err != nil {
-		return nil, fmt.Errorf("read VMG IFO from ISO: %w", err)
+		udfVMGErr := err
+		logging.Warning(logging.CatDVD, "scanISOViaUDF: UDF read of VIDEO_TS.IFO failed (%v); trying ISO 9660 reader", err)
+		isoR := iso9660.NewReader(f)
+		readFile = isoR.ReadFileData
+		vmgData, err = readFile("VIDEO_TS/VIDEO_TS.IFO")
+		if err != nil {
+			return nil, fmt.Errorf("read VMG IFO from ISO (UDF: %v; ISO 9660: %v)", udfVMGErr, err)
+		}
 	}
 
 	tmpDir, err := os.MkdirTemp("", "vt_isoscan_*")
@@ -280,7 +291,7 @@ func scanISOViaUDF(isoPath string, onNote func(string)) (*DiscScanResult, error)
 
 	for vtsNum := range vtsSet {
 		ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
-		ifoData, readErr := udfReader.ReadFileData("VIDEO_TS/" + ifoName)
+		ifoData, readErr := readFile("VIDEO_TS/" + ifoName)
 		if readErr != nil {
 			logging.Warning(logging.CatDVD, "scanISOViaUDF: failed to read %s: %v", ifoName, readErr)
 			continue

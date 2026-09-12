@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev72 (September 2026)
+
+### ISO 9660 Fallback for Non-UDF Disc Images
+
+- **Rip: ISO scanning and extraction can now read a disc image whose UDF volume is unusable.** Some grey-market DVDs carry a burner-written UDF bridge whose anchor points at a VDS that scans as PVD/IUVD/PD/LVD/USD/TD descriptor tags but whose LVD fails to parse — the old UDF reader reported `LVD not found in VDS` and the disc could not be scanned or ripped (reported on `Blowjob Fantasies 3`). A new native ISO 9660 reader (`internal/dvd/iso9660`) parses the Primary Volume Descriptor at sector 16, walks the directory tree with the spec-correct single-byte `.`/`..` identifiers (0x00/0x01) and `;version`-stripped filenames, and folds multi-extent continuation records (flag 0x80) into the owning file. The scan path (`scanISOViaUDF`) and the extraction path (`resolveISOWithUDF`) both try UDF first and fall back to ISO 9660, logging which backend served the files; when both fail the error names both backends, so an image that is neither UDF nor ISO 9660 is surfaced honestly instead of being falsely labelled corrupt.
+- Verified on the reported ISO: the ISO 9660 reader returns `VIDEO_TS.IFO` (12288 B) and `VTS_01_0.IFO` (94208 B) matching the ISO 9660 directory listing byte-for-byte, and the full `scanISOViaUDF` path yields both titles with chapters, audio and duration. Unit tests cover ReadFileData (exact bytes, case-insensitive paths, `;1` stripping, multi-sector files), missing-path errors, ExtractDirectory round-trip, and non-ISO-9660 detection; `VT_REAL_ISO`-gated integration tests exercise the reader and the scan fallback against real authored media.
+
 ## v0.1.1-dev71 (September 2026)
 
 ### VOB-Concat Stale-PTS Cap Hardened + Title-Driven Output Names
