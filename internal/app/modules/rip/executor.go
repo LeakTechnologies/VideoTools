@@ -55,24 +55,49 @@ func DefaultOutputPath(sourcePath, format string) string {
 	if sourcePath == "" {
 		return ""
 	}
+	name := SanitizeForPath(sourceBaseName(sourcePath))
+	if name == "" {
+		name = "dvd_rip"
+	}
+	return UniqueFilePath(filepath.Join(defaultOutputDir(sourcePath), name+formatExt(format)))
+}
+
+// DefaultOutputTitlePath returns a default output path whose filename is
+// driven by the user-facing title instead of the source folder's base name
+// (the rip view calls it when the user sets a Title). Falls back to the
+// folder-derived name when the title is empty or sanitises to nothing.
+func DefaultOutputTitlePath(sourcePath, format, title string) string {
+	if sourcePath == "" {
+		return ""
+	}
+	name := SanitizeForPath(title)
+	if name == "" {
+		return DefaultOutputPath(sourcePath, format)
+	}
+	return UniqueFilePath(filepath.Join(defaultOutputDir(sourcePath), name+formatExt(format)))
+}
+
+func defaultOutputDir(sourcePath string) string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		home = "."
 	}
-	baseDir := filepath.Join(home, "Videos", "VideoTools", "DVD_Rips")
+	return filepath.Join(home, "Videos", "VideoTools", "DVD_Rips")
+}
+
+func sourceBaseName(sourcePath string) string {
 	name := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
 	if strings.EqualFold(name, "video_ts") {
 		name = filepath.Base(filepath.Dir(sourcePath))
 	}
-	name = SanitizeForPath(name)
-	if name == "" {
-		name = "dvd_rip"
-	}
-	ext := ".mkv"
+	return name
+}
+
+func formatExt(format string) string {
 	if format == FormatH264MP4 {
-		ext = ".mp4"
+		return ".mp4"
 	}
-	return UniqueFilePath(filepath.Join(baseDir, name+ext))
+	return ".mkv"
 }
 
 // SanitizeForPath removes characters that are unsafe in file paths.
@@ -742,12 +767,19 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 				ra.SubtitleSel = ra.SubtitleSel[:subCount]
 			}
 		}
-		// Cap the concat output at the sum of the VOBs' durations. Some
-		// grey-market discs carry a stale PTS offset in a trailing phantom
-		// video packet (e.g. +26h) — with -c copy that packet lands in the
-		// MKV and inflates the file's reported duration ("26hrs" for a 30-min
-		// title) even though the real content is intact. A -t cap stops the
-		// muxer before those packets while preserving all real content.
+		// Cap the concat output at a safe duration. Grey-market discs can carry
+		// trailing phantom packets (or whole VOB tails) stamped with a stale PTS
+		// offset far beyond the real title ("26hrs" for a 30-min rip) — with
+		// -c copy those packets land in the MKV and inflate its reported
+		// duration even though the real content is intact. A -t cap stops the
+		// muxer before them while preserving all real content.
+		//
+		// The cap is taken from the per-VOB media durations when they look sane
+		// (dev69 behaviour), else from the IFO's authored PGC play time. The
+		// IFO fallback matters because per-VOB probes are NOT immune to the
+		// offset: on some discs the stale PTS bakes into an entire VOB, so that
+		// VOB probes to +hours and either fails the app's static ffprobe or
+		// produces an absurd sum that would cap nothing.
 		maxDur := 0.0
 		allProbed := len(set.Files) > 0
 		for _, f := range set.Files {
@@ -758,12 +790,24 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			}
 			maxDur += d
 		}
-		if allProbed && maxDur > 0 {
-			ra.MaxDuration = math.Ceil(maxDur + 60)
-			appendLog(fmt.Sprintf("VOB concat: capping output at %.0f s (sum of %d VOB duration(s) %.0f s + 60 s margin) — prevents stale-PTS tail packets inflating the rip duration",
-				ra.MaxDuration, len(set.Files), maxDur))
+		capDur := 0.0
+		capDesc := ""
+		if allProbed && maxDur > 0 && (titleInfo == nil || titleInfo.Duration <= 0 || maxDur < titleInfo.Duration*3) {
+			capDur = maxDur
+			capDesc = fmt.Sprintf("sum of %d VOB duration(s) %.0f s + 60 s margin", len(set.Files), maxDur)
+		} else if !allProbed && titleInfo != nil && titleInfo.Duration > 0 {
+			capDur = titleInfo.Duration
+			capDesc = "IFO PGC duration (per-VOB duration probes failed) + 60 s margin"
+		} else if titleInfo != nil && titleInfo.Duration > 0 {
+			capDur = titleInfo.Duration
+			capDesc = "IFO PGC duration (per-VOB duration sum is stale) + 60 s margin"
+		}
+		if capDur > 0 {
+			ra.MaxDuration = math.Ceil(capDur + 60)
+			appendLog(fmt.Sprintf("VOB concat: capping output at %.0f s (%s) — prevents stale-PTS tail packets inflating the rip duration",
+				ra.MaxDuration, capDesc))
 		} else {
-			appendLog("VOB concat: could not probe all VOB durations — leaving output duration uncapped")
+			appendLog("VOB concat: could not determine a safe output duration — leaving output duration uncapped")
 		}
 		if err2 := runWithArgs(ra); err2 != nil {
 			return err2
@@ -1012,20 +1056,29 @@ func exportMenuVOB(ctx context.Context, opts ExecuteOptions, menuVOBPath, output
 // FullDiscOutputPath returns the directory path for full-disc extraction output.
 // The output is always a VIDEO_TS directory structure.
 func FullDiscOutputPath(sourcePath string) string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		home = "."
+	if sourcePath == "" {
+		return ""
 	}
-	baseDir := filepath.Join(home, "Videos", "VideoTools", "DVD_Rips")
-	name := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
-	if strings.EqualFold(name, "video_ts") {
-		name = filepath.Base(filepath.Dir(sourcePath))
-	}
-	name = SanitizeForPath(name)
+	name := SanitizeForPath(sourceBaseName(sourcePath))
 	if name == "" {
 		name = "dvd_disc"
 	}
-	return UniqueFilePath(filepath.Join(baseDir, name))
+	return UniqueFilePath(filepath.Join(defaultOutputDir(sourcePath), name))
+}
+
+// FullDiscOutputTitlePath returns the full-disc extraction output directory
+// driven by the user-facing title instead of the source folder's base name
+// (mirrors DefaultOutputTitlePath for the single-file rips). Falls back to the
+// source-derived name when the title is empty or sanitises to nothing.
+func FullDiscOutputTitlePath(sourcePath, title string) string {
+	if sourcePath == "" {
+		return ""
+	}
+	name := SanitizeForPath(title)
+	if name == "" {
+		return FullDiscOutputPath(sourcePath)
+	}
+	return UniqueFilePath(filepath.Join(defaultOutputDir(sourcePath), name))
 }
 
 // executeFullDiscRip runs full-disc extraction with region conversion and IFO regeneration.
