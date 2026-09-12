@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## v0.1.1-dev69 (September 2026)
+
+### VOB-Concat Stale-PTS Duration Cap
+
+- **Rip: concat-fallback output duration cap** — a grey-market disc rip completed via the dvdvideo→VOB-concat fallback but the produced MKV "was classed as 26hrs" while the real title was 30m23s (chapters ended at the title duration). The disc's second VOB carries a stale PTS offset: FFmpeg's concat + `-c copy` muxes a trailing phantom 32-byte video packet authored at ~+26h into the MKV, so the last-packet timestamp (95443.8 s) inflates the file's reported duration even though the real content is intact. The fallback now probes every VOB's duration (`probeDuration`) and caps the output with `-t ceil(Σ durations + 60s)` (new `RipArgs.MaxDuration`), stopping the muxer before those phantom-tail packets while preserving all real content; on healthy discs the cap sits above real content and changes nothing. Verified end-to-end on the reported disc (uncapped run reproduces 95443.815 s; capped run yields 1822.784 s, exit 0) and on the lying-IFO disc (the dev68 clamped 9-subtitle run still completes with the cap applied, all labels intact, nothing truncated).
+
 ## v0.1.1-dev68 (September 2026)
 
 ### VOB-Concat Subtitle-Map Clamp for Lying-IFO Discs

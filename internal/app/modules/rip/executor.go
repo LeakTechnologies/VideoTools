@@ -272,6 +272,7 @@ type RipArgs struct {
 	SubtitleLangs []string // per-stream subtitle language codes; nil = no subs
 	SubtitleSel   []int    // source stream indices of the selected subs (parallel to SubtitleLangs); empty = map all
 	DiscTitle     string   // embedded title tag; empty = skip
+	MaxDuration   float64  // output cap in seconds; <=0 disables. Used on the VOB-concat fallback to stop before phantom-tail packets carrying a stale PTS offset
 	Interlaced    bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
 	RegionConvert string   // "" (none), "pal2ntsc", "ntsc2pal"
 	VideoTSPath   string   // VIDEO_TS directory for -f dvdvideo (seamless branching)
@@ -393,6 +394,10 @@ func BuildRipArgs(ra RipArgs) []string {
 	// Disc/movie title
 	if ra.DiscTitle != "" {
 		args = append(args, "-metadata", "title="+ra.DiscTitle)
+	}
+
+	if ra.MaxDuration > 0 {
+		args = append(args, "-t", strconv.FormatFloat(ra.MaxDuration, 'f', 3, 64))
 	}
 
 	args = append(args, "-max_interleave_delta", "0")
@@ -736,6 +741,29 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 				ra.SubtitleLangs = ra.SubtitleLangs[:subCount]
 				ra.SubtitleSel = ra.SubtitleSel[:subCount]
 			}
+		}
+		// Cap the concat output at the sum of the VOBs' durations. Some
+		// grey-market discs carry a stale PTS offset in a trailing phantom
+		// video packet (e.g. +26h) — with -c copy that packet lands in the
+		// MKV and inflates the file's reported duration ("26hrs" for a 30-min
+		// title) even though the real content is intact. A -t cap stops the
+		// muxer before those packets while preserving all real content.
+		maxDur := 0.0
+		allProbed := len(set.Files) > 0
+		for _, f := range set.Files {
+			d := probeDuration(f, opts.OnRunCommand, appendLog)
+			if d <= 0 {
+				allProbed = false
+				break
+			}
+			maxDur += d
+		}
+		if allProbed && maxDur > 0 {
+			ra.MaxDuration = math.Ceil(maxDur + 60)
+			appendLog(fmt.Sprintf("VOB concat: capping output at %.0f s (sum of %d VOB duration(s) %.0f s + 60 s margin) — prevents stale-PTS tail packets inflating the rip duration",
+				ra.MaxDuration, len(set.Files), maxDur))
+		} else {
+			appendLog("VOB concat: could not probe all VOB durations — leaving output duration uncapped")
 		}
 		if err2 := runWithArgs(ra); err2 != nil {
 			return err2
