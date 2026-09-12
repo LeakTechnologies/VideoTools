@@ -635,7 +635,11 @@ var iu = Strings{
 	RipSelectAll:        "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓗᒍ",                                          // machine-generated, needs human review: Select All
 	RipDeselectAll:      "ᐊᓗᒍ ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᑦᑎᓗᒍ",                                    // machine-generated, needs human review: Deselect All
 	RipMainFeature:      "★ ᒫᓐᓇ ᑎᑎᕋᖅ",                                              // machine-generated, needs human review: Main Feature
-	RipTitleCardFmt:     "T%02d  %s  %d ᑎᑎᕋᖅ",                                    // machine-generated, needs human review: T%02d %s %d chapters
+	RipTitleCardFmt:     "%d ᑎᑎᕋᖅ",                                                // machine-generated, needs human review: %d chapters
+	RipTitleAudioOne:    "1 ᑐᓵᓕᕐᖃᖅ",                                              // machine-generated, needs human review: 1 audio
+	RipTitleAudioMany:   "%d ᑐᓵᓕᕐᖃᖅ",                                             // machine-generated, needs human review: %d audio
+	RipTitleSubsOne:     "1 ᑕᐃᑲᓐ",                                                  // machine-generated, needs human review: 1 sub
+	RipTitleSubsMany:    "%d ᑕᐃᑲᓐ",                                                 // machine-generated, needs human review: %d subs
 	RipClickToPreview:   "ᑕᑯᒃᓴᐅᑎᑦ ᑕᑯ",                                             // machine-generated, needs human review: Click to preview
 	RipNoMenuFound:      "ᐊᑐᖅ VOB ᓇᓗᓇᐃᖅᑕᐅᓯᒪᙱᓚᖅ",                               // machine-generated, needs human review: No menu VOB found
 	RipDiscSection:      "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ",                                          // machine-generated, needs human review: Disc
@@ -653,8 +657,8 @@ var iu = Strings{
 	RipReadyManyFmt:     "%d ᐊᑕᐅᓯᖃᑦᑑᑎᒃ ᐃᓱᒪᒋᔭᐅᓂᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",                   // machine-generated, needs human review: Ready to rip %d titles
 	RipReadyMainFeatureFmt: "ᐊᐅᓚᑕᐅᔪᓐᓇᕐᑐᒥᑦ ᖃᐳᓇᐃᓕᐅᖅᑑᒐᕕᑦ: %s",                     // machine-generated, needs human review: Ready to rip main feature: %s
 	RipModeSection:         "Rip Mode: ",                                                // machine-generated, needs human review: Rip Mode
-	RipModeScenes:          "ᐃᓱᒪᒋᔭᐅᖃᑦᑑᑎᒃ",                                          // machine-generated, needs human review: Selected scenes
-	RipModeMainFeature:     "ᖃᐳᓇᓯᑎᐊᕈᑦ",                                                // machine-generated, needs human review: Full movie (main feature)
+	RipModeScenes:          "ᐊᔾᔨᙳᐊᖑᓂᖏᑦ ᐃᓱᒪᒋᔭᐅᖃᑦᑑᑎᒃ",                              // machine-generated, needs human review: Movie + extras (choose titles)
+	RipModeMainFeature:     "ᐊᑕᐅᓯᖃᑦᑑᑎᖅ ᑎᑎᕋᖅ ᐱᓕᐅᖅᑕᐅᓗᒍ",                                     // machine-generated, needs human review: Main feature only
 	RipOpenInPlayer:     "▶ ᖃᕋᓴᐅᔭᕐᒧᑦ ᒪᑉᐱᐊᖅ",                                  // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᑕᐅᓂᖏᑦᑐᖅ — ISO ᐅᕝᕙᓘᓐᓃᑦ VIDEO_TS ᐃᒻᒥᖅᓱᖅᓗᒍ",  // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "ᑎᑎᕋᖅ / ᐊᔾᔨᙳᐊᖅᑕᐅᕗᑦ ᐊᑎᖓ (metadata)",                      // machine-generated, needs human review: Disc / movie title (embedded as metadata)

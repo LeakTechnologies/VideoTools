@@ -360,13 +360,21 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	infoLabel := vbox.Objects[1].(*widget.Label)
 	infoParts := []string{}
 	if dt.NumChapters > 1 {
-		infoParts = append(infoParts, fmt.Sprintf(t.RipTitleCardFmt, dt.Number, FormatDuration(dt.Duration), dt.NumChapters))
+		infoParts = append(infoParts, fmt.Sprintf(t.RipTitleCardFmt, dt.NumChapters))
 	}
 	if len(dt.Audio) > 0 {
-		infoParts = append(infoParts, fmt.Sprintf("%d audio", len(dt.Audio)))
+		if len(dt.Audio) == 1 {
+			infoParts = append(infoParts, t.RipTitleAudioOne)
+		} else {
+			infoParts = append(infoParts, fmt.Sprintf(t.RipTitleAudioMany, len(dt.Audio)))
+		}
 	}
 	if len(dt.Subtitles) > 0 {
-		infoParts = append(infoParts, fmt.Sprintf("%d subs", len(dt.Subtitles)))
+		if len(dt.Subtitles) == 1 {
+			infoParts = append(infoParts, t.RipTitleSubsOne)
+		} else {
+			infoParts = append(infoParts, fmt.Sprintf(t.RipTitleSubsMany, len(dt.Subtitles)))
+		}
 	}
 	if len(infoParts) == 0 {
 		infoParts = append(infoParts, "—")

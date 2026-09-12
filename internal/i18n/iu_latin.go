@@ -626,7 +626,11 @@ var iuLatn = Strings{
 	RipSelectAll:        "Akiggut Inunnginnalirijjilugu",                                                                       // machine-generated, needs human review: Select All
 	RipDeselectAll:      "Akiggut Inunnginnalisimanngillugu",                                                                   // machine-generated, needs human review: Deselect All
 	RipMainFeature:      "★ Maaggaqtuq",                                                                                       // machine-generated, needs human review: Main Feature
-	RipTitleCardFmt:     "T%02d  %s  %d titiraq",                                                                             // machine-generated, needs human review: T%02d %s %d chapters
+	RipTitleCardFmt:     "%d titiraq",                                                                                                  // machine-generated, needs human review: %d chapters
+	RipTitleAudioOne:    "1 tusaaliraq",                                                                                            // machine-generated, needs human review: 1 audio
+	RipTitleAudioMany:   "%d tusaaliraq",                                                                                           // machine-generated, needs human review: %d audio
+	RipTitleSubsOne:     "1 taikan",                                                                                                // machine-generated, needs human review: 1 sub
+	RipTitleSubsMany:    "%d taikan",                                                                                               // machine-generated, needs human review: %d subs
 	RipClickToPreview:   "Takulugu takujautiinnik",                                                                            // machine-generated, needs human review: Click to preview
 	RipNoMenuFound:      "Aputi VOB nalunnaiqtausimanngillaq",                                                                 // machine-generated, needs human review: No menu VOB found
 	RipDiscSection:      "Ajjigiattiarvik",                                                                                    // machine-generated, needs human review: Disc
@@ -644,8 +648,8 @@ var iuLatn = Strings{
 	RipReadyManyFmt:     "%d atasuiqattuit isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip %d titles
 	RipReadyMainFeatureFmt: "Munaluagijaq tungilirqtuq: %s",                                                                  // machine-generated, needs human review: Ready to rip main feature: %s
 	RipModeSection:         "Rip Mode: ",                                                                                     // machine-generated, needs human review: Rip Mode
-	RipModeScenes:          "Suliaq atausiq qanuilirqtuq",                                                                    // machine-generated, needs human review: Selected scenes
-	RipModeMainFeature:     "Full movie (main feature)",                                                                      // machine-generated, needs human review: Full movie (main feature)
+	RipModeScenes:          "Ajjigiattuaq + nungummat isumagijauqattut",                                                          // machine-generated, needs human review: Movie + extras (choose titles)
+	RipModeMainFeature:     "Atausiq titiraq kisumi",                                                                           // machine-generated, needs human review: Main feature only
 	RipOpenInPlayer:     "▶ Qarasaujarmut Mappiraq",                                                                          // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "Ajjigiattiarvik immiqsuqtauq — ISO uvvaluunniit VIDEO_TS immiqsuqlugu",                            // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "Titiraq / Ajjigiattarvik atiginnguat (metadata)",                                                  // machine-generated, needs human review: Disc / movie title (embedded as metadata)
