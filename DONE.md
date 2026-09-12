@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev68 — VOB-Concat Subtitle-Map Clamp for Lying-IFO Discs
+
+- **Rip: concat-fallback subtitle-map clamp** — discs whose IFOs advertise more subtitle languages than the VOBs carry physical streams for (grey-market media) hard-failed the rip: dev64's per-stream `-map 0:s:<idx>` flags referenced streams that don't exist and ffmpeg aborted (`Stream map '0:s:N' matches no streams`). On the dvdvideo→VOB-concat fallback, the executor now probes the concat input's real subtitle stream count (`probeSubtitleCount`, ffprobe `-select_streams s` on the concat list, −1 on probe failure to skip clamping) and clamps `SubtitleLangs`/`SubtitleSel` to the leading languages that exist, logging "VOB concatenation exposes N subtitle stream(s) (IFO advertised M) — dropping M−N trailing subtitle mapping(s)". Verified end-to-end against a real 10-IFO-language/9-stream title: the ORIGINAL command fails at map validation exactly as reported; the clamped command produces an MKV with video + audio + 9 labelled subtitle streams (en…pt, trailing nl dropped) in one pass, exit 0.
+
 ## v0.1.1-dev67 — Settings Keyboard-Nav Fix + Rip De-clutter + Default Rip Mode
 
 - **Settings keyboard navigation fixed** — the dev66 shortcuts were dead: the Fyne GLFW driver only synthesizes `desktop.CustomShortcut` when the modifier is non-zero (`internal/driver/glfw/window.go`), so unmodified PageUp/PageDown/Home/End never fired. Rewritten: `settings.Options` gained `KeyHandler *func(fyne.KeyName) bool` and `KeyCatcher *fyne.Focusable`; a focused 1×1 transparent `settingsKeyNav` widget (`fyne.Focusable` + `desktop.Keyable`) serves `TypedKey` for every press including OS repeats, with canvas `desktop.Canvas` `SetOnKeyDown`/`SetOnKeyUp` as the fallback when nothing else has focus. Previous handlers are preserved; keys are unregistered on leaving Settings. PageUp/PageDown page the active tab by one viewport, Home/End jump to top/bottom.

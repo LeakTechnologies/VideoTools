@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## v0.1.1-dev68 (September 2026)
+
+### VOB-Concat Subtitle-Map Clamp for Lying-IFO Discs
+
+- **Rip: concat-fallback subtitle-map clamp** — some discs' IFOs advertise more subtitle languages than the VOBs carry physical subpicture streams for (grey-market/bootleg media). The per-stream `-map 0:s:<idx>` flags (dev64's per-language subtitle selection) then reference streams that don't exist and ffmpeg hard-fails the whole rip (`Stream map '0:s:N' matches no streams`). When the dvdvideo→VOB-concat fallback runs, the executor now probes the concat input's actual subtitle stream count (`probeSubtitleCount`) and clamps `SubtitleLangs`/`SubtitleSel` to the leading languages that exist, logging the drop ("VOB concatenation exposes N subtitle stream(s) (IFO advertised M) — dropping M−N trailing subtitle mapping(s)"). Verified end-to-end on a real 10-IFO-language/9-stream disc — the clamped command completes with the 9 present subtitle streams correctly labelled.
+
 ## v0.1.1-dev67 (September 2026)
 
 ### Settings Keyboard-Nav Fix + Rip De-clutter + Default Rip Mode

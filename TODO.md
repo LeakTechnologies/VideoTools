@@ -14,7 +14,12 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
 - [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
 
-## Dev67 Scope (current — released/published pending this update's CI, tag `v0.1.1-dev67`)
+## Dev68 Scope (current — released/published pending this update's CI, tag `v0.1.1-dev68`)
+
+- [x] **Rip: VOB-concat subtitle-map clamp for liar-IFO discs** — a disc's IFO advertised 10 subtitle languages but its VOBs physically carry 9 subpicture streams, so the dvdvideo→VOB-concat fallback hard-failed (`-map 0:s:9` → "Stream map '0:s:9' matches no streams"). The executor now probes the concat input's real subtitle stream count (`probeSubtitleCount`, ffprobe `-select_streams s`, −1 skip on probe failure) and clamps `SubtitleLangs`/`SubtitleSel` to the leading languages that exist, logging "VOB concatenation exposes N subtitle stream(s) (IFO advertised M) — dropping M−N trailing subtitle mapping(s)". Verified end-to-end against the reported disc: the original command fails at map validation, the clamped command rips an MKV with video + audio + 9 labelled subtitle streams in one pass (exit 0, `-t 60` smoke copy). Build + vet green (`dev-verify.ps1`).
+- [ ] **Tester verify: dev68 release** — re-run the `Young Harlots - The Academy (2006) DVD5` Main-Feature rip; log shows the "dropping N trailing subtitle mapping(s)" line and the job completes with the output playable; plus all dev67 content (rip de-clutter, default Full Movie mode, settings keyboard-nav fix) + dev66/dev65/dev64 content.
+
+## Dev67 Scope (closed — released 2026-09-10, tag `v0.1.1-dev67`; content verification carried into dev68)
 
 - [x] **Rip default mode: "Full movie (main feature)"** — tester feedback: the mode radio now lists and defaults to `RipModeMainFeature` (was "Selected scenes"); the deselect/reselect path re-selects Main Feature. Build + vet green (`dev-verify.ps1`).
 - [x] **Rip de-clutter: Disc Menu preview + in-app Rip Log removed** — tester feedback: the module lost too much vertical space to the menu preview and log strip. Both are removed outright so the Content Browser owns the full left-column height; rip activity/errors surface only in the on-disk executor log. `menu_preview.go` deleted; viewState log fields, Options `RipLog*` hooks, `appendRipLog`/`resetRipLog` wiring (rip_module.go/main.go), and the `RipLog*`/`RipMenuPreview`/`RipPreserveMenus`/`RipLoadingMenu`/`RipNoMenuPlaceholder` i18n keys are retired (en/fr/iu/iu_latin). Build + vet green (`dev-verify.ps1`).

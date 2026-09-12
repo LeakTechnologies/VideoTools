@@ -721,6 +721,22 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		ra.VideoTSPath = ""
 		ra.TitleNumber = 0
 		ra.ListFile = listFile
+		// Clamp the subtitle mapping to what the concat input actually exposes.
+		// Some discs' IFOs advertise more subtitle languages than the VOBs carry
+		// physical subpicture streams for (common on grey-market/bootleg media) —
+		// the per-stream -map 0:s:<idx> flags then reference streams that don't
+		// exist and ffmpeg hard-fails the fallback. Probing the concat input and
+		// keeping only the leading languages' indices makes the rip succeed while
+		// preserving correct labels for the streams that are actually present.
+		if len(ra.SubtitleLangs) > 0 {
+			subCount := probeSubtitleCount(listFile, opts.OnRunCommand, appendLog)
+			if subCount >= 0 && subCount < len(ra.SubtitleLangs) {
+				appendLog(fmt.Sprintf("VOB concatenation exposes %d subtitle stream(s) (IFO advertised %d) — dropping %d trailing subtitle mapping(s)",
+					subCount, len(ra.SubtitleLangs), len(ra.SubtitleLangs)-subCount))
+				ra.SubtitleLangs = ra.SubtitleLangs[:subCount]
+				ra.SubtitleSel = ra.SubtitleSel[:subCount]
+			}
+		}
 		if err2 := runWithArgs(ra); err2 != nil {
 			return err2
 		}
@@ -1244,6 +1260,32 @@ func probeDurationConcat(listFile string, onRunCommand func(string, []string, fu
 		return 0
 	}
 	return d
+}
+
+// probeSubtitleCount returns the number of subtitle streams the concat input
+// exposes (the first VOB's stream set governs the concat demuxer's view).
+// Returns -1 when the probe fails so callers can skip clamping.
+func probeSubtitleCount(listFile string, onRunCommand func(string, []string, func(string)) error, appendLog func(string)) int {
+	args := []string{
+		"-v", "error",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", listFile,
+		"-select_streams", "s",
+		"-show_entries", "stream=index",
+		"-of", "csv=p=0",
+	}
+	count := 0
+	logFn := func(line string) {
+		if strings.TrimSpace(line) != "" {
+			count++
+		}
+	}
+	if err := onRunCommand(utils.GetFFprobePath(), args, logFn); err != nil {
+		appendLog(fmt.Sprintf("Warning: could not probe subtitle streams for VOB concat fallback: %v", err))
+		return -1
+	}
+	return count
 }
 
 // probeDuration returns the duration in seconds of a VOB file by quick ffprobe.
