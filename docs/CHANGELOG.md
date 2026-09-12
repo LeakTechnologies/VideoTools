@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev70 (September 2026)
+
+### Rip UI Polish: Mode Labels + Title Card Info Line + Language Select-All
+
+- **Rip mode radio reworded** — "Full movie (main feature)" is now "**Main feature only**" and "Selected scenes" is "**Movie + extras (choose titles)**" (the scenes option is really title-by-title selection where every title starts checked, i.e. movie + extras). The radio stacks vertically instead of horizontally so the longer labels fit the narrow left column; "Main feature only" is still the default and first option.
+- **Content Browser title-card info line cleaned up** — the info line repeated the card header (T## + duration) and, with the `·` separators + word-wrap, dropped "1 audio" onto its own wrapped line. It is now a single compact, localized line of "N chapters · N audio · N subs" (singular/plural handled via new `RipTitleAudioOne/Many` + `RipTitleSubsOne/Many` i18n keys across en/fr/iu/iu_latin). `RipTitleCardFmt` dropped its T##/duration prefix — the highlighted header above owns the duration display. The 1h53m vs 1h54m discrepancy reported alongside this is under investigation (both lines derive from the same `dt.Duration`, so it is likely a stale recollection — re-check on dev70).
+- **Subtitle-language picker gains Select All / Deselect All** — shown only when a title has more than one language; bulk-application sets the selection slice outright and suppresses/restores the per-language `OnChanged` callbacks (so `selectedSubtitleLangs` never accumulates duplicates), then persists config. Reuses the existing `RipSelectAll`/`RipDeselectAll` keys already shared with the Content Browser.
+
 ## v0.1.1-dev69 (September 2026)
 
 ### VOB-Concat Stale-PTS Duration Cap

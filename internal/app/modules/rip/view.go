@@ -638,6 +638,34 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		subLangChecks = nil
 		objects := []fyne.CanvasObject{subsHeader}
+
+		// Select / Deselect all for the whole language list. Bulk-updating every
+		// check directly would fire each per-check OnChanged and duplicate the
+		// selection entries, so the slice is set outright and check states are
+		// applied with callbacks suppressed (restored afterwards).
+		if len(avail) > 1 {
+			setAllLanguages := func(selected bool) {
+				if selected {
+					vs.selectedSubtitleLangs = append([]string{}, avail...)
+				} else {
+					vs.selectedSubtitleLangs = nil
+				}
+				vs.includeSubtitles = selected
+				vs.persistConfig()
+				for _, ck := range subLangChecks {
+					cb := ck.OnChanged
+					ck.OnChanged = nil
+					ck.SetChecked(selected)
+					ck.OnChanged = cb
+				}
+			}
+			selectAllBtn := widget.NewButton(t.RipSelectAll, func() { setAllLanguages(true) })
+			selectAllBtn.Importance = widget.LowImportance
+			deselectAllBtn := widget.NewButton(t.RipDeselectAll, func() { setAllLanguages(false) })
+			deselectAllBtn.Importance = widget.LowImportance
+			objects = append(objects, container.NewHBox(selectAllBtn, deselectAllBtn))
+		}
+
 		for _, lang := range avail {
 			lang := lang
 			ck := widget.NewCheck(lang, nil)
@@ -671,7 +699,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// extractMode is set explicitly alongside the selection.
 	var modeRadio *widget.RadioGroup
 	modeRadio = widget.NewRadioGroup([]string{t.RipModeMainFeature, t.RipModeScenes}, nil)
-	modeRadio.Horizontal = true
+	modeRadio.Horizontal = false
 	modeRadio.SetSelected(t.RipModeMainFeature)
 	vs.extractMode = "main"
 	modeRadio.OnChanged = func(value string) {
