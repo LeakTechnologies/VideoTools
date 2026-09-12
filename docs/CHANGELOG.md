@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev71 (September 2026)
+
+### VOB-Concat Stale-PTS Cap Hardened + Title-Driven Output Names
+
+- **Rip: the VOB-concat stale-PTS duration cap now always engages.** A second grey-market disc exposed a probe-failure gap in dev69: the stale PTS offset bakes into the *entire* second VOB (it probes to +93822 s, and the bundled static ffprobe errors on it), so the old logic hit the "could not probe all VOB durations" branch and left the rip uncapped — 26hrs again. The cap source is now hierarchical: per-VOB media durations when sane (sum under 3× the IFO PGC play time — exactly the dev69 behaviour on clean-PTS discs), otherwise the IFO's authored PGC duration, which is immune to stale file PTS offsets. A safe `-t ceil(cap + 60s)` is computed regardless of probe health, verified on the reported disc (`11 (2000)`, VTS_02, same VOB layout as the dev69 title): `-t 1884` reproduces 1822.816 s — the real ~30m23s — instead of 26hrs.
+- **Rip: the Title field now drives the output filename by default.** Setting a Title ("test") names the output `test.mkv` in the usual `DVD_Rips` folder (metadata embedding unchanged), and a blank Title/source/format changes fall back to the source folder's name. Full-disc/region-conversion runs get the title-based directory name too (`FullDiscOutputTitlePath`). Hand-editing the output path stops auto-naming for that run (new `DefaultOutputTitlePath` + `outputTouched` flag).
+
 ## v0.1.1-dev70 (September 2026)
 
 ### Rip UI Polish: Mode Labels + Title Card Info Line + Language Select-All

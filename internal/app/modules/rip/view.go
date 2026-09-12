@@ -52,6 +52,7 @@ type viewState struct {
 	regionConvert         string // "" (none), "pal2ntsc", "ntsc2pal"
 	extractMode           string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
 	discTitle             string
+	outputTouched         bool // output path was hand-edited, so auto-recompute should not clobber it
 	progress              float64
 
 	scanResult     *DiscScanResult
@@ -120,6 +121,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var updateRipSummary func()
 	var discSummary *DiscSummary
 	var ripSummaryLbl *widget.Label
+	var defaultOutput func() string
+	var applyOutputPath func()
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -167,29 +170,58 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.SetRipSourcePath != nil {
 			opts.SetRipSourcePath(vs.sourcePath)
 		}
-		vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
-		if opts.SetRipOutputPath != nil {
-			opts.SetRipOutputPath(vs.outputPath)
-		}
+		applyOutputPath()
 	}
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetPlaceHolder(t.RipOutputPath)
 	outputEntry.SetText(vs.outputPath)
 	outputEntry.OnChanged = func(val string) {
+		vs.outputTouched = true
 		vs.outputPath = strings.TrimSpace(val)
 		if opts.SetRipOutputPath != nil {
 			opts.SetRipOutputPath(vs.outputPath)
 		}
 	}
 
-	formatSelect := widget.NewSelect([]string{FormatLosslessMKV, FormatH264MKV, FormatH264MP4, FormatArchivist}, func(value string) {
-		vs.format = value
-		vs.outputPath = DefaultOutputPath(vs.sourcePath, value)
-		outputEntry.SetText(vs.outputPath)
+	// defaultOutput returns the auto-derived output path: the Title field
+	// drives the filename when the user has set one (cleared source paths and
+	// empty titles fall back to the source folder's name). Once the user
+	// hand-edits the path entry (outputTouched) auto-recompute stops.
+	defaultOutput = func() string {
+		// Full-disc extraction (region conversion) outputs a VIDEO_TS
+		// directory — the Title still drives its name when set.
+		if vs.regionConvert != "" && vs.extractMode == "full" {
+			if vs.discTitle != "" {
+				if p := FullDiscOutputTitlePath(vs.sourcePath, vs.discTitle); p != "" {
+					return p
+				}
+			}
+			return FullDiscOutputPath(vs.sourcePath)
+		}
+		if vs.discTitle != "" {
+			if p := DefaultOutputTitlePath(vs.sourcePath, vs.format, vs.discTitle); p != "" {
+				return p
+			}
+		}
+		return DefaultOutputPath(vs.sourcePath, vs.format)
+	}
+	// applyOutputPath re-derives the output path from the current state and
+	// marks it auto-managed again (a programmatic recompute cancels a prior
+	// manual tweak only when the path is being forcibly regenerated, e.g.
+	// source/format changes — mirroring the pre-existing overwrite contract).
+	applyOutputPath = func() {
+		vs.outputPath = defaultOutput()
+		vs.outputTouched = false
 		if opts.SetRipOutputPath != nil {
 			opts.SetRipOutputPath(vs.outputPath)
 		}
+		outputEntry.SetText(vs.outputPath)
+	}
+
+	formatSelect := widget.NewSelect([]string{FormatLosslessMKV, FormatH264MKV, FormatH264MP4, FormatArchivist}, func(value string) {
+		vs.format = value
+		applyOutputPath()
 		vs.persistConfig()
 		if rebuildEnrich != nil {
 			rebuildEnrich()
@@ -287,7 +319,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return fmt.Errorf("%s", t.RipErrNoSource)
 		}
 		if strings.TrimSpace(vs.outputPath) == "" {
-			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
+			vs.outputPath = defaultOutput()
 		}
 
 		// Full-disc extraction is always a single job.
@@ -535,10 +567,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return
 		}
 		vs.applyConfig(cfg)
-		vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
-		if opts.SetRipOutputPath != nil {
-			opts.SetRipOutputPath(vs.outputPath)
-		}
+		applyOutputPath()
 		applyControls()
 	})
 
@@ -550,10 +579,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	resetBtn := ui.MakePillButton(t.ActionReset, ui.BorderDim, func() {
 		cfg := defaultRipConfig()
 		vs.applyConfig(cfg)
-		vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
-		if opts.SetRipOutputPath != nil {
-			opts.SetRipOutputPath(vs.outputPath)
-		}
+		applyOutputPath()
 		applyControls()
 		vs.persistConfig()
 	})
@@ -580,7 +606,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	titleEntry := widget.NewEntry()
 	titleEntry.SetPlaceHolder(t.RipTitlePlaceholder)
 	titleEntry.SetText(vs.discTitle)
-	titleEntry.OnChanged = func(v string) { vs.discTitle = strings.TrimSpace(v) }
+	titleEntry.OnChanged = func(v string) {
+		vs.discTitle = strings.TrimSpace(v)
+		// The output follows the Title once set, unless the user has hand-edited
+		// the path (full-disc/region outputs get the title-based folder name too).
+		if !vs.outputTouched {
+			applyOutputPath()
+		}
+	}
 
 	chaptersCheck := widget.NewCheck(t.RipEmbedChapters, func(v bool) {
 		vs.embedChapters = v
@@ -730,19 +763,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fullDiscCheck = widget.NewCheck(t.RipFullDiscExtraction, func(v bool) {
 		if v && vs.regionConvert != "" {
 			vs.extractMode = "full"
-			vs.outputPath = FullDiscOutputPath(vs.sourcePath)
 		} else {
 			if modeRadio.Selected == t.RipModeMainFeature {
 				vs.extractMode = "main"
 			} else {
 				vs.extractMode = ""
 			}
-			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
 		}
-		if opts.SetRipOutputPath != nil {
-			opts.SetRipOutputPath(vs.outputPath)
-		}
-		outputEntry.SetText(vs.outputPath)
+		applyOutputPath()
 	})
 	fullDiscCheck.SetChecked(false)
 	fullDiscCheck.Disable()
@@ -963,11 +991,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetRipSourcePath(path)
 		}
 		sourceChangedHook(path)
-		vs.outputPath = DefaultOutputPath(path, vs.format)
-		if opts.SetRipOutputPath != nil {
-			opts.SetRipOutputPath(vs.outputPath)
-		}
-		outputEntry.SetText(vs.outputPath)
+		applyOutputPath()
 
 		vs.scanResult = nil
 		vs.selectedTitles = nil
