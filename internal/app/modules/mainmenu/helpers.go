@@ -15,6 +15,7 @@ type SourceModule struct {
 	Category      string
 	HasHandler    bool
 	DepsAvailable bool
+	Locked        bool // held back from the menu (renders as a locked tile, taps ignored)
 }
 
 type Visibility struct {
@@ -32,6 +33,11 @@ func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo 
 		// Settings is always enabled; burn and filemanager only appear in dev builds
 		enabled := m.ID == "settings" || (m.HasHandler && m.DepsAvailable)
 		missingDeps := m.HasHandler && !m.DepsAvailable && m.ID != "settings"
+		if m.Locked {
+			// Locked modules render as locked tiles (dimmed + lock icon, no tap/drop).
+			enabled = false
+			missingDeps = false
+		}
 		out = append(out, ui.ModuleInfo{
 			ID:                  m.ID,
 			Label:               m.Label,
