@@ -118,9 +118,12 @@ func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) 
 		onNote(strings.Join(facts, " · "))
 	}
 
-	// Cache per-VTS IFO reads — multiple titles can share a VTS.
-	type vtsKey = int
-	vtsCache := map[vtsKey]*ifo.TitleInfo{}
+	// Cache per-(VTS, TTN) IFO reads — each PGC in a multi-PGC VTS reports its
+	// own duration/chapters. Reading only the first title-domain PGC once per
+	// VTS made every title in a scene-segmented VTS show that first PGC's play
+	// time (e.g. every title of a 7-title disc reporting the full movie's "1h 38m").
+	pgcCache := map[string]*ifo.TitleInfo{}
+	var firstVTSInfo *ifo.TitleInfo
 
 	result := &DiscScanResult{
 		DiscType:  discType,
@@ -136,15 +139,20 @@ func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) 
 		}
 
 		vtsNum := int(t.VTSNumber)
-		ti, cached := vtsCache[vtsNum]
+		ttn := int(t.VTS_TitleNumber)
+		key := fmt.Sprintf("%d:%d", vtsNum, ttn)
+		ti, cached := pgcCache[key]
 		if !cached {
 			vtsIFO := filepath.Join(videoTSPath, fmt.Sprintf("VTS_%02d_0.IFO", vtsNum))
-			if info, err := ifo.ReadTitleInfo(vtsIFO); err == nil {
+			if info, err := ifo.ReadTitleInfoForTTN(vtsIFO, ttn); err == nil {
 				ti = info
 			} else {
-				logging.Warning(logging.CatDVD, "ScanDisc: VTS_%02d IFO read failed: %v", vtsNum, err)
+				logging.Warning(logging.CatDVD, "ScanDisc: VTS_%02d TTN %d IFO read failed: %v", vtsNum, ttn, err)
 			}
-			vtsCache[vtsNum] = ti
+			pgcCache[key] = ti
+		}
+		if i == 0 && ti != nil {
+			firstVTSInfo = ti
 		}
 
 		if ti != nil {
@@ -173,21 +181,17 @@ func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) 
 		}
 	}
 
-	// Determine video standard (NTSC/PAL) from the first title's VTS IFO.
-	// The IsNTSC flag is set from the PGC header frame-rate bits during
-	// ReadTitleInfo. Do this AFTER the loop above so vtsCache is populated —
-	// reading it before the loop was a no-op that left VideoStandard empty.
-	if len(tsps) > 0 {
-		firstVTS := int(tsps[0].VTSNumber)
-		if ti, ok := vtsCache[firstVTS]; ok && ti != nil {
-			std := "PAL"
-			if ti.IsNTSC {
-				std = "NTSC"
-			}
-			result.VideoStandard = std
-			if onNote != nil {
-				onNote(fmt.Sprintf("Video: %s", std))
-			}
+	// Determine video standard (NTSC/PAL) from the first title's PGC header.
+	// The IsNTSC flag is set from the PGC frame-rate bits during ReadTitleInfo;
+	// sample it from the first title's cached info after the loop.
+	if len(tsps) > 0 && firstVTSInfo != nil {
+		std := "PAL"
+		if firstVTSInfo.IsNTSC {
+			std = "NTSC"
+		}
+		result.VideoStandard = std
+		if onNote != nil {
+			onNote(fmt.Sprintf("Video: %s", std))
 		}
 	}
 

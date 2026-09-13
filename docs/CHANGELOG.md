@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev73 (September 2026)
+
+### Per-Title PGC Duration Scan Consistency
+
+- **Rip: the scan now reports each title's real duration and chapter count on multi-PGC discs.** Some discs (scene-segmented "extras" titles) put several titles in one VTS, each served by its own PGC. The scan cached a single per-VTS `ifo.ReadTitleInfo` and the IFO reader only ever read the first title-domain PGC, so every title showed that PGC's play time — the `Red Hairy Teens (2008)` disc listed all 7 titles as "1h 38m" even though T03–T07 were 14/10/33/22/19-minute scene segments. `ReadTitleInfoForTTN` (new) selects the PGC for a specific VTS title using the PGCI_SRP TitleNr byte (shared-PGC rule, with index fallback for authors that don't populate it); the scan caches per (VTS, TTN) so title cards, scan snippets, and the longest-title/"main feature" pick all reflect true per-title durations.
+- **Rip: the executor reads the selected title's PGC, not title 1's.** Chapter embedding and the IFO-sourced VOB-concat `-t` cap used the first title-domain PGC's values, so ripping a segment title embedded the whole movie's 15 chapters and capped against the wrong duration. The executor now resolves the picked title's per-VTS TTN from the VMG TT_SRPT (`resolveVTS_TTN`) and reads its PGC — a segment rip gets its own 3 chapters and its own cap.
+- Verified on `H:\Downloads\Red Hairy Teens (2008)\VIDEO_TS`: T01/T02 5926.48/5932.48 s (15 chapters), T03–T07 866.04/615.40/1977.60/1331.08/1141.16 s (3 chapters each), matching the cell-bin analysis (Σ 5926.48 s). Unit tests cover the shared-PGC rule (0x82/0x85 TitleNr), the index fallback, and ttn=0 legacy equivalence.
+
 ## v0.1.1-dev72 (September 2026)
 
 ### ISO 9660 Fallback for Non-UDF Disc Images

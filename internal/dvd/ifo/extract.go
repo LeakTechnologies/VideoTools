@@ -62,6 +62,20 @@ type TrackInfo struct {
 // It is tolerant of IFO files with missing or truncated optional sections;
 // partial results are returned rather than errors in those cases.
 func ReadTitleInfo(ifoPath string) (*TitleInfo, error) {
+	return readTitleInfo(ifoPath, 0)
+}
+
+// ReadTitleInfoForTTN opens the VTS IFO at ifoPath and extracts chapter
+// timestamps, audio/subtitle track metadata, and duration for the PGC that
+// serves the given VTS title number (TTN, 1-based). Multi-PGC discs (e.g.
+// scene-segmented titles) give each title its own PGC; reading only the first
+// title-domain PGC makes every title report that PGC's duration and chapters.
+// A ttn <= 0 behaves like ReadTitleInfo (first title-domain PGC).
+func ReadTitleInfoForTTN(ifoPath string, ttn int) (*TitleInfo, error) {
+	return readTitleInfo(ifoPath, ttn)
+}
+
+func readTitleInfo(ifoPath string, ttn int) (*TitleInfo, error) {
 	f, err := os.Open(ifoPath)
 	if err != nil {
 		return nil, fmt.Errorf("open IFO %s: %w", ifoPath, err)
@@ -122,7 +136,7 @@ func ReadTitleInfo(ifoPath string) (*TitleInfo, error) {
 	}
 
 	pgcitiBase := int64(mat.VTS_PGCITI_Offset) * 2048
-	if err := readChapters(f, pgcitiBase, info); err != nil {
+	if err := readChapters(f, pgcitiBase, info, ttn); err != nil {
 		logging.Warning(logging.CatDVD, "IFO extract: chapter read failed (partial info returned): %v", err)
 	}
 	return info, nil
@@ -130,7 +144,9 @@ func ReadTitleInfo(ifoPath string) (*TitleInfo, error) {
 
 // readChapters reads the VTS_PGCITI starting at pgcitiBase (absolute file
 // offset) and populates info.Chapters, info.Duration, info.IsNTSC, info.HasAngles.
-func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo) error {
+// ttn selects the PGC for a specific VTS title (1-based); ttn <= 0 uses the
+// first title-domain PGC.
+func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo, ttn int) error {
 	// PGCITI header: NrOf_PGCI_SRP (uint16) + zero (uint16) + EndByte (uint32)
 	hdr := make([]byte, 8)
 	if _, err := f.ReadAt(hdr, pgcitiBase); err != nil {
@@ -147,20 +163,36 @@ func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo) error {
 		return fmt.Errorf("read PGCI_SRP table: %w", err)
 	}
 
-	// Find the first entry whose TitleNr > 0 (title domain PGC).
-	// If all are 0 (menu-only), fall back to the first entry.
-	pgcOffset := uint32(0)
-	for i := 0; i < nrPGCI; i++ {
-		off := i * 8
-		titleNr := srpTable[off]
-		offset := binary.BigEndian.Uint32(srpTable[off+4 : off+8])
-		if titleNr > 0 || i == 0 {
-			pgcOffset = offset
+	// Select the PGCI_SRP entry for the requested TTN. TitleNr stores the last
+	// VTS TTN that shares the entry's PGC, so the PGC for TTN t is the first
+	// entry whose masked TitleNr (bit7 is a flag) >= t. When TitleNr is not
+	// populated (some authoring tools leave it zero and order entries by TTN),
+	// fall back to the entry index ttn-1. ttn <= 0 keeps the legacy behaviour:
+	// the first entry with TitleNr > 0 (title-domain PGC), else the first entry.
+	sel := 0
+	if ttn > 0 {
+		sel = -1
+		for i := 0; i < nrPGCI; i++ {
+			if srpTable[i*8]&0x7F >= byte(ttn) {
+				sel = i
+				break
+			}
 		}
-		if titleNr > 0 {
-			break
+		if sel < 0 {
+			sel = ttn - 1
+			if sel >= nrPGCI {
+				sel = nrPGCI - 1
+			}
+		}
+	} else {
+		for i := 0; i < nrPGCI; i++ {
+			if srpTable[i*8] > 0 {
+				sel = i
+				break
+			}
 		}
 	}
+	pgcOffset := binary.BigEndian.Uint32(srpTable[sel*8+4 : sel*8+8])
 	pgcAbsOff := pgcitiBase + int64(pgcOffset)
 
 	// PGC header is 236 bytes.
