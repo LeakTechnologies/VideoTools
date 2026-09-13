@@ -33,6 +33,7 @@ var (
 	ripCardBg  = utils.MustHex("#0F1529")
 	ripTeal    = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff} // selected for export
 	ripPink    = color.NRGBA{R: 0xff, G: 0xaa, B: 0xaa, A: 0xff} // NOT selected for export
+	ripGreyed  = color.NRGBA{R: 0x3a, G: 0x41, B: 0x56, A: 0xff} // locked out by the active rip mode
 	ripFocusBg = color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0x1a} // focus highlight (subtle teal)
 )
 
@@ -50,7 +51,12 @@ type ContentBrowser struct {
 	onSelect   func(titleNum int, selected bool)
 	onPreview  func(titleNum int)
 	selected   map[int]bool
+	locked     map[int]bool // mode-locked titles: greyed out + deselected; clicking exits the mode
+	anchored   map[int]bool // mode-anchored titles: forced selected, clicking is a no-op
 	focused    int // title number currently focused for preview; 0 = none
+
+	onLockedSelect    func(titleNum int)
+	onLockedModeExit  func()
 
 	list      *widget.List
 	emptyHint *widget.Label
@@ -128,6 +134,8 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 	cb.sourcePath = sourcePath
 	cb.titleCards = nil
 	cb.selected = make(map[int]bool)
+	cb.locked = nil
+	cb.anchored = nil
 
 	if result != nil {
 		// Find main feature (longest duration).
@@ -182,6 +190,52 @@ func (cb *ContentBrowser) SetOnPreview(fn func(int)) {
 	cb.mu.Unlock()
 }
 
+// SetOnLockedSelect registers a callback for when a greyed-out title is clicked
+// to exit the current restrictive mode and select that title.
+func (cb *ContentBrowser) SetOnLockedSelect(fn func(int)) {
+	cb.mu.Lock()
+	cb.onLockedSelect = fn
+	cb.mu.Unlock()
+}
+
+// SetOnLockedModeExit registers a callback for when a locked mode is exited
+// programmatically (e.g. via Select All / Deselect All).
+func (cb *ContentBrowser) SetOnLockedModeExit(fn func()) {
+	cb.mu.Lock()
+	cb.onLockedModeExit = fn
+	cb.mu.Unlock()
+}
+
+// LockConfig drives ApplyModeLock: titles in ForceSelected are set selected
+// and un-locked; titles in Locked are deselected and visually dimmed
+// (clicking one exits the mode entirely); titles in Anchored are selected
+// but clicking them is a no-op. The maps may be nil to leave that layer empty.
+type LockConfig struct {
+	Locked        map[int]bool
+	Anchored      map[int]bool
+	ForceSelected map[int]bool
+}
+
+// ApplyModeLock shapes the current selection per the active rip mode without
+// firing OnChanged callbacks. Call UpdateCard visuals by Refresh.
+func (cb *ContentBrowser) ApplyModeLock(cfg LockConfig) {
+	cb.mu.Lock()
+	cb.locked = cfg.Locked
+	cb.anchored = cfg.Anchored
+	if len(cfg.Locked) > 0 || len(cfg.ForceSelected) > 0 {
+		for _, tc := range cb.titleCards {
+			n := tc.title.Number
+			if cfg.ForceSelected[n] {
+				cb.selected[n] = true
+			} else if cfg.Locked[n] {
+				cb.selected[n] = false
+			}
+		}
+	}
+	cb.mu.Unlock()
+	cb.list.Refresh()
+}
+
 // GetSelected returns a copy of the current selection map.
 func (cb *ContentBrowser) GetSelected() map[int]bool {
 	cb.mu.Lock()
@@ -222,14 +276,21 @@ func (cb *ContentBrowser) Stop() {
 
 func (cb *ContentBrowser) setAllSelected(v bool) {
 	cb.mu.Lock()
+	hadLock := cb.locked != nil || cb.anchored != nil
+	cb.locked = nil
+	cb.anchored = nil
 	for _, tc := range cb.titleCards {
 		cb.selected[tc.title.Number] = v
 		if tc.checked != nil {
 			tc.checked.SetChecked(v)
 		}
 	}
+	fn := cb.onLockedModeExit
 	cb.mu.Unlock()
 	cb.list.Refresh()
+	if fn != nil && hadLock {
+		fn()
+	}
 }
 
 func (cb *ContentBrowser) startCycling() {
@@ -318,6 +379,8 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	tc := cb.titleCards[id]
 	isSelected := cb.selected[dt.Number]
 	isFocused := cb.focused == dt.Number
+	isLockedOut := cb.locked[dt.Number]
+	isAnchored := cb.anchored[dt.Number]
 	cb.mu.Unlock()
 
 	hbox := obj.(*fyne.Container)
@@ -326,10 +389,14 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	vbox := hbox.Objects[2].(*fyne.Container)
 	check := hbox.Objects[4].(*widget.Check)
 
-	// Accent bar colour: teal if selected for export, pink if not.
-	if isSelected {
+	// Accent bar colour: teal if selected for export, grey when locked out
+	// by the active rip mode, pink if not selected.
+	switch {
+	case isLockedOut:
+		accentBar.FillColor = ripGreyed
+	case isSelected:
 		accentBar.FillColor = ripTeal
-	} else {
+	default:
 		accentBar.FillColor = ripPink
 	}
 	accentBar.Refresh()
@@ -355,6 +422,11 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 		label += "  " + t.RipMainFeature
 	}
 	titleLabel.SetText(label)
+	if isLockedOut {
+		titleLabel.Importance = widget.LowImportance
+	} else {
+		titleLabel.Importance = widget.MediumImportance
+	}
 
 	// Info line.
 	infoLabel := vbox.Objects[1].(*widget.Label)
@@ -380,10 +452,43 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 		infoParts = append(infoParts, "—")
 	}
 	infoLabel.SetText(strings.Join(infoParts, " · "))
+	if isLockedOut {
+		infoLabel.Importance = widget.LowImportance
+	} else {
+		infoLabel.Importance = widget.MediumImportance
+	}
 
-	// Selection toggle.
-	check.SetChecked(isSelected)
+	// Selection toggle. Locked-out titles are displayed unchecked: clicking
+	// one exits the restrictive rip mode and selects that title. Anchored
+	// titles are forced selected; clicking them is a no-op.
+	displayChecked := isSelected && !isLockedOut
+	tc.checked = check
+	tc.updating = true
+	check.SetChecked(displayChecked)
+	tc.updating = false
 	check.OnChanged = func(v bool) {
+		if tc.updating {
+			return
+		}
+		if isLockedOut {
+			cb.mu.Lock()
+			cb.locked = nil
+			cb.anchored = nil
+			cb.selected[dt.Number] = true
+			fn := cb.onLockedSelect
+			cb.mu.Unlock()
+			cb.list.Refresh()
+			if fn != nil {
+				fn(dt.Number)
+			}
+			return
+		}
+		if isAnchored {
+			tc.updating = true
+			check.SetChecked(true)
+			tc.updating = false
+			return
+		}
 		cb.mu.Lock()
 		cb.selected[dt.Number] = v
 		fn := cb.onSelect

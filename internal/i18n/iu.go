@@ -659,6 +659,9 @@ var iu = Strings{
 	RipModeSection:         "Rip Mode: ",                                                // machine-generated, needs human review: Rip Mode
 	RipModeScenes:          "ᐊᔾᔨᙳᐊᖑᓂᖏᑦ ᐃᓱᒪᒋᔭᐅᖃᑦᑑᑎᒃ",                              // machine-generated, needs human review: Movie + extras (choose titles)
 	RipModeMainFeature:     "ᐊᑕᐅᓯᖃᑦᑑᑎᖅ ᑎᑎᕋᖅ ᐱᓕᐅᖅᑕᐅᓗᒍ",                                     // machine-generated, needs human review: Main feature only
+	RipModeScenesOnly:      "ᐊᐅᓚᑦᑎᒃᓱᑎᒃ ᓴᓇᓯᒪᓂᖏᑦ ᐃᓱᒪᒋᔭᐅᓗᒋᑦ (ᐊᑕᐅᓯᖃᑦᑑᑎᖅ ᐱᐊᓂᒋᕚ)",           // machine-generated, needs human review: Scene segments only (skip full movie)
+	RipReadyScenesOne:      "1 ᐊᐅᓚᑦᑎᒃᓱᓂ ᓴᓇᓯᒪᑎ ᐃᓱᒪᒋᔭᐅᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",              // machine-generated, needs human review: Ready to rip 1 scene segment
+	RipReadyScenesManyFmt:  "%d ᐊᐅᓚᑦᑎᒃᓱᓂ ᓴᓇᓯᒪᑎ ᐃᓱᒪᒋᔭᐅᖅ ᖃᓄᐃᓕᐅᖅᑑᒐᕕᑦ",            // machine-generated, needs human review: Ready to rip %d scene segments
 	RipOpenInPlayer:     "▶ ᖃᕋᓴᐅᔭᕐᒧᑦ ᒪᑉᐱᐊᖅ",                                  // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "ᐊᔾᔨᙳᐊᑦᑎᐊᕐᕕᒃ ᐃᒻᒥᖅᓱᖅᑕᐅᓂᖏᑦᑐᖅ — ISO ᐅᕝᕙᓘᓐᓃᑦ VIDEO_TS ᐃᒻᒥᖅᓱᖅᓗᒍ",  // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "ᑎᑎᕋᖅ / ᐊᔾᔨᙳᐊᖅᑕᐅᕗᑦ ᐊᑎᖓ (metadata)",                      // machine-generated, needs human review: Disc / movie title (embedded as metadata)

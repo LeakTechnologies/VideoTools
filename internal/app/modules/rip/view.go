@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -123,6 +124,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var ripSummaryLbl *widget.Label
 	var defaultOutput func() string
 	var applyOutputPath func()
+	var modeRadio *widget.RadioGroup
+	var refreshModeRadio func()
+	var applyRipMode func()
+	var sceneSet SceneSetInfo // scene-segment layout detected on the loaded disc
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -286,6 +291,25 @@ func BuildView(opts Options) fyne.CanvasObject {
 		discRoot := resolveDVDRoot(vs.sourcePath)
 		go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
 	})
+	contentBrowser.SetOnLockedSelect(func(titleNum int) {
+		if vs.extractMode != "main" && vs.extractMode != "segments" {
+			return
+		}
+		// Clicking a greyed-out title leaves the restrictive mode: switch the
+		// radio to "Movie + extras". SetSelected early-returns (and skips
+		// OnChanged) if the radio is already there, so re-sync explicitly.
+		modeRadio.SetSelected(t.RipModeScenes)
+		if vs.extractMode == "main" || vs.extractMode == "segments" {
+			vs.extractMode = ""
+			applyRipMode()
+		}
+	})
+	contentBrowser.SetOnLockedModeExit(func() {
+		if vs.extractMode == "main" || vs.extractMode == "segments" {
+			vs.extractMode = ""
+			applyRipMode()
+		}
+	})
 
 	// ── Menu Preview (removed dev66→dev67 to free vertical space for the
 	// content browser) ──────────────────────────────────────────────────────
@@ -300,9 +324,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	// rebuildTitleNav now updates the ContentBrowser with scan results.
+	// rebuildTitleNav now updates the ContentBrowser with scan results and
+	// re-derives the scene-set layout, then re-applies the rip mode's lock
+	// and selection so the radio and title cards stay in sync.
 	rebuildTitleNav = func() {
 		contentBrowser.SetScanResult(vs.scanResult, vs.sourcePath)
+		sceneSet = SceneSetInfo{}
+		if vs.scanResult != nil {
+			sceneSet = DetectSceneSets(vs.scanResult.Titles)
+			if !sceneSet.Present && vs.extractMode == "segments" {
+				vs.extractMode = "main"
+			}
+		}
+		refreshModeRadio()
+		applyRipMode()
 	}
 
 	applyControls := func() {
@@ -422,7 +457,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}
 				titlePath := vs.outputPath
 				jobLabel := fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath))
-				if i != mainIdx {
+				if vs.extractMode == "segments" && sceneSet.SceneTitles[dt.Number] {
+					titlePath = fmt.Sprintf("%s_Scene_%02d%s", base, dt.Number, ext)
+					jobLabel = fmt.Sprintf("Rip DVD Scene %d: %s", dt.Number, filepath.Base(vs.sourcePath))
+				} else if i != mainIdx {
 					titlePath = fmt.Sprintf("%s_Extra_Title_%02d%s", base, dt.Number, ext)
 					jobLabel = fmt.Sprintf("Rip DVD Title %d (extra): %s", dt.Number, filepath.Base(vs.sourcePath))
 				}
@@ -536,6 +574,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			ripSummaryLbl.SetText(fmt.Sprintf(t.RipReadyMainFeatureFmt,
 				fmt.Sprintf("%s %02d · %s", t.RipTitleShort, main.Number, FormatDuration(main.Duration))))
+			return
+		}
+		if vs.extractMode == "segments" && sceneSet.Present {
+			sel := countSelected()
+			if sel == 1 {
+				ripSummaryLbl.SetText(t.RipReadyScenesOne)
+			} else {
+				ripSummaryLbl.SetText(fmt.Sprintf(t.RipReadyScenesManyFmt, sel))
+			}
 			return
 		}
 		sel := countSelected()
@@ -724,34 +771,155 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return objects
 	}
 
-	// Rip mode: the single main feature (longest title) or selected scenes
-	// (title by title). Full-disc extraction is forced by region conversion, so
-	// the radio only reflects the scenes vs main-feature choice. Full Movie is
-	// the first and default option. Constructed with a nil OnChanged so the
-	// initial SetSelected below doesn't fire the callback; the default-state
-	// extractMode is set explicitly alongside the selection.
-	var modeRadio *widget.RadioGroup
-	modeRadio = widget.NewRadioGroup([]string{t.RipModeMainFeature, t.RipModeScenes}, nil)
-	modeRadio.Horizontal = false
-	modeRadio.SetSelected(t.RipModeMainFeature)
-	vs.extractMode = "main"
-	modeRadio.OnChanged = func(value string) {
-		// Region conversion forces full-disc extraction — the scenes /
-		// main-feature choice is inert for as long as it is active.
-		if vs.regionConvert != "" {
-			vs.extractMode = "full"
-			return
-		}
-		switch value {
+	// Rip mode: the single main feature (longest title), selected scenes (title
+	// by title), or the whole movie authored as scene segments (only offered
+	// once a scan detects that layout). Full-disc extraction is forced by
+	// region conversion, so the radio only reflects the scenes vs main-feature
+	// choice when conversion is off. Full Movie is the first and default
+	// option. refreshModeRadio rebuilds the radio whenever the option list
+	// changes (a scene set appearing/disappearing) because RadioGroup has no
+	// option-setter; applyRipMode centralises mode → lock/selection/summary.
+
+	modeFromLabel := func(label string) string {
+		switch label {
 		case t.RipModeMainFeature:
-			vs.extractMode = "main"
+			return "main"
+		case t.RipModeScenesOnly:
+			return "segments"
 		default:
-			if value == "" {
-				modeRadio.SetSelected(t.RipModeMainFeature)
-			}
-			vs.extractMode = ""
+			return ""
 		}
 	}
+	labelForMode := func(mode string) string {
+		switch mode {
+		case "main":
+			return t.RipModeMainFeature
+		case "segments":
+			if sceneSet.Present {
+				return t.RipModeScenesOnly
+			}
+			return t.RipModeScenes
+		default:
+			return t.RipModeScenes
+		}
+	}
+	// mainTitleNumber returns the disc number of the longest title.
+	mainTitleNumber := func() int {
+		if vs.scanResult == nil {
+			return 0
+		}
+		mainNum, mainDur := 0, 0.0
+		for _, dt := range vs.scanResult.Titles {
+			if dt.Duration > mainDur {
+				mainDur = dt.Duration
+				mainNum = dt.Number
+			}
+		}
+		return mainNum
+	}
+
+	// ripModeLockFor maps the active rip mode onto the ContentBrowser lock
+	// config: main-feature-only locks out every title but the main one
+	// (anchored so it can't be deselected); scene-segments-only locks out the
+	// whole-movie copies, selects all scene segments but leaves them
+	// individually toggleable.
+	ripModeLockFor := func() LockConfig {
+		var cfg LockConfig
+		switch vs.extractMode {
+		case "main":
+			mainNum := mainTitleNumber()
+			if mainNum == 0 {
+				return cfg
+			}
+			cfg.Locked = map[int]bool{}
+			for _, dt := range vs.scanResult.Titles {
+				if dt.Number != mainNum {
+					cfg.Locked[dt.Number] = true
+				}
+			}
+			cfg.Anchored = map[int]bool{mainNum: true}
+			cfg.ForceSelected = map[int]bool{mainNum: true}
+		case "segments":
+			if !sceneSet.Present || len(sceneSet.WholeTitles) == 0 {
+				return cfg
+			}
+			cfg.Locked = map[int]bool{}
+			for num := range sceneSet.WholeTitles {
+				cfg.Locked[num] = true
+			}
+			cfg.Anchored = map[int]bool{}
+			cfg.ForceSelected = map[int]bool{}
+			for num := range sceneSet.SceneTitles {
+				cfg.ForceSelected[num] = true
+			}
+		}
+		return cfg
+	}
+
+	// applyRipMode re-applies the mode's visual state (radio visibility, title
+	// list lock/shape) and re-syncs the selection from the ContentBrowser.
+	applyRipMode = func() {
+		if vs.regionConvert != "" {
+			vs.extractMode = "full"
+		}
+		if modeRadio != nil {
+			if vs.regionConvert != "" {
+				modeRadio.Hide()
+			} else {
+				modeRadio.Show()
+			}
+		}
+		contentBrowser.ApplyModeLock(ripModeLockFor())
+		vs.selectedTitles = contentBrowser.GetSelected()
+		if updateRipSummary != nil {
+			updateRipSummary()
+		}
+	}
+
+	// refreshModeRadio rebuilds the radio when the option list changed (a
+	// scene set appearing/disappearing) and re-applies the current selection.
+	refreshModeRadio = func() {
+		want := []string{t.RipModeMainFeature, t.RipModeScenes}
+		if sceneSet.Present {
+			want = []string{t.RipModeMainFeature, t.RipModeScenesOnly, t.RipModeScenes}
+		}
+		if modeRadio != nil && reflect.DeepEqual(modeRadio.Options, want) {
+			applyRipMode()
+			return
+		}
+		nr := widget.NewRadioGroup(want, nil)
+		nr.Horizontal = false
+		modeRadio = nr
+		nr.OnChanged = func(value string) {
+			// Region conversion forces full-disc extraction — the scenes /
+			// main-feature choice is inert for as long as it is active.
+			if vs.regionConvert != "" {
+				vs.extractMode = "full"
+				return
+			}
+			switch value {
+			case t.RipModeMainFeature:
+				vs.extractMode = "main"
+			case t.RipModeScenesOnly:
+				if sceneSet.Present {
+					vs.extractMode = "segments"
+				} else {
+					vs.extractMode = ""
+				}
+			default:
+				if value == "" {
+					nr.SetSelected(t.RipModeMainFeature)
+					return
+				}
+				vs.extractMode = ""
+			}
+			applyRipMode()
+		}
+		// SetSelected fires OnChanged, which applies the initial mode.
+		vs.extractMode = "main"
+		nr.SetSelected(labelForMode(vs.extractMode))
+	}
+	refreshModeRadio()
 
 	menusCheck := widget.NewCheck(t.RipPreserveMenusFull, func(v bool) {
 		vs.includeMenus = v
@@ -764,12 +932,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if v && vs.regionConvert != "" {
 			vs.extractMode = "full"
 		} else {
-			if modeRadio.Selected == t.RipModeMainFeature {
-				vs.extractMode = "main"
-			} else {
-				vs.extractMode = ""
-			}
+			vs.extractMode = modeFromLabel(modeRadio.Selected)
 		}
+		applyRipMode()
 		applyOutputPath()
 	})
 	fullDiscCheck.SetChecked(false)
@@ -804,16 +969,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if vs.regionConvert != "" && vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
 			vs.extractMode = "full"
 			fullDiscCheck.SetChecked(true)
-			modeRadio.Hide()
 		} else {
-			if modeRadio.Selected == t.RipModeMainFeature {
-				vs.extractMode = "main"
-			} else {
-				vs.extractMode = ""
-			}
+			vs.extractMode = modeFromLabel(modeRadio.Selected)
 			fullDiscCheck.SetChecked(false)
-			modeRadio.Show()
 		}
+		applyRipMode()
 	})
 	ntscSelect.SetSelected(t.RipRegionNone)
 
@@ -931,9 +1091,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		enrichContent.Objects = objs
 		enrichContent.Refresh()
 
-		if updateRipSummary != nil {
-			updateRipSummary()
-		}
+		// Re-apply the mode (radio visibility, title-list lock, summary).
+		applyRipMode()
 	}
 
 	discSummary = NewDiscSummary()
@@ -990,6 +1149,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.SetRipSourcePath != nil {
 			opts.SetRipSourcePath(path)
 		}
+		// A new source must not inherit the previous disc's Title — that would
+		// name the new rip after the old movie (e.g. loading a different disc and
+		// getting "<previous title>.mkv"). Clear it so sourceChangedHook re-derives
+		// the title from the new path, and clear the hand-edited output flag so the
+		// output path follows the new source again.
+		vs.discTitle = ""
+		vs.outputTouched = false
+		titleEntry.SetText("")
 		sourceChangedHook(path)
 		applyOutputPath()
 

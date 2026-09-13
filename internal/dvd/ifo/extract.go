@@ -36,6 +36,24 @@ type TitleInfo struct {
 	// (camera) content (FilmMode == 0). Film-originated content (FilmMode == 1)
 	// is progressive. This drives the deinterlace decision in the Rip module.
 	Interlaced bool
+
+	// Cells holds the per-cell sector extents for the title's PGC in playback
+	// order. Each cell maps to a VOB-relative byte range within its VOB file,
+	// enabling cell-accurate extraction when the VOB concat fallback is used on
+	// multi-title VTS discs (e.g. scene-segmented compilations where multiple
+	// titles share one VOB set). Empty when cell data is unavailable.
+	Cells []TitleCell
+}
+
+// TitleCell holds the per-cell byte-range metadata for one cell in a PGC.
+// FirstSector/LastSector are VOB-relative sector numbers (byte offset = sector * 2048)
+// within the VOB file identified by VOBID. Multiple cells in playback order produce
+// the full title when their byte ranges are concatenated in order.
+type TitleCell struct {
+	VOBID       uint8  // VOB ID (1-based, maps to VTS_XX_VOBID.VOB)
+	CellID      uint8  // Cell ID within the VOB
+	FirstSector uint32 // First sector in the VOB (VOB-relative, inclusive)
+	LastSector  uint32 // Last sector in the VOB (VOB-relative, inclusive)
 }
 
 // TrackInfo is a minimal description of one audio or subtitle track.
@@ -217,8 +235,10 @@ func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo, ttn int) error 
 	//   [228-229] Command table offset (0 = no commands)
 	//   [230-231] Program map offset
 	//   [232-233] Cell playback table offset
+	//   [234-235] Cell position table offset
 	progMapRelOff := int(binary.BigEndian.Uint16(pgcHdr[230:232]))
 	cellPlayRelOff := int(binary.BigEndian.Uint16(pgcHdr[232:234]))
+	cellPosRelOff := int(binary.BigEndian.Uint16(pgcHdr[234:236]))
 
 	if progMapRelOff == 0 || cellPlayRelOff == 0 {
 		return fmt.Errorf("PGC program map or cell table offset is zero")
@@ -246,6 +266,27 @@ func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo, ttn int) error 
 		blockMode := (cellData[off] >> 6) & 0x03
 		if blockMode != 0 {
 			info.HasAngles = true
+		}
+	}
+
+	// Cell position table: 4 bytes per cell (uint16 VOBID BE, reserved, CellID),
+	// matching the libdvdread on-disc layout. Combine VOBID/CellID with the
+	// sector extents from the cell playback table (FirstSector bytes 8-11,
+	// LastSector bytes 20-23). Cell sectors are VOB-relative, so a title's PGC
+	// cells map to byte ranges [FirstSector*2048, (LastSector+1)*2048) inside
+	// VTS_XX_{VOBID}.VOB.
+	if cellPosRelOff != 0 {
+		cellPos := make([]byte, nrCells*4)
+		if _, err := f.ReadAt(cellPos, pgcAbsOff+int64(cellPosRelOff)); err == nil {
+			for i := 0; i < nrCells; i++ {
+				off := i * 4
+				info.Cells = append(info.Cells, TitleCell{
+					VOBID:       uint8(binary.BigEndian.Uint16(cellPos[off : off+2])),
+					CellID:      cellPos[off+3],
+					FirstSector: binary.BigEndian.Uint32(cellData[i*24+8 : i*24+12]),
+					LastSector:  binary.BigEndian.Uint32(cellData[i*24+20 : i*24+24]),
+				})
+			}
 		}
 	}
 

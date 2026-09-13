@@ -650,6 +650,9 @@ var iuLatn = Strings{
 	RipModeSection:         "Rip Mode: ",                                                                                     // machine-generated, needs human review: Rip Mode
 	RipModeScenes:          "Ajjigiattuaq + nungummat isumagijauqattut",                                                          // machine-generated, needs human review: Movie + extras (choose titles)
 	RipModeMainFeature:     "Atausiq titiraq kisumi",                                                                           // machine-generated, needs human review: Main feature only
+	RipModeScenesOnly:      "Immigaq aallaq quliit atausiq tungilirqtuq",                                                        // machine-generated, needs human review: Scene segments only (skip full movie)
+	RipReadyScenesOne:      "1 immigaq aallaq isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip 1 scene segment
+	RipReadyScenesManyFmt:  "%d immigaq aallaq isumagijauq qanuilirqtuq",                                                       // machine-generated, needs human review: Ready to rip %d scene segments
 	RipOpenInPlayer:     "▶ Qarasaujarmut Mappiraq",                                                                          // machine-generated, needs human review: Open in Player
 	RipErrNoDiscLoaded:  "Ajjigiattiarvik immiqsuqtauq — ISO uvvaluunniit VIDEO_TS immiqsuqlugu",                            // machine-generated, needs human review: no disc loaded — drop an ISO or VIDEO_TS folder
 	RipTitlePlaceholder: "Titiraq / Ajjigiattarvik atiginnguat (metadata)",                                                  // machine-generated, needs human review: Disc / movie title (embedded as metadata)
