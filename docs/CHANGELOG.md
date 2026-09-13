@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev74 (September 2026)
+
+### Scene-Segment Rip Modes + Cell-Accurate VOB Concat
+
+- **Rip: scene-segment rip mode.** The rip view now detects scene-segmented discs (several titles sharing one VTS that split a movie into segments). `DetectSceneSets` bins scanned titles into whole-movie copies (the longest run plus near-equal durations) and scene segments (shorter independent titles), tolerant of near-duplicate run durations (e.g. the `Red Hairy Teens (2008)` disc's T01/T02 5926/5932 s runs and T03–T07 866/615/1978/1331/1141 s segments). A third radio option — "Scene segments only (skip full movie)" — appears once a scan detects a scene set: it greys/locks out the whole-movie titles, pre-selects every scene segment (still individually toggleable), and clicking a greyed title exits back to "Movie + extras (choose titles)". "Main feature only" now locks every title except the main one. New i18n keys `RipModeScenesOnly`/`RipReadyScenesOne`/`RipReadyScenesManyFmt` across en/fr/iu/iu_latin.
+- **Rip: cell-accurate VOB-concat fallback (root-cause content fix).** Scene-segment rips are now *correct*, not just correctly timed: on Windows builds the ffmpeg dvdvideo demuxer can't open the source (libdvdnav rejects it), every rip falls back to whole-file VOB concatenation, and a shared-VTS extra title therefore ripped as the movie's opening. `ifo.TitleInfo` now exposes each title's PGC cells (VOBID/CellID/FirstSector/LastSector), read from the PGC cell position table combined with the sector extents of the PGC cell playback table. The executor builds a cell-accurate concat list (`cellConcatList`) that slices each VOB to the selected title's cell byte ranges (sector × 2048, adjacent cells coalesced per VOB), wired into both the primary VOB-concat path and the dvdvideo-failure retry. Slicing is skipped when the cells already span the whole VOB set (whole-file is then exact), on angle discs (interleaved data would be mis-sliced), or when any cell VOB can't be resolved — each with a logged fallback. Unit tests cover the no-cells, angles, whole-set-coverage, multi-VOB partial, and missing-VOB branches.
+- **Rip: loading a new disc no longer inherits the previous movie's Title.** `loadDisc` now resets `discTitle`/`outputTouched` and clears the Title field, so the default output filename is re-derived from the new source instead of keeping e.g. "previous title.mkv".
+
 ## v0.1.1-dev73 (September 2026)
 
 ### Per-Title PGC Duration Scan Consistency
