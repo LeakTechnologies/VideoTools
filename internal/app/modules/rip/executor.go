@@ -471,6 +471,26 @@ func WriteChapterFile(chapters []float64, totalDuration float64, title string) (
 	return f.Name(), nil
 }
 
+// resolveVTS_TTN maps a VMG-level title number (1-based TT_SRPT order, as the
+// rip UI passes it) to the per-VTS title number the IFO reader needs to select
+// that title's PGC. Returns 0 (first title-domain PGC) when the VMG cannot be
+// read, the title is out of range, or the title belongs to a different VTS
+// than the one being ripped — the safe fallback for mixed-VTS selection.
+func resolveVTS_TTN(videoTSPath string, titleNum, setVTS int) int {
+	if titleNum <= 0 {
+		return 0
+	}
+	tsps, err := ifo.ReadTitleList(filepath.Join(videoTSPath, "VIDEO_TS.IFO"))
+	if err != nil || len(tsps) < titleNum {
+		return 0
+	}
+	t := tsps[titleNum-1]
+	if setVTS > 0 && int(t.VTSNumber) != setVTS {
+		return 0
+	}
+	return int(t.VTS_TitleNumber)
+}
+
 // Execute runs a rip job synchronously, calling back for progress and log lines.
 func Execute(ctx context.Context, opts ExecuteOptions) error {
 	sourcePath := opts.SourcePath
@@ -627,7 +647,16 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	vtsName := set.Name // e.g. "VTS_01"
 	vtsIFO := filepath.Join(videoTSPath, vtsName+"_0.IFO")
-	titleInfo, ifoErr := ifo.ReadTitleInfo(vtsIFO)
+	// Read the PGC for the selected title, not just the first title-domain
+	// PGC: on multi-PGC discs (scene-segmented titles) each title's duration,
+	// chapter points, and angle cells live in its own PGC, and the first PGC's
+	// values would describe the wrong title.
+	setVTS := opts.VTSNumber
+	if setVTS == 0 && strings.HasPrefix(set.Name, "VTS_") {
+		fmt.Sscanf(set.Name[4:], "%d", &setVTS)
+	}
+	ttn := resolveVTS_TTN(videoTSPath, opts.TitleNumber, setVTS)
+	titleInfo, ifoErr := ifo.ReadTitleInfoForTTN(vtsIFO, ttn)
 	if ifoErr != nil {
 		appendLog(fmt.Sprintf("Warning: could not read IFO for enrichment: %v", ifoErr))
 	}
