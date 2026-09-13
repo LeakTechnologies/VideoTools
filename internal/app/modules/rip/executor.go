@@ -739,6 +739,29 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		}
 	}
 
+	// On the VOB-concat path, prefer a cell-accurate input list over whole-file
+	// concatenation. On multi-PGC VTS discs (scene-segmented "extras" titles
+	// sharing one VOB set — e.g. the Red Hairy Teens disc's seven titles in
+	// VTS_01), whole-file concat reads the movie's opening for every non-first
+	// title; slicing the VOBs to the selected title's PGC cell sectors yields
+	// the actual title content. The dvdvideo path reads the IFO natively and
+	// needs no slicing — but when it fails, the retry below rebuilds the concat
+	// list cell-accurately the same way.
+	if !useDVDVideo {
+		cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo)
+		if cellErr != nil {
+			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
+		} else if cellList != "" {
+			appendLog(fmt.Sprintf("VOB concat: using cell-accurate input list (%d cell ranges) for the selected title",
+				len(titleInfo.Cells)))
+			listFile = cellList
+			defer cellCleanup()
+			ra.ListFile = cellList
+		} else if titleInfo != nil && len(titleInfo.Cells) > 0 {
+			appendLog("VOB concat: the selected title's PGC cells cover the whole VOB set — whole-file list is exact")
+		}
+	}
+
 	// runWithArgs builds the ffmpeg command from a RipArgs struct and runs it,
 	// returning any error. Extracted into a closure so the rip can be retried
 	// with the VOB concat path after a dvdvideo open/run failure.
@@ -779,7 +802,23 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		appendLog(fmt.Sprintf("dvdvideo demuxer failed (%v) — retrying with VOB concatenation", err))
 		ra.VideoTSPath = ""
 		ra.TitleNumber = 0
-		ra.ListFile = listFile
+		// When the disc's titles share one VOB set, whole-file concatenation
+		// would rip the movie's opening for a scene-segmented extra title. Use
+		// a cell-accurate list (VOBs sliced to the selected title's PGC cell
+		// sector ranges) whenever the IFO provides per-title cell metadata.
+		if cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo); cellErr != nil {
+			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
+			ra.ListFile = listFile
+		} else if cellList != "" {
+			if titleInfo != nil {
+				appendLog(fmt.Sprintf("VOB concat fallback: using cell-accurate input list (%d cell ranges) for the selected title",
+					len(titleInfo.Cells)))
+			}
+			defer cellCleanup()
+			ra.ListFile = cellList
+		} else {
+			ra.ListFile = listFile
+		}
 		// Clamp the subtitle mapping to what the concat input actually exposes.
 		// Some discs' IFOs advertise more subtitle languages than the VOBs carry
 		// physical subpicture streams for (common on grey-market/bootleg media) —

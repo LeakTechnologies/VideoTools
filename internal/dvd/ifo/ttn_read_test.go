@@ -122,6 +122,41 @@ func TestReadTitleInfoForTTN_SharedPGC(t *testing.T) {
 	assertTitleDur(t, info, 60, []float64{0, 30})
 }
 
+// TestReadTitleInfo_Cells verifies per-cell sector extents, VOBID and CellID
+// are populated from the PGC cell playback + cell position tables.
+func TestReadTitleInfo_Cells(t *testing.T) {
+	dir := t.TempDir()
+	cells := [][]ChapterCell{
+		{
+			{FirstSector: 0x100, LastSector: 0x2FF, Duration: 30},
+			{FirstSector: 0x300, LastSector: 0x3FF, Duration: 40},
+			{FirstSector: 0x400, LastSector: 0x4FF, Duration: 50},
+		},
+	}
+	ifoPath := writeMultiPGCVTSIFO(t, dir, cells, []byte{0x81})
+
+	info, err := ReadTitleInfoForTTN(ifoPath, 1)
+	if err != nil {
+		t.Fatalf("ReadTitleInfoForTTN(1): %v", err)
+	}
+	if info == nil {
+		t.Fatal("ReadTitleInfoForTTN returned nil")
+	}
+	if len(info.Cells) != 3 {
+		t.Fatalf("len(Cells) = %d, want 3", len(info.Cells))
+	}
+	want := []TitleCell{
+		{VOBID: 1, CellID: 1, FirstSector: 0x100, LastSector: 0x2FF},
+		{VOBID: 1, CellID: 2, FirstSector: 0x300, LastSector: 0x3FF},
+		{VOBID: 1, CellID: 3, FirstSector: 0x400, LastSector: 0x4FF},
+	}
+	for i, ow := range want {
+		if info.Cells[i] != ow {
+			t.Errorf("Cells[%d] = %+v, want %+v", i, info.Cells[i], ow)
+		}
+	}
+}
+
 // TestReadTitleInfoForTTN_IndexFallback verifies TTN selection falls back to
 // the entry index when disc authors leave the TitleNr field unset (all masks
 // are 0) and instead order entries by TTN.
