@@ -35,10 +35,10 @@ func TestCanonicalSelection(t *testing.T) {
 		}
 	})
 
-	t.Run("choose-titles selects everything", func(t *testing.T) {
+	t.Run("choose-titles selects nothing", func(t *testing.T) {
 		sel := CanonicalSelection(titles, "", ss)
-		if len(sel) != 7 {
-			t.Fatalf("choose-titles selection = %v, want all 7", sel)
+		if len(sel) != 0 {
+			t.Fatalf("choose-titles selection = %v, want empty", sel)
 		}
 	})
 

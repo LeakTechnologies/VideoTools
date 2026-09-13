@@ -4,7 +4,9 @@ package rip
 //
 //	"main"     — only the single longest title (the main feature)
 //	"segments" — only the scene segments of a detected scene set
-//	"" / "full" — every title (choose-titles and full-disc modes)
+//	""         — nothing pre-selected: whatever the user ticks is exactly
+//	             what rips (no surprise batch left over from the mode switch)
+//	"full"     — every title (full-disc mode, single-Job path)
 //
 // The ContentBrowser reshapes to this selection only when the rip mode
 // actually changes, so manual per-title toggles made inside a mode are
@@ -29,7 +31,7 @@ func CanonicalSelection(titles []DiscTitle, mode string, ss SceneSetInfo) map[in
 				sel[num] = true
 			}
 		}
-	default:
+	case "full":
 		for _, dt := range titles {
 			sel[dt.Number] = true
 		}

@@ -886,16 +886,24 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	// ── Menu export ───────────────────────────────────────────────────────────
 	// After the main content rip succeeds, export menu VOBs as separate files
-	// if the user opted to preserve menus.
+	// if the user opted to preserve menus. The same menus are re-collected on
+	// every title rip of a disc, so skip a menu when an identical one (same
+	// source VOB size, same label) was already exported into the output
+	// directory — ripping 11 titles must not produce 11 copies of each menu.
 	if opts.IncludeMenus && videoTSPath != "" {
 		menuSets := CollectAllMenuVOBs(videoTSPath)
 		if len(menuSets) > 0 {
 			appendLog(fmt.Sprintf("Exporting %d menu VOB(s) as separate files...", len(menuSets)))
 			ext := filepath.Ext(outputPath)
 			base := strings.TrimSuffix(outputPath, ext)
+			outDir := filepath.Dir(outputPath)
 			for i, ms := range menuSets {
 				menuLabel := ms.Name
 				menuOut := fmt.Sprintf("%s_Menu_%s%s", base, menuLabel, ext)
+				if menuAlreadyExported(outDir, menuLabel, ext, ms.Size) {
+					appendLog(fmt.Sprintf("[%d/%d] Menu: %s already exported (same menu content) — skipping", i+1, len(menuSets), ms.Name))
+					continue
+				}
 				appendLog(fmt.Sprintf("[%d/%d] Menu: %s → %s", i+1, len(menuSets), ms.Name, filepath.Base(menuOut)))
 				if err := exportMenuVOB(ctx, opts, ms.Files[0], menuOut, format, updateStatus); err != nil {
 					appendLog(fmt.Sprintf("Warning: menu export failed for %s: %v", ms.Name, err))
@@ -1083,6 +1091,27 @@ func CollectAllMenuVOBs(videoTS string) []VobSet {
 		})
 	}
 	return menus
+}
+
+// menuAlreadyExported reports whether a menu file for the given label already
+// exists in the output directory with the same size as the source menu VOB.
+// Every title rip of a disc re-collects the same menu VOBs; the base prefix in
+// the name it would use changes per title, so the dedup key is (label, size)
+// rather than the exact filename. A size match is treated as "same menu
+// content" — identical menu VOBs on a disc always extract to identical sizes.
+func menuAlreadyExported(outDir, menuLabel, ext string, wantSize int64) bool {
+	pattern := "*_Menu_" + menuLabel + ext
+	matches, err := filepath.Glob(filepath.Join(outDir, pattern))
+	if err != nil {
+		return false
+	}
+	for _, m := range matches {
+		info, err := os.Stat(m)
+		if err == nil && info.Size() == wantSize {
+			return true
+		}
+	}
+	return false
 }
 
 // exportMenuVOB copies or re-encodes a menu VOB to the output path using the
