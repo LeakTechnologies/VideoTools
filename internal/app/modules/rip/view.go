@@ -129,7 +129,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var refreshModeRadio func()
 	var applyRipMode func()
 	var sceneSet SceneSetInfo // scene-segment layout detected on the loaded disc
-	shapeBlocked := false    // true while a bulk selection action owns the selection (Select/Deselect All)
+	shapeBlocked := false     // true while a bulk selection action owns the selection (Select/Deselect All)
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -816,8 +816,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// ripModeLockFor maps the active rip mode onto the ContentBrowser lock
 	// layer (greyed/anchored visuals). Selection is owned separately: on a
 	// mode transition applyRipMode reshapes it to the mode's canonical set,
-	// so switching to "Movie + extras" re-selects everything automatically
-	// instead of leaving the previous mode's restriction behind.
+	// so switching to "Movie + extras" starts from an empty selection (the
+	// user ticks exactly what should rip) instead of carrying a surprise
+	// batch over from the previous mode.
 	ripModeLockFor := func() LockConfig {
 		if vs.scanResult == nil {
 			return LockConfig{}

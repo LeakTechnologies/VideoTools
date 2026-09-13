@@ -41,20 +41,40 @@ func resolveISOWithUDF(ctx context.Context, f io.ReadSeeker, isoPath, tempDir st
 			return "", nil, fmt.Errorf("native extraction failed: UDF: %v; ISO 9660: %v", udfErr, isoErr)
 		}
 
-		videoTS := filepath.Join(tempDir, targetDir)
-		if info, statErr := os.Stat(videoTS); statErr == nil && info.IsDir() {
+		videoTS := extractedVideoTSPath(tempDir, targetDir)
+		if videoTS != "" {
 			logging.Info(logging.CatDVD, "Extracted %s via ISO 9660 fallback from %s (%d files)", targetDir, isoPath, extractFileCount(videoTS))
 			return videoTS, cleanup, nil
 		}
 		return "", nil, fmt.Errorf("%s not found in ISO 9660 image", targetDir)
 	}
 
-	videoTS := filepath.Join(tempDir, targetDir)
-	if info, err := os.Stat(videoTS); err == nil && info.IsDir() {
+	videoTS := extractedVideoTSPath(tempDir, targetDir)
+	if videoTS != "" {
 		return videoTS, cleanup, nil
 	}
 	cleanup()
 	return "", nil, fmt.Errorf("%s not found in ISO", targetDir)
+}
+
+// extractedVideoTSPath returns the directory that actually holds the extracted
+// DVD/Blu-ray contents. The native readers extract the target directory's
+// descendants FLAT into the destination root (e.g. tempDir/VIDEO_TS.IFO and
+// tempDir/VTS_01_0.IFO) rather than inside a nested tempDir/VIDEO_TS folder, so
+// the resolver must accept either layout. Returns "" when neither is found.
+func extractedVideoTSPath(tempDir, targetDir string) string {
+	nested := filepath.Join(tempDir, targetDir)
+	if info, statErr := os.Stat(nested); statErr == nil && info.IsDir() {
+		return nested
+	}
+	// Flat-layout markers: a DVD's VIDEO_TS.IFO (targetDir == "VIDEO_TS") or a
+	// Blu-ray's index.bdmv (targetDir == "BDMV").
+	for _, marker := range []string{targetDir + ".IFO", "index.bdmv"} {
+		if info, statErr := os.Stat(filepath.Join(tempDir, marker)); statErr == nil && !info.IsDir() {
+			return tempDir
+		}
+	}
+	return ""
 }
 
 // extractFileCount counts regular files under dir for logging purposes.
