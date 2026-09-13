@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev75 (September 2026)
+
+### Dynamic Rip-Mode Selection + Bulk-Selection Deadlock Fix
+
+- **Rip: switching the rip mode now reshapes the selection dynamically.** The previous flow left the content browser carrying the old mode's restrictions: switching from "Main feature only" to "Movie + extras (choose titles)" kept only the main title selected, so the user had to manually re-tick everything (and noticed the browser looked "messed up"). The mode radio now re-derives the selection on every mode transition — "Movie + extras (choose titles)" auto-selects all titles, "Main feature only" keeps only the longest (anchored), "Scene segments only" selects just the detected segments. Manual per-title toggles inside a mode persist; only a mode change re-shapes. New `internal/app/modules/rip/ripmode.go` centralises the pure mode → selection/lock mapping (`CanonicalSelection`/`CanonicalLock`, unit-tested) — the lock layer (`ApplyModeLock`) is now purely visual (greyed/anchored), and selection is owned by `ContentBrowser.ReshapeSelection` (whole-map replacement, no per-title OnChanged).
+- **Rip: Select All / Deselect All hard-freeze fixed (root cause).** Select All / Deselect All called `SetChecked` on each title card while holding the ContentBrowser mutex; the checkbox's OnChanged handler then tried to re-acquire that same mutex and deadlocked the UI thread — a hard freeze whenever the bulk buttons actually changed a value (e.g. right after switching modes left only the main title selected). Bulk selections now raise the card's `updating` guard (OnChanged early-returns) before `SetChecked`, so no callback re-enters the mutex. A freshly loaded disc resets the rip mode to "Main feature only" and re-shapes once, so a previous disc's segment mode never leaks its restrictions into the new disc.
+
 ## v0.1.1-dev74 (September 2026)
 
 ### Scene-Segment Rip Modes + Cell-Accurate VOB Concat

@@ -206,31 +206,35 @@ func (cb *ContentBrowser) SetOnLockedModeExit(fn func()) {
 	cb.mu.Unlock()
 }
 
-// LockConfig drives ApplyModeLock: titles in ForceSelected are set selected
-// and un-locked; titles in Locked are deselected and visually dimmed
-// (clicking one exits the mode entirely); titles in Anchored are selected
-// but clicking them is a no-op. The maps may be nil to leave that layer empty.
+// LockConfig drives ApplyModeLock (a pure visual layer): titles in Locked are
+// deselected and visually dimmed (clicking one exits the mode entirely);
+// titles in Anchored are selected and clicking them is a no-op. Selection can
+// be recomputed separately via ReshapeSelection — ApplyModeLock never rewrites
+// the user's selection by itself. The maps may be nil to leave a layer empty.
 type LockConfig struct {
-	Locked        map[int]bool
-	Anchored      map[int]bool
-	ForceSelected map[int]bool
+	Locked   map[int]bool
+	Anchored map[int]bool
 }
 
-// ApplyModeLock shapes the current selection per the active rip mode without
-// firing OnChanged callbacks. Call UpdateCard visuals by Refresh.
+// ApplyModeLock shapes the mode's visual lock layer (greyed/anchored titles)
+// without firing OnChanged callbacks or touching the current selection. Call
+// ReshapeSelection on a mode *transition* and UpdateCard visuals by Refresh.
 func (cb *ContentBrowser) ApplyModeLock(cfg LockConfig) {
 	cb.mu.Lock()
 	cb.locked = cfg.Locked
 	cb.anchored = cfg.Anchored
-	if len(cfg.Locked) > 0 || len(cfg.ForceSelected) > 0 {
-		for _, tc := range cb.titleCards {
-			n := tc.title.Number
-			if cfg.ForceSelected[n] {
-				cb.selected[n] = true
-			} else if cfg.Locked[n] {
-				cb.selected[n] = false
-			}
-		}
+	cb.mu.Unlock()
+	cb.list.Refresh()
+}
+
+// ReshapeSelection replaces the whole selection wholesale (mode transitions,
+// Select All / Deselect All) without firing per-title OnChanged callbacks, so
+// side-effect listeners like the rip summary must be refreshed by the caller.
+func (cb *ContentBrowser) ReshapeSelection(sel map[int]bool) {
+	cb.mu.Lock()
+	cb.selected = make(map[int]bool, len(sel))
+	for n, v := range sel {
+		cb.selected[n] = v
 	}
 	cb.mu.Unlock()
 	cb.list.Refresh()
@@ -282,7 +286,12 @@ func (cb *ContentBrowser) setAllSelected(v bool) {
 	for _, tc := range cb.titleCards {
 		cb.selected[tc.title.Number] = v
 		if tc.checked != nil {
+			// SetChecked fires the card's OnChanged synchronously; raise the
+			// updating guard so that handler early-returns instead of trying
+			// to re-acquire cb.mu (held here) and deadlocking the UI thread.
+			tc.updating = true
 			tc.checked.SetChecked(v)
+			tc.updating = false
 		}
 	}
 	fn := cb.onLockedModeExit

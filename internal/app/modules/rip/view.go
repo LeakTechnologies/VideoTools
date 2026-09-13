@@ -52,6 +52,7 @@ type viewState struct {
 	includeMenus          bool
 	regionConvert         string // "" (none), "pal2ntsc", "ntsc2pal"
 	extractMode           string // "" (selected scenes), "main" (main feature only), "full" (full disc with IFO regen)
+	lastShapeMode         string // rip mode whose canonical selection was last auto-applied
 	discTitle             string
 	outputTouched         bool // output path was hand-edited, so auto-recompute should not clobber it
 	progress              float64
@@ -128,6 +129,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var refreshModeRadio func()
 	var applyRipMode func()
 	var sceneSet SceneSetInfo // scene-segment layout detected on the loaded disc
+	shapeBlocked := false    // true while a bulk selection action owns the selection (Select/Deselect All)
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -306,8 +308,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	contentBrowser.SetOnLockedModeExit(func() {
 		if vs.extractMode == "main" || vs.extractMode == "segments" {
-			vs.extractMode = ""
-			applyRipMode()
+			// Select/Deselect All already owns the selection — exiting the
+			// restrictive mode must not reshape it back to the new mode's
+			// canonical set (Deselect All would immediately re-select all).
+			shapeBlocked = true
+			modeRadio.SetSelected(t.RipModeScenes)
+			if vs.extractMode == "main" || vs.extractMode == "segments" {
+				vs.extractMode = ""
+				applyRipMode()
+			}
+			shapeBlocked = false
 		}
 	})
 
@@ -803,61 +813,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return t.RipModeScenes
 		}
 	}
-	// mainTitleNumber returns the disc number of the longest title.
-	mainTitleNumber := func() int {
-		if vs.scanResult == nil {
-			return 0
-		}
-		mainNum, mainDur := 0, 0.0
-		for _, dt := range vs.scanResult.Titles {
-			if dt.Duration > mainDur {
-				mainDur = dt.Duration
-				mainNum = dt.Number
-			}
-		}
-		return mainNum
-	}
-
 	// ripModeLockFor maps the active rip mode onto the ContentBrowser lock
-	// config: main-feature-only locks out every title but the main one
-	// (anchored so it can't be deselected); scene-segments-only locks out the
-	// whole-movie copies, selects all scene segments but leaves them
-	// individually toggleable.
+	// layer (greyed/anchored visuals). Selection is owned separately: on a
+	// mode transition applyRipMode reshapes it to the mode's canonical set,
+	// so switching to "Movie + extras" re-selects everything automatically
+	// instead of leaving the previous mode's restriction behind.
 	ripModeLockFor := func() LockConfig {
-		var cfg LockConfig
-		switch vs.extractMode {
-		case "main":
-			mainNum := mainTitleNumber()
-			if mainNum == 0 {
-				return cfg
-			}
-			cfg.Locked = map[int]bool{}
-			for _, dt := range vs.scanResult.Titles {
-				if dt.Number != mainNum {
-					cfg.Locked[dt.Number] = true
-				}
-			}
-			cfg.Anchored = map[int]bool{mainNum: true}
-			cfg.ForceSelected = map[int]bool{mainNum: true}
-		case "segments":
-			if !sceneSet.Present || len(sceneSet.WholeTitles) == 0 {
-				return cfg
-			}
-			cfg.Locked = map[int]bool{}
-			for num := range sceneSet.WholeTitles {
-				cfg.Locked[num] = true
-			}
-			cfg.Anchored = map[int]bool{}
-			cfg.ForceSelected = map[int]bool{}
-			for num := range sceneSet.SceneTitles {
-				cfg.ForceSelected[num] = true
-			}
+		if vs.scanResult == nil {
+			return LockConfig{}
 		}
-		return cfg
+		return CanonicalLock(vs.scanResult.Titles, vs.extractMode, sceneSet)
 	}
 
 	// applyRipMode re-applies the mode's visual state (radio visibility, title
-	// list lock/shape) and re-syncs the selection from the ContentBrowser.
+	// list lock/shape), reshapes the selection to the mode's canonical set on a
+	// mode *transition*, and re-syncs the selection from the ContentBrowser.
 	applyRipMode = func() {
 		if vs.regionConvert != "" {
 			vs.extractMode = "full"
@@ -870,6 +840,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 		contentBrowser.ApplyModeLock(ripModeLockFor())
+		if !shapeBlocked && vs.lastShapeMode != vs.extractMode {
+			vs.lastShapeMode = vs.extractMode
+			if vs.scanResult != nil {
+				contentBrowser.ReshapeSelection(CanonicalSelection(vs.scanResult.Titles, vs.extractMode, sceneSet))
+			}
+		}
 		vs.selectedTitles = contentBrowser.GetSelected()
 		if updateRipSummary != nil {
 			updateRipSummary()
@@ -1160,6 +1136,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		sourceChangedHook(path)
 		applyOutputPath()
 
+		// A fresh disc starts in the default rip mode again; resetting both
+		// the mode and the last-applied shape forces a reshape on the next
+		// applyRipMode so the new disc's selection matches the mode (an old
+		// "segments"/lastShapeMode pair must not leak across discs).
+		vs.extractMode = "main"
+		vs.lastShapeMode = ""
 		vs.scanResult = nil
 		vs.selectedTitles = nil
 		rebuildEnrich()
