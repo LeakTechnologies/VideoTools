@@ -16,6 +16,17 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
+// lockedModules are held back from the main menu until they have received
+// proper attention/tester verification. They render as locked tiles (dimmed
+// with a lock icon) and ignore taps/drops. Remove an ID from this map to
+// unlock the module again.
+var lockedModules = map[string]bool{
+	"audio":     true,
+	"subtitles": true,
+	"filters":   true,
+	"trim":      true,
+}
+
 // moduleLabel returns the translated label for a given module ID.
 // Called on each showMainMenu() rebuild so labels reflect the active language.
 func moduleLabel(id string) string {
@@ -109,6 +120,7 @@ func (s *appState) showMainMenu() {
 			Category:      categoryLabel(m.Category),
 			HasHandler:    m.Handle != nil,
 			DepsAvailable: isModuleAvailable(m.ID),
+			Locked:        lockedModules[m.ID],
 		})
 	}
 	// Native Go engine enables disc modules cross-platform.
