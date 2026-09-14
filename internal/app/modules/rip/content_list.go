@@ -387,7 +387,6 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	dt := cb.scanResult.Titles[id]
 	tc := cb.titleCards[id]
 	isSelected := cb.selected[dt.Number]
-	isFocused := cb.focused == dt.Number
 	isLockedOut := cb.locked[dt.Number]
 	isAnchored := cb.anchored[dt.Number]
 	cb.mu.Unlock()
@@ -506,12 +505,6 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 			fn(dt.Number, v)
 		}
 		cb.list.Refresh()
-	}
-
-	// Focus on tap — set this title as focused and fire preview callback.
-	if isFocused {
-		// Highlight the card with a subtle teal tint.
-		// Handled via accent bar already being teal when selected.
 	}
 }
 

@@ -239,6 +239,7 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 	logging.Info(logging.CatDVD, "Scanning VDS at sector %d for %d sectors...", extent.Location, numSectors)
 
 	foundTags := make(map[uint16]int)
+scan:
 	for i := uint32(0); i < numSectors; i++ {
 		sector := extent.Location + i
 		tagID, data, err := r.ReadDescriptor(sector)
@@ -278,7 +279,7 @@ func (r *Reader) findLVD(extent ExtentAd) (*LogicalVolumeDescriptor, error) {
 		case TagIDTerm:
 			logging.Info(logging.CatDVD, "VDS sector %d (abs %d): Terminating descriptor (end of VDS), scanned %d sectors",
 				i, sector, i+1)
-			break
+			break scan
 
 		case 0:
 			logging.Debug(logging.CatDVD, "VDS sector %d (abs %d): empty/zapped sector", i, sector)

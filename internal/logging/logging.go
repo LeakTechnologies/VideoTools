@@ -74,6 +74,14 @@ func SetVersion(v string) {
 	fileMu.Unlock()
 }
 
+// Version returns the app version string set via SetVersion ("" if unset).
+// Job logs (rip, convert, ...) use it so every job's file is self-describing.
+func Version() string {
+	fileMu.Lock()
+	defer fileMu.Unlock()
+	return sessionVersion
+}
+
 // sessionHeader returns the single-line session marker written at the start of
 // every session and after a clear.  Includes the version when available.
 func sessionHeader() string {
