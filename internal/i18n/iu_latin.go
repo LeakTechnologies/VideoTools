@@ -768,6 +768,7 @@ var iuLatn = Strings{
 	ThumbnailSize:               "Takujautiit Angirninnga:",                                                          // Thumbnail Size:
 	ThumbnailCountFmt:           "Takujautiit Amirsuqatigiit: %d",                                                    // Thumbnail Count: %d
 	ThumbnailWidthFmt:           "Takujautiit Angirninnga: %d px",                                                    // Thumbnail Width: %d px
+	ThumbnailNativeFmt:          "Native (%dx%d)",                                                                      // Native (WxH) — needs review
 	ThumbnailColumnsFmt:         "Atausiinnaqsimajut: %d",                                                            // Columns: %d
 	ThumbnailRowsFmt:            "Atausiinnaqsimajut Akiligaaksangit: %d",                                            // Rows: %d
 	ThumbnailTotalFmt:           "Takujautiit Tamarmik: %d",                                                          // Total thumbnails: %d

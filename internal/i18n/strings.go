@@ -873,6 +873,7 @@ type Strings struct {
 	ThumbnailSize               string // "Thumbnail Size:"
 	ThumbnailCountFmt           string // "Thumbnail Count: %d"
 	ThumbnailWidthFmt           string // "Thumbnail Width: %d px"
+	ThumbnailNativeFmt          string // "Native (%dx%d)"
 	ThumbnailColumnsFmt         string // "Columns: %d"
 	ThumbnailRowsFmt            string // "Rows: %d"
 	ThumbnailTotalFmt           string // "Total thumbnails: %d"
