@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v4
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-v5
           restore-keys: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-msix-
 
       - name: Setup static FFmpeg (Windows)
@@ -177,6 +177,19 @@ jobs:
           echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           cp /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc /c/ffmpeg-static/lib/pkgconfig/dvdread.pc /ucrt64/lib/pkgconfig/
 
+          echo "[INFO] Building libfreetype from source (static only)..."
+          rm -rf /tmp/freetype-src
+          wget -q --tries=5 --retry-connrefused --waitretry=5 -O /tmp/freetype.tar.xz "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz"
+          tar xJf /tmp/freetype.tar.xz -C /tmp
+          mv /tmp/freetype-2.13.3 /tmp/freetype-src
+          cd /tmp/freetype-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
+            --without-harfbuzz --without-brotli --without-bzip2 --without-png --with-zlib=no
+          make -j$(nproc) && make install
+          rm -rf /tmp/freetype-src /tmp/freetype.tar.xz
+          # Guard: freetype2.pc must be visible to FFmpeg configure below.
+          pkg-config --exists freetype2 || { echo "FATAL: freetype2.pc not found in FFmpeg prefix"; exit 1; }
+
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           wget -q --tries=5 --retry-connrefused --waitretry=5 -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
@@ -192,7 +205,7 @@ jobs:
             --disable-doc --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
-            --enable-libdvdnav --enable-libdvdread \
+            --enable-libdvdnav --enable-libdvdread --enable-libfreetype \
             --disable-vaapi --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
             --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib -static' \
@@ -204,6 +217,8 @@ jobs:
           # is never saved to cache.
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
+          /c/ffmpeg-static/bin/ffmpeg.exe -h filters 2>&1 | grep -q "drawtext" \
+            || { echo "FATAL: drawtext filter not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}

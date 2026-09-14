@@ -102,7 +102,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v10' }}
+          key: ffmpeg-release-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v11' }}
           restore-keys: ffmpeg-release-${{ runner.os }}-
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
@@ -157,6 +157,21 @@ jobs:
           echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Libs: -L${libdir} -ldvdnav -ldvdread' >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
           echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/dvdnav.pc
+          # libfreetype - required by FFmpeg's drawtext filter (thumbnail
+          # timestamp/metadata overlays). Built from source static-only: the
+          # MSYS2 prebuilt freetype ships __declspec(dllimport) headers that
+          # poison the fully-static link (same rule as x264/x265). Optional
+          # rasterizer deps disabled so the static link stays minimal.
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz" | tar xJ
+          cd freetype-2.13.3
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
+            --without-harfbuzz --without-brotli --without-bzip2 --without-png --with-zlib=no
+          make -j$(nproc)
+          make install
+          cd ..
+          # Guard: freetype2.pc must be visible to FFmpeg configure below.
+          pkg-config --exists freetype2 && echo "OK: freetype2" \
+            || { echo "FATAL: freetype2.pc not found in FFmpeg prefix"; exit 1; }
           curl -L --retry 3 --retry-delay 5 --retry-all-errors -o /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
           tar xjf /tmp/ffmpeg.tar.bz2 -C /tmp
           cd /tmp/ffmpeg-${FFMPEG_VERSION}
@@ -190,7 +205,7 @@ jobs:
           echo "=== PHASE 2: FFmpeg configure ==="
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
-            --enable-libdvdnav --enable-libdvdread \
+            --enable-libdvdnav --enable-libdvdread --enable-libfreetype \
             --extra-ldflags="-static" 2>&1 | tee /tmp/ffmpeg-configure.log
           RC=${PIPESTATUS[0]}
           echo "=== configure exit code: $RC ==="
@@ -225,9 +240,13 @@ jobs:
           /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -i dvd || echo "WARN: no dvd flags in buildconf"
           echo "--- ffmpeg -h demuxer=dvdvideo ---"
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | head -5
+          echo "--- ffmpeg -buildconf (freetype flag) ---"
+          /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -i "freetype" || echo "WARN: no freetype flag in buildconf"
           echo "=== END PHASE 4 ==="
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
+          /c/ffmpeg-static/bin/ffmpeg.exe -h filters 2>&1 | grep -q "drawtext" \
+            || { echo "FATAL: drawtext filter not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: msys2 {0}
