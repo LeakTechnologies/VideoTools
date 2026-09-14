@@ -958,11 +958,7 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 		}
 		return "Status: Paused"
 	case queue.JobStatusCompleted:
-		duration := ""
-		if job.StartedAt != nil && job.CompletedAt != nil {
-			duration = fmt.Sprintf(" | Duration: %s", job.CompletedAt.Sub(*job.StartedAt).Round(time.Second))
-		}
-		return fmt.Sprintf("Status: Completed%s", duration)
+		return "Status: Completed"
 	case queue.JobStatusFailed:
 		// Truncate error to prevent UI overflow
 		errMsg := job.Error
