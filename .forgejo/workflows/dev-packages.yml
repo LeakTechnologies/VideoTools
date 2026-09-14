@@ -302,7 +302,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v7
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v8
 
       - name: Setup static FFmpeg (Windows)
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
@@ -310,7 +310,7 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v8"
+          marker="/c/ffmpeg-static/.built-${ver}-v9"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
@@ -360,6 +360,23 @@ jobs:
           echo "  x265 --exists: $(pkg-config --exists x265 2>&1 && echo OK || echo FAIL)"
           echo "  x265 --libs:   $(pkg-config --libs x265 2>&1 || echo FAIL)"
 
+          # Build libfreetype from source (static only) - required by FFmpeg's
+          # drawtext filter (thumbnail timestamp/metadata overlays). The MSYS2
+          # prebuilt freetype ships __declspec(dllimport) headers that poison the
+          # fully-static link (same rule as x264/x265).
+          echo "[INFO] Building libfreetype from source (static only)..."
+          rm -rf /tmp/freetype-src
+          wget -q -O /tmp/freetype.tar.xz "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz"
+          tar xJf /tmp/freetype.tar.xz -C /tmp
+          mv /tmp/freetype-2.13.3 /tmp/freetype-src
+          cd /tmp/freetype-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
+            --without-harfbuzz --without-brotli --without-bzip2 --without-png --with-zlib=no
+          make -j$(nproc) && make install
+          cp /c/ffmpeg-static/lib/pkgconfig/freetype2.pc /ucrt64/lib/pkgconfig/freetype2.pc
+          rm -rf /tmp/freetype-src /tmp/freetype.tar.xz
+          pkg-config --exists freetype2 || { echo "FATAL: freetype2.pc not found in FFmpeg prefix"; exit 1; }
+
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
@@ -376,6 +393,7 @@ jobs:
             --disable-doc --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
+            --enable-libfreetype \
             --disable-vaapi --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
             --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib -static' \
