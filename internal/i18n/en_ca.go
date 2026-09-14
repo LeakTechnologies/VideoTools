@@ -861,6 +861,7 @@ var enCA = Strings{
 	ThumbnailSize:               "Thumbnail Size:",
 	ThumbnailCountFmt:           "Thumbnail Count: %d",
 	ThumbnailWidthFmt:           "Thumbnail Width: %d px",
+	ThumbnailNativeFmt:          "Native (%dx%d)",
 	ThumbnailColumnsFmt:         "Columns: %d",
 	ThumbnailRowsFmt:            "Rows: %d",
 	ThumbnailTotalFmt:           "Total thumbnails: %d",

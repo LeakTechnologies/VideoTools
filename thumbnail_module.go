@@ -230,8 +230,11 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	var thumbFileName string
 	var thumbFileNames []string
 	var thumbPreviewFrame string
+	var nativeW, nativeH int
 	if state.thumbnailFile != nil {
 		thumbFileName = filepath.Base(state.thumbnailFile.Path)
+		nativeW = state.thumbnailFile.Width
+		nativeH = state.thumbnailFile.Height
 		if len(state.thumbnailFile.PreviewFrames) > 0 {
 			thumbPreviewFrame = state.thumbnailFile.PreviewFrames[0]
 		}
@@ -271,6 +274,8 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		ThumbnailOutputMode:     state.thumbnailOutputMode,
 		ThumbnailContactSheet:   state.thumbnailOutputMode == "contactSheet" || state.thumbnailOutputMode == "both",
 		ThumbnailShowTimestamps: state.thumbnailShowTimestamps,
+		ThumbnailNativeWidth:    nativeW,
+		ThumbnailNativeHeight:   nativeH,
 		OnShowMainMenu:          func() { state.showMainMenu() },
 		OnShowQueue:             func() { state.showQueue() },
 		OnShowThumbnailView:     func() { state.showThumbnailView() },
@@ -371,6 +376,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		TotalFmt:                t.ThumbnailTotalFmt,
 		CountFmt:                t.ThumbnailCountFmt,
 		WidthFmt:                t.ThumbnailWidthFmt,
+		NativeFmt:               t.ThumbnailNativeFmt,
 		GenerateNowLabel:        t.ThumbnailGenerateNow,
 		AddToQueueLabel:         t.ThumbnailAddToQueue,
 		AddAllToQueueLabel:      t.ThumbnailAddAllToQueue,
@@ -476,6 +482,9 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 	}
 
 	logging.Debug(logging.CatSystem, "generated %d thumbnails", len(result.Thumbnails))
+	for _, w := range result.Warnings {
+		logging.Debug(logging.CatSystem, "thumbnail warning: %s", w)
+	}
 
 	if progressCallback != nil {
 		progressCallback(100)

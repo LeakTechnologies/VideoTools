@@ -777,6 +777,7 @@ var iu = Strings{
 	ThumbnailSize:               "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ ᐊᖏᕐᓂᖓ:",                                       // Thumbnail Size:
 	ThumbnailCountFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐊᒥᓱᑦ: %d",                                     // Thumbnail Count: %d
 	ThumbnailWidthFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ ᐊᖏᔪᑦ: %d px",                                  // Thumbnail Width: %d px
+	ThumbnailNativeFmt:          "Native (%dx%d)",                                            // Native (WxH) — needs review
 	ThumbnailColumnsFmt:         "ᐊᑕᐅᓯᕐᒥᒃ ᑲᑎᑕᐅᓯᒪᔪᑦ: %d",                                    // Columns: %d
 	ThumbnailRowsFmt:            "ᐊᑕᐅᓯᕐᒥᒃ ᑲᑎᑕᐅᓯᒪᔪᑦ ᐊᑭᓕᒐᒃᓴᖓ: %d",                            // Rows: %d
 	ThumbnailTotalFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᑕᒪᐃᓐᓂ: %d",                                    // Total thumbnails: %d

@@ -833,6 +833,7 @@ var frCA = Strings{
 	ThumbnailSize:               "Taille des miniatures :",
 	ThumbnailCountFmt:           "Nombre de miniatures : %d",
 	ThumbnailWidthFmt:           "Largeur des miniatures : %d px",
+	ThumbnailNativeFmt:          "Native (%dx%d)",
 	ThumbnailColumnsFmt:         "Colonnes : %d",
 	ThumbnailRowsFmt:            "Rangées : %d",
 	ThumbnailTotalFmt:           "Total des miniatures : %d",

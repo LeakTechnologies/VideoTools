@@ -3,6 +3,7 @@ package thumbnail
 import (
 	"fmt"
 	"image/color"
+	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -36,6 +37,9 @@ type Options struct {
 	ThumbnailOutputMode     string
 	ThumbnailContactSheet   bool
 	ThumbnailShowTimestamps bool
+
+	ThumbnailNativeWidth  int // source video width when known (>0)
+	ThumbnailNativeHeight int // source video height when known (>0)
 
 	OnShowMainMenu       func()
 	OnShowQueue          func()
@@ -84,6 +88,7 @@ type Options struct {
 	TotalFmt                string // "Total thumbnails: %d"
 	CountFmt                string // "Thumbnail Count: %d"
 	WidthFmt                string // "Thumbnail Width: %d px"
+	NativeFmt               string // "Native (%dx%d)" — source video size
 	GenerateNowLabel        string
 	AddToQueueLabel         string
 	AddAllToQueueLabel      string
@@ -257,93 +262,101 @@ func BuildView(opts Options) fyne.CanvasObject {
 	totalFmt := or(opts.TotalFmt, "Total thumbnails: %d")
 	countFmt := or(opts.CountFmt, "Thumbnail Count: %d")
 	widthFmt := or(opts.WidthFmt, "Thumbnail Width: %d px")
+	nativeFmt := or(opts.NativeFmt, "Native (%dx%d)")
 
 	var settingsOptions fyne.CanvasObject
 	showContactSheet := opts.ThumbnailOutputMode == "contactSheet" || opts.ThumbnailOutputMode == "both"
 
 	if showContactSheet {
-		colLabel := widget.NewLabel(fmt.Sprintf(columnsFmt, opts.ThumbnailColumns))
-		rowLabel := widget.NewLabel(fmt.Sprintf(rowsFmt, opts.ThumbnailRows))
+		curCols := opts.ThumbnailColumns
+		curRows := opts.ThumbnailRows
 
-		totalThumbs := opts.ThumbnailColumns * opts.ThumbnailRows
+		colLabel := widget.NewLabel(fmt.Sprintf(columnsFmt, curCols))
+		rowLabel := widget.NewLabel(fmt.Sprintf(rowsFmt, curRows))
+
+		totalThumbs := curCols * curRows
 		totalLabel := widget.NewLabel(fmt.Sprintf(totalFmt, totalThumbs))
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 		totalLabel.Wrapping = fyne.TextWrapWord
 
+		updateTotal := func() {
+			totalLabel.SetText(fmt.Sprintf(totalFmt, curCols*curRows))
+		}
+
 		colSlider := ui.MakeSlider(2, 9)
-		colSlider.Value = float64(opts.ThumbnailColumns)
+		colSlider.Value = float64(curCols)
 		colSlider.Step = 1
 		colSlider.OnChanged = func(val float64) {
+			curCols = int(val)
 			if opts.OnSetThumbnailColumns != nil {
-				opts.OnSetThumbnailColumns(int(val))
+				opts.OnSetThumbnailColumns(curCols)
 			}
-			colLabel.SetText(fmt.Sprintf(columnsFmt, int(val)))
-			totalLabel.SetText(fmt.Sprintf(totalFmt, opts.ThumbnailColumns*opts.ThumbnailRows))
+			colLabel.SetText(fmt.Sprintf(columnsFmt, curCols))
+			updateTotal()
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		}
 
 		rowSlider := ui.MakeSlider(2, 12)
-		rowSlider.Value = float64(opts.ThumbnailRows)
+		rowSlider.Value = float64(curRows)
 		rowSlider.Step = 1
 		rowSlider.OnChanged = func(val float64) {
+			curRows = int(val)
 			if opts.OnSetThumbnailRows != nil {
-				opts.OnSetThumbnailRows(int(val))
+				opts.OnSetThumbnailRows(curRows)
 			}
-			rowLabel.SetText(fmt.Sprintf(rowsFmt, int(val)))
-			totalLabel.SetText(fmt.Sprintf(totalFmt, opts.ThumbnailColumns*opts.ThumbnailRows))
+			rowLabel.SetText(fmt.Sprintf(rowsFmt, curRows))
+			updateTotal()
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		}
 
+		nativeLabel := fmt.Sprintf(nativeFmt, opts.ThumbnailNativeWidth, opts.ThumbnailNativeHeight)
+		hasNative := opts.ThumbnailNativeWidth > 0 && opts.ThumbnailNativeHeight > 0
 		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "576 px", "640 px"}
+		if hasNative {
+			sizeOptions = append(sizeOptions, nativeLabel)
+		}
 		sizeSelect := widget.NewSelect(sizeOptions, func(val string) {
-			var width int
-			switch val {
-			case "240 px":
-				width = 240
-			case "300 px":
-				width = 300
-			case "360 px":
-				width = 360
-			case "420 px":
-				width = 420
-			case "480 px":
-				width = 480
-			case "540 px":
-				width = 540
-			case "576 px":
-				width = 576
-			case "640 px":
-				width = 640
-			}
-			if opts.OnSetThumbnailSheetWidth != nil {
-				opts.OnSetThumbnailSheetWidth(width)
+			if hasNative && val == nativeLabel {
+				if opts.OnSetThumbnailSheetWidth != nil {
+					opts.OnSetThumbnailSheetWidth(opts.ThumbnailNativeWidth)
+				}
+			} else {
+				var width int
+				switch val {
+				case "240 px":
+					width = 240
+				case "300 px":
+					width = 300
+				case "360 px":
+					width = 360
+				case "420 px":
+					width = 420
+				case "480 px":
+					width = 480
+				case "540 px":
+					width = 540
+				case "576 px":
+					width = 576
+				case "640 px":
+					width = 640
+				}
+				if opts.OnSetThumbnailSheetWidth != nil {
+					opts.OnSetThumbnailSheetWidth(width)
+				}
 			}
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		})
-		switch opts.ThumbnailSheetWidth {
-		case 240:
-			sizeSelect.SetSelected("240 px")
-		case 300:
-			sizeSelect.SetSelected("300 px")
-		case 360:
-			sizeSelect.SetSelected("360 px")
-		case 420:
-			sizeSelect.SetSelected("420 px")
-		case 480:
-			sizeSelect.SetSelected("480 px")
-		case 540:
-			sizeSelect.SetSelected("540 px")
-		case 576:
-			sizeSelect.SetSelected("576 px")
-		case 640:
-			sizeSelect.SetSelected("640 px")
-		default:
+		if hasNative && opts.ThumbnailSheetWidth == opts.ThumbnailNativeWidth {
+			sizeSelect.SetSelected(nativeLabel)
+		} else if slices.Contains(sizeOptions, fmt.Sprintf("%d px", opts.ThumbnailSheetWidth)) {
+			sizeSelect.SetSelected(fmt.Sprintf("%d px", opts.ThumbnailSheetWidth))
+		} else {
 			sizeSelect.SetSelected("360 px")
 		}
 
@@ -372,40 +385,53 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		widthLabel := widget.NewLabel(fmt.Sprintf(widthFmt, opts.ThumbnailWidth))
+		nativeLabel := fmt.Sprintf(nativeFmt, opts.ThumbnailNativeWidth, opts.ThumbnailNativeHeight)
+		hasNative := opts.ThumbnailNativeWidth > 0 && opts.ThumbnailNativeHeight > 0
 		individualSizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "576 px", "640 px"}
+		if hasNative {
+			individualSizeOptions = append(individualSizeOptions, nativeLabel)
+		}
 		widthSelect := widget.NewSelect(individualSizeOptions, func(val string) {
 			var width int
-			switch val {
-			case "240 px":
-				width = 240
-			case "300 px":
-				width = 300
-			case "360 px":
-				width = 360
-			case "420 px":
-				width = 420
-			case "480 px":
-				width = 480
-			case "540 px":
-				width = 540
-			case "576 px":
-				width = 576
-			case "640 px":
-				width = 640
+			if hasNative && val == nativeLabel {
+				width = opts.ThumbnailNativeWidth
+			} else {
+				switch val {
+				case "240 px":
+					width = 240
+				case "300 px":
+					width = 300
+				case "360 px":
+					width = 360
+				case "420 px":
+					width = 420
+				case "480 px":
+					width = 480
+				case "540 px":
+					width = 540
+				case "576 px":
+					width = 576
+				case "640 px":
+					width = 640
+				}
 			}
 			if opts.OnSetThumbnailWidth != nil {
 				opts.OnSetThumbnailWidth(width)
 			}
-			widthLabel.SetText(fmt.Sprintf(widthFmt, width))
+			if width > 0 {
+				widthLabel.SetText(fmt.Sprintf(widthFmt, width))
+			}
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		})
-		switch opts.ThumbnailWidth {
-		case 240, 300, 360, 420, 480, 540, 576, 640:
+		if hasNative && opts.ThumbnailWidth == opts.ThumbnailNativeWidth {
+			widthSelect.SetSelected(nativeLabel)
+			widthLabel.SetText(fmt.Sprintf(widthFmt, opts.ThumbnailNativeWidth))
+		} else if slices.Contains(individualSizeOptions, fmt.Sprintf("%d px", opts.ThumbnailWidth)) {
 			widthSelect.SetSelected(fmt.Sprintf("%d px", opts.ThumbnailWidth))
-		default:
-			widthSelect.SetSelected("320 px")
+		} else {
+			widthSelect.SetSelected("360 px")
 		}
 
 		settingsOptions = buildThumbBox(or(opts.IndividualThumbsLabel, "Individual Thumbnails"), container.NewVBox(

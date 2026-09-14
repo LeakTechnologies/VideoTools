@@ -45,6 +45,14 @@ type Config struct {
 // Generator creates thumbnails from videos
 type Generator struct {
 	FFmpegPath string
+
+	// drawtextOK caches whether the bundled FFmpeg was built with the
+	// drawtext filter (libfreetype/libfontconfig). Our static build does not
+	// ship it, so metadata/timestamp overlays must degrade gracefully to a
+	// plain tile/scale output because ffmpeg hard-fails the filter graph
+	// otherwise ("No such filter: 'drawtext'").
+	drawtextOK   bool
+	drawtextProbed bool
 }
 
 // NewGenerator creates a new thumbnail generator
@@ -65,7 +73,7 @@ type Thumbnail struct {
 
 // GenerateResult contains the results of thumbnail generation
 type GenerateResult struct {
-	Thumbnails    []Thumbnail
+	Thumbnails  []Thumbnail
 	ContactSheet  string // Path to contact sheet if generated
 	TotalDuration float64
 	VideoWidth    int
@@ -75,6 +83,34 @@ type GenerateResult struct {
 	AudioCodec    string
 	FileSize      int64
 	Error         string
+	Warnings      []string // non-fatal degradation notes (e.g. skipped overlays)
+}
+
+// drawtextAvailable lazily probes whether the ffmpeg build ships the drawtext
+// filter. Probe once per generator (a single `-filters` run); the result is
+// used by the contact-sheet metadata overlay and the timestamp overlay.
+func (g *Generator) drawtextAvailable() bool {
+	if g.drawtextProbed {
+		return g.drawtextOK
+	}
+	g.drawtextProbed = true
+	cmd := exec.Command(g.FFmpegPath, "-hide_banner", "-filters")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	ok := len(out) > 0 && bytes.Contains(out, []byte(" drawtext "))
+	if !ok {
+		// Try a fallback match (older ffmpeg lines: " T.. drawtext ...")
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, "drawtext") {
+				ok = true
+				break
+			}
+		}
+	}
+	g.drawtextOK = ok
+	return ok
 }
 
 // Generate creates thumbnails based on the provided configuration
@@ -121,6 +157,18 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 	result.TotalDuration = duration
 	result.VideoWidth = width
 	result.VideoHeight = height
+
+	// If the bundled FFmpeg has no drawtext filter (static build without
+	// libfreetype/libfontconfig), overlay features silently degrade to the
+	// plain output — leave a note so a missing header/timestamp is explained.
+	if !g.drawtextAvailable() {
+		if config.ShowMetadata {
+			result.Warnings = append(result.Warnings, "contact sheet metadata header skipped: this FFmpeg build lacks the drawtext filter (rebuild with --enable-libfreetype)")
+		}
+		if config.ShowTimestamp {
+			result.Warnings = append(result.Warnings, "timestamp overlay skipped: this FFmpeg build lacks the drawtext filter (rebuild with --enable-libfreetype)")
+		}
+	}
 
 	// Calculate thumbnail dimensions
 	thumbWidth, thumbHeight := g.calculateDimensions(width, height, config.Width, config.Height)
@@ -458,9 +506,12 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	padding := 8 // Pixels of padding between each thumbnail
 	tileFilter := fmt.Sprintf("%s,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp, 0), config.Columns, config.Rows, padding)
 
-	// Build video filter — fetch detailed info once here to avoid duplicate ffprobe calls
+	// Build video filter — fetch detailed info once here to avoid duplicate ffprobe calls.
+	// The metadata header uses drawtext, which our static FFmpeg build lacks
+	// (libfreetype not linked); degrade to the plain tile grid in that case so
+	// contact-sheet generation still succeeds.
 	var vfilter string
-	if config.ShowMetadata {
+	if config.ShowMetadata && g.drawtextAvailable() {
 		videoCodec, audioCodec, fps, bitrate, audioBitrate := g.getDetailedVideoInfo(ctx, config.VideoPath)
 		vfilter = g.buildMetadataFilter(config, duration, videoWidth, videoHeight, thumbWidth, thumbHeight, padding, selectFilter, tileFilter, videoCodec, audioCodec, fps, bitrate, audioBitrate)
 	} else {
@@ -719,7 +770,7 @@ func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp 
 	if fontPath != "" {
 		fontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(fontPath))
 	}
-	if showTimestamp {
+	if showTimestamp && g.drawtextAvailable() {
 		var tsText string
 		if ts > 0 {
 			// Hardcode the timestamp so that input-seek PTS resets don't corrupt the overlay.
