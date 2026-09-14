@@ -1,5 +1,17 @@
 # VideoTools Changelog
 
+## v0.1.1-dev77 (September 2026)
+
+### Thumbnail Native Resolution + Movie+Extras Auto-Select + Drawtext-Restored CI FFmpeg
+
+- **Thumbnail: "Native (WxH)" size option.** Contact-sheet and individual thumbnail size selects gain a "Native (WxH)" entry that resolves to the source video's real width, so screenshots can be judged at source resolution. Blank/reset fallbacks unchanged. New i18n key across en/fr/iu/iu_latin.
+- **Thumbnail: contact-sheet live total counter.** The "Total thumbnails" count derived from a captured opts struct value, so moving the columns/rows sliders left a stale count on screen; it now computes from the live slider values.
+- **Thumbnail: drawtext-absent degradation.** When the bundled FFmpeg lacks the drawtext filter (the static build shipped without libfreetype/libfontconfig), the generator probes once per run (`ffmpeg -filters`), skips the timestamp overlay + metadata header, and emits plain output plus a debug warning via a new result `Warnings` list — no more hard "No such filter: 'drawtext'" failure. CI now rebuilds FFmpeg with libfreetype (next bullet), so shipped binaries keep the overlays; the degradation path protects non-freetype builds.
+- **CI: Windows FFmpeg sidecars rebuilt with libfreetype.** The dev/release/msix/forgejo workflows now build freetype 2.13.3 from source (static-only, optional rasterizer deps disabled so the fully-static link stays minimal) and configure FFmpeg with `--enable-libfreetype`, restoring the drawtext filter. Each build hard-gates on `ffmpeg -h filters | grep drawtext` so a partial build is never cached; the pure-Go link needs no new flags (pkg-config `--libs --static` pulls `-lfreetype` through libavfilter.pc). Cache keys bumped (dev/release v11, msix v5, forgejo v8 + marker v9). Linux unchanged — `--disable-programs` + system ffmpeg.
+- **Rip: "Movie + extras (choose titles)" now pre-selects the main feature + genuine extras on scene-set discs.** `CanonicalSelection` for the `""` mode selects the main feature plus any genuine extras WITHOUT the scene segments (the movie already contains them — re-ripping downloads the same footage twice) and WITHOUT duplicate whole-movie copies (one encode suffices). On a disc with no detected scene set the list still starts empty — what you tick is exactly what rips (Select All still opts into everything; `"full"` keeps its single-Job path). The representative whole copy is only forced when the caller passed it in titles. Unit tests cover movie-only (no scenes/dupes), genuine extras included, no-scene-set empty, and empty-titles.
+- **Queue: completed jobs show just "Status: Completed".** The redundant "| Duration: Ns" suffix is dropped from the completed-job status line.
+- **Rip: executor log header records the app version**, and the start-up checks are green — `go vet` clean, and govulncheck reports 0 reachable vulnerabilities after bumping `golang.org/x/image` to v0.43.0, `golang.org/x/net` to v0.55.0 (plus x/text v0.38.0, x/sys v0.45.0) and `go` to 1.26.6 in go.mod. Staticcheck's three real findings fixed en route: ineffective switch-scoped `break` in the UDF VDS scan (now stops at the terminating descriptor), dead `vtsATRTEntries` accumulation in IFO regen, and a dead `isFocused` branch in the rip content list. gitleaks detects no leaks in the repo.
+
 ## v0.1.1-dev76 (September 2026)
 
 ### ISO 9660 Resolve Fix + Menu Dedup + Choose-Titles Starts Empty
