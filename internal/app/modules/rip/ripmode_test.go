@@ -13,9 +13,10 @@ func mkTitles(durations ...float64) []DiscTitle {
 func TestCanonicalSelection(t *testing.T) {
 	titles := mkTitles(5926.48, 5932.48, 866.04, 615.40, 1977.60, 1331.08, 1141.16)
 	ss := SceneSetInfo{
-		Present:     true,
-		WholeTitles: map[int]bool{1: true, 2: true},
-		SceneTitles: map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true},
+		Present:       true,
+		Representative: 2,
+		WholeTitles:   map[int]bool{1: true, 2: true},
+		SceneTitles:   map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true},
 	}
 
 	t.Run("main selects only the longest title", func(t *testing.T) {
@@ -35,10 +36,43 @@ func TestCanonicalSelection(t *testing.T) {
 		}
 	})
 
-	t.Run("choose-titles selects nothing", func(t *testing.T) {
+	t.Run("choose-titles selects movie copy only, no scenes or dupes", func(t *testing.T) {
 		sel := CanonicalSelection(titles, "", ss)
+		want := map[int]bool{2: true}
+		for n := 1; n <= 7; n++ {
+			if sel[n] != want[n] {
+				t.Fatalf("choose-titles selection[%d] = %v, want %v", n, sel[n], want[n])
+			}
+		}
+		if len(sel) != 1 {
+			t.Fatalf("choose-titles selection = %v, want only {2:true}", sel)
+		}
+	})
+
+	t.Run("choose-titles includes genuine extras", func(t *testing.T) {
+		xtra := append(mkTitles(5926.48, 5932.48, 866.04, 615.40, 1977.60, 1331.08), DiscTitle{Number: 8, Duration: 300.0})
+		ssX := SceneSetInfo{
+			Present:        true,
+			Representative: 2,
+			WholeTitles:    map[int]bool{1: true, 2: true},
+			SceneTitles:    map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true},
+		}
+		sel := CanonicalSelection(xtra, "", ssX)
+		if !sel[8] {
+			t.Fatalf("choose-titles must auto-select genuine extra 8: %v", sel)
+		}
+		if !sel[2] {
+			t.Fatalf("choose-titles must auto-select representative movie: %v", sel)
+		}
+		if sel[1] || sel[3] || sel[7] {
+			t.Fatalf("choose-titles must skip dup whole + scenes: %v", sel)
+		}
+	})
+
+	t.Run("choose-titles without a scene set selects nothing", func(t *testing.T) {
+		sel := CanonicalSelection(titles, "", SceneSetInfo{})
 		if len(sel) != 0 {
-			t.Fatalf("choose-titles selection = %v, want empty", sel)
+			t.Fatalf("choose-titles(no set) selection = %v, want empty", sel)
 		}
 	})
 

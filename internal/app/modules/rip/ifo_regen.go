@@ -54,7 +54,6 @@ func RegenerateIFOs(sourceVideoTS, outputVideoTS string, vtsList []convertedVTS,
 
 	// Phase 1: Regenerate per-VTS IFO files
 	var vtsMats []*ifo.VTS_MAT
-	var vtsATRTEntries []ifo.VTS_ATRT_Entry
 
 	for _, cv := range vtsList {
 		if cv.IsMenu {
@@ -116,14 +115,6 @@ func RegenerateIFOs(sourceVideoTS, outputVideoTS string, vtsList []convertedVTS,
 			chapterSummary(len(cv.ChapterSec))))
 
 		vtsMats = append(vtsMats, newMat)
-		vtsATRTEntries = append(vtsATRTEntries, ifo.VTS_ATRT_Entry{
-			VTS_MAT_Last_Sector: newMat.VTS_Last_Sector,
-			Video_Attrs:         newMat.VTS_Attributes,
-			NumAudio:            newMat.VTS_Audio_Streams_Count,
-			Audio_Attrs:         newMat.VTS_Audio_Attributes,
-			NumSubpicture:       newMat.VTS_Subpicture_Count,
-			Subpicture_Attrs:    newMat.VTS_Subpicture_Attrs,
-		})
 	}
 
 	// Phase 2: Generate VMG IFO with title list

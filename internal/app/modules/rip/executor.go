@@ -147,12 +147,13 @@ func CreateLog(inputPath, outputPath, format, logsDir, logSuffix string) (*os.Fi
 		return nil, logPath, err
 	}
 	header := fmt.Sprintf(`VideoTools Rip Log
+Version: %s
 Started: %s
 Source: %s
 Output: %s
 Format: %s
 
-`, time.Now().Format(time.RFC3339), inputPath, outputPath, format)
+`, logging.Version(), time.Now().Format(time.RFC3339), inputPath, outputPath, format)
 	if _, err := f.WriteString(header); err != nil {
 		_ = f.Close()
 		return nil, logPath, err
@@ -528,6 +529,8 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		}
 	}
 
+	appendLog("VideoTools Rip Log")
+	appendLog(fmt.Sprintf("Version: %s", logging.Version()))
 	appendLog(fmt.Sprintf("Rip started: %s", time.Now().Format(time.RFC3339)))
 	appendLog(fmt.Sprintf("Source: %s", sourcePath))
 	appendLog(fmt.Sprintf("Output: %s", outputPath))
