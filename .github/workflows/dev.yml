@@ -93,6 +93,8 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-pkg-config
             mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-meson
+            mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-nasm
             mingw-w64-ucrt-x86_64-make
             mingw-w64-ucrt-x86_64-diffutils
@@ -104,7 +106,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v11' }}
+          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v12' }}
           restore-keys: ffmpeg-${{ runner.os }}-
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
@@ -174,6 +176,47 @@ jobs:
           # Guard: freetype2.pc must be visible to FFmpeg configure below.
           pkg-config --exists freetype2 && echo "OK: freetype2" \
             || { echo "FATAL: freetype2.pc not found in FFmpeg prefix"; exit 1; }
+          # libharfbuzz - required by FFmpeg's drawtext filter alongside
+          # libfreetype since FFmpeg 8.x (configure: drawtext_filter_deps=
+          # "libfreetype libharfbuzz"; vf_drawtext.c calls
+          # hb_ft_font_create_referenced). Built from source static-only with
+          # -Dfreetype=enabled; the MSYS2 prebuilt ships __declspec(dllimport)
+          # headers that poison the fully-static link (same rule as x264/x265).
+          # All non-freetype backends disabled so the static link stays minimal.
+          curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://github.com/harfbuzz/harfbuzz/releases/download/14.4.0/harfbuzz-14.4.0.tar.xz" | tar xJ
+          cd harfbuzz-14.4.0
+          meson setup build --prefix=/c/ffmpeg-static --libdir=lib \
+            --default-library=static --buildtype=release -Dfreetype=enabled \
+            -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled \
+            -Dpng=disabled -Dzlib=disabled -Dicu=disabled \
+            -Dgraphite=disabled -Dgraphite2=disabled -Dfontations=disabled \
+            -Dgdi=disabled -Ddirectwrite=disabled -Dcoretext=disabled \
+            -Dharfrust=disabled -Dkbts=disabled -Dwasm=disabled \
+            -Dintrospection=disabled -Ddocs=disabled -Dutilities=disabled \
+            -Dtests=disabled -Dbenchmark=disabled
+          meson compile -C build
+          meson install -C build
+          cd ..
+          # FFmpeg's Windows configure calls pkg-config WITHOUT --static, so
+          # the freetype2 entry in harfbuzz.pc Requires is never expanded and
+          # the link test fails. Rewrite harfbuzz.pc so -lfreetype and the C++
+          # runtime sit in Libs directly (same precedent as the x265.pc and
+          # dvdnav.pc overwrites above).
+          echo 'prefix=/c/ffmpeg-static'                 > /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'exec_prefix=${prefix}'                  >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'libdir=${exec_prefix}/lib'              >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'includedir=${prefix}/include'           >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo ''                                       >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Name: harfbuzz'                         >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Description: HarfBuzz text shaping library' >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Version: 14.4.0'                        >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Requires:'                              >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Requires.private:'                      >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Libs: -L${libdir} -lharfbuzz -lstdc++ -lsupc++ -lm -lfreetype' >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Cflags: -I${includedir}/harfbuzz'       >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          # Guard: harfbuzz.pc must be visible to FFmpeg configure below.
+          pkg-config --exists harfbuzz && echo "OK: harfbuzz" \
+            || { echo "FATAL: harfbuzz.pc not found in FFmpeg prefix"; exit 1; }
           curl -L --retry 3 --retry-delay 5 --retry-all-errors -o /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
           tar xjf /tmp/ffmpeg.tar.bz2 -C /tmp
           cd /tmp/ffmpeg-${FFMPEG_VERSION}
@@ -199,6 +242,9 @@ jobs:
           echo "--- pkg-config --cflags (what configure will compile with) ---"
           echo "dvdnav: $(pkg-config --cflags dvdnav 2>&1)"
           echo "dvdread: $(pkg-config --cflags dvdread 2>&1)"
+          echo "--- drawtext deps (freetype2 / harfbuzz pc) ---"
+          echo "freetype2: $(pkg-config --libs freetype2 2>&1)"
+          echo "harfbuzz:  $(pkg-config --libs harfbuzz 2>&1)"
           echo "--- static archive files ---"
           ls -la /c/ffmpeg-static/lib/libdvd* 2>&1
           echo "=== END PHASE 1 ==="
@@ -207,7 +253,7 @@ jobs:
           echo "=== PHASE 2: FFmpeg configure ==="
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
-            --enable-libdvdnav --enable-libdvdread --enable-libfreetype \
+            --enable-libdvdnav --enable-libdvdread --enable-libfreetype --enable-libharfbuzz \
             --extra-ldflags="-static" 2>&1 | tee /tmp/ffmpeg-configure.log
           RC=${PIPESTATUS[0]}
           echo "=== configure exit code: $RC ==="
@@ -223,6 +269,8 @@ jobs:
           echo "=== PHASE 3: post-configure verification ==="
           echo "--- config.mak dvdvideo/dvdnav/dvdread flags ---"
           grep -iE "dvdvideo|dvdnav|dvdread" ffbuild/config.mak 2>/dev/null || echo "WARN: no dvd entries in config.mak"
+          echo "--- config.mak drawtext flag ---"
+          grep -E "CONFIG_DRAWTEXT_FILTER" ffbuild/config.mak 2>/dev/null || echo "WARN: CONFIG_DRAWTEXT_FILTER not set in config.mak"
           echo "--- configure log dvd/dvdnav/dvdread lines ---"
           grep -iE "dvd|dvdnav|dvdread" /tmp/ffmpeg-configure.log 2>/dev/null | grep -v "^#" | head -30 || echo "WARN: no dvd lines in configure log"
           echo "--- config.log require_pkg_config results ---"
@@ -242,12 +290,12 @@ jobs:
           /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -i dvd || echo "WARN: no dvd flags in buildconf"
           echo "--- ffmpeg -h demuxer=dvdvideo ---"
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | head -5
-          echo "--- ffmpeg -buildconf (freetype flag) ---"
-          /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -i "freetype" || echo "WARN: no freetype flag in buildconf"
+          echo "--- ffmpeg -buildconf (freetype/harfbuzz flags) ---"
+          /c/ffmpeg-static/bin/ffmpeg.exe -buildconf 2>&1 | grep -iE "freetype|harfbuzz" || echo "WARN: no freetype/harfbuzz flags in buildconf"
           echo "=== END PHASE 4 ==="
           /c/ffmpeg-static/bin/ffmpeg.exe -h demuxer=dvdvideo 2>&1 | grep -q "dvdvideo" \
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
-          /c/ffmpeg-static/bin/ffmpeg.exe -h filters 2>&1 | grep -q "drawtext" \
+          /c/ffmpeg-static/bin/ffmpeg.exe -filters 2>&1 | grep -q "drawtext" \
             || { echo "FATAL: drawtext filter not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer

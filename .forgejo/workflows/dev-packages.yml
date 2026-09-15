@@ -293,16 +293,16 @@ jobs:
             Write-Host "[INFO] ucrt64 toolchain present"
           }
 
-          # nasm, cmake
-          Write-Host "[INFO] Installing nasm and cmake..."
-          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
+          # nasm, cmake, meson, ninja
+          Write-Host "[INFO] Installing nasm, cmake, meson and ninja..."
+          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-meson mingw-w64-ucrt-x86_64-ninja"
           Write-Host "[INFO] Build tools ready"
 
       - name: Cache static FFmpeg (Windows)
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v8
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v9
 
       - name: Setup static FFmpeg (Windows)
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
@@ -310,7 +310,7 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v9"
+          marker="/c/ffmpeg-static/.built-${ver}-v10"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
@@ -377,6 +377,48 @@ jobs:
           rm -rf /tmp/freetype-src /tmp/freetype.tar.xz
           pkg-config --exists freetype2 || { echo "FATAL: freetype2.pc not found in FFmpeg prefix"; exit 1; }
 
+          # libharfbuzz - required by FFmpeg's drawtext filter alongside
+          # libfreetype since FFmpeg 8.x (vf_drawtext.c calls
+          # hb_ft_font_create_referenced). Built from source static-only with
+          # -Dfreetype=enabled; all non-freetype backends disabled so the
+          # static link stays minimal.
+          echo "[INFO] Building libharfbuzz from source (static only)..."
+          rm -rf /tmp/harfbuzz-src
+          wget -q -O /tmp/harfbuzz.tar.xz "https://github.com/harfbuzz/harfbuzz/releases/download/14.4.0/harfbuzz-14.4.0.tar.xz"
+          tar xJf /tmp/harfbuzz.tar.xz -C /tmp
+          mv /tmp/harfbuzz-14.4.0 /tmp/harfbuzz-src
+          cd /tmp/harfbuzz-src
+          meson setup build --prefix=/c/ffmpeg-static --libdir=lib \
+            --default-library=static --buildtype=release -Dfreetype=enabled \
+            -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled \
+            -Dpng=disabled -Dzlib=disabled -Dicu=disabled \
+            -Dgraphite=disabled -Dgraphite2=disabled -Dfontations=disabled \
+            -Dgdi=disabled -Ddirectwrite=disabled -Dcoretext=disabled \
+            -Dharfrust=disabled -Dkbts=disabled -Dwasm=disabled \
+            -Dintrospection=disabled -Ddocs=disabled -Dutilities=disabled \
+            -Dtests=disabled -Dbenchmark=disabled
+          meson compile -C build
+          meson install -C build
+          rm -rf /tmp/harfbuzz-src /tmp/harfbuzz.tar.xz
+          # FFmpeg's Windows configure calls pkg-config WITHOUT --static, so the
+          # freetype2 entry in harfbuzz.pc Requires is never expanded and the
+          # link test fails. Rewrite harfbuzz.pc so -lfreetype and the C++
+          # runtime sit in Libs directly (same precedent as x265.pc / dvdnav.pc).
+          echo 'prefix=/c/ffmpeg-static'                 > /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'exec_prefix=${prefix}'                  >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'libdir=${exec_prefix}/lib'              >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'includedir=${prefix}/include'           >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo ''                                       >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Name: harfbuzz'                         >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Description: HarfBuzz text shaping library' >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Version: 14.4.0'                        >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Requires:'                              >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Requires.private:'                      >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Libs: -L${libdir} -lharfbuzz -lstdc++ -lsupc++ -lm -lfreetype' >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          echo 'Cflags: -I${includedir}/harfbuzz'       >> /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/harfbuzz.pc /ucrt64/lib/pkgconfig/harfbuzz.pc
+          pkg-config --exists harfbuzz || { echo "FATAL: harfbuzz.pc not found in FFmpeg prefix"; exit 1; }
+
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
@@ -393,7 +435,7 @@ jobs:
             --disable-doc --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
-            --enable-libfreetype \
+            --enable-libfreetype --enable-libharfbuzz \
             --disable-vaapi --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
             --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib -static' \
