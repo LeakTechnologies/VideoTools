@@ -1,16 +1,23 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev78 — CI Drawtext Complete (Harfbuzz) + dev77 Content Released
+
+- **CI: drawtext filter fully restored in all Windows FFmpeg sidecar builds.** FFmpeg 8.x requires both `libfreetype` AND `libharfbuzz` for the drawtext filter (`drawtext_filter_deps="libfreetype libharfbuzz"`; `vf_drawtext.c:1372` calls `hb_ft_font_create_referenced`). All four Windows pipelines (dev/release/msix/forgejo) now build harfbuzz 14.4.0 from source via meson (`-Dfreetype=enabled`, all other backends off) into the ffmpeg prefix and rewrite `harfbuzz.pc` to put `-lfreetype -lstdc++ -lsupc++ -lm` in `Libs` directly (FFmpeg Windows configure calls pkg-config without `--static`; same precedent as x265.pc/dvdnav.pc). The CGo link expands `-lharfbuzz -lstdc++ -lfreetype` from pkg-config `--libs --static` (CI strips `-lsupc++`); no new Go flags needed. Cache keys bumped: dev/release `v12`, msix `v6`, forgejo `v9` + `.built-v10` marker.
+- **CI: post-build drawtext gate corrected.** The gate now uses `ffmpeg -filters | grep drawtext` — FFmpeg 8.1 moved the filter list away from `-h filters` (which now prints only generic options), so the dev77 gate failed even on a correct build. Only the three GitHub workflows gate; the Forgejo build does not.
+- **v0.1.1-dev77 tag abandoned.** The dev77 tag was pushed at commit `ee806367` before the harfbuzz fix landed; its release run failed (`FATAL: drawtext filter not enabled after FFmpeg build`). Repo rules forbid deleting or retargeting dev tags, so the dev77 content + this CI fix shipped together as dev78 from commit `2b81a0c7` (dev CI green, verified both gate and `CONFIG_DRAWTEXT_FILTER=yes`).
+- Build + vet green; version triad bumped to v0.1.1-dev78 / Build 69.
+
 ## v0.1.1-dev77 — Thumbnail Native Resolution + Movie+Extras Auto-Select + Drawtext-Restored CI FFmpeg
 
 - **Thumbnail: "Native (WxH)" size option.** Contact-sheet and individual thumbnail size selects gain a "Native (WxH)" entry resolving to the source video's real width, so screenshots can be judged at source resolution; blank/reset fallbacks unchanged. New i18n key across en/fr/iu/iu_latin.
 - **Thumbnail: contact-sheet live total counter.** The "Total thumbnails" count came from a captured opts struct, so moving the columns/rows sliders left a stale count on screen; it now computed from the live slider values.
 - **Thumbnail: drawtext-absent degradation.** With a static FFmpeg lacking libfreetype/libfontconfig, the old generator hard-failed ("No such filter: drawtext") on timestamp overlays. The generator now probes once per run (`ffmpeg -filters`), skips the overlay + metadata header when the filter is missing, and emits plain output plus a debug warning via a result `Warnings` list. CI now ships libfreetype (below), so the overlays are back in released binaries.
-- **CI: freetype rebuilt into all Windows FFmpeg sidecars.** dev/release/msix/forgejo workflows build freetype 2.13.3 static (rasterizer optional deps off) and configure `--enable-libfreetype`; each build gates on `ffmpeg -h filters | grep drawtext`; cache keys bumped (v11/v11/v5/v8+marker v9). Pure-Go link unchanged.
+- **CI: freetype + harfbuzz rebuilt into all Windows FFmpeg sidecars (v0.1.1-dev78).** dev/release/msix/forgejo workflows build freetype 2.13.3 + harfbuzz 14.4.0 from source (static-only) and configure `--enable-libfreetype --enable-libharfbuzz`; each build gates on `ffmpeg -filters | grep drawtext`; cache keys bumped (dev/release v12, msix v6, forgejo v9 + marker v10). Pure-Go link unchanged.
 - **Rip: "Movie + extras (choose titles)" auto-select refined.** On a scene-set disc the choose-titles mode now pre-selects the main feature + genuine extras, skipping the scene segments (the movie already contains them) and skipping duplicate whole-movie copies; no scene set → still starts empty (what you tick is what rips). Representative whole copy forced only when present in the caller's titles. Unit tests updated/added (movie-only, genuine extras, no-scene-set empty, empty titles).
 - **Queue: completed jobs read "Status: Completed"** (the redundant "| Duration: Ns" suffix dropped).
 - **Rip: executor log header records the app version.**
 - **Hygiene:** govulncheck back to 0 reachable (x/image v0.43.0, x/net v0.55.0, x/text v0.38.0, x/sys v0.45.0, go 1.26.6); staticcheck's three real findings fixed (UDF VDS labeled `break` at the terminating descriptor, dead `vtsATRTEntries`, dead `isFocused`); gitleaks clean.
-- Build + vet green (`dev-verify.ps1`); version triad bumped to v0.1.1-dev77 / Build 68.
+- Build + vet green (`dev-verify.ps1`); version triad bumped to v0.1.1-dev77 / Build 68. *Note: never published — the drawtext CI fix was incomplete; content released as v0.1.1-dev78.*
 
 ## v0.1.1-dev76 — ISO 9660 Resolve Fix + Menu-Export Dedup + Choose-Titles Starts Empty
 

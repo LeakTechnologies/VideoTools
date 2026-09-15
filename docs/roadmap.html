@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev77 &mdash; September 2026 (thumbnail native resolution + movie+extras auto-select + drawtext-restored CI FFmpeg) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev78 &mdash; September 2026 (harfbuzz-complete drawtext CI fix + dev77 content released) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -823,12 +823,19 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev77', date: 'September 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev78', date: 'September 2026', tag: 'current', sections: [
+    { title: 'CI drawtext complete (harfbuzz) + dev77 content released', items: [
+      'FFmpeg 8.x drawtext requires both libfreetype AND libharfbuzz (drawtext_filter_deps="libfreetype libharfbuzz"; vf_drawtext.c calls hb_ft_font_create_referenced). All four Windows pipelines now build harfbuzz 14.4.0 from source via meson (-Dfreetype=enabled, all other backends off) and rewrite harfbuzz.pc so -lfreetype -lstdc++ -lsupc++ -lm sit in Libs directly (FFmpeg Windows configure calls pkg-config without --static; same precedent as x265.pc/dvdnav.pc). The CGo link expands -lharfbuzz -lstdc++ -lfreetype from pkg-config --libs --static (CI strips -lsupc++); no new Go flags needed.',
+      'Post-build drawtext gate corrected: now uses ffmpeg -filters | grep drawtext (FFmpeg 8.1 moved the filter list away from -h filters which prints only generic options; the old gate failed even on a correct build). Only the three GitHub workflows gate; the Forgejo build does not.',
+      'The v0.1.1-dev77 tag was pushed at a red CI commit (ee806367) before the harfbuzz fix landed; repo rules forbid deleting or retargeting dev tags, so the dev77 content + this CI fix shipped together as dev78 (commit 2b81a0c7, dev CI green).',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev77', date: 'September 2026', tag: 'shipped', sections: [
     { title: 'Thumbnail native resolution + movie+extras auto-select + drawtext-restored CI FFmpeg', items: [
       'Thumbnail: contact-sheet and individual thumbnail size selects gain a "Native (WxH)" option that resolves to the source video\'s real width, so screenshots can be judged at source resolution; blank/reset fallbacks unchanged.',
       'Thumbnail: the contact-sheet "Total thumbnails" counter now reflects the live columns/rows slider values instead of a stale captured config (the count silently derived from out-of-date opts struct values while the sliders moved).',
       'FFmpeg resilience: when the bundled FFmpeg lacks the drawtext filter, the thumbnail generator probes once per run (ffmpeg -filters), skips the timestamp overlay / metadata header, and emits plain output plus a debug warning — a static build without libfreetype/libfontconfig no longer hard-fails with "No such filter: drawtext". A Warnings list on the result surfaces non-fatal degradations.',
-      'CI: every Windows FFmpeg sidecar build (dev/release/msix/forgejo) now compiles freetype 2.13.3 from source (static-only, optional rasterizer deps disabled) and enables --enable-libfreetype, restoring the drawtext filter in shipped binaries — the overlay degradation from the previous bullet stays as a defence for non-freetype builds. Each build gates on "ffmpeg -h filters | grep drawtext" so a partial build is never cached (cache keys bumped; the pure-Go link needs no new flags).',
+      'CI: every Windows FFmpeg sidecar build (dev/release/msix/forgejo) compiles freetype 2.13.3 from source (static-only, optional rasterizer deps disabled) and enables --enable-libfreetype, restoring the drawtext filter in shipped binaries — the overlay degradation from the previous bullet stays as a defence for non-freetype builds. NOTE: the dev77 build was incomplete — FFmpeg 8.x also needs libharfbuzz and the gate used -h filters (moved in 8.1); the completed fix shipped as v0.1.1-dev78 (cache keys bumped there).',
       'Rip: "Movie + extras (choose titles)" on a scene-set disc now pre-selects the main feature plus genuine extras — WITHOUT the scene segments (the movie already contains them, so re-ripping would download the same footage twice) and WITHOUT duplicate whole-movie copies (one encode suffices). On discs without a detected scene set the list still starts empty: whatever you tick is exactly what rips (Select All still opts into everything; "full" keeps its single-Job path).',
       'Queue: a completed job\'s status line reads just "Status: Completed" — the redundant "| Duration: Ns" suffix is gone.',
       'Rip: the executor log header now records the app version, and start-up static checks are green (vet clean; govulncheck: 0 reachable vulnerabilities after bumping x/image v0.43.0 / x/net v0.55.0 / go 1.26.6).',
