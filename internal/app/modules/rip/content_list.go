@@ -50,13 +50,14 @@ type ContentBrowser struct {
 	tickerDone chan struct{}
 	onSelect   func(titleNum int, selected bool)
 	onPreview  func(titleNum int)
+	onBulkSel  func(map[int]bool)
 	selected   map[int]bool
 	locked     map[int]bool // mode-locked titles: greyed out + deselected; clicking exits the mode
 	anchored   map[int]bool // mode-anchored titles: forced selected, clicking is a no-op
-	focused    int // title number currently focused for preview; 0 = none
+	focused    int          // title number currently focused for preview; 0 = none
 
-	onLockedSelect    func(titleNum int)
-	onLockedModeExit  func()
+	onLockedSelect   func(titleNum int)
+	onLockedModeExit func()
 
 	list      *widget.List
 	emptyHint *widget.Label
@@ -183,6 +184,16 @@ func (cb *ContentBrowser) SetOnSelect(fn func(int, bool)) {
 	cb.mu.Unlock()
 }
 
+// SetOnBulkSelect registers a callback invoked once after Select All /
+// Deselect All replaces the selection wholesale (setAllSelected). View-side
+// selection mirrors (ready/rip state) must refresh from this, since no
+// per-title OnChanged fires during a bulk operation.
+func (cb *ContentBrowser) SetOnBulkSelect(fn func(map[int]bool)) {
+	cb.mu.Lock()
+	cb.onBulkSel = fn
+	cb.mu.Unlock()
+}
+
 // SetOnPreview registers a callback for when a title card is clicked.
 func (cb *ContentBrowser) SetOnPreview(fn func(int)) {
 	cb.mu.Lock()
@@ -295,8 +306,16 @@ func (cb *ContentBrowser) setAllSelected(v bool) {
 		}
 	}
 	fn := cb.onLockedModeExit
+	bulkFn := cb.onBulkSel
+	bulk := make(map[int]bool, len(cb.selected))
+	for k, v := range cb.selected {
+		bulk[k] = v
+	}
 	cb.mu.Unlock()
 	cb.list.Refresh()
+	if bulkFn != nil {
+		bulkFn(bulk)
+	}
 	if fn != nil && hadLock {
 		fn()
 	}

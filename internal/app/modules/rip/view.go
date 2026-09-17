@@ -288,6 +288,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 			updateRipSummary()
 		}
 	})
+	contentBrowser.SetOnBulkSelect(func(sel map[int]bool) {
+		vs.selectedTitles = sel
+		if updateRipSummary != nil {
+			updateRipSummary()
+		}
+	})
 	contentBrowser.SetOnPreview(func(titleNum int) {
 		contentBrowser.SetFocused(titleNum)
 		discRoot := resolveDVDRoot(vs.sourcePath)
