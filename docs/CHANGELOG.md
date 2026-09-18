@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev79 (September 2026)
+
+### dvdvideo -title Ordering Root-Cause Fix + Bulk-Selection State Sync + Release CI Fix
+
+- **Rip: dvdvideo `-title` arg ordering fixed — the root cause of every dvdvideo rip failure.** The shipped dvdvideo path failed on every disc: the 0/77 audit result was not the library, it was this one ordering bug. `-title N` was emitted on the far side of `-i VIDEO_TS` (`-f dvdvideo -i VIDEO_TS -title 1`); FFmpeg binds any option between two `-i` flags (or before a later input) to the NEXT input, and the rip also inserts a chapters ffmetadata input after the dvdvideo input — so `-title 1` bound to that second input, which has no `title` option → "Option title not found" → ffmpeg exit `0xabafb008`. Every intended-dvdvideo rip silently fell back to VOB concatenation, and for seamless-branching / multi-VOB titles whole-file VOB concat writes PTS discontinuities at VOB boundaries — the 26h-freeze / post-cutoff slideshow corruption. `-title` is now placed **before** `-i` (`-f dvdvideo -title 1 -i VIDEO_TS`) so it binds to the dvdvideo input itself. Verified live on a grey-market DVD (`12 (Seventeen Classic)`): exit 0, 112603 video packets, exact 40 ms cadence, zero backward PTS, audio + chapters + metadata preserved end to end.
+- **Rip: ContentBrowser Select All / Deselect All now mirror the selection state.** Bulk selection was applied to the view model (`UpdateRipSummary` — the summary radio/preview) but never propagated to `viewState.selectedTitles`, so titles blocked/locked by a rip-mode lock kept their stale selection state after a bulk select. New `SetOnBulkSelection` mirrors bulk selection into the selection state so the checked cards, the readiness summary, and the queued rip all agree.
+- **CI: release.yml now installs meson + ninja.** The dev78 harfbuzz build steps were added to all four Windows pipelines, but the release.yml `setup-msys2` install list was missed — only dev.yml and windows-msix.yml declared `mingw-w64-ucrt-x86_64-meson/-ninja`, so the v0.1.1-dev78 release run failed with "meson: command not found" while the MSIX run (which installs them via pacman) passed. Both packages are now in the release install list.
+
 ## v0.1.1-dev78 (September 2026)
 
 ### Harfbuzz-Complete Drawtext CI Fix + dev77 Content Released
