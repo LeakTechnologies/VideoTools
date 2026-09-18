@@ -865,6 +865,7 @@ var enCA = Strings{
 	ThumbnailColumnsFmt:         "Columns: %d",
 	ThumbnailRowsFmt:            "Rows: %d",
 	ThumbnailTotalFmt:           "Total thumbnails: %d",
+	ThumbnailCountMatchesSheetFmt: "Count: %d (matches contact sheet)",
 	ThumbnailAddToQueue:         "Add to Queue",
 	ThumbnailAddAllToQueue:      "Add All to Queue",
 	ThumbnailLoadedVideos:       "Loaded Videos:",

@@ -772,6 +772,7 @@ var iuLatn = Strings{
 	ThumbnailColumnsFmt:         "Atausiinnaqsimajut: %d",                                                            // Columns: %d
 	ThumbnailRowsFmt:            "Atausiinnaqsimajut Akiligaaksangit: %d",                                            // Rows: %d
 	ThumbnailTotalFmt:           "Takujautiit Tamarmik: %d",                                                          // Total thumbnails: %d
+	ThumbnailCountMatchesSheetFmt: "Amirsuqatigiit: %d (takujautiit titiqaqpimut katitigisimajuq)",                        // Count: %d (matches contact sheet) // machine-generated, needs human review
 	ThumbnailAddToQueue:         "Nuatausimaujunut Ilalliujjilugu",                                                   // Add to Queue
 	ThumbnailAddAllToQueue:      "Tamarmik Nuatausimaujunut Ilalliujjilugit",                                         // Add All to Queue
 	ThumbnailLoadedVideos:       "Agaksitausimaujut Tarvijaksait:",                                                   // Loaded Videos:

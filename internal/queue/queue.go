@@ -513,8 +513,8 @@ func (q *Queue) processJobs() {
 
 		// Mark as running
 		nextJob.Status = JobStatusRunning
-		now := time.Now()
-		nextJob.StartedAt = &now
+		startedAt := time.Now()
+		nextJob.StartedAt = &startedAt
 		ctx, cancel := context.WithCancel(context.Background())
 		nextJob.cancel = cancel
 
@@ -531,7 +531,7 @@ func (q *Queue) processJobs() {
 
 		// Update job status
 		q.mu.Lock()
-		now = time.Now()
+		completedAt := time.Now()
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				if nextJob.Status == JobStatusPaused {
@@ -542,18 +542,18 @@ func (q *Queue) processJobs() {
 				} else {
 					// Cancelled
 					nextJob.Status = JobStatusCancelled
-					nextJob.CompletedAt = &now
+					nextJob.CompletedAt = &completedAt
 					nextJob.Error = ""
 				}
 			} else {
 				nextJob.Status = JobStatusFailed
-				nextJob.CompletedAt = &now
+				nextJob.CompletedAt = &completedAt
 				nextJob.Error = err.Error()
 			}
 		} else {
 			nextJob.Status = JobStatusCompleted
 			nextJob.Progress = 100.0
-			nextJob.CompletedAt = &now
+			nextJob.CompletedAt = &completedAt
 		}
 		deleteIntermediate := nextJob.PipelineDeleteOnSuccess
 		nextJob.cancel = nil

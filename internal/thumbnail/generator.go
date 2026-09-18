@@ -36,10 +36,12 @@ type Config struct {
 	ShowMetadata  bool    // Show metadata header on contact sheet
 	LogPath       string  // Path to log file for FFmpeg output
 	Progress      func(float64)
-	// OnThumbGenerated is called each time a thumbnail file is written to disk.
-	// For individual thumbnails it fires once per frame; for a contact sheet it
-	// fires once when the final composite image is complete.
+	// OnThumbGenerated is called each time an individual thumbnail file is
+	// written to disk (one call per frame). Never fires for the contact sheet.
 	OnThumbGenerated func(path string)
+	// OnContactSheetGenerated is called once when the final contact-sheet
+	// composite image is written to disk (contactSheet/both modes only).
+	OnContactSheetGenerated func(path string)
 }
 
 // Generator creates thumbnails from videos
@@ -391,6 +393,14 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 	total := len(timestamps)
 
 	// Generate each thumbnail
+	var logFile *os.File
+	if config.LogPath != "" {
+		logFile, _ = os.OpenFile(config.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if logFile != nil {
+			defer logFile.Close()
+		}
+	}
+
 	for i, ts := range timestamps {
 		outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("thumbnail_%04d.%s", i+1, config.Format))
 
@@ -427,14 +437,12 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 
 		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
 		hideCmd(cmd)
-		// Write FFmpeg output to log file if configured
-		if config.LogPath != "" {
-			logFile, err := os.Create(config.LogPath)
-			if err == nil {
-				cmd.Stdout = logFile
-				cmd.Stderr = logFile
-				defer logFile.Close()
-			}
+		// Write FFmpeg output to the shared job log (kept open across thumbnails
+		// so the full run is captured, not just the last thumbnail).
+		if logFile != nil {
+			fmt.Fprintf(logFile, "===== thumbnail %d (t=%.2fs) -> %s =====\n", i+1, actualTS, outputPath)
+			cmd.Stdout = logFile
+			cmd.Stderr = logFile
 		}
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("failed to generate thumbnail %d: %w", i+1, err)
@@ -604,7 +612,9 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		}
 	}
 
-	if config.OnThumbGenerated != nil {
+	if config.OnContactSheetGenerated != nil {
+		config.OnContactSheetGenerated(outputPath)
+	} else if config.OnThumbGenerated != nil {
 		config.OnThumbGenerated(outputPath)
 	}
 

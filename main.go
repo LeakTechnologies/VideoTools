@@ -1622,6 +1622,7 @@ func (s *appState) addToHistory(job *queue.Job) {
 		CompletedAt: job.CompletedAt,
 		Error:       job.Error,
 		FFmpegCmd:   cmdStr,
+		Progress:    job.Progress,
 	}
 
 	// Check for duplicates

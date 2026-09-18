@@ -781,6 +781,7 @@ var iu = Strings{
 	ThumbnailColumnsFmt:         "ᐊᑕᐅᓯᕐᒥᒃ ᑲᑎᑕᐅᓯᒪᔪᑦ: %d",                                    // Columns: %d
 	ThumbnailRowsFmt:            "ᐊᑕᐅᓯᕐᒥᒃ ᑲᑎᑕᐅᓯᒪᔪᑦ ᐊᑭᓕᒐᒃᓴᖓ: %d",                            // Rows: %d
 	ThumbnailTotalFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᑕᒪᐃᓐᓂ: %d",                                    // Total thumbnails: %d
+	ThumbnailCountMatchesSheetFmt: "ᐊᒥᓱᑦ: %d (ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᑎᑎᖅᑲᖅ ᑲᑎᑦᑎᓯᒪᔪᖅ)",              // Count: %d (matches contact sheet) // machine-generated, needs human review
 	ThumbnailAddToQueue:         "ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ",                                      // Add to Queue
 	ThumbnailAddAllToQueue:      "ᑕᒪᐃᓐᓂᒃ ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᔾᔨᓗᒋᑦ",                              // Add All to Queue
 	ThumbnailLoadedVideos:       "ᐊᒐᒃᓯᑕᐅᓯᒪᔪᑦ ᑕᕐᕆᔭᒐᒃᓴᑦ:",                                    // Loaded Videos:
