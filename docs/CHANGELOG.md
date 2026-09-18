@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev80 (September 2026)
+
+### Thumbnail "Both" Mode Output Fix + Queue Timestamp Bug + Full Thumbnail Run in Job Logs
+
+- **Thumbnail: output mode "both" now produces AND surfaces the separate thumbnails, matching the contact-sheet grid count.** The user report: clicking "both" "only gives me the information of the contact sheet, it doesn't actually give me the separate thumbnails". The generator's run list folded "both" into the contact-sheet path and routed every thumbnail through the sheet callback, so the live preview showed the sheet but no separate images were generated/reflected. The generator now exposes a distinct `OnContactSheetGenerated` callback (`generateContactSheet` falls back to `OnThumbGenerated` when unset); "both" runs true individual generation at the contact-sheet tile width (`count = columns×rows`, kept in lock-step with the grid) and the live preview shows the sheet as a grid cell plus the accumulating individual thumbnails. `createThumbnailJobForPath` descriptions are per-mode accurate ("Contact sheet + N thumbnails (Wpx, matches grid)" / "Contact sheet: C×R grid (N thumbnails)" / "N individual thumbnails (Wpx width)"). In the view, "both" now renders both settings boxes, and the individual box carries a locked "Count: N (matches contact sheet)" label (`ThumbnailCountMatchesSheetFmt`, new i18n key across en/fr/iu/iu_latin) that tracks the grid sliders live — the separate individual width select is removed because "both" tiles always use the sheet width. Individual mode still generates just the separate thumbnails (at its own width) and contact-sheet mode just the sheet.
+- **Queue: job StartedAt/CompletedAt timestamp bug fixed.** `nextJob.StartedAt = &now` then `now = time.Now()` overwrote the SAME variable, so every popped job carried identical start/end timestamps (zero apparent elapsed). Separate `startedAt`/`completedAt` variables now record the real instants.
+- **Queue history now shows Progress.** `addToHistory` copied CompletedAt/Error/FFmpegCmd but never `Progress`, so finished jobs read `Progress: 0` in the history panel; `Progress: job.Progress` is now stored.
+- **Thumbnail: the job log captures the whole run.** `generateIndividual` re-opened the log with `os.Create` (truncate) once per thumbnail, so the on-disk log ended up containing only the last screenshot's run. The log is now opened once in `O_APPEND|O_CREATE|O_WRONLY` with a deferred Close and each thumbnail writes under its own `===== thumbnail N (t=..) -> path =====` header, while `generateContactSheet` still opens first and truncates — a "both" job logs the sheet plus every individual thumbnail.
+
 ## v0.1.1-dev79 (September 2026)
 
 ### dvdvideo -title Ordering Root-Cause Fix + Bulk-Selection State Sync + Release CI Fix
