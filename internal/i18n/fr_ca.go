@@ -837,6 +837,7 @@ var frCA = Strings{
 	ThumbnailColumnsFmt:         "Colonnes : %d",
 	ThumbnailRowsFmt:            "Rangées : %d",
 	ThumbnailTotalFmt:           "Total des miniatures : %d",
+	ThumbnailCountMatchesSheetFmt: "Nombre : %d (correspond à la planche contact)",
 	ThumbnailAddToQueue:         "Ajouter à la file",
 	ThumbnailAddAllToQueue:      "Tout ajouter à la file",
 	ThumbnailLoadedVideos:       "Vidéos chargées :",

@@ -377,6 +377,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		CountFmt:                t.ThumbnailCountFmt,
 		WidthFmt:                t.ThumbnailWidthFmt,
 		NativeFmt:               t.ThumbnailNativeFmt,
+		MatchesSheetFmt:         t.ThumbnailCountMatchesSheetFmt,
 		GenerateNowLabel:        t.ThumbnailGenerateNow,
 		AddToQueueLabel:         t.ThumbnailAddToQueue,
 		AddAllToQueueLabel:      t.ThumbnailAddAllToQueue,
@@ -466,13 +467,18 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 		},
 		LogPath: logPath,
 	}
-	if outputMode == "contactSheet" || outputMode == "both" {
-		config.OnThumbGenerated = func(path string) {
+	if outputMode == "contactSheet" {
+		config.OnContactSheetGenerated = func(path string) {
 			s.setThumbnailLiveContactSheet(path)
 		}
 	} else {
 		config.OnThumbGenerated = func(path string) {
 			s.addThumbnailLivePreview(path)
+		}
+		if outputMode == "both" {
+			config.OnContactSheetGenerated = func(path string) {
+				s.addThumbnailLivePreview(path)
+			}
 		}
 	}
 
@@ -512,11 +518,13 @@ func (s *appState) createThumbnailJobForPath(path string) *queue.Job {
 	var count, width int
 	var description string
 	if needContactSheet {
-		count = s.thumbnailColumns * s.thumbnailRows
+		gridCount := s.thumbnailColumns * s.thumbnailRows
+		count = gridCount
 		width = s.thumbnailSheetWidth
-		description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbnailColumns, s.thumbnailRows, count)
 		if needIndividual {
-			description = fmt.Sprintf("Contact sheet + %d thumbnails (%dpx)", s.thumbnailCount, s.thumbnailWidth)
+			description = fmt.Sprintf("Contact sheet + %d thumbnails (%dpx, matches grid)", gridCount, width)
+		} else {
+			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbnailColumns, s.thumbnailRows, gridCount)
 		}
 	} else {
 		count = s.thumbnailCount

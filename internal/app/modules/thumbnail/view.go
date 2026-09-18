@@ -89,6 +89,7 @@ type Options struct {
 	CountFmt                string // "Thumbnail Count: %d"
 	WidthFmt                string // "Thumbnail Width: %d px"
 	NativeFmt               string // "Native (%dx%d)" — source video size
+	MatchesSheetFmt         string // "Count: %d (matches contact sheet)"
 	GenerateNowLabel        string
 	AddToQueueLabel         string
 	AddAllToQueueLabel      string
@@ -263,9 +264,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	countFmt := or(opts.CountFmt, "Thumbnail Count: %d")
 	widthFmt := or(opts.WidthFmt, "Thumbnail Width: %d px")
 	nativeFmt := or(opts.NativeFmt, "Native (%dx%d)")
+	matchesSheetFmt := or(opts.MatchesSheetFmt, "Count: %d (matches contact sheet)")
+	var matchesSheetLabel *widget.Label
 
 	var settingsOptions fyne.CanvasObject
-	showContactSheet := opts.ThumbnailOutputMode == "contactSheet" || opts.ThumbnailOutputMode == "both"
+	mode := opts.ThumbnailOutputMode
+	showContactSheet := mode == "contactSheet" || mode == "both"
+	showIndividual := mode == "individual" || mode == "both"
 
 	if showContactSheet {
 		curCols := opts.ThumbnailColumns
@@ -280,7 +285,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		totalLabel.Wrapping = fyne.TextWrapWord
 
 		updateTotal := func() {
-			totalLabel.SetText(fmt.Sprintf(totalFmt, curCols*curRows))
+			total := curCols * curRows
+			totalLabel.SetText(fmt.Sprintf(totalFmt, total))
+			if showIndividual && matchesSheetLabel != nil {
+				matchesSheetLabel.SetText(fmt.Sprintf(matchesSheetFmt, total))
+			}
 		}
 
 		colSlider := ui.MakeSlider(2, 9)
@@ -360,7 +369,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			sizeSelect.SetSelected("360 px")
 		}
 
-		settingsOptions = buildThumbBox(or(opts.ContactSheetGridLabel, "Contact Sheet Grid"), container.NewVBox(
+		gridBox := buildThumbBox(or(opts.ContactSheetGridLabel, "Contact Sheet Grid"), container.NewVBox(
 			widget.NewLabel(or(opts.ThumbnailSizeLabel, "Thumbnail Size:")),
 			sizeSelect,
 			colLabel,
@@ -369,6 +378,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 			rowSlider,
 			totalLabel,
 		))
+
+		if showIndividual {
+			// "both" mode: a locked count label that mirrors the grid total.
+			// The individual thumbnails are generated at the same width and
+			// count as the contact-sheet tiles, so no separate controls here.
+			matchesSheetLabel = widget.NewLabel(fmt.Sprintf(matchesSheetFmt, totalThumbs))
+			matchesSheetLabel.TextStyle = fyne.TextStyle{Italic: true}
+			matchesSheetLabel.Wrapping = fyne.TextWrapWord
+
+			indivBox := buildThumbBox(or(opts.IndividualThumbsLabel, "Individual Thumbnails"), container.NewVBox(
+				matchesSheetLabel,
+			))
+			settingsOptions = container.NewVBox(gridBox, indivBox)
+		} else {
+			settingsOptions = gridBox
+		}
 	} else {
 		countLabel := widget.NewLabel(fmt.Sprintf(countFmt, opts.ThumbnailCount))
 		countSlider := ui.MakeSlider(3, 50)

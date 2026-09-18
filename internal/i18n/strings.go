@@ -877,6 +877,7 @@ type Strings struct {
 	ThumbnailColumnsFmt         string // "Columns: %d"
 	ThumbnailRowsFmt            string // "Rows: %d"
 	ThumbnailTotalFmt           string // "Total thumbnails: %d"
+	ThumbnailCountMatchesSheetFmt string // "Count: %d (matches contact sheet)"
 	ThumbnailAddToQueue         string // "Add to Queue"
 	ThumbnailAddAllToQueue      string // "Add All to Queue"
 	ThumbnailLoadedVideos       string // "Loaded Videos:"
