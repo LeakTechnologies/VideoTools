@@ -131,6 +131,7 @@ Every landing **updates all six documents in the same commit**:
 - No personal names in docs — `user report` / `dev report` only.
 - The retired `docs.leaktechnologies.dev` site must not be referenced.
 - New features get `docs/FEATURE_NAME.md` (overview, implementation, files, testing checklist) **before** implementation, linked from TODO.md and this file.
+- Active feature: `docs/RIP_CHAPTER_RANGE.md` (dev81 — rip a title by a chapter range).
 
 ### Roadmap Card Rules
 
