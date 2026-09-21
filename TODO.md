@@ -2,6 +2,11 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev81 Scope (active — in development)
+
+- [ ] **Rip: rip a title by chapter range** — user request: "rip a title by chapters, so we could rip just a specific scene if we need to". New "Rip chapters only" checkbox + From/To chapter selects in the Rip enrichment panel (bounds = main-title chapter count in main mode, max over selected titles in choose-titles mode; hidden on full-disc/region-conversion). dvdvideo path seeks with output-side `-ss`/`-to`; VOB-concat path slices cells to the selected programs via new `TitleInfo.ProgramEntryCells` (PGC program-map entry cells, already read but not retained); embedded chapters remapped to the range. Design: `docs/RIP_CHAPTER_RANGE.md`.
+- [ ] **Tester verify: dev80 release** — (unchanged, carried) thumbnail both-mode output, queue StartedAt/CompletedAt + Progress, both-mode job log headers.
+
 ## Dev64 Scope (closed — released 2026-09-06; content verification carried into dev65)
 
 - [x] **Rip mode selection (scenes / full movie)** — new horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip (longest title, one job through the existing per-title executor path with `vtsNumber`/`titleNumber` + `extractMode "main"`; falls back to executor defaults with no scan result). Hidden while region conversion forces full-disc extraction; CTA line shows "Ready to rip main feature: Title N · duration". i18n keys across en/fr/iu/iu_latin. Build + vet green (`dev-verify.ps1`).
