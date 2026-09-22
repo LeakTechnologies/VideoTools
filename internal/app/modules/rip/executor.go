@@ -303,6 +303,13 @@ type RipArgs struct {
 	RegionConvert string   // "" (none), "pal2ntsc", "ntsc2pal"
 	VideoTSPath   string   // VIDEO_TS directory for -f dvdvideo (seamless branching)
 	TitleNumber   int      // 1-based title index from VMG TT_SRPT for -f dvdvideo
+
+	// ChapterStartSec/ChapterEndSec trim the output to a chapter range as
+	// output-side -ss/-to. Start > 0 enables the trim; End must be > Start.
+	// Used on both the dvdvideo path and the whole-file VOB-concat path when
+	// the cell-accurate list cannot restrict the span itself.
+	ChapterStartSec float64
+	ChapterEndSec   float64
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -430,6 +437,18 @@ func BuildRipArgs(ra RipArgs) []string {
 		args = append(args, "-t", strconv.FormatFloat(ra.MaxDuration, 'f', 3, 64))
 	}
 
+	// Chapter-range trim as output options. ffmpeg normalises the output
+	// timeline to start at 0, which keeps the remapped chapters metafile
+	// aligned. Applied to the stream after demuxing on both the dvdvideo and
+	// the VOB-concat inputs (when a cell-accurate list did not already bound
+	// the span).
+	if ra.ChapterStartSec > 0 {
+		args = append(args, "-ss", strconv.FormatFloat(ra.ChapterStartSec, 'f', 3, 64))
+		if ra.ChapterEndSec > ra.ChapterStartSec {
+			args = append(args, "-to", strconv.FormatFloat(ra.ChapterEndSec, 'f', 3, 64))
+		}
+	}
+
 	args = append(args, "-max_interleave_delta", "0")
 	args = append(args, ra.OutputPath)
 	return args
@@ -442,6 +461,41 @@ func BuildFFmpegArgs(listFile, outputPath, format string) []string {
 		OutputPath: outputPath,
 		Format:     format,
 	})
+}
+
+// chapterRange resolves a 1-based inclusive chapter range (cs..ce) against a
+// title's chapter start times into an output-side trim. Returns the remapped
+// chapter list (start times relative to the range base, so the output
+// timeline starts at 0 and chapter N still sits at its boundary), the absolute
+// start second, the absolute exclusive end second, the range duration, and
+// whether the range is usable. cs < 1 or ce <= 0 mean "whole title".
+func chapterRange(chapters []float64, duration float64, cs, ce int) (remap []float64, base float64, endSec float64, dur float64, ok bool) {
+	n := len(chapters)
+	if n == 0 {
+		return nil, 0, 0, 0, false
+	}
+	if cs < 1 {
+		cs = 1
+	}
+	if ce == 0 || ce > n {
+		ce = n
+	}
+	if cs > n || ce < cs {
+		return nil, 0, 0, 0, false
+	}
+	base = chapters[cs-1]
+	endSec = duration
+	if ce < n {
+		endSec = chapters[ce]
+	}
+	if endSec < base {
+		endSec = base
+	}
+	dur = endSec - base
+	for i := cs - 1; i < ce; i++ {
+		remap = append(remap, chapters[i]-base)
+	}
+	return remap, base, endSec, dur, len(remap) > 0
 }
 
 // WriteChapterFile writes an ffmetadata file containing chapter timestamps and
@@ -666,6 +720,40 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		appendLog(fmt.Sprintf("Warning: could not read IFO for enrichment: %v", ifoErr))
 	}
 
+	// Resolve an optional chapter range against the title's PGC chapters. The
+	// range is expressed in 1-based inclusive chapter numbers; 0 means the
+	// whole title. When active, the output is trimmed to the span (output-side
+	// -ss/-to on both demux paths), the cell-accurate concat list is restricted
+	// to exactly the span's cells, and the embedded chapters are remapped so
+	// chapter N of the ripped file still marks the same boundary.
+	var remapChapters []float64
+	concatCS, concatCE := 0, 0
+	rangeDur := 0.0
+	if opts.ChapterStart > 0 && titleInfo != nil && len(titleInfo.Chapters) > 0 {
+		cs, ce := opts.ChapterStart, opts.ChapterEnd
+		n := len(titleInfo.Chapters)
+		if ce == 0 || ce > n {
+			ce = n
+		}
+		if cs > n {
+			cs = n
+		}
+		// A range spanning every chapter is the whole title — leave the
+		// pipeline untouched so dvdvideo/cell behaviour is exactly today's.
+		if !(cs == 1 && ce == n) {
+			remap, base, endSec, durRange, ok := chapterRange(titleInfo.Chapters, titleInfo.Duration, cs, ce)
+			if ok {
+				concatCS, concatCE = cs, ce
+				rangeDur = durRange
+				remapChapters = remap
+				ra.ChapterStartSec = base
+				ra.ChapterEndSec = endSec
+				appendLog(fmt.Sprintf("Chapter range: chapters %d–%d of %d → %.2fs–%.2fs (%.2fs span)",
+					cs, ce, n, base, endSec, durRange))
+			}
+		}
+	}
+
 	if titleInfo != nil {
 		ra.Interlaced = titleInfo.Interlaced
 		ra.RegionConvert = opts.RegionConvert
@@ -688,10 +776,18 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 		// Chapter embedding
 		if opts.EmbedChapters && len(titleInfo.Chapters) > 1 {
-			appendLog(fmt.Sprintf("Embedding %d chapters (duration=%.2fs, chapter[0]=%.2fs, chapter[%d]=%.2fs)",
-				len(titleInfo.Chapters), titleInfo.Duration,
-				titleInfo.Chapters[0], len(titleInfo.Chapters)-1, titleInfo.Chapters[len(titleInfo.Chapters)-1]))
-			metaPath, err := WriteChapterFile(titleInfo.Chapters, titleInfo.Duration, opts.DiscTitle)
+			chapTimes := titleInfo.Chapters
+			chapDur := titleInfo.Duration
+			if len(remapChapters) > 0 {
+				chapTimes = remapChapters
+				chapDur = rangeDur
+				appendLog(fmt.Sprintf("Embedding %d chapters remapped to the chapter range (span=%.2fs)", len(chapTimes), chapDur))
+			} else {
+				appendLog(fmt.Sprintf("Embedding %d chapters (duration=%.2fs, chapter[0]=%.2fs, chapter[%d]=%.2fs)",
+					len(titleInfo.Chapters), titleInfo.Duration,
+					titleInfo.Chapters[0], len(titleInfo.Chapters)-1, titleInfo.Chapters[len(titleInfo.Chapters)-1]))
+			}
+			metaPath, err := WriteChapterFile(chapTimes, chapDur, opts.DiscTitle)
 			if err != nil {
 				appendLog(fmt.Sprintf("Warning: chapter file creation failed: %v", err))
 			} else {
@@ -753,7 +849,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	// needs no slicing — but when it fails, the retry below rebuilds the concat
 	// list cell-accurately the same way.
 	if !useDVDVideo {
-		cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo)
+		cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo, concatCS, concatCE)
 		if cellErr != nil {
 			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
 		} else if cellList != "" {
@@ -762,8 +858,15 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			listFile = cellList
 			defer cellCleanup()
 			ra.ListFile = cellList
+			// The cell slice already bounds the span exactly; output-side -ss/-to
+			// would double-trim.
+			ra.ChapterStartSec, ra.ChapterEndSec = 0, 0
 		} else if titleInfo != nil && len(titleInfo.Cells) > 0 {
-			appendLog("VOB concat: the selected title's PGC cells cover the whole VOB set — whole-file list is exact")
+			if concatCS > 0 {
+				appendLog("VOB concat: chapter range cell span unresolved — using whole-file list with output-side trim")
+			} else {
+				appendLog("VOB concat: the selected title's PGC cells cover the whole VOB set — whole-file list is exact")
+			}
 		}
 	}
 
@@ -773,6 +876,11 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	dur := 0.0
 	if titleInfo != nil {
 		dur = titleInfo.Duration
+	}
+	if rangeDur > 0 {
+		// Progress and percent-complete track the chapter range, not the whole
+		// title — the output is only the span.
+		dur = rangeDur
 	}
 	if dur <= 0 && len(set.Files) > 0 {
 		probed := probeDuration(set.Files[0], opts.OnRunCommand, appendLog)
@@ -811,7 +919,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		// would rip the movie's opening for a scene-segmented extra title. Use
 		// a cell-accurate list (VOBs sliced to the selected title's PGC cell
 		// sector ranges) whenever the IFO provides per-title cell metadata.
-		if cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo); cellErr != nil {
+		if cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo, concatCS, concatCE); cellErr != nil {
 			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
 			ra.ListFile = listFile
 		} else if cellList != "" {
@@ -821,6 +929,9 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			}
 			defer cellCleanup()
 			ra.ListFile = cellList
+			// The cell slice already bounds the span exactly; output-side -ss/-to
+			// would double-trim.
+			ra.ChapterStartSec, ra.ChapterEndSec = 0, 0
 		} else {
 			ra.ListFile = listFile
 		}
@@ -847,40 +958,50 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		// duration even though the real content is intact. A -t cap stops the
 		// muxer before them while preserving all real content.
 		//
-		// The cap is taken from the per-VOB media durations when they look sane
-		// (dev69 behaviour), else from the IFO's authored PGC play time. The
-		// IFO fallback matters because per-VOB probes are NOT immune to the
-		// offset: on some discs the stale PTS bakes into an entire VOB, so that
-		// VOB probes to +hours and either fails the app's static ffprobe or
-		// produces an absurd sum that would cap nothing.
-		maxDur := 0.0
-		allProbed := len(set.Files) > 0
-		for _, f := range set.Files {
-			d := probeDuration(f, opts.OnRunCommand, appendLog)
-			if d <= 0 {
-				allProbed = false
-				break
-			}
-			maxDur += d
-		}
-		capDur := 0.0
-		capDesc := ""
-		if allProbed && maxDur > 0 && (titleInfo == nil || titleInfo.Duration <= 0 || maxDur < titleInfo.Duration*3) {
-			capDur = maxDur
-			capDesc = fmt.Sprintf("sum of %d VOB duration(s) %.0f s + 60 s margin", len(set.Files), maxDur)
-		} else if !allProbed && titleInfo != nil && titleInfo.Duration > 0 {
-			capDur = titleInfo.Duration
-			capDesc = "IFO PGC duration (per-VOB duration probes failed) + 60 s margin"
-		} else if titleInfo != nil && titleInfo.Duration > 0 {
-			capDur = titleInfo.Duration
-			capDesc = "IFO PGC duration (per-VOB duration sum is stale) + 60 s margin"
-		}
-		if capDur > 0 {
-			ra.MaxDuration = math.Ceil(capDur + 60)
-			appendLog(fmt.Sprintf("VOB concat: capping output at %.0f s (%s) — prevents stale-PTS tail packets inflating the rip duration",
-				ra.MaxDuration, capDesc))
+		// A chapter range already bounds the span precisely (cells or -to), so
+		// the cap is just a 5 s safety margin over the range duration — the
+		// phantom-tail risk is identical and the probes would be wasted.
+		//
+		// Otherwise the cap is taken from the per-VOB media durations when they
+		// look sane (dev69 behaviour), else from the IFO's authored PGC play
+		// time. The IFO fallback matters because per-VOB probes are NOT immune
+		// to the offset: on some discs the stale PTS bakes into an entire VOB,
+		// so that VOB probes to +hours and either fails the app's static
+		// ffprobe or produces an absurd sum that would cap nothing.
+		if rangeDur > 0 {
+			ra.MaxDuration = math.Ceil(rangeDur + 5)
+			appendLog(fmt.Sprintf("VOB concat fallback: capping output at %.0f s (chapter range span %.2fs + 5 s margin)",
+				ra.MaxDuration, rangeDur))
 		} else {
-			appendLog("VOB concat: could not determine a safe output duration — leaving output duration uncapped")
+			maxDur := 0.0
+			allProbed := len(set.Files) > 0
+			for _, f := range set.Files {
+				d := probeDuration(f, opts.OnRunCommand, appendLog)
+				if d <= 0 {
+					allProbed = false
+					break
+				}
+				maxDur += d
+			}
+			capDur := 0.0
+			capDesc := ""
+			if allProbed && maxDur > 0 && (titleInfo == nil || titleInfo.Duration <= 0 || maxDur < titleInfo.Duration*3) {
+				capDur = maxDur
+				capDesc = fmt.Sprintf("sum of %d VOB duration(s) %.0f s + 60 s margin", len(set.Files), maxDur)
+			} else if !allProbed && titleInfo != nil && titleInfo.Duration > 0 {
+				capDur = titleInfo.Duration
+				capDesc = "IFO PGC duration (per-VOB duration probes failed) + 60 s margin"
+			} else if titleInfo != nil && titleInfo.Duration > 0 {
+				capDur = titleInfo.Duration
+				capDesc = "IFO PGC duration (per-VOB duration sum is stale) + 60 s margin"
+			}
+			if capDur > 0 {
+				ra.MaxDuration = math.Ceil(capDur + 60)
+				appendLog(fmt.Sprintf("VOB concat: capping output at %.0f s (%s) — prevents stale-PTS tail packets inflating the rip duration",
+					ra.MaxDuration, capDesc))
+			} else {
+				appendLog("VOB concat: could not determine a safe output duration — leaving output duration uncapped")
+			}
 		}
 		if err2 := runWithArgs(ra); err2 != nil {
 			return err2

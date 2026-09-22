@@ -155,6 +155,17 @@ func TestReadTitleInfo_Cells(t *testing.T) {
 			t.Errorf("Cells[%d] = %+v, want %+v", i, info.Cells[i], ow)
 		}
 	}
+	// ProgramEntryCells must mirror the PGC program map: program p → 1-based
+	// entry cell number (one program per cell in these synthetic PGCs).
+	wantProg := []int{1, 2, 3}
+	if len(info.ProgramEntryCells) != len(wantProg) {
+		t.Fatalf("ProgramEntryCells = %v, want %v", info.ProgramEntryCells, wantProg)
+	}
+	for i, w := range wantProg {
+		if info.ProgramEntryCells[i] != w {
+			t.Errorf("ProgramEntryCells[%d] = %d, want %d", i, info.ProgramEntryCells[i], w)
+		}
+	}
 }
 
 // TestReadTitleInfoForTTN_IndexFallback verifies TTN selection falls back to

@@ -669,6 +669,9 @@ var iu = Strings{
 	RipEmbedChapters:    "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ ᓇᓗᓇᐃᖅᑕᐅᓗᑎᒃ",                          // machine-generated, needs human review: Embed chapters
 	RipEmbedChaptersCountFmt: "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ ᓇᓗᓇᐃᖅᑕᐅᓗᑎᒃ (%d)",             // machine-generated, needs human review: Embed chapters (%d)
 	RipEmbedChaptersNone:     "ᑎᑎᕋᖅᑐᓄᑦ ᒥᓂᑦᑐᑦ (ᖃᓕᕈᓐᓂᒃ ᐊᑭᑐᐃᓐᓇᖅ)",           // machine-generated, needs human review: Embed chapters (none on disc)
+	RipChapterOnly:           "ᒥᓂᑦᑐᑦ ᐳᓛᓯᒋᐊᖅᑕᐃᓕᑦᑎᓗᒋᑦ ᐋᖅᑭᖅᑕᐅᓗᑎᒃ",    // machine-generated, needs human review: Rip chapters only
+	RipChapterFrom:           "ᒥᓂᑦᑐᖅ ᑕᓂᕐᑉᐸᓪᓕᐊᓂᒃᑯᑦ",                        // machine-generated, needs human review: From chapter
+	RipChapterTo:             "ᒥᓂᑦᑐᖅ ᑎᑭᓯᒪᓂᒃᑯᑦ",                             // machine-generated, needs human review: To chapter
 	RipAllAudioTracks:        "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ",                        // machine-generated, needs human review: All audio tracks
 	RipAllAudioTracksLangsFmt: "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ (%d: %s)",            // machine-generated, needs human review: All audio tracks (%d: %s)
 	RipAllAudioTracksCountFmt: "ᑕᒪᕐᒥᒃ ᓂᐱᑦ ᐊᑕᐅᓯᖃᑦᑎᓯᒪᔪᑦ (%d)",            // machine-generated, needs human review: All audio tracks (%d)

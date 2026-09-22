@@ -2,5 +2,5 @@
 Icon = "assets/logo/VT_Icon.png"
 Name = "VideoTools"
 ID = "com.leaktechnologies.videotools"
-Version = "0.1.1-dev80"
-Build = 70
+Version = "0.1.1-dev81"
+Build = 71

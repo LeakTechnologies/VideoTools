@@ -660,6 +660,9 @@ var iuLatn = Strings{
 	RipEmbedChapters:    "Minittut nalunaiqtausilugit titiraqtuit",                                                          // machine-generated, needs human review: Embed chapters
 	RipEmbedChaptersCountFmt: "Minittut nalunaiqtausilugit titiraqtuit (%d)",                                               // machine-generated, needs human review: Embed chapters (%d)
 	RipEmbedChaptersNone:     "Minittut nalunaiqtausilugit titiraqtuit (nnga inngit)",                                      // machine-generated, needs human review: Embed chapters (none on disc)
+	RipChapterOnly:           "Minittut nangitigiaqtausilugit ikumagititainnaq",                                             // machine-generated, needs human review: Rip chapters only
+	RipChapterFrom:           "Minittuup tunuaniit",                                                                          // machine-generated, needs human review: From chapter
+	RipChapterTo:             "Minittuup tukisianiit",                                                                        // machine-generated, needs human review: To chapter
 	RipAllAudioTracks:        "Tamarmik nipingit atasuiqattisimajut",                                                        // machine-generated, needs human review: All audio tracks
 	RipAllAudioTracksLangsFmt: "Tamarmik nipingit atasuiqattisimajut (%d: %s)",                                              // machine-generated, needs human review: All audio tracks (%d: %s)
 	RipAllAudioTracksCountFmt: "Tamarmik nipingit atasuiqattisimajut (%d)",                                                  // machine-generated, needs human review: All audio tracks (%d)

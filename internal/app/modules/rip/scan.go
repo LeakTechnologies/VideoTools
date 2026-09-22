@@ -160,6 +160,7 @@ func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) 
 			dt.HasAngles = ti.HasAngles
 			if len(ti.Chapters) > 1 {
 				dt.NumChapters = len(ti.Chapters)
+				dt.Chapters = append([]float64{}, ti.Chapters...)
 			}
 			for _, a := range ti.Audio {
 				dt.Audio = append(dt.Audio, DiscTitleTrack{

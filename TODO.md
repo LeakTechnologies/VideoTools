@@ -4,7 +4,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev81 Scope (active — in development)
 
-- [ ] **Rip: rip a title by chapter range** — user request: "rip a title by chapters, so we could rip just a specific scene if we need to". New "Rip chapters only" checkbox + From/To chapter selects in the Rip enrichment panel (bounds = main-title chapter count in main mode, max over selected titles in choose-titles mode; hidden on full-disc/region-conversion). dvdvideo path seeks with output-side `-ss`/`-to`; VOB-concat path slices cells to the selected programs via new `TitleInfo.ProgramEntryCells` (PGC program-map entry cells, already read but not retained); embedded chapters remapped to the range. Design: `docs/RIP_CHAPTER_RANGE.md`.
+- [x] **Rip: rip a title by chapter range** — released as dev81 (2026-09-22, tag v0.1.1-dev81): "Rip chapters only" + From/To chapter selects trim the output to the range. dvdvideo path seeks with output-side `-ss`/`-to`; VOB-concat fallback slices cells to exactly the selected programs via new `TitleInfo.ProgramEntryCells` (PGC program map entry cells); embedded chapters remapped to the range; progress tracks the range; whole-cover short-circuit skipped while ranged; cells-unresolvable ranges degrade to whole-file + `-ss`/`-to`; stale-PTS failover cap = range + 5 s. Design + testing checklist: `docs/RIP_CHAPTER_RANGE.md`.
 - [ ] **Tester verify: dev80 release** — (unchanged, carried) thumbnail both-mode output, queue StartedAt/CompletedAt + Progress, both-mode job log headers.
 
 ## Dev64 Scope (closed — released 2026-09-06; content verification carried into dev65)

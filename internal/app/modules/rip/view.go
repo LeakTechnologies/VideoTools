@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -55,6 +56,9 @@ type viewState struct {
 	lastShapeMode         string // rip mode whose canonical selection was last auto-applied
 	discTitle             string
 	outputTouched         bool // output path was hand-edited, so auto-recompute should not clobber it
+	chapterOnly           bool // "Rip chapters only" — trim each ripped title to a chapter range
+	chapterFrom           int  // 1-based inclusive start chapter (0 = unset / whole title)
+	chapterTo             int  // 1-based inclusive end chapter (0 = unset / last chapter)
 	progress              float64
 
 	scanResult     *DiscScanResult
@@ -399,6 +403,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return nil
 		}
 
+		// Chapter-only rip: the From/To range applies per title; the executor
+		// clamps it to each title's own chapter count at run time. Inert for
+		// full-disc and archivist jobs (extractMode "full" / archivist format).
+		chStart, chEnd := 0, 0
+		if vs.chapterOnly && vs.extractMode != "full" && vs.format != FormatArchivist {
+			chStart = vs.chapterFrom
+			if chStart < 1 {
+				chStart = 1
+			}
+			chEnd = vs.chapterTo
+			if chEnd < chStart {
+				chEnd = chStart
+			}
+		}
+
 		// Main-feature extraction is a single job for the longest title on the disc.
 		// Without a scan result we fall back to the executor's own main-feature
 		// defaults (largest VTS set / title 1).
@@ -433,6 +452,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 					"vtsNumber":             vtsNum,
 					"titleNumber":           titleNum,
 					"extractMode":           "main",
+					"chapterStart":          chStart,
+					"chapterEnd":            chEnd,
 				},
 			}
 			opts.AddJob(job)
@@ -525,6 +546,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 					"discTitle":             vs.discTitle,
 					"vtsNumber":             j.vtsNumber,
 					"titleNumber":           j.titleNumber,
+					"chapterStart":          chStart,
+					"chapterEnd":            chEnd,
 				},
 			}
 			opts.AddJob(job)
@@ -683,6 +706,73 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.persistConfig()
 	})
 	chaptersCheck.SetChecked(vs.embedChapters)
+
+	// "Rip chapters only": trim each ripped title to an inclusive 1-based
+	// chapter range via From/To selects. Bounds come from the greatest chapter
+	// count on the disc (individual titles are clamped by the executor), and
+	// the control is inert while region conversion forces full-disc extraction
+	// or the archivist format is active. The range is per-rip state, not
+	// persisted config.
+	chapterFromSel := widget.NewSelect(nil, func(v string) {
+		if n, err := strconv.Atoi(v); err == nil {
+			vs.chapterFrom = n
+		}
+	})
+	chapterFromSel.PlaceHolder = t.RipChapterFrom
+	chapterToSel := widget.NewSelect(nil, func(v string) {
+		if n, err := strconv.Atoi(v); err == nil {
+			vs.chapterTo = n
+		}
+	})
+	chapterToSel.PlaceHolder = t.RipChapterTo
+	var chapterOnlyCheck *widget.Check
+	chapterRangeBox := container.NewHBox(chapterFromSel, chapterToSel)
+	chapterRangeBox.Hide()
+	var refreshChapterRange func()
+	refreshChapterRange = func() {
+		bound := 0
+		if vs.scanResult != nil {
+			for _, dt := range vs.scanResult.Titles {
+				if dt.NumChapters > bound {
+					bound = dt.NumChapters
+				}
+			}
+		}
+		if bound < 2 || vs.format == FormatArchivist || vs.regionConvert != "" {
+			vs.chapterOnly = false
+			if chapterOnlyCheck != nil {
+				chapterOnlyCheck.SetChecked(false)
+			}
+			chapterRangeBox.Hide()
+			return
+		}
+		opts := make([]string, bound)
+		for i := range opts {
+			opts[i] = strconv.Itoa(i + 1)
+		}
+		if !reflect.DeepEqual(chapterFromSel.Options, opts) {
+			chapterFromSel.Options = opts
+			chapterToSel.Options = opts
+		}
+		if vs.chapterFrom < 1 || vs.chapterFrom > bound {
+			vs.chapterFrom = 1
+		}
+		if vs.chapterTo < vs.chapterFrom || vs.chapterTo > bound {
+			vs.chapterTo = bound
+		}
+		chapterFromSel.SetSelected(strconv.Itoa(vs.chapterFrom))
+		chapterToSel.SetSelected(strconv.Itoa(vs.chapterTo))
+		if vs.chapterOnly {
+			chapterRangeBox.Show()
+		} else {
+			chapterRangeBox.Hide()
+		}
+	}
+	chapterOnlyCheck = widget.NewCheck(t.RipChapterOnly, func(v bool) {
+		vs.chapterOnly = v
+		refreshChapterRange()
+	})
+	chapterOnlyCheck.SetChecked(vs.chapterOnly)
 
 	allAudioCheck := widget.NewCheck(t.RipAllAudioTracks, func(v bool) {
 		vs.allAudioTracks = v
@@ -998,6 +1088,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		chaptersCheck.Text = chapLabel
 		chaptersCheck.Refresh()
 
+		// Chapter-range From/To bounds track the greatest chapter count on the
+		// disc; each re-scan re-derives the options and clamps the selection.
+		refreshChapterRange()
+
 		// Audio checkbox
 		audioLabel := t.RipAllAudioTracks
 		if mainTitle != nil && len(mainTitle.Audio) > 0 {
@@ -1043,6 +1137,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			widget.NewLabelWithStyle(t.RipTitleLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
 			chaptersCheck,
+			chapterOnlyCheck,
+			chapterRangeBox,
 			allAudioCheck,
 		}
 		objs = append(objs, buildSubtitleRow(mainTitle)...)

@@ -29,7 +29,7 @@ func writeTestVOBSet(t *testing.T, sectorCounts []uint32) (string, VobSet) {
 
 func TestCellConcatList_NoCells(t *testing.T) {
 	dir, set := writeTestVOBSet(t, []uint32{100, 200})
-	list, cleanup, err := cellConcatList(dir, set, nil)
+	list, cleanup, err := cellConcatList(dir, set, nil, 0, 0)
 	if err != nil {
 		t.Fatalf("cellConcatList(nil info): %v", err)
 	}
@@ -46,7 +46,7 @@ func TestCellConcatList_HasAngles(t *testing.T) {
 			{VOBID: 1, CellID: 1, FirstSector: 10, LastSector: 20},
 		},
 	}
-	list, cleanup, err := cellConcatList(dir, set, ti)
+	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
 	if err != nil {
 		t.Fatalf("cellConcatList(angles): %v", err)
 	}
@@ -63,7 +63,7 @@ func TestCellConcatList_CoversWholeSet(t *testing.T) {
 			{VOBID: 2, CellID: 1, FirstSector: 0, LastSector: 199},
 		},
 	}
-	list, cleanup, err := cellConcatList(dir, set, ti)
+	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
 	if err != nil {
 		t.Fatalf("cellConcatList(full cover): %v", err)
 	}
@@ -81,7 +81,7 @@ func TestCellConcatList_MultiVOBPartial(t *testing.T) {
 			{VOBID: 2, CellID: 1, FirstSector: 10, LastSector: 99},
 		},
 	}
-	list, cleanup, err := cellConcatList(dir, set, ti)
+	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
 	if err != nil {
 		t.Fatalf("cellConcatList(partial): %v", err)
 	}
@@ -128,7 +128,7 @@ func TestCellConcatList_MissingVOB(t *testing.T) {
 			{VOBID: 3, CellID: 1, FirstSector: 5, LastSector: 9},
 		},
 	}
-	list, cleanup, err := cellConcatList(dir, set, ti)
+	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
 	if err != nil {
 		t.Fatalf("cellConcatList(missing VOB): %v", err)
 	}
@@ -143,4 +143,102 @@ func extractConcatPath(line string) string {
 	line = strings.TrimPrefix(line, "file '")
 	line = strings.TrimSuffix(line, "'")
 	return strings.ReplaceAll(line, "''", "'")
+}
+
+// TestChapterCellSpan maps chapter ranges onto the PGC program map. Programs
+// share an entry cell here (program 5 and program 6 both start at cell 6, so
+// program 5 owns no cells), and a program's span runs from its own entry cell
+// up to the entry cell of the program AFTER the range — never the program
+// index nor the range's own entry cell.
+func TestChapterCellSpan(t *testing.T) {
+	ti := &ifo.TitleInfo{
+		Cells: make([]ifo.TitleCell, 6),
+		// 1-based program → entry cell: prog1→1, prog2→2, prog3→4, prog4→5, prog5→6, prog6→6
+		ProgramEntryCells: []int{1, 2, 4, 5, 6, 6},
+	}
+	// Spans in 0-based cell indices:
+	//   ch1 = cell0; ch2 = cells1-2; ch3 = cell3; ch4 = cell4; ch5 = ∅; ch6 = cell5
+	want := []struct {
+		cs, ce   int
+		lo, hiEx int
+		wantOK   bool
+	}{
+		{1, 6, 0, 6, true},  // whole title = all cells
+		{2, 4, 1, 5, true},  // cells 1-4 (ch2:1-2, ch3:3, ch4:4)
+		{3, 3, 3, 4, true},  // ch3 = cell3
+		{6, 6, 5, 6, true},  // ch6 = cell5
+		{4, 5, 4, 5, true},  // ch4 = cell4, ch5 is empty
+		{2, 2, 1, 3, true},  // ch2 = cells1-2 (its next program enters at cell4)
+		{5, 4, 0, 0, false}, // inverted range is unresolvable
+		{7, 7, 0, 0, false}, // out-of-range start is unresolvable
+		{0, 6, 0, 6, true},  // cs=0 means whole title
+	}
+	for _, w := range want {
+		lo, hiEx, ok := chapterCellSpan(ti, w.cs, w.ce)
+		if ok != w.wantOK || lo != w.lo || hiEx != w.hiEx {
+			t.Errorf("chapterCellSpan(cs=%d,ce=%d) = (%d,%d,%v), want (%d,%d,%v)",
+				w.cs, w.ce, lo, hiEx, ok, w.lo, w.hiEx, w.wantOK)
+		}
+	}
+
+	// Missing program map → not resolvable (caller relies on output -ss/-to).
+	if _, _, ok := chapterCellSpan(&ifo.TitleInfo{Cells: make([]ifo.TitleCell, 3)}, 1, 3); ok {
+		t.Error("chapterCellSpan without a program map must report unresolvable")
+	}
+	// No cells → not resolvable.
+	if _, _, ok := chapterCellSpan(&ifo.TitleInfo{ProgramEntryCells: []int{1}}, 1, 1); ok {
+		t.Error("chapterCellSpan without cells must report unresolvable")
+	}
+}
+
+// TestCellConcatList_ChapterRange verifies a chapter range restricts the slice
+// to exactly the span's cells — even when the full title would cover the whole
+// VOB set (range mode must NOT short-circuit to whole-file concat).
+func TestCellConcatList_ChapterRange(t *testing.T) {
+	dir, set := writeTestVOBSet(t, []uint32{100, 200})
+	// Three cells covering the whole set: chapters 1-2 in cell 1, chapter 3 in
+	// cell 2, chapter 4 in cell 3.
+	ti := &ifo.TitleInfo{
+		Cells: []ifo.TitleCell{
+			{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 99},
+			{VOBID: 2, CellID: 1, FirstSector: 0, LastSector: 99},
+			{VOBID: 2, CellID: 2, FirstSector: 100, LastSector: 199},
+		},
+		ProgramEntryCells: []int{1, 1, 2, 3},
+	}
+	// Chapters 3-4 → cells 2-3 (span [2,4)).
+	list, cleanup, err := cellConcatList(dir, set, ti, 3, 4)
+	if err != nil {
+		t.Fatalf("cellConcatList(range 3-4): %v", err)
+	}
+	if list == "" || cleanup == nil {
+		t.Fatal("a chapter range that covers the whole set must STILL produce a cell slice (not whole-file)")
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(list)
+	if err != nil {
+		t.Fatalf("read list: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	// Cells 2 and 3 are adjacent in VOB_2 (0-99, 100-199) so coalescing merges
+	// them into a single 200-sector slice covering the whole span.
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 coalesced slice entry, got %d: %q", len(lines), lines)
+	}
+	want := int64(200 * 2048)
+	path := extractConcatPath(lines[0])
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("slice file %s missing: %v", path, err)
+	}
+	if fi.Size() != want {
+		t.Errorf("slice size = %d, want %d", fi.Size(), want)
+	}
+	// Without a resolvable program map the range falls back to whole-file concat
+	// (the caller bounds the rip with output-side -ss/-to).
+	ti.ProgramEntryCells = nil
+	if list, cleanup, err := cellConcatList(dir, set, ti, 3, 4); list != "" || cleanup != nil {
+		t.Errorf("range without a program map must fall back to whole-file concat, got list=%q err=%v", list, err)
+	}
 }
