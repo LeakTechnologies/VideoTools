@@ -92,6 +92,10 @@ type DiscTitle struct {
 	VTSNumber   int
 	NumChapters int
 	Duration    float64
+	// Chapters holds the per-chapter start times in seconds (from the title's
+	// own PGC), used to bound the "rip chapters only" From/To selects. Empty
+	// when the IFO has no PGC chapter data.
+	Chapters    []float64
 	Audio       []DiscTitleTrack
 	Subtitles   []DiscTitleTrack
 	HasAngles   bool
@@ -141,6 +145,13 @@ type ExecuteOptions struct {
 	IncludeMenus          bool     // export menu VOBs as separate files (default false = skip menus)
 	DiscTitle             string   // embedded as MKV/MP4 title tag; empty = skip
 	RegionConvert         string   // "" (none), "pal2ntsc", "ntsc2pal"
+
+	// ChapterStart/ChapterEnd bound the rip to an inclusive 1-based chapter
+	// range of the selected title (0 = whole title). The cell slice list and
+	// the output timeline are restricted to the span, and the chapter metafile
+	// is remapped so embedded chapter N still marks the chapter boundary.
+	ChapterStart int
+	ChapterEnd   int
 
 	GetLogsDir   func() string
 	LogSuffix    string

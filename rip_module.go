@@ -193,6 +193,24 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 			titleNumber = int(n)
 		}
 	}
+	chapterStart := 0
+	if v, ok := cfg["chapterStart"]; ok {
+		switch n := v.(type) {
+		case int:
+			chapterStart = n
+		case float64:
+			chapterStart = int(n)
+		}
+	}
+	chapterEnd := 0
+	if v, ok := cfg["chapterEnd"]; ok {
+		switch n := v.(type) {
+		case int:
+			chapterEnd = n
+		case float64:
+			chapterEnd = int(n)
+		}
+	}
 
 	execOpts := ripmod.ExecuteOptions{
 		SourcePath:            sourcePath,
@@ -200,6 +218,8 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		Format:                format,
 		VTSNumber:             vtsNumber,
 		TitleNumber:           titleNumber,
+		ChapterStart:          chapterStart,
+		ChapterEnd:            chapterEnd,
 		ExtractMode:           toString(cfg["extractMode"]),
 		EmbedChapters:         toBool(cfg["embedChapters"]),
 		AllAudioTracks:        toBool(cfg["allAudioTracks"]),

@@ -43,6 +43,13 @@ type TitleInfo struct {
 	// multi-title VTS discs (e.g. scene-segmented compilations where multiple
 	// titles share one VOB set). Empty when cell data is unavailable.
 	Cells []TitleCell
+
+	// ProgramEntryCells holds the PGC program map: ProgramEntryCells[p] is the
+	// 1-based entry cell number of program p (i.e. Chapter p+1). Combined with
+	// Cells it maps a chapter range to the cell byte ranges that cover exactly
+	// those programs, so a rip can slice a title to a specific span of
+	// chapters. Empty when the program map is unavailable.
+	ProgramEntryCells []int
 }
 
 // TitleCell holds the per-cell byte-range metadata for one cell in a PGC.
@@ -256,6 +263,12 @@ func readChapters(f *os.File, pgcitiBase int64, info *TitleInfo, ttn int) error 
 	cellData := make([]byte, nrCells*24)
 	if _, err := f.ReadAt(cellData, pgcAbsOff+int64(cellPlayRelOff)); err != nil {
 		return fmt.Errorf("read cell playback table: %w", err)
+	}
+
+	// Retain the PGC program map (entry cell number per program, 1-based) so a
+	// chapter range can be resolved to its cell span for cell-accurate slicing.
+	for _, entry := range progMap {
+		info.ProgramEntryCells = append(info.ProgramEntryCells, int(entry))
 	}
 
 	// Decode cell durations and detect multi-angle cells.

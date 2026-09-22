@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev81 (September 2026)
+
+### Rip a Title by Chapter Range
+
+- **Rip: "Rip chapters only" with From/To chapter selects.** The rip view gains a per-rip "Rip chapters only" toggle plus From/To selects whenever the scan reports chapter counts. The selects' upper bound is the greatest chapter count across ALL scanned titles (so the range never invalidates when the picked title changes), clamped per title at execute; titles without PGC program data report "N/A" and the controls stay disabled. The toggle is inert for full-disc rips, region conversion, and the archivist format, and the selection is a per-rip transient — it is never persisted to config. New i18n keys `RipChapterOnly`/`RipChapterFrom`/`RipChapterTo` across en/fr/iu/iu_latin.
+- **Executor: output-side trim for the dvdvideo path.** The range is expressed as `-ss`/`-to` appended to the end of the FFmpeg command (after all inputs, so every input has been declared), using the absolute chapter timestamps from the title's chapter list — the output timeline normalises to 0. Embedded chapters are remapped to the range base (`firstChapter → 0`) so the MKV's chapter list describes the trimmed file, and progress tracks the range span, not the whole title.
+- **Executor: cell-accurate slicing for the VOB-concat fallback.** `ifo.TitleInfo` now retains the PGC program map (`ProgramEntryCells []int`, filled from the same PGC pass that reads chapters). The concat fallback slices each VOB to the range's cell span — `[entry(cs)−1, entry(ce+1)−1)` via `chapterCellSpan`, where `entry(p)` is the cell serving program `p` — coalescing adjacent cells per VOB as before. The whole-cover short-circuit is skipped while a range is active (a ranged rip must always slice), and a cells-unresolvable range degrades to whole-file concat plus the `-ss`/`-to` trim. The stale-PTS failover cap becomes `range duration + 5 s` when the cell list is engaged, so the trim always sits inside a safe region.
+- Verified by unit tests: `chapterRange` remap (base = chapter cs−1, span = cs..ce chapters, end = chapter `ce` or the title duration), `chapterCellSpan` (shared entry cells, `cs > n` rejection, `ce < cs` rejection, whole-title equivalence), and `cellConcatList` slicing a mid-title range with whole-cover detection disabled when ranged.
+- **Repo hygiene:** this feature rides on the existing dev81 doc slice — roadmap card `rip-chapter-range` marked done, `docs/RIP_CHAPTER_RANGE.md` carries the feature doc + tester checklist. Six docs + version triad synced in the release commit.
+
 ## v0.1.1-dev80 (September 2026)
 
 ### Thumbnail "Both" Mode Output Fix + Queue Timestamp Bug + Full Thumbnail Run in Job Logs

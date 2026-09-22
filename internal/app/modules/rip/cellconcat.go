@@ -61,6 +61,48 @@ func vobSetFileByID(videoTSPath string, set VobSet) map[uint16]string {
 	return byID
 }
 
+// chapterCellSpan maps a 1-based inclusive chapter range (cs..ce, 1-based
+// program numbers) onto the cell-index span [lo, hiEx) over ti.Cells using the
+// PGC program map (ProgramEntryCells[p] = entry cell number of program p).
+// The span covers every cell from chapter cs's entry cell up to the cell
+// before the entry cell of the program after ce (or the last cell when ce is
+// the final chapter). ok=false when the program map or cell list is missing or
+// the range is ill-formed.
+func chapterCellSpan(ti *ifo.TitleInfo, cs, ce int) (lo, hiEx int, ok bool) {
+	prog := ti.ProgramEntryCells
+	n := len(prog)
+	if n == 0 || len(ti.Cells) == 0 {
+		return 0, 0, false
+	}
+	if cs < 1 {
+		cs = 1
+	}
+	if ce == 0 || ce > n {
+		ce = n
+	}
+	if cs > n || ce < cs {
+		return 0, 0, false
+	}
+	lo = int(prog[cs-1]) - 1
+	if lo >= len(ti.Cells) {
+		return 0, 0, false
+	}
+	if ce < n {
+		hiEx = int(prog[ce]) - 1
+	} else {
+		hiEx = len(ti.Cells)
+	}
+	if hiEx <= lo {
+		// Programs sharing an entry cell can collapse the span; keep at least
+		// the entry cell so the range still slices something exact.
+		hiEx = lo + 1
+	}
+	if hiEx > len(ti.Cells) {
+		hiEx = len(ti.Cells)
+	}
+	return lo, hiEx, true
+}
+
 // cellConcatList builds an ffmpeg concat list that covers exactly the title's
 // PGC cells, by slicing the set's VOB files to the per-cell sector byte ranges
 // (each cell's FirstSector..LastSector are VOB-relative, so byte offsets are
@@ -69,11 +111,16 @@ func vobSetFileByID(videoTSPath string, set VobSet) map[uint16]string {
 //	list, cleanup, nil — a cell-accurate list to use instead of whole-file concat;
 //	cleanup removes the temp slice files and the list file when the rip ends.
 //	"", nil, nil        — cell slicing is not applicable/needed; use whole-file concat
-//	                    (no cells, HasAngles, cells already cover the whole VOB
-//	                    set contiguously — i.e. the content is exactly the file set).
+//	                    (no cells, HasAngles, a chapter range with no resolvable
+//	                    cell span, or cells already cover the whole VOB set with
+//	                    NO chapter range active — i.e. the content is exactly the
+//	                    file set).
 //	"", nil, err        — the cell list could not be prepared (caller should warn
 //	                    and keep the whole-file fallback).
-func cellConcatList(videoTSPath string, set VobSet, ti *ifo.TitleInfo) (string, func(), error) {
+//
+// cs/ce are the 1-based inclusive chapter range to restrict the cells to; 0
+// means the whole title.
+func cellConcatList(videoTSPath string, set VobSet, ti *ifo.TitleInfo, cs, ce int) (string, func(), error) {
 	if ti == nil || len(ti.Cells) == 0 || ti.HasAngles {
 		return "", nil, nil
 	}
@@ -82,10 +129,23 @@ func cellConcatList(videoTSPath string, set VobSet, ti *ifo.TitleInfo) (string, 
 		return "", nil, nil
 	}
 
+	// A chapter range restricts the cell span via the PGC program map. Without
+	// a resolvable span the caller keeps the whole-file list and bounds the
+	// rip with output-side -ss/-to instead.
+	cells := ti.Cells
+	rangeActive := cs > 0
+	if rangeActive {
+		lo, hiEx, ok := chapterCellSpan(ti, cs, ce)
+		if !ok {
+			return "", nil, nil
+		}
+		cells = ti.Cells[lo:hiEx]
+	}
+
 	// Coalesce cells that are adjacent (or overlapping) within the same VOB
 	// into the minimal set of contiguous byte ranges, preserving playback order.
 	var ranges []vobRange
-	for _, c := range ti.Cells {
+	for _, c := range cells {
 		vid := uint8(c.VOBID)
 		if vid == 0 {
 			return "", nil, nil
@@ -125,7 +185,9 @@ func cellConcatList(videoTSPath string, set VobSet, ti *ifo.TitleInfo) (string, 
 
 	// When the cells already span the entire VOB set, whole-file concat produces
 	// identical content — slicing would only add copy time and temp space.
-	if fullCover {
+	// A chapter range that resolves to the full span still goes through the
+	// slice path (the span is exact and -ss/-to get suppressed).
+	if fullCover && !rangeActive {
 		return "", nil, nil
 	}
 
