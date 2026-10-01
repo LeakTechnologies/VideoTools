@@ -1157,6 +1157,8 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 		cfg.AspectUserSet,
 		cfg.FrameRate,
 		cfg.BitrateMode,
+		cfg.NormalizeLUFS,
+		cfg.NormalizeTruePeak,
 	)
 	cfg.ForceAspect = norm.ForceAspect
 	cfg.ShowUpscale = norm.ShowUpscale
@@ -1165,14 +1167,15 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	cfg.AspectUserSet = norm.AspectUserSet
 	cfg.FrameRate = norm.FrameRate
 	cfg.BitrateMode = norm.BitrateMode
+	cfg.NormalizeLUFS = norm.NormalizeLUFS
+	cfg.NormalizeTruePeak = norm.NormalizeTruePeak
 
-	// Migration: pre-dev54 configs don't have layout fields. When all three
-	// are false, assume old config and default to all-open.
-	if !cfg.PlayerOpen && !cfg.MetadataOpen && !cfg.SettingsOpen {
-		cfg.PlayerOpen = true
-		cfg.MetadataOpen = true
-		cfg.SettingsOpen = true
-	}
+	// Migration: pre-dev54 configs don't have layout fields. Keyed on presence,
+	// not on value - a config with all three keys present and false is a
+	// deliberately collapsed layout, not a legacy config.
+	cfg.PlayerOpen, cfg.MetadataOpen, cfg.SettingsOpen = appcfg.NormalizeLayoutFields(
+		raw, cfg.PlayerOpen, cfg.MetadataOpen, cfg.SettingsOpen,
+	)
 
 	return cfg, nil
 }
