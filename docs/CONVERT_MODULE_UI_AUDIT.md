@@ -309,7 +309,7 @@ exactly what a screenshot would settle** — do not guess.
 
 ## 6. Hard constraints — findings that violate these will be rejected
 
-Settled project decisions. **Do not propose changing them.** If you disagree, use §8.7.
+Settled project decisions. **Do not propose changing them.** If you disagree, use §7.9.
 
 1. **The One Rule — the player API layer.** Every module reaches the player through
    `ui.InlineVideoPlayer`. No `media.NewEngine()` in a module, no per-module playback goroutines,
