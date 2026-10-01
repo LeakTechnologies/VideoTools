@@ -130,15 +130,19 @@ Every landing **updates all six documents in the same commit**:
 - Behavior changes also update `docs/INSTALLATION.md` + the platform guide (`docs/INSTALL_WINDOWS.md` / `docs/INSTALL_LINUX.md`).
 - No personal names in docs — `user report` / `dev report` only.
 - **No media/disc titles anywhere in the repo** — not in code, comments, log
-  messages, test fixtures, docs, or GitHub issues (titles, bodies, comments).
-  The rip corpus is adult material; refer to discs neutrally as "a grey-market
-  DVD", "a scene-segmented disc", "a disc with N titles in VTS_01", "the
-  ISO 9660-only sample", etc. Behaviour that depends on a specific disc is
-  described by its *structure* (PGC layout, stale-PTS offset, liar-IFO
-  subtitle count, shared-VTS cells), never by what the film is called.
-  Prose about a *feature* may keep the neutral `test` / `Title A` style
-  placeholders. A repo-wide `rg -i -e '<title fragment>' -g '!_fyne/**'` scan
-  should come back empty before landing a commit that touches rip docs.
+  messages, test fixtures, docs, **commit messages**, or GitHub issues (titles,
+  bodies, comments). The rip corpus is adult material; refer to discs neutrally
+  as "a grey-market DVD", "a scene-segmented disc", "a disc with N titles in
+  VTS_01", "the ISO 9660-only sample", etc. Behaviour that depends on a
+  specific disc is described by its *structure* (PGC layout, stale-PTS offset,
+  liar-IFO subtitle count, shared-VTS cells), never by what the film is called.
+  A repo-wide `rg -i -e '<title fragment>' -g '!_fyne/**'` scan should come
+  back empty before landing a commit that touches rip docs.
+- **Do not over-scrub.** Generic placeholder filenames and example labels are
+  fine and must be left alone — `test.mkv`, `output.iso`, `title_01.mpg`,
+  `vacation.mp4`, `Family Vacation`, `VTS_XX_0.VOB`, `previous title.mkv`.
+  The rule targets real film titles, not innocuous sample names. Feature prose
+  may also keep neutral `test` / `Title A` style placeholders.
 - The retired `docs.leaktechnologies.dev` site must not be referenced.
 - New features get `docs/FEATURE_NAME.md` (overview, implementation, files, testing checklist) **before** implementation, linked from TODO.md and this file.
 - Active feature: `docs/RIP_CHAPTER_RANGE.md` (dev81 — rip a title by a chapter range).
