@@ -842,8 +842,8 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	// On the VOB-concat path, prefer a cell-accurate input list over whole-file
 	// concatenation. On multi-PGC VTS discs (scene-segmented "extras" titles
-	// sharing one VOB set — e.g. a disc with seven titles in
-	// VTS_01), whole-file concat reads the movie's opening for every non-first
+	// sharing one VOB set — e.g. a disc with seven titles in VTS_01),
+	// whole-file concat reads the movie's opening for every non-first
 	// title; slicing the VOBs to the selected title's PGC cell sectors yields
 	// the actual title content. The dvdvideo path reads the IFO natively and
 	// needs no slicing — but when it fails, the retry below rebuilds the concat
