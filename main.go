@@ -2383,6 +2383,8 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"audioChannels":      cfg.AudioChannels,
 		"audioSampleRate":    cfg.AudioSampleRate,
 		"normalizeAudio":     cfg.NormalizeAudio,
+		"normalizeLUFS":      cfg.NormalizeLUFS,
+		"normalizeTruePeak":  cfg.NormalizeTruePeak,
 		"inverseTelecine":    cfg.InverseTelecine,
 		"coverArtPath":       cfg.CoverArtPath,
 		"aspectHandling":     cfg.AspectHandling,
@@ -2533,6 +2535,8 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		"audioChannels":      cfg.AudioChannels,
 		"audioSampleRate":    cfg.AudioSampleRate,
 		"normalizeAudio":     cfg.NormalizeAudio,
+		"normalizeLUFS":      cfg.NormalizeLUFS,
+		"normalizeTruePeak":  cfg.NormalizeTruePeak,
 		"inverseTelecine":    cfg.InverseTelecine,
 		"coverArtPath":       cfg.CoverArtPath,
 		"aspectHandling":     cfg.AspectHandling,
@@ -3608,6 +3612,8 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"audioChannels":     s.convert.AudioChannels,
 			"audioSampleRate":   s.convert.AudioSampleRate,
 			"normalizeAudio":    s.convert.NormalizeAudio,
+			"normalizeLUFS":     s.convert.NormalizeLUFS,
+			"normalizeTruePeak": s.convert.NormalizeTruePeak,
 			"inverseTelecine":   s.convert.InverseTelecine,
 			"coverArtPath":      "",
 			"aspectHandling":    s.convert.AspectHandling,
@@ -5225,6 +5231,23 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	return nil
 }
 
+// normalizeLoudnessFromJob resolves a loudness target from a queued job's
+// config map.
+//
+// The map is built at enqueue time and may predate the loudness fields, and a
+// preset or a restored job can carry a JSON number that decodes as 0. Either
+// way a 0 target would build a loudnorm filter aiming at 0 LUFS / 0 dBTP, so
+// an unusable value falls back to the default. This mirrors the repair applied
+// by appcfg.NormalizeConvertFields on the persisted-config path, which does not
+// cover jobs already sitting in the queue.
+func normalizeLoudnessFromJob(cfg map[string]interface{}, key string, def float64) float64 {
+	v, ok := cfg[key].(float64)
+	if !ok || v == 0 {
+		return def
+	}
+	return v
+}
+
 // executeConvertJob executes a conversion job from the queue
 func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
@@ -5877,9 +5900,18 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				args = append(args, "-b:a", audioBitrate)
 			}
 
-			// Audio normalization (compatibility mode)
+			// Audio normalization. Force stereo/48 kHz for compatibility and
+			// apply the loudness targets, mirroring the direct-run path.
+			// Channel mixing is deliberately skipped in this branch so only one
+			// -af is ever emitted - ffmpeg honours the last -af and would
+			// otherwise silently drop the loudnorm filter.
 			if normalizeAudio, _ := cfg["normalizeAudio"].(bool); normalizeAudio {
 				args = append(args, "-ac", "2", "-ar", "48000")
+
+				lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
+				truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
+				args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
+				logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", lufs, truePeak)
 			} else {
 				if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
 					switch audioChannels {
@@ -8034,8 +8066,19 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			args = append(args, "-b:a", audioBitrate)
 		}
 
+		// Keep the preview in step with executeConvertJob: when normalization
+		// is on, channel mixing is skipped and the loudnorm filter is emitted
+		// instead, so exactly one -af appears.
+		normalizeAudio, _ := cfg["normalizeAudio"].(bool)
+		if normalizeAudio {
+			args = append(args, "-ac", "2", "-ar", "48000")
+			lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
+			truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
+			args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
+		}
+
 		// Audio channels
-		if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
+		if audioChannels, _ := cfg["audioChannels"].(string); !normalizeAudio && audioChannels != "" && audioChannels != "Source" {
 			switch audioChannels {
 			case "Mono":
 				args = append(args, "-ac", "1")
