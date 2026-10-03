@@ -2307,6 +2307,65 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 }
 
 // addConvertToQueue adds a conversion job to the queue
+// convertOutputAllocator owns output-path availability for Convert queue
+// insertions. Exactly one allocator exists per insertion batch (a single add
+// is a batch of one): every path it resolves is recorded, so two insertions
+// in the same batch can never be handed the same output - even before either
+// exists on disk, which a filesystem-only check cannot catch.
+//
+// No Convert queue insertion path may decide whether an output path is
+// available on its own (#12): each routes through an allocator, so a future
+// insertion path cannot quietly recreate the divergence.
+type convertOutputAllocator struct {
+	used map[string]struct{}
+}
+
+func newConvertOutputAllocator() *convertOutputAllocator {
+	return &convertOutputAllocator{used: make(map[string]struct{})}
+}
+
+// convertOutputDir resolves the output directory for one insertion: the
+// per-module OutputDir, else the application default output directory, else
+// the source's own directory. The three insertion paths previously decided
+// this three different ways (the batch path ignored both configured
+// directories entirely); the WithOutputs chain is the single semantics now.
+func (s *appState) convertOutputDir(src *videoSource) string {
+	if d := strings.TrimSpace(s.convert.OutputDir); d != "" {
+		return d
+	}
+	if d := strings.TrimSpace(s.defaultOutputDir); d != "" {
+		return d
+	}
+	return filepath.Dir(src.Path)
+}
+
+// allocateConvertOutputPath resolves the unique output path for one
+// insertion. outName is the caller-constructed filename - naming semantics
+// belong to the callers; the directory chain, source-path avoidance, and
+// deterministic -N suffixing belong here. The allocator is not responsible
+// for queue insertion.
+func (s *appState) allocateConvertOutputPath(alloc *convertOutputAllocator, src *videoSource, outName string) string {
+	outDir := s.convertOutputDir(src)
+	outPath := filepath.Join(outDir, outName)
+	if outPath == src.Path {
+		outPath = filepath.Join(outDir, "converted-"+outName)
+	}
+
+	ext := filepath.Ext(outPath)
+	base := strings.TrimSuffix(outPath, ext)
+	candidate := outPath
+	for i := 2; ; i++ {
+		if _, ok := alloc.used[candidate]; !ok {
+			if _, err := os.Stat(candidate); os.IsNotExist(err) {
+				break
+			}
+		}
+		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
+	}
+	alloc.used[candidate] = struct{}{}
+	return candidate
+}
+
 func (s *appState) addConvertToQueue(addToTop bool) error {
 	if s.source == nil {
 		return fmt.Errorf("no video loaded")
@@ -2320,18 +2379,13 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
-	outDir := strings.TrimSpace(cfg.OutputDir)
-	if outDir == "" {
-		outDir = filepath.Dir(src.Path)
-	}
 	outName := cfg.OutputFile()
 	if outName == "" {
 		outName = "converted" + cfg.SelectedFormat.Ext
 	}
-	outPath := filepath.Join(outDir, outName)
-	if outPath == src.Path {
-		outPath = filepath.Join(outDir, "converted-"+outName)
-	}
+	// A single add is an insertion batch of one; the allocator owns the
+	// directory chain, source avoidance, and collision suffixing.
+	outPath := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, outName)
 
 	// Align codec choice with the selected format when the preset implies a codec change.
 	adjustedCodec := s.convert.VideoCodec
@@ -2345,7 +2399,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	config := map[string]interface{}{
 		"inputPath":          src.Path,
 		"outputPath":         outPath,
-		"outputDir":          outDir,
+		"outputDir":          filepath.Dir(outPath),
 		"outputBase":         cfg.OutputBase,
 		"selectedFormat":     cfg.SelectedFormat,
 		"quality":            cfg.Quality,
@@ -2433,7 +2487,7 @@ func (s *appState) addAllConvertToQueue() (int, error) {
 		return 0, fmt.Errorf("no videos loaded")
 	}
 
-	usedOutputs := make(map[string]struct{})
+	usedOutputs := newConvertOutputAllocator()
 	count := 0
 	for _, src := range s.loadedVideos {
 		if err := s.addConvertToQueueForSourceWithOutputs(src, usedOutputs); err != nil {
@@ -2445,42 +2499,19 @@ func (s *appState) addAllConvertToQueue() (int, error) {
 	return count, nil
 }
 
-func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used map[string]struct{}) error {
+func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, alloc *convertOutputAllocator) error {
 	outputBase := s.resolveOutputBase(src, false)
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
-	outDir := strings.TrimSpace(cfg.OutputDir)
-	if outDir == "" {
-		if strings.TrimSpace(s.defaultOutputDir) != "" {
-			outDir = s.defaultOutputDir
-		} else {
-			outDir = filepath.Dir(src.Path)
-		}
-	}
 	outName := cfg.OutputFile()
 	if outName == "" {
 		outName = "converted" + cfg.SelectedFormat.Ext
 	}
-	outPath := filepath.Join(outDir, outName)
-	if outPath == src.Path {
-		outPath = filepath.Join(outDir, "converted-"+outName)
-	}
-
-	// Ensure unique output path within batch to avoid overwrites.
-	ext := filepath.Ext(outPath)
-	base := strings.TrimSuffix(outPath, ext)
-	candidate := outPath
-	for i := 2; ; i++ {
-		if _, ok := used[candidate]; !ok {
-			if _, err := os.Stat(candidate); os.IsNotExist(err) {
-				break
-			}
-		}
-		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
-	}
-	outPath = candidate
-	used[outPath] = struct{}{}
+	// The allocator (one per batch, owned by addAllConvertToQueue) owns the
+	// directory chain, source avoidance, and collision suffixing - including
+	// paths allocated earlier in this batch that do not exist on disk yet.
+	outPath := s.allocateConvertOutputPath(alloc, src, outName)
 
 	// Align codec choice with the selected format when the preset implies a codec change.
 	adjustedCodec := s.convert.VideoCodec
@@ -3644,6 +3675,10 @@ func (s *appState) batchAddToQueue(paths []string) {
 	var failedDetails []string
 	var firstValidPath string
 
+	// One allocator for the whole batch: paths allocated for earlier drops
+	// are never re-handed-out, even before they exist on disk.
+	outputAlloc := newConvertOutputAllocator()
+
 	for _, path := range paths {
 		// Load video metadata
 		src, err := probeVideo(path)
@@ -3662,10 +3697,9 @@ func (s *appState) batchAddToQueue(paths []string) {
 		}
 
 		// Create job config
-		outDir := filepath.Dir(path)
 		outputBase := s.resolveOutputBase(src, false)
 		outName := outputBase + s.convert.SelectedFormat.Ext
-		outPath := filepath.Join(outDir, outName)
+		outPath := s.allocateConvertOutputPath(outputAlloc, src, outName)
 
 		config := map[string]interface{}{
 			"inputPath":         path,

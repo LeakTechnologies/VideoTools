@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -460,4 +461,140 @@ func TestDispatchInterlaceAnalysis_StaleDiscarded(t *testing.T) {
 	if s.interlaceResult != nil {
 		t.Fatal("no stale result may be published")
 	}
+}
+
+// --- Convert queue output-path allocation (#12) ---
+
+// TestConvertOutputAllocatorMatrix covers the #12 allocation matrix: the
+// deterministic -N suffix against filesystem collisions, the batch
+// used-map (which catches two queued outputs that do not exist on disk
+// yet), the source-avoidance invariant, and the output-directory chain.
+func TestConvertOutputAllocatorMatrix(t *testing.T) {
+	t.Run("no existing output", func(t *testing.T) {
+		dir := t.TempDir()
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		src := &videoSource{Path: filepath.Join(dir, "input.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(dir, "out.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("existing output takes -2", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "out.mkv"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		src := &videoSource{Path: filepath.Join(dir, "input.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(dir, "out-2.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("out and out-2 existing take -3", func(t *testing.T) {
+		dir := t.TempDir()
+		for _, n := range []string{"out.mkv", "out-2.mkv"} {
+			if err := os.WriteFile(filepath.Join(dir, n), nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		src := &videoSource{Path: filepath.Join(dir, "input.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(dir, "out-3.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("source avoidance is its own invariant", func(t *testing.T) {
+		dir := t.TempDir()
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		// The requested name IS the source's own name: the candidate equals
+		// the source path and must be prefixed, not suffixed.
+		src := &videoSource{Path: filepath.Join(dir, "in.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "in.mkv")
+		if want := filepath.Join(dir, "converted-in.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("two same-named outputs in one batch - no files on disk", func(t *testing.T) {
+		dir := t.TempDir()
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		alloc := newConvertOutputAllocator()
+		srcA := &videoSource{Path: filepath.Join(dir, "a.mkv")}
+		srcB := &videoSource{Path: filepath.Join(dir, "b.mkv")}
+		first := s.allocateConvertOutputPath(alloc, srcA, "out.mkv")
+		second := s.allocateConvertOutputPath(alloc, srcB, "out.mkv")
+		if want := filepath.Join(dir, "out.mkv"); first != want {
+			t.Errorf("first = %q, want %q", first, want)
+		}
+		if want := filepath.Join(dir, "out-2.mkv"); second != want {
+			t.Errorf("second = %q, want %q - the batch used-map must catch unwritten outputs", second, want)
+		}
+	})
+
+	t.Run("filesystem plus batch collision advances deterministically", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "out.mkv"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		s := &appState{convert: convertConfig{OutputDir: dir}}
+		alloc := newConvertOutputAllocator()
+		srcA := &videoSource{Path: filepath.Join(dir, "a.mkv")}
+		srcB := &videoSource{Path: filepath.Join(dir, "b.mkv")}
+		first := s.allocateConvertOutputPath(alloc, srcA, "out.mkv")
+		second := s.allocateConvertOutputPath(alloc, srcB, "out.mkv")
+		if want := filepath.Join(dir, "out-2.mkv"); first != want {
+			t.Errorf("first = %q, want %q (filesystem collision)", first, want)
+		}
+		if want := filepath.Join(dir, "out-3.mkv"); second != want {
+			t.Errorf("second = %q, want %q (batch collision on the unwritten -2)", second, want)
+		}
+	})
+
+	t.Run("empty configured dir falls back to the source directory", func(t *testing.T) {
+		srcDir := t.TempDir()
+		s := &appState{}
+		src := &videoSource{Path: filepath.Join(srcDir, "in.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(srcDir, "out.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("whitespace-only configured dir falls back", func(t *testing.T) {
+		srcDir := t.TempDir()
+		s := &appState{convert: convertConfig{OutputDir: "   "}}
+		src := &videoSource{Path: filepath.Join(srcDir, "in.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(srcDir, "out.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("defaultOutputDir used when module dir is empty", func(t *testing.T) {
+		srcDir := t.TempDir()
+		defDir := t.TempDir()
+		s := &appState{defaultOutputDir: defDir}
+		src := &videoSource{Path: filepath.Join(srcDir, "in.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(defDir, "out.mkv"); got != want {
+			t.Errorf("got %q, want %q (the WithOutputs default chain)", got, want)
+		}
+	})
+
+	t.Run("module dir wins over defaultOutputDir", func(t *testing.T) {
+		srcDir := t.TempDir()
+		defDir := t.TempDir()
+		outDir := t.TempDir()
+		s := &appState{convert: convertConfig{OutputDir: outDir}, defaultOutputDir: defDir}
+		src := &videoSource{Path: filepath.Join(srcDir, "in.mkv")}
+		got := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, "out.mkv")
+		if want := filepath.Join(outDir, "out.mkv"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
 }
