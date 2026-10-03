@@ -35,7 +35,7 @@ func (s *appState) setVolumeNative(vol float64)       {}
 func (s *appState) setMutedNative(muted bool)         {}
 func (s *appState) selectSubtitleTrackNative(idx int) {}
 func (s *appState) closeNativePlayer()                {}
-func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, interface{}) {
+func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, *ui.InlineVideoPlayer) {
 	return nil, nil
 }
 
