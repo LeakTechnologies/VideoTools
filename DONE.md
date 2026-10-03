@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev82 — Convert Module Audit Fixes (Output Allocation, Codec Vocabulary, Interlace Identity, Config Migration, Layout Reset)
+
+Seven verified defects from the Convert-module audit (issues #10–#24) fixed: persisted-config migration (#19), queued loudness normalization (#15 F-7), Reset-through-toggle-transitions (#10), stub player-pane signature (#16), the canonical codec vocabulary with ProRes/Theora (#13), the shared interlace-analysis operation with source-identity claims (#21 + #14), and the deterministic queue output allocator (#12). Each carries regression tests — the format-codec round-trip over every preset, the interlace claim lifecycle incl. the A→B→A rejection and real end-to-end dispatch via the PATH ffmpeg, and the output-allocation matrix incl. the unwritten-batch-path case. Both build variants (native_media + untagged stub) build + vet green; full package-main + internal suites green. Full per-fix detail: `docs/CHANGELOG.md` (dev82 section). Landed commits: `336c7e06`, `e86d3c4b`, `c35abdbc`, `4abf5e1e`, `f3511503`, `fea7239c`, `1869f8e0`.
+
 ## v0.1.1-dev81 — Rip a Title by Chapter Range
 
 - **Rip: "Rip chapters only" + From/To chapter selects** on a scanned title. The rip view gains a per-rip toggle and two chapter selects once the scan reports chapter counts. The selects' upper bound is the greatest chapter count across ALL scanned titles (so the widget never invalidates when the picked title changes) and is clamped per title at execute; titles without PGC program data show "N/A" and the controls stay disabled. The toggle is inert for full-disc rips (the whole-disc job is one pass), region conversion, and the archivist format, and the selection is a per-rip transient — it is never persisted to the rip config. New i18n keys `RipChapterOnly`/`RipChapterFrom`/`RipChapterTo` across en/fr/iu/iu_latin.

@@ -2,10 +2,15 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev81 Scope (active — in development)
+## Dev82 Scope (released 2026-10-03 — tester verification pending)
+
+- [x] **Convert module audit fixes** — released as dev82 (2026-10-03, tag v0.1.1-dev82, release commit `1869f8e0` + docs sync): seven verified audit defects fixed with regression tests — deterministic queue output allocation (#12; one allocator across single-add/multi-add/batch-add, `-2/-3` suffixing vs filesystem AND unwritten batch paths, configured-dir chain), canonical codec vocabulary (#13; one `codecIdentity` table, ProRes/Theora presets stop falling through, OGV audio substitution), interlace identity + consolidation (#21+#14; one operation, generation claims, A→B→A), key-aware config migration (#19), queued loudness normalization (#15 F-7), Reset through the panel-toggle transitions (#10), stub player-pane signature (#16). Full detail: `docs/CHANGELOG.md` dev82 + the issue records. README leads with the VT logo.
+- [ ] **Tester verify: dev82 release** — (1) queue a conversion whose output name exists on disk — the job takes `-2`, not a silent overwrite; two same-named conversions in one batch — the second takes the next suffix though neither exists on disk; (2) with a module/app default output dir configured, batch drops write into it; (3) MOV (ProRes) — codec select follows to ProRes, output encodes `prores_ks` (ffprobe), not H.264; (4) OGG (Theora) with default AAC audio — job completes (Vorbis-family substitution), output plays; (5) interlace identity: analyze A, switch to B mid-run — no A result renders in B; Inspect independent; Clear File clears state; (6) pre-existing config without newer fields — loudness sliders read −16/−1.5 not 0; deliberately-collapsed layout stays collapsed across restarts; (7) queued normalization on — job log + command preview both show loudnorm with the configured targets; (8) collapse panels, Reset — panels return visible with matching arrows, split follows the policy.
+- [ ] **Tester verify: dev81 release** — (unchanged, carried) chapter-range rip per `docs/RIP_CHAPTER_RANGE.md`: From/To rips only the span, cells log line on the fallback, chapters remapped to the range base, controls disabled on full-disc/region/archivist, checkbox off = identical whole-title behaviour; AND the dev80 items (unchanged, carried): thumbnail both-mode output, queue StartedAt/CompletedAt + Progress, both-mode job log headers.
+
+## Dev81 Scope (closed — released 2026-09-22; verification carried into dev82)
 
 - [x] **Rip: rip a title by chapter range** — released as dev81 (2026-09-22, tag v0.1.1-dev81): "Rip chapters only" + From/To chapter selects trim the output to the range. dvdvideo path seeks with output-side `-ss`/`-to`; VOB-concat fallback slices cells to exactly the selected programs via new `TitleInfo.ProgramEntryCells` (PGC program map entry cells); embedded chapters remapped to the range; progress tracks the range; whole-cover short-circuit skipped while ranged; cells-unresolvable ranges degrade to whole-file + `-ss`/`-to`; stale-PTS failover cap = range + 5 s. Design + testing checklist: `docs/RIP_CHAPTER_RANGE.md`.
-- [ ] **Tester verify: dev80 release** — (unchanged, carried) thumbnail both-mode output, queue StartedAt/CompletedAt + Progress, both-mode job log headers.
 
 ## Dev64 Scope (closed — released 2026-09-06; content verification carried into dev65)
 
