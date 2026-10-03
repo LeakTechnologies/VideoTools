@@ -318,7 +318,7 @@ func (s *appState) refreshQueueView() {
 				src := &videoSource{Path: outputFile, DisplayName: filepath.Base(outputFile)}
 				switch module {
 				case "convert":
-					s.source = src
+					s.setConvertSource(src)
 					s.showConvertView(src)
 				case "inspect":
 					s.showInspectViewForPath(outputFile)
@@ -329,11 +329,11 @@ func (s *appState) refreshQueueView() {
 			OnScheduleModule: func(jobID, module string) {
 				logging.Info(logging.CatSystem, "scheduled module %s for job %s on completion", module, jobID)
 			},
-			TitleColor: utils.MustHex("#4CE870"),
-			BgColor:    gridColor,
-			TextColor:  textColor,
+			TitleColor:  utils.MustHex("#4CE870"),
+			BgColor:     gridColor,
+			TextColor:   textColor,
 			AccentColor: utils.MustHex("#4CE870"),
-			StatsBar:   s.statsBar,
+			StatsBar:    s.statsBar,
 		}
 
 		_, view := queue.BuildView(opts)

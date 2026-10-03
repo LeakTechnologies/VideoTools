@@ -1,10 +1,16 @@
 package main
 
 import (
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"fyne.io/fyne/v2/test"
 
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
+	"github.com/LeakTechnologies/VideoTools/internal/interlace"
 )
 
 // TestNormalizeLoudnessFromJob guards the silent-zero class of bug: a queued
@@ -238,5 +244,220 @@ func TestCodecFollowsFormat(t *testing.T) {
 			t.Errorf("%s: codecFollowsFormat(%q, %q) = %v, want %v",
 				tt.name, tt.current, tt.friendly, got, tt.want)
 		}
+	}
+}
+
+// --- Interlace analysis: shared operation + generation claims (#21 / #14) ---
+
+// TestInterlaceClaimLifecycle pins the claim semantics: a fresh claim is
+// valid; a source transition, a newer dispatch, and a clear all invalidate it.
+func TestInterlaceClaimLifecycle(t *testing.T) {
+	s := &appState{}
+	claim := s.beginConvertInterlaceAnalysis()
+	if !claim.valid() {
+		t.Fatal("a freshly captured claim must be valid")
+	}
+	if !s.interlaceAnalyzing || s.interlaceResult != nil {
+		t.Fatal("beginConvertInterlaceAnalysis must mark the slot analyzing and clear the result")
+	}
+
+	// A newer dispatch invalidates the previous claim.
+	claim2 := s.beginConvertInterlaceAnalysis()
+	if claim.valid() {
+		t.Fatal("a newer dispatch must invalidate the previous claim")
+	}
+	if !claim2.valid() {
+		t.Fatal("the newest claim must be valid")
+	}
+
+	// A source transition invalidates even the newest claim and clears the slot.
+	s.setConvertSource(&videoSource{Path: "next.mkv"})
+	if claim2.valid() {
+		t.Fatal("a source transition must invalidate in-flight claims")
+	}
+	if s.interlaceAnalyzing {
+		t.Fatal("a source transition must leave the slot not-analyzing")
+	}
+	if s.interlaceResult != nil {
+		t.Fatal("a source transition must clear the published result")
+	}
+}
+
+// TestInterlaceClaimRoundTripABA guards the acceptance case a path comparison
+// alone would fail: after A -> B -> A, the first A's claim must stay invalid -
+// the generation moved on, even though the path is back to A.
+func TestInterlaceClaimRoundTripABA(t *testing.T) {
+	s := &appState{}
+	claimA1 := s.beginConvertInterlaceAnalysis()
+
+	s.setConvertSource(&videoSource{Path: "a.mkv"})
+	s.setConvertSource(&videoSource{Path: "b.mkv"})
+	s.setConvertSource(&videoSource{Path: "a.mkv"}) // path returns to A
+
+	if claimA1.valid() {
+		t.Fatal("first A's claim must stay invalid after A -> B -> A; a path-only check would wrongly accept it")
+	}
+
+	claimA2 := s.beginConvertInterlaceAnalysis()
+	if !claimA2.valid() {
+		t.Fatal("a fresh dispatch under the current generation must be valid")
+	}
+}
+
+// TestInterlaceSlotsIndependent guards Convert and Inspect retaining
+// independent result state: a transition in one slot must not invalidate an
+// in-flight analysis of the other.
+func TestInterlaceSlotsIndependent(t *testing.T) {
+	s := &appState{}
+
+	inspectClaim := s.resetInspectInterlace()
+	s.setConvertSource(nil) // Convert transition
+	if !inspectClaim.valid() {
+		t.Fatal("a Convert source transition must not invalidate an in-flight Inspect analysis")
+	}
+
+	convertClaim := s.beginConvertInterlaceAnalysis()
+	s.clearInspectInterlace() // Inspect clear
+	if !convertClaim.valid() {
+		t.Fatal("an Inspect clear must not invalidate an in-flight Convert analysis")
+	}
+}
+
+// TestInspectInterlaceClearLifecycle pins the Inspect slot semantics: the
+// load reset marks analyzing, the clear does not, and both clear the result.
+func TestInspectInterlaceClearLifecycle(t *testing.T) {
+	s := &appState{}
+	s.inspectInterlaceResult = &interlace.DetectionResult{Status: "Interlaced"}
+
+	claim := s.resetInspectInterlace()
+	if !claim.valid() || !s.inspectInterlaceAnalyzing || s.inspectInterlaceResult != nil {
+		t.Fatal("resetInspectInterlace must clear the result, mark analyzing, and return a valid claim")
+	}
+
+	s.inspectInterlaceResult = &interlace.DetectionResult{Status: "Interlaced"}
+	s.clearInspectInterlace()
+	if s.inspectInterlaceAnalyzing || s.inspectInterlaceResult != nil {
+		t.Fatal("clearInspectInterlace must clear the result without marking analyzing")
+	}
+	if claim.valid() {
+		t.Fatal("clearInspectInterlace must invalidate in-flight claims")
+	}
+}
+
+// requireTestFFmpeg skips when the PATH lacks an ffmpeg/ffprobe pair (the
+// detector falls back to PATH executables; QuickAnalyze is unrunnable
+// without them).
+func requireTestFFmpeg(t *testing.T) {
+	t.Helper()
+	for _, tool := range []string{"ffmpeg", "ffprobe"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not on PATH - interlace analysis is not runnable here", tool)
+		}
+	}
+}
+
+// newInterlaceTestSource generates a tiny synthetic progressive source with
+// the PATH ffmpeg. Self-contained: no fixture files ship with the repo.
+func newInterlaceTestSource(t *testing.T) string {
+	t.Helper()
+	requireTestFFmpeg(t)
+	src := filepath.Join(t.TempDir(), "src.mov")
+	out, err := exec.Command("ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+		"-f", "lavfi", "-i", "testsrc2=size=160x120:rate=10:duration=0.5",
+		"-c:v", "libx264", "-preset", "ultrafast", src).CombinedOutput()
+	if err != nil {
+		t.Skipf("synthetic source generation failed: %v: %s", err, out)
+	}
+	return src
+}
+
+// TestDispatchInterlaceAnalysis_Success: a real analysis of a real (synthetic)
+// source delivers a result while its claim is current.
+func TestDispatchInterlaceAnalysis_Success(t *testing.T) {
+	test.NewApp() // registers a headless current app; its driver runs DoFromGoroutine synchronously
+	src := newInterlaceTestSource(t)
+
+	s := &appState{}
+	claim := s.beginConvertInterlaceAnalysis()
+
+	delivered := make(chan struct{}, 1)
+	var gotResult *interlace.DetectionResult
+	var gotErr error
+	dispatchInterlaceAnalysis(src, claim, func(result *interlace.DetectionResult, err error) {
+		gotResult, gotErr = result, err
+		delivered <- struct{}{}
+	})
+
+	select {
+	case <-delivered:
+	case <-time.After(3 * time.Minute):
+		t.Fatal("analysis did not deliver within the timeout budget")
+	}
+	if gotErr != nil {
+		t.Fatalf("expected a successful analysis, got: %v", gotErr)
+	}
+	if gotResult == nil {
+		t.Fatal("expected a detection result")
+	}
+}
+
+// TestDispatchInterlaceAnalysis_ErrorPropagates: an unanalysable path
+// delivers the error to the caller - the caller decides what to publish.
+func TestDispatchInterlaceAnalysis_ErrorPropagates(t *testing.T) {
+	test.NewApp()
+	requireTestFFmpeg(t)
+
+	s := &appState{}
+	claim := s.beginConvertInterlaceAnalysis()
+
+	delivered := make(chan struct{}, 1)
+	var gotErr error
+	dispatchInterlaceAnalysis(filepath.Join(t.TempDir(), "definitely-missing.mkv"), claim, func(result *interlace.DetectionResult, err error) {
+		if result != nil {
+			t.Error("an errored analysis must not carry a result")
+		}
+		gotErr = err
+		delivered <- struct{}{}
+	})
+
+	select {
+	case <-delivered:
+	case <-time.After(3 * time.Minute):
+		t.Fatal("analysis did not deliver within the timeout budget")
+	}
+	if gotErr == nil {
+		t.Fatal("expected the analysis error to propagate")
+	}
+}
+
+// TestDispatchInterlaceAnalysis_StaleDiscarded: a completed analysis whose
+// claim was invalidated mid-flight is discarded - deliver is never invoked.
+func TestDispatchInterlaceAnalysis_StaleDiscarded(t *testing.T) {
+	test.NewApp()
+	src := newInterlaceTestSource(t)
+
+	s := &appState{}
+	claim := s.beginConvertInterlaceAnalysis()
+
+	delivered := make(chan struct{}, 1)
+	dispatchInterlaceAnalysis(src, claim, func(result *interlace.DetectionResult, err error) {
+		delivered <- struct{}{}
+	})
+
+	// The source changes while the analysis is in flight.
+	s.setConvertSource(&videoSource{Path: "other.mkv"})
+
+	select {
+	case <-delivered:
+		t.Fatal("a stale analysis must be discarded, not delivered")
+	case <-time.After(5 * time.Second):
+		// The analysis itself completes within this budget (a fast-failing
+		// source); the absence of delivery after it means the claim rejected it.
+	}
+	if s.interlaceAnalyzing {
+		t.Fatal("the transition must have left the slot not-analyzing")
+	}
+	if s.interlaceResult != nil {
+		t.Fatal("no stale result may be published")
 	}
 }

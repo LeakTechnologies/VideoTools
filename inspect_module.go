@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -23,8 +22,9 @@ func (s *appState) showInspectViewForPath(path string) {
 	s.recentFiles.Add(path, filepath.Base(path), "inspect")
 	// Show the view immediately — probe runs in the background so the UI doesn't freeze.
 	s.inspectFile = nil
-	s.inspectInterlaceResult = nil
-	s.inspectInterlaceAnalyzing = true
+	// Capture the claim on the main goroutine; the analysis dispatched below
+	// (post-probe, from the goroutine) must carry it.
+	claim := s.resetInspectInterlace()
 	s.showInspectView()
 	logging.Debug(logging.CatModule, "queue: opening in inspect: %s", path)
 
@@ -33,7 +33,7 @@ func (s *appState) showInspectViewForPath(path string) {
 		if err != nil {
 			logging.Error(logging.CatInspect, "inspect probe failed: path=%s err=%v", path, err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.inspectInterlaceAnalyzing = false
+				s.clearInspectInterlace()
 				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
 			}, false)
 			return
@@ -50,11 +50,7 @@ func (s *appState) showInspectViewForPath(path string) {
 			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 		}
 
-		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		result, intErr := detector.QuickAnalyze(ctx, path)
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		dispatchInterlaceAnalysis(path, claim, func(result *interlace.DetectionResult, intErr error) {
 			s.inspectInterlaceAnalyzing = false
 			if intErr != nil {
 				s.inspectInterlaceResult = nil
@@ -62,7 +58,7 @@ func (s *appState) showInspectViewForPath(path string) {
 				s.inspectInterlaceResult = result
 			}
 			s.showInspectView()
-		}, false)
+		})
 	}()
 }
 
@@ -110,8 +106,9 @@ func (a *inspectAdapter) LoadFile(path string) {
 	// Show view immediately with loading state — probeVideo blocks on ffprobe and must
 	// not run on the main goroutine or the UI will freeze.
 	a.s.inspectFile = nil
-	a.s.inspectInterlaceResult = nil
-	a.s.inspectInterlaceAnalyzing = true
+	// Capture the claim on the main goroutine; the analysis dispatched below
+	// (post-probe, from the goroutine) must carry it.
+	claim := a.s.resetInspectInterlace()
 	a.s.showInspectView()
 	logging.Info(logging.CatInspect, "inspect: loading file: %s", path)
 
@@ -120,7 +117,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 		if err != nil {
 			logging.Error(logging.CatInspect, "inspect probe failed: path=%s err=%v", path, err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				a.s.inspectInterlaceAnalyzing = false
+				a.s.clearInspectInterlace()
 				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), a.s.window)
 			}, false)
 			return
@@ -136,13 +133,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 		}
 
-		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-
-		result, intErr := detector.QuickAnalyze(ctx, path)
-
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		dispatchInterlaceAnalysis(path, claim, func(result *interlace.DetectionResult, intErr error) {
 			a.s.inspectInterlaceAnalyzing = false
 			if intErr != nil {
 				logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", intErr)
@@ -152,12 +143,14 @@ func (a *inspectAdapter) LoadFile(path string) {
 				logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
 			}
 			a.s.showInspectView()
-		}, false)
+		})
 	}()
 }
 
 func (a *inspectAdapter) ClearFile() {
 	a.s.inspectFile = nil
+	// The cleared file's interlace result must not survive the clear.
+	a.s.clearInspectInterlace()
 }
 
 func (a *inspectAdapter) GetFormat() string {

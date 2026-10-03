@@ -244,7 +244,7 @@ func (state *fmState) fmShowContextMenu(entry FileEntry, id widget.ListItemID) {
 func (state *fmState) openInModule(module, path string) {
 	switch module {
 	case "convert":
-		state.s.source = &videoSource{Path: path, DisplayName: filepath.Base(path)}
+		state.s.setConvertSource(&videoSource{Path: path, DisplayName: filepath.Base(path)})
 		state.s.showConvertView(state.s.source)
 	case "audio":
 		state.s.showAudioView()

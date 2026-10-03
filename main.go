@@ -1267,8 +1267,9 @@ type appState struct {
 	inspectFile               *videoSource
 	inspectInterlaceResult    *interlace.DetectionResult
 	inspectInterlaceAnalyzing bool
-	autoCompare               bool // Auto-load Compare module after conversion
-	convertCommandPreviewShow bool // Show FFmpeg command preview in Convert module
+	inspectInterlaceGen       uint64 // invalidates in-flight inspect interlace analyses on load/clear
+	autoCompare               bool   // Auto-load Compare module after conversion
+	convertCommandPreviewShow bool   // Show FFmpeg command preview in Convert module
 	convertScrollShortcuts    bool
 
 	// Merge state
@@ -1386,6 +1387,7 @@ type appState struct {
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
 	interlaceAnalyzing bool
+	interlaceGen       uint64 // invalidates in-flight Convert interlace analyses on dispatch/transition
 
 	// User-defined encoding presets
 	userPresets []userPreset
@@ -3056,6 +3058,98 @@ func (s *appState) showModule(id string) {
 	}
 }
 
+// interlaceAnalysisClaim is the #14 invariant made structural: an analysis
+// result may publish only if the generation it was dispatched under is still
+// current for its result slot. Generations move on when the source changes,
+// the file is cleared, or a newer analysis is dispatched - so a stale
+// in-flight result can never render against a source it was not computed
+// from, including the rapid A -> B -> A case, where a path comparison alone
+// would wrongly accept the first A's result.
+//
+// Generations are only read and written on the main goroutine (dispatch,
+// transitions, and delivery all happen there - delivery via
+// DoFromGoroutine), so no locking is needed.
+type interlaceAnalysisClaim struct {
+	gen  *uint64 // the owning slot's generation counter
+	mine uint64  // the generation captured at dispatch
+}
+
+// valid reports whether the claim's generation is still the slot's current one.
+func (c interlaceAnalysisClaim) valid() bool {
+	return c.gen != nil && *c.gen == c.mine
+}
+
+// dispatchInterlaceAnalysis runs one interlace analysis (detector + the fixed
+// two-minute timeout) off the main goroutine and delivers the result or error
+// to deliver on the main goroutine - but only while the claim is still
+// current; a stale analysis is discarded and logged instead.
+//
+// It owns only the analysis operation. It does not write any result slot,
+// set any analyzing flag, rebuild UI, or know whether its caller is Convert or
+// Inspect - the deliver callback retains all of that ownership.
+func dispatchInterlaceAnalysis(path string, claim interlaceAnalysisClaim, deliver func(result *interlace.DetectionResult, err error)) {
+	go func() {
+		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		result, err := detector.QuickAnalyze(ctx, path)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if !claim.valid() {
+				logging.Debug(logging.CatSystem, "interlace analysis discarded (stale generation): %s", path)
+				return
+			}
+			deliver(result, err)
+		}, false)
+	}()
+}
+
+// beginConvertInterlaceAnalysis starts a Convert interlace analysis: it clears
+// any published result, marks the slot analyzing, and returns the claim the
+// dispatched analysis must carry.
+func (s *appState) beginConvertInterlaceAnalysis() interlaceAnalysisClaim {
+	s.interlaceResult = nil
+	s.interlaceAnalyzing = true
+	s.interlaceGen++
+	return interlaceAnalysisClaim{gen: &s.interlaceGen, mine: s.interlaceGen}
+}
+
+// resetConvertInterlace clears the Convert slot and rejects any in-flight
+// analysis, for use when the source changes or is cleared. The analyzing flag
+// is left false: nothing is pending until the user runs an analysis.
+func (s *appState) resetConvertInterlace() {
+	s.interlaceResult = nil
+	s.interlaceAnalyzing = false
+	s.interlaceGen++
+}
+
+// setConvertSource transitions the Convert module to a new source and resets
+// the interlace analysis state, so a result can never render against a source
+// it was not computed from. Every Convert source transition must go through
+// here - a direct s.source assignment bypasses the invalidation.
+func (s *appState) setConvertSource(src *videoSource) {
+	s.source = src
+	s.resetConvertInterlace()
+}
+
+// resetInspectInterlace clears the Inspect slot, marks it analyzing (the load
+// paths that call this immediately begin probing and analyzing a new file),
+// and returns the claim that load's analysis must carry. A load that fails
+// before this point leaves the previous file's state untouched.
+func (s *appState) resetInspectInterlace() interlaceAnalysisClaim {
+	s.inspectInterlaceResult = nil
+	s.inspectInterlaceAnalyzing = true
+	s.inspectInterlaceGen++
+	return interlaceAnalysisClaim{gen: &s.inspectInterlaceGen, mine: s.inspectInterlaceGen}
+}
+
+// clearInspectInterlace clears the Inspect slot without starting a new
+// analysis - the inspected file was cleared or its load failed.
+func (s *appState) clearInspectInterlace() {
+	s.inspectInterlaceResult = nil
+	s.inspectInterlaceAnalyzing = false
+	s.inspectInterlaceGen++
+}
+
 func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 	defer logging.RecoverPanic()
 	t := i18n.T()
@@ -3226,10 +3320,13 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 
 			// Update state and show module (with small delay to allow flash animation)
 			time.Sleep(350 * time.Millisecond)
+			// The reset (and its claim) must be captured on the main goroutine;
+			// the analysis goroutine below receives it from there. Buffered so
+			// the callback never blocks, and un-sent on a probe failure above.
+			claims := make(chan interlaceAnalysisClaim, 1)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectFile = src
-				s.inspectInterlaceResult = nil
-				s.inspectInterlaceAnalyzing = true
+				claims <- s.resetInspectInterlace()
 				s.showModule(moduleID)
 				logging.Debug(logging.CatModule, "loaded video for inspect module")
 			}, false)
@@ -3248,13 +3345,8 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 					}
 				}
 
-				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
-
-				result, err := detector.QuickAnalyze(ctx, path)
-
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				claim := <-claims
+				dispatchInterlaceAnalysis(path, claim, func(result *interlace.DetectionResult, err error) {
 					s.inspectInterlaceAnalyzing = false
 					if err != nil {
 						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
@@ -3264,7 +3356,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
 					}
 					s.showInspectView() // Refresh to show results
-				}, false)
+				})
 			}()
 		}()
 		return
@@ -3918,7 +4010,7 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		},
 		OnLoadFile: func(path string) {
 			if src, err := probeVideo(path); err == nil {
-				state.source = src
+				state.setConvertSource(src)
 				state.currentFrame = ""
 				if len(src.PreviewFrames) > 0 {
 					state.currentFrame = src.PreviewFrames[0]
@@ -9921,19 +10013,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowInformation(t.DialogInterlacing, t.DialogLoadVideoFirst, state.window)
 			return
 		}
+		// Capture the claim on the main goroutine before dispatch.
+		claim := state.beginConvertInterlaceAnalysis()
 		go func() {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				analyzeInterlaceBtn.SetText(t.ConvertAnalyzing)
 				analyzeInterlaceBtn.Disable()
 			}, false)
 
-			detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-
-			result, err := detector.QuickAnalyze(ctx, src.Path)
-
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			dispatchInterlaceAnalysis(src.Path, claim, func(result *interlace.DetectionResult, err error) {
+				state.interlaceAnalyzing = false
 				analyzeInterlaceBtn.SetText(t.ConvertAnalyzeInterlacing)
 				analyzeInterlaceBtn.Enable()
 
@@ -9977,7 +10066,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						inverseCheck.SetChecked(true)
 					}
 				}
-			}, false)
+			})
 		}()
 	})
 
@@ -13498,18 +13587,15 @@ Metadata: %s`,
 		if state.source == nil {
 			return
 		}
-		state.interlaceAnalyzing = true
-		state.interlaceResult = nil
+		// Capture both the path and the claim on the main goroutine; the
+		// dispatch below must not re-read state.source, which can change
+		// before the goroutine runs.
+		path := state.source.Path
+		claim := state.beginConvertInterlaceAnalysis()
 		state.showConvertView(state.source) // Refresh to show "Analyzing..."
 
 		go func() {
-			detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-
-			result, err := detector.QuickAnalyze(ctx, state.source.Path)
-
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			dispatchInterlaceAnalysis(path, claim, func(result *interlace.DetectionResult, err error) {
 				state.interlaceAnalyzing = false
 				if err != nil {
 					logging.Debug(logging.CatSystem, "interlacing analysis failed: %v", err)
@@ -13524,7 +13610,7 @@ Metadata: %s`,
 					}
 				}
 				state.showConvertView(state.source) // Refresh to show results
-			}, false)
+			})
 		}()
 	})
 
@@ -14512,10 +14598,13 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			}
 			logging.Info(logging.CatInspect, "inspect: probe complete, loading player")
 
+			// The reset (and its claim) must be captured on the main goroutine;
+			// the analysis goroutine below receives it from there. Buffered so
+			// the callback never blocks, and un-sent on a probe failure above.
+			claims := make(chan interlaceAnalysisClaim, 1)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectFile = src
-				s.inspectInterlaceResult = nil
-				s.inspectInterlaceAnalyzing = true
+				claims <- s.resetInspectInterlace()
 				s.showInspectView()
 				logging.Info(logging.CatInspect, "inspect: view refreshed with file metadata")
 			}, false)
@@ -14534,13 +14623,8 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 					}
 				}
 
-				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
-
-				result, err := detector.QuickAnalyze(ctx, videoPath)
-
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				claim := <-claims
+				dispatchInterlaceAnalysis(videoPath, claim, func(result *interlace.DetectionResult, err error) {
 					s.inspectInterlaceAnalyzing = false
 					if err != nil {
 						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
@@ -14550,7 +14634,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
 					}
 					s.showInspectView() // Refresh to show results
-				}, false)
+				})
 			}()
 		}()
 
@@ -14951,7 +15035,7 @@ func (s *appState) loadVideo(path string) {
 	activeAtLoad := s.active
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		s.source = src
+		s.setConvertSource(src)
 		switch activeAtLoad {
 		case "player":
 			s.playerFile = src
@@ -15039,7 +15123,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	}
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		s.source = firstVideo
+		s.setConvertSource(firstVideo)
 		s.showConvertView(firstVideo)
 		// Queue Refresh in a nested dispatch so it runs after setContent's
 		// async fyne.Do(update) has committed the new window content. Calling
@@ -15079,7 +15163,7 @@ func (s *appState) clearVideo() {
 	cleanupCoverArtIfTemp(s.convert.CoverArtPath)
 	s.releasePlaybackSession()
 	s.stopPlayer()
-	s.source = nil
+	s.setConvertSource(nil)
 	s.loadedVideos = nil
 	s.currentIndex = 0
 	s.currentFrame = ""
@@ -15211,7 +15295,7 @@ func (s *appState) switchToVideo(index int) {
 
 	s.currentIndex = index
 	src := s.loadedVideos[index]
-	s.source = src
+	s.setConvertSource(src)
 
 	s.applyInverseDefaults(src)
 	s.convert.OutputBase = s.resolveOutputBase(src, false)
