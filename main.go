@@ -9331,7 +9331,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// The panel body hides on fold; the header toggle row stays visible (built
 	// inside buildMetadataPanel), so the user can always expand it again. The
 	// onToggle here only drives persistence + the VSplit offset.
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, state.convert.MetadataOpen, func(open bool) {
+	metaPanel, metaCoverUpdate, setMetaOpen := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, state.convert.MetadataOpen, func(open bool) {
 		state.convert.MetadataOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		resolveLeftOffset()
@@ -9345,6 +9345,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var updateQualityVisibility func()
 	var updateRemuxVisibility func()
 	var updateEncodingControls func()
+
+	// Forward-declare the settings-panel surface (assigned after the tabs are
+	// built, further down) so resetConvertDefaults can restore its visibility
+	// and header state through the same transitions the settings onToggle
+	// uses. Reset only runs from button handlers, i.e. after construction, so
+	// the nil window cannot be observed — same contract as mainSplit below.
+	var settingsHeader fyne.CanvasObject
+	var settingsHeaderUpdate func(bool)
+	var settingsTabsPanel *fyne.Container
 
 	// Declare output widgets early to fix variable order issues
 	var outputExtLabel *widget.Label
@@ -12502,9 +12511,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateRemuxVisibility != nil {
 			updateRemuxVisibility()
 		}
-		// Reset layout to defaults
-		leftColumn.SetOffset(0.5)
-		mainSplit.SetOffset(0.65)
+		// Reset layout to defaults: drive the same transitions the panel
+		// toggles use — visibility, header arrows, and the shared offset
+		// policy — so the UI matches the reset booleans (state.convert was
+		// replaced with defaults above). Writing offsets directly here is
+		// what desynced the persisted layout from the split policy.
+		if state.convert.PlayerOpen {
+			videoPanel.Show()
+		} else {
+			videoPanel.Hide()
+		}
+		playerHeaderUpdate(state.convert.PlayerOpen)
+		if setMetaOpen != nil {
+			setMetaOpen(state.convert.MetadataOpen)
+		}
+		if state.convert.SettingsOpen {
+			settingsTabsPanel.Show()
+			mainSplit.SetOffset(0.65)
+		} else {
+			settingsTabsPanel.Hide()
+			mainSplit.SetOffset(0.97)
+		}
+		settingsHeaderUpdate(state.convert.SettingsOpen)
+		resolveLeftOffset()
 		state.persistConvertConfig()
 	}
 
@@ -12596,8 +12625,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.CornerRadius = 8
 	optionsRect.StrokeColor = gridColor
 	optionsRect.StrokeWidth = 1
-	settingsTabsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
-	settingsHeader, settingsHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
+	settingsTabsPanel = container.NewMax(optionsRect, container.NewPadded(tabs))
+	settingsHeader, settingsHeaderUpdate = ui.BuildCollapsibleHeader(t.ConvertSectionSettings, convertColor, func(open bool) {
 		state.convert.SettingsOpen = open
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
@@ -13213,7 +13242,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(layers...)
 }
 
-func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, initiallyOpen bool, onToggle func(open bool)) (fyne.CanvasObject, func()) {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, initiallyOpen bool, onToggle func(open bool)) (fyne.CanvasObject, func(), func(open bool)) {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
@@ -13225,7 +13254,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accent
 	if src == nil {
 		var noSrcBody fyne.CanvasObject = container.NewPadded(container.NewVBox(widget.NewLabel(t.ConvertInspectHint)))
 		open := initiallyOpen
-		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, func(o bool) {
+		setNoSrcOpen := func(o bool) {
 			open = o
 			if o {
 				noSrcBody.Show()
@@ -13235,14 +13264,15 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accent
 			if onToggle != nil {
 				onToggle(o)
 			}
-		})
+		}
+		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, setNoSrcOpen)
 		if !open {
 			noSrcBody.Hide()
 		}
 		noSrcPanel := container.NewBorder(nilHeader, nil, nil, nil, noSrcBody)
 		layers := ui.NoisyBackgroundObjects(outer)
 		layers = append(layers, noSrcPanel)
-		return container.NewMax(layers...), func() {}
+		return container.NewMax(layers...), func() {}, setNoSrcOpen
 	}
 
 	bitrate := "--"
@@ -13440,7 +13470,10 @@ Metadata: %s`,
 	metaOpen := initiallyOpen
 	var metaHeader fyne.CanvasObject
 	var metaHeaderUpdate func(bool)
-	metaHeader, metaHeaderUpdate = ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, func(o bool) {
+	// setMetaOpen drives the same transition a header tap performs (fold state,
+	// header arrow, caller onToggle), so programmatic restores — e.g. the Reset
+	// handler — cannot desync the fold from the persisted MetadataOpen boolean.
+	setMetaOpen := func(o bool) {
 		metaOpen = o
 		if o {
 			metaBody.Show()
@@ -13451,7 +13484,8 @@ Metadata: %s`,
 		if onToggle != nil {
 			onToggle(o)
 		}
-	}, copyBtn, clearBtn)
+	}
+	metaHeader, metaHeaderUpdate = ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, setMetaOpen, copyBtn, clearBtn)
 	metaHeaderUpdate(initiallyOpen)
 	top := fyne.CanvasObject(metaHeader)
 
@@ -13651,7 +13685,7 @@ Metadata: %s`,
 	body := container.NewBorder(top, nil, nil, nil, metaBody)
 	layers := ui.NoisyBackgroundObjects(outer)
 	layers = append(layers, body)
-	return container.NewMax(layers...), updateCoverDisplay
+	return container.NewMax(layers...), updateCoverDisplay, setMetaOpen
 }
 
 // buildVideoPane creates the video preview pane for the Convert module.
