@@ -1,6 +1,10 @@
-# VideoTools
+<p align="center">
+  <img src="assets/logo/VT_logo.png" width="150" alt="VideoTools logo" />
+</p>
 
-Video processing suite with native DVD authoring, disc ripping, and a CGo/FFmpeg media engine.
+<h1 align="center">VideoTools</h1>
+
+<p align="center">Video processing suite with native DVD authoring, disc ripping, and a CGo/FFmpeg media engine.</p>
 
 Built for **Linux and Windows** — macOS is not supported.
 
