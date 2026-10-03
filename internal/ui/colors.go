@@ -45,6 +45,7 @@ var (
 var (
 	ColorProRes = utils.MustHex("#A855F7") // Purple - Apple ProRes ecosystem
 	ColorDNx    = utils.MustHex("#3B82F6") // Blue - Avid DNxHR/DNxHD
+	ColorTheora = utils.MustHex("#0EA5E9") // Sky - Xiph open codec
 )
 
 // Audio Codec Colors (Secondary but Distinct)
@@ -190,6 +191,10 @@ func BuildVideoCodecColorMap(codecs []string) map[string]color.Color {
 			colorMap[codec] = ColorAV1
 		case "MPEG-2":
 			colorMap[codec] = ColorMPEG2
+		case "ProRes":
+			colorMap[codec] = ColorProRes
+		case "Theora":
+			colorMap[codec] = ColorTheora
 		case "Copy":
 			colorMap[codec] = ColorRemux // Use remux color for copy
 		default:

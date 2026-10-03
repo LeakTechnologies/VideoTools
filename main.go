@@ -2334,12 +2334,8 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	// Align codec choice with the selected format when the preset implies a codec change.
 	adjustedCodec := s.convert.VideoCodec
 	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
-		if friendly := friendlyCodecFromPreset(preset); friendly != "" {
-			if adjustedCodec == "" ||
-				(strings.EqualFold(adjustedCodec, "H.264") && friendly == "H.265") ||
-				(strings.EqualFold(adjustedCodec, "H.265") && friendly == "H.264") {
-				adjustedCodec = friendly
-			}
+		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
+			adjustedCodec = friendly
 		}
 	}
 
@@ -2487,12 +2483,8 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 	// Align codec choice with the selected format when the preset implies a codec change.
 	adjustedCodec := s.convert.VideoCodec
 	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
-		if friendly := friendlyCodecFromPreset(preset); friendly != "" {
-			if adjustedCodec == "" ||
-				(strings.EqualFold(adjustedCodec, "H.264") && friendly == "H.265") ||
-				(strings.EqualFold(adjustedCodec, "H.265") && friendly == "H.264") {
-				adjustedCodec = friendly
-			}
+		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
+			adjustedCodec = friendly
 		}
 	}
 
@@ -5627,13 +5619,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Video codec
 	videoCodec, _ := cfg["videoCodec"].(string)
-	if friendly := friendlyCodecFromPreset(selectedFormat.VideoCodec); friendly != "" {
-		if videoCodec == "" ||
-			(strings.EqualFold(videoCodec, "H.264") && friendly == "H.265") ||
-			(strings.EqualFold(videoCodec, "H.265") && friendly == "H.264") {
-			videoCodec = friendly
-			cfg["videoCodec"] = friendly
-		}
+	if friendly := friendlyCodecFromPreset(selectedFormat.VideoCodec); codecFollowsFormat(videoCodec, friendly) {
+		videoCodec = friendly
+		cfg["videoCodec"] = friendly
 	}
 	if videoCodec == "Copy" && !isDVD {
 		// REMUX MODE: Copy all streams safely
@@ -5864,6 +5852,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Audio codec and settings
 	audioCodec, _ := cfg["audioCodec"].(string)
 	isWebM := strings.EqualFold(selectedFormat.Ext, ".webm")
+	isOGV := strings.EqualFold(selectedFormat.Ext, ".ogv")
 	if audioCodec == "Copy" && !isDVD {
 		if isWebM {
 			args = append(args, "-c:a", "copy")
@@ -5882,6 +5871,16 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				actualAudioCodec = "libopus"
 			} else if audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "flac" {
 				actualAudioCodec = "libopus"
+			} else {
+				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
+			}
+		} else if isOGV {
+			// The Ogg/Theora muxer only accepts Vorbis, Opus, and FLAC audio
+			// (verified empirically: AAC/MP3/AC-3 fail at header write with
+			// "Unsupported codec id"). Substitute the era-appropriate pairing.
+			audioCodecLower := strings.ToLower(audioCodec)
+			if audioCodecLower == "aac" || audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "" {
+				actualAudioCodec = "libvorbis"
 			} else {
 				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
 			}
@@ -10244,7 +10243,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	coverDisplay = widget.NewLabel(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
 
 	// Create color-coded video codec select widget with colored dropdown items
-	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}
+	videoCodecOptions := videoCodecUIOptions()
 	videoCodecColorMap := ui.BuildVideoCodecColorMap(videoCodecOptions)
 	videoCodecSelect = ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.convert.VideoCodec = value
@@ -15350,72 +15349,165 @@ func detectBestH265Encoder() string {
 	return "libx265"
 }
 
+// codecIdentity ties one video codec's three spellings together: the
+// UI/config name (the codec-select vocabulary), the FFmpeg software encoder,
+// and the preset/encoder spellings the format presets carry. The select
+// options, the preset->UI mapping, and the UI->encoder mapping all derive
+// from videoCodecIdentities so the directions cannot drift apart again —
+// the MOV (ProRes) / OGG (Theora) fall-through was exactly that drift
+// (formatOptions carried the spellings; these mappings never learned them).
+//
+// Matching is substring-based (as the original mappings were) so hardware
+// spellings ("h264_nvenc", "hevc_amf") still resolve. Copy is deliberately
+// absent: it is a passthrough, not a codec, and callers keep special-casing
+// it. Aliases are disjoint across rows, so iteration order cannot change
+// the result.
+type codecIdentity struct {
+	uiName  string
+	encoder string
+	aliases []string
+}
+
+var videoCodecIdentities = []codecIdentity{
+	{uiName: "H.264", encoder: "libx264", aliases: []string{"264", "avc"}},
+	{uiName: "H.265", encoder: "libx265", aliases: []string{"265", "hevc"}},
+	{uiName: "VP9", encoder: "libvpx-vp9", aliases: []string{"vp9"}},
+	{uiName: "AV1", encoder: "libaom-av1", aliases: []string{"av1"}},
+	{uiName: "MPEG-2", encoder: "mpeg2video", aliases: []string{"mpeg2"}},
+	{uiName: "ProRes", encoder: "prores_ks", aliases: []string{"prores"}},
+	{uiName: "Theora", encoder: "libtheora", aliases: []string{"theora"}},
+}
+
+// videoCodecUIOptions returns the codec-select vocabulary: every canonical
+// codec, then Copy.
+func videoCodecUIOptions() []string {
+	opts := make([]string, 0, len(videoCodecIdentities)+1)
+	for _, id := range videoCodecIdentities {
+		opts = append(opts, id.uiName)
+	}
+	return append(opts, "Copy")
+}
+
+// videoCodecIdentityForUI resolves a UI/config codec name to its identity.
+func videoCodecIdentityForUI(name string) *codecIdentity {
+	for i := range videoCodecIdentities {
+		if strings.EqualFold(videoCodecIdentities[i].uiName, name) {
+			return &videoCodecIdentities[i]
+		}
+	}
+	return nil
+}
+
+// videoCodecIdentityForAlias resolves a preset/encoder spelling (including
+// legacy raw values like "mpeg2video") to its identity.
+func videoCodecIdentityForAlias(codec string) *codecIdentity {
+	c := strings.ToLower(codec)
+	for i := range videoCodecIdentities {
+		for _, alias := range videoCodecIdentities[i].aliases {
+			if strings.Contains(c, alias) {
+				return &videoCodecIdentities[i]
+			}
+		}
+	}
+	return nil
+}
+
+// hwEncoderFor maps an acceleration backend to its encoder for the h264/hevc
+// families, or "" when software encoding should be used.
+func hwEncoderFor(accel, family string) string {
+	switch accel {
+	case "nvenc":
+		return family + "_nvenc"
+	case "amf":
+		return family + "_amf"
+	case "qsv":
+		return family + "_qsv"
+	case "videotoolbox":
+		return family + "_videotoolbox"
+	}
+	return ""
+}
+
 // determineVideoCodec maps user-friendly codec names to FFmpeg codec names
 func determineVideoCodec(cfg convertConfig) string {
 	accel := effectiveHardwareAccel(cfg)
 	if accel != "" && accel != "none" && !hwAccelAvailable(accel) {
 		accel = "none"
 	}
-	switch cfg.VideoCodec {
-	case "H.264":
-		if accel == "nvenc" {
-			return "h264_nvenc"
-		} else if accel == "amf" {
-			return "h264_amf"
-		} else if accel == "qsv" {
-			return "h264_qsv"
-		} else if accel == "videotoolbox" {
-			return "h264_videotoolbox"
-		}
-		// When set to "none" or empty, use software encoder
-		return "libx264"
-	case "H.265":
-		if accel == "nvenc" {
-			return "hevc_nvenc"
-		} else if accel == "amf" {
-			return "hevc_amf"
-		} else if accel == "qsv" {
-			return "hevc_qsv"
-		} else if accel == "videotoolbox" {
-			return "hevc_videotoolbox"
-		}
-		// When set to "none" or empty, use software encoder
-		return "libx265"
-	case "VP9":
-		return "libvpx-vp9"
-	case "AV1":
-		// resolveAV1Encoder handles per-backend capability checks (e.g. av1_nvenc
-		// requires Ada Lovelace; a generic NVENC probe passing on Ampere is not enough).
-		enc, _ := resolveAV1Encoder(accel)
-		return enc
-	case "MPEG-2":
-		return "mpeg2video"
-	case "mpeg2video":
-		return "mpeg2video"
-	case "Copy":
+	if cfg.VideoCodec == "Copy" {
 		return "copy"
-	default:
-		return "libx264"
 	}
+	if id := videoCodecIdentityForUI(cfg.VideoCodec); id != nil {
+		switch id.uiName {
+		case "H.264":
+			if enc := hwEncoderFor(accel, "h264"); enc != "" {
+				return enc
+			}
+		case "H.265":
+			if enc := hwEncoderFor(accel, "hevc"); enc != "" {
+				return enc
+			}
+		case "AV1":
+			// resolveAV1Encoder handles per-backend capability checks (e.g. av1_nvenc
+			// requires Ada Lovelace; a generic NVENC probe passing on Ampere is not enough).
+			// Its !ok path already falls back to libx264, as the original switch did.
+			enc, _ := resolveAV1Encoder(accel)
+			return enc
+		}
+		return id.encoder
+	}
+	// Legacy raw spellings ("mpeg2video") and unknown values: resolve by
+	// alias, else the software default.
+	if id := videoCodecIdentityForAlias(cfg.VideoCodec); id != nil {
+		return id.encoder
+	}
+	return "libx264"
 }
 
-// friendlyCodecFromPreset maps a preset codec string (e.g., "libx265") to the UI-friendly codec name.
+// friendlyCodecFromPreset maps a preset codec string (e.g. "libx265",
+// "prores_ks") to the UI-friendly codec name. Returns "" when the preset
+// implies no re-encode codec change (including "copy", which callers
+// special-case).
 func friendlyCodecFromPreset(preset string) string {
 	preset = strings.ToLower(preset)
-	switch {
-	case strings.Contains(preset, "265") || strings.Contains(preset, "hevc"):
-		return "H.265"
-	case strings.Contains(preset, "264"):
-		return "H.264"
-	case strings.Contains(preset, "vp9"):
-		return "VP9"
-	case strings.Contains(preset, "av1"):
-		return "AV1"
-	case strings.Contains(preset, "mpeg2"):
-		return "MPEG-2"
-	default:
-		return ""
+	for _, id := range videoCodecIdentities {
+		for _, alias := range id.aliases {
+			if strings.Contains(preset, alias) {
+				return id.uiName
+			}
+		}
 	}
+	return ""
+}
+
+// codecFollowsFormat reports whether a format-implied codec should replace
+// the current codec selection at enqueue/execute time.
+//
+// H.26x formats are ambiguous container defaults (MP4/MKV/TS/MOV carry
+// either): only the cross-pair swap applies, so a user's explicit VP9/MPEG-2
+// choice survives an H.26x format. Codec-specific presets (ProRes/Theora)
+// exist only as that codec: entering one always adopts it, and leaving one
+// for a generic format adopts the format's codec — otherwise a stale
+// ProRes/Theora selection leaks into an unrelated container, which is the
+// original fall-through defect in both directions.
+func codecFollowsFormat(current, friendly string) bool {
+	if friendly == "" {
+		return false
+	}
+	if current == "" {
+		return true
+	}
+	if (strings.EqualFold(current, "H.264") && friendly == "H.265") ||
+		(strings.EqualFold(current, "H.265") && friendly == "H.264") {
+		return true
+	}
+	if strings.EqualFold(current, friendly) {
+		return false
+	}
+	if current == "ProRes" || current == "Theora" || friendly == "ProRes" || friendly == "Theora" {
+		return true
+	}
+	return false
 }
 
 // determineAudioCodec maps user-friendly codec names to FFmpeg codec names
