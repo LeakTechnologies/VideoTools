@@ -35,7 +35,7 @@ Built for **Linux and Windows** — macOS is not supported.
 
 ## Project Status
 
-Under active development (`v0.1.1-dev51`). See **[Interactive Roadmap](docs/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail.
+Under active development (`v0.1.1-dev82`). See **[Interactive Roadmap](https://leaktechnologies.github.io/VideoTools/roadmap.html)** for module-by-module status with changelog, checklist, and card-level detail. ([roadmap source](docs/roadmap.html))
 
 - **Dev builds:** https://github.com/LeakTechnologies/VideoTools/actions
 - **Public releases:** https://github.com/LeakTechnologies/VideoTools/releases
