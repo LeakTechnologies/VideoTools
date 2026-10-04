@@ -707,17 +707,34 @@ func TestNoTwoPassFfmpegArgs(t *testing.T) {
 // not exist. If a real libVLC backend ever lands, it must come with a CI job
 // that builds its build tag, and this test should be revisited at that point
 // rather than quietly deleted.
+//
+// Every locale/script variant the app can actually display is enumerated: the
+// registry in internal/i18n is unexported, so a new locale added there must be
+// added here too or it goes unchecked.
 func TestNoDeadVLCBackendControl(t *testing.T) {
-	for _, lang := range []string{"en-CA", "fr-CA"} {
-		i18n.SetLanguage(lang)
-		v := reflect.ValueOf(i18n.T())
-		for i := 0; i < v.NumField(); i++ {
-			s, ok := v.Field(i).Interface().(string)
+	variants := []struct {
+		code   string
+		script i18n.ScriptVariant
+	}{
+		{"en-CA", i18n.ScriptDefault},
+		{"fr-CA", i18n.ScriptDefault},
+		{"iu", i18n.ScriptSyllabics},
+		{"iu", i18n.ScriptLatin},
+	}
+	for _, v := range variants {
+		i18n.SetLanguageWithScript(v.code, v.script)
+		label := v.code
+		if v.script != i18n.ScriptDefault {
+			label += "/" + string(v.script)
+		}
+		val := reflect.ValueOf(i18n.T())
+		for i := 0; i < val.NumField(); i++ {
+			s, ok := val.Field(i).Interface().(string)
 			if !ok {
 				continue
 			}
 			if strings.Contains(strings.ToLower(s), "libvlc") {
-				t.Errorf("locale %s: %s still advertises the removed libVLC backend: %q", lang, v.Type().Field(i).Name, s)
+				t.Errorf("locale %s: %s still advertises the removed libVLC backend: %q", label, val.Type().Field(i).Name, s)
 			}
 		}
 	}
