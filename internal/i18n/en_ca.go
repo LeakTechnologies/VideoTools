@@ -527,7 +527,7 @@ var enCA = Strings{
 	ConvertShowBatchSettings:      "Show Batch Settings",
 	ConvertHideBatchSettings:      "Hide Batch Settings",
 	ConvertHwAccelHint:            "Auto picks the best available GPU path; if encode fails, switch to none (software).",
-	ConvertTwoPassNote:            "Two-pass encoding is ignored in CRF mode.",
+	ConvertTwoPassNote:            "Two-pass encoding is not implemented. Bitrate modes encode in a single pass with a capped peak bitrate.",
 	ConvertEncoderPresetHint:      "Choose slower for better compression, faster for speed",
 	ConvertLoadVideoForCommand:    "Load a video to see the FFmpeg command.",
 	ConvertVideoFormatsHint:       "MP4, MOV, MKV and more",
@@ -630,7 +630,7 @@ var enCA = Strings{
 
 	ConvertBitrateModeHintCRF:            "CRF mode: Constant quality — file size varies. Lower CRF = better quality.",
 	ConvertBitrateModeHintCBR:            "CBR mode: Constant bitrate — predictable file size, variable quality. Use for strict size requirements or streaming.",
-	ConvertBitrateModeHintVBR:            "VBR mode: Variable bitrate — targets average bitrate with 2× peak cap. Efficient quality. Uses 2-pass encoding.",
+	ConvertBitrateModeHintVBR:            "VBR mode: Variable bitrate — targets the average bitrate with a 2× peak cap. Efficient quality, single pass.",
 	ConvertBitrateModeHintTargetSize:     "Target Size mode: Calculates bitrate to hit exact file size. Best for strict size limits.",
 	ConvertBitrateModeHintLosslessCRF:    "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1.",
 	ConvertBitrateModeHintLosslessCBR:    "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF.",

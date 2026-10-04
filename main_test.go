@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/test"
 
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
+	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/interlace"
 )
 
@@ -597,4 +599,98 @@ func TestConvertOutputAllocatorMatrix(t *testing.T) {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	})
+}
+
+// --- two-pass disclosure (dev83) ---------------------------------------------
+//
+// Two-pass encoding was never implemented. convertConfig.TwoPass was written by
+// the UI and persisted to config and to every queued job map, but no
+// encoder-argument builder ever read it and no ffmpeg "-pass"/"-passlogfile"
+// argument was ever emitted anywhere in the repo. The control therefore did
+// nothing, while its note claimed two-pass was merely "ignored in CRF mode" and
+// the VBR hint claimed VBR "uses 2-pass encoding". The control is now disabled
+// and the note discloses the truth, so these tests pin that disclosure.
+
+// TestTwoPassDisclosedAsUnimplemented pins the user-visible contract in every
+// locale: the two-pass note must state outright that the feature is not
+// implemented, and no locale may hint that a two-pass pipeline is used.
+func TestTwoPassDisclosedAsUnimplemented(t *testing.T) {
+	cases := []struct {
+		name   string
+		lang   string
+		script i18n.ScriptVariant
+		want   string // must appear in the two-pass note
+		banned string // the old false claim; must not survive
+	}{
+		{"en-CA", "en-CA", i18n.ScriptDefault, "not implemented", "ignored in CRF mode"},
+		{"fr-CA", "fr-CA", i18n.ScriptDefault, "pas implémenté", "ignoré en mode CRF"},
+		{"iu syllabics", "iu", i18n.ScriptSyllabics, "not implemented", "ignored in CRF mode"},
+		{"iu Latin", "iu", i18n.ScriptLatin, "not implemented", "ignored in CRF mode"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			i18n.SetLanguageWithScript(tc.lang, tc.script)
+			s := i18n.T()
+
+			note := s.ConvertTwoPassNote
+			if strings.TrimSpace(note) == "" {
+				t.Fatal("ConvertTwoPassNote is empty; the disabled control would show no explanation")
+			}
+			if !strings.Contains(strings.ToLower(note), strings.ToLower(tc.want)) {
+				t.Errorf("ConvertTwoPassNote = %q, want it to disclose %q", note, tc.want)
+			}
+			if strings.Contains(strings.ToLower(note), strings.ToLower(tc.banned)) {
+				t.Errorf("ConvertTwoPassNote = %q still carries the false claim %q", note, tc.banned)
+			}
+
+			// The VBR hint must not claim a two-pass encode. Locales that do not
+			// define the key fall back to en-CA, so this holds everywhere.
+			hint := strings.ToLower(s.ConvertBitrateModeHintVBR)
+			for _, banned := range []string{"2-pass", "two-pass", "two pass"} {
+				if strings.Contains(hint, banned) {
+					t.Errorf("ConvertBitrateModeHintVBR = %q claims %q; VBR is single-pass", s.ConvertBitrateModeHintVBR, banned)
+				}
+			}
+		})
+	}
+	i18n.SetLanguage("en-CA") // don't leak locale state into other tests
+}
+
+// TestNoTwoPassFfmpegArgs guards the reason the control is disabled: the app
+// runs one encode pass. If a "-pass"/"-passlogfile" argument ever appears, the
+// encoder path grew real two-pass support and the UI disclosure (plus this
+// slice's premise) has to be revisited rather than left stale.
+func TestNoTwoPassFfmpegArgs(t *testing.T) {
+	skipDir := func(name string) bool {
+		return name == "_fyne" || name == "vendor" || name == "testdata" ||
+			strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
+	}
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path != "." && skipDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil // production encoder args never live in a test file
+		}
+		b, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		for _, banned := range []string{`"-pass`, `"-passlogfile`} {
+			if idx := strings.Index(string(b), banned); idx >= 0 {
+				t.Errorf("%s emits ffmpeg %s (offset %d): two-pass is not implemented and the UI says so",
+					path, banned, idx)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking repo: %v", err)
+	}
 }

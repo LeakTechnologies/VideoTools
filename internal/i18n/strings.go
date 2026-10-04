@@ -535,7 +535,7 @@ type Strings struct {
 	ConvertShowBatchSettings      string // "Show Batch Settings"
 	ConvertHideBatchSettings      string // "Hide Batch Settings"
 	ConvertHwAccelHint            string // "Auto picks best GPU path; if encode fails, switch to none (software)."
-	ConvertTwoPassNote            string // "Two-pass encoding is ignored in CRF mode."
+	ConvertTwoPassNote            string // "Two-pass encoding is not implemented; bitrate modes encode in a single pass with a capped peak bitrate."
 	ConvertEncoderPresetHint      string // "Choose slower for better compression, faster for speed"
 	ConvertLoadVideoForCommand    string // "Load a video to see the FFmpeg command."
 	ConvertVideoFormatsHint       string // "MP4, MOV, MKV and more"

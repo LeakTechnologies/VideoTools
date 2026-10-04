@@ -917,7 +917,7 @@ type convertConfig struct {
 	UseMotionInterpolation bool   // Use motion interpolation for smooth frame rate changes
 	PixelFormat            string // yuv420p, yuv422p, yuv444p
 	HardwareAccel          string // auto, none, nvenc, amf, vaapi, qsv, videotoolbox
-	TwoPass                bool   // Enable two-pass encoding for VBR
+	TwoPass                bool   // Unimplemented: no encoder path reads it; the UI control is disabled. Kept so older configs still parse.
 	EncoderTune            string // None, Film, Animation, Grain, Stillimage, Fastdecode (libx264/libx265 only)
 	H264Profile            string // baseline, main, high (for H.264 compatibility)
 	H264Level              string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
@@ -982,7 +982,7 @@ type userPreset struct {
 	UseMotionInterpolation bool         `json:"useMotionInterpolation"`
 	PixelFormat            string       `json:"pixelFormat"`
 	HardwareAccel          string       `json:"hardwareAccel"`
-	TwoPass                bool         `json:"twoPass"`
+	TwoPass                bool         `json:"twoPass"` // Legacy: never honoured, forced false on load
 	EncoderTune            string       `json:"encoderTune"`
 	H264Profile            string       `json:"h264Profile"`
 	H264Level              string       `json:"h264Level"`
@@ -8609,6 +8609,9 @@ func runGUI() {
 		if state.convert.FrameRate == "" {
 			state.convert.FrameRate = "Source"
 		}
+		// Two-pass is unimplemented; drop any value an older build persisted
+		// so the in-memory state is honest and the next save self-heals.
+		state.convert.TwoPass = false
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Error(logging.CatConvert, "failed to load persisted convert config: err=%v", err)
 	}
@@ -11276,12 +11279,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			if targetSizeContainer != nil {
 				targetSizeContainer.Hide()
 			}
-			if twoPassCheck != nil {
-				twoPassCheck.Disable()
-				if twoPassNote != nil {
-					twoPassNote.Show()
-				}
-			}
 			if encodingHint != nil {
 				encodingHint.SetText(t.ConvertRemuxHint)
 			}
@@ -11386,24 +11383,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		encodingHint.SetText(hint)
-
-		if twoPassCheck != nil {
-			if mode == "CRF" || mode == "" {
-				if state.convert.TwoPass {
-					state.convert.TwoPass = false
-					twoPassCheck.SetChecked(false)
-				}
-				twoPassCheck.Disable()
-				if twoPassNote != nil {
-					twoPassNote.Show()
-				}
-			} else {
-				twoPassCheck.Enable()
-				if twoPassNote != nil {
-					twoPassNote.Hide()
-				}
-			}
-		}
 
 		// Let updateQualityVisibility() handle showing/hiding quality sections
 		// to avoid duplicate logic and conflicts
@@ -11559,14 +11538,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
 	state.upscaleHardwareAccel = state.convert.HardwareAccel // sync upscale HW accel from master setting
 
-	// Two-Pass encoding
-	twoPassCheck = widget.NewCheck(t.ConvertEnableTwoPass, func(checked bool) {
-		state.convert.TwoPass = checked
-	})
-	twoPassCheck.Checked = state.convert.TwoPass
+	// Two-Pass encoding — NOT IMPLEMENTED.
+	// No encoder-argument builder reads cfg.TwoPass, so the flag never
+	// affected an output: the checkbox was a control that silently did
+	// nothing. It stays visible but permanently disabled, with the note
+	// always shown, so the panel no longer advertises a setting that is
+	// not honoured. The field itself is kept in the struct so configs and
+	// saved profiles written by older builds still parse; its value is
+	// forced false here and on every restore.
+	state.convert.TwoPass = false
+	twoPassCheck = widget.NewCheck(t.ConvertEnableTwoPass, nil)
+	twoPassCheck.Checked = false
+	twoPassCheck.Disable()
 	twoPassNote = widget.NewLabel(t.ConvertTwoPassNote)
 	twoPassNote.Wrapping = fyne.TextWrapWord
-	twoPassNote.Hide()
 
 	// Create color-coded audio codec select widget with colored dropdown items
 	audioCodecOptions := []string{"AAC", "AC-3", "Opus", "Vorbis", "MP3", "FLAC", "Copy"}
@@ -11815,9 +11800,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			hwAccelSelect.SetSelected(up.HardwareAccel)
 		}
 
-		// Two-pass
-		state.convert.TwoPass = up.TwoPass
-		twoPassCheck.SetChecked(up.TwoPass)
+		// Two-pass — not implemented, so a stale value persisted by an older
+		// build is deliberately ignored rather than restored into a control
+		// that does nothing.
+		state.convert.TwoPass = false
+		twoPassCheck.SetChecked(false)
 
 		// Tune
 		tune := up.EncoderTune
@@ -12208,13 +12195,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				motionInterpCheck.Disable()
 			} else {
 				motionInterpCheck.Enable()
-			}
-		}
-		if twoPassCheck != nil {
-			if remux {
-				twoPassCheck.Disable()
-			} else {
-				twoPassCheck.Enable()
 			}
 		}
 		if resolutionSelectSimple != nil {
@@ -16003,10 +15983,10 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				bufsize := fmt.Sprintf("%dk", bitrateVal*4)
 				args = append(args, "-maxrate", maxBitrate, "-bufsize", bufsize)
 			}
-			// Force 2-pass for VBR accuracy
-			if !cfg.TwoPass {
-				cfg.TwoPass = true
-			}
+			// Single-pass ABR with a 2x peak cap. This used to carry a
+			// "force 2-pass for VBR accuracy" write to a local copy of cfg
+			// after the args were already built — a no-op that also implied
+			// a two-pass pipeline the app never ran.
 		} else if cfg.BitrateMode == "Target Size" {
 			// Calculate bitrate from target file size
 			if cfg.TargetFileSize != "" && src.Duration > 0 {

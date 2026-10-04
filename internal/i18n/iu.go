@@ -560,7 +560,7 @@ var iu = Strings{
 	ConvertTabSimple:                 "Simple",                                                                               // machine-generated
 	ConvertTargetAspectHint:          "Pick desired output aspect (default Source).",                                         // machine-generated
 	ConvertTransformHint:             "Apply flips and rotation to correct video orientation",                                // machine-generated
-	ConvertTwoPassNote:               "Two-pass encoding is ignored in CRF mode.",                                            // machine-generated
+	ConvertTwoPassNote:               "Two-pass encoding is not implemented. Bitrate modes encode in a single pass with a capped peak bitrate.", // machine-generated
 	ConvertVideoFormatsHint:          "MP4, MOV, MKV and more",                                                               // machine-generated
 	ConvertVideoOfFmt:                "Video %d of %d",                                                                       // machine-generated
 	ConvertViewLog:                   "View Log",                                                                             // machine-generated

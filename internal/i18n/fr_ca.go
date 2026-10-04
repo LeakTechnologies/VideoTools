@@ -526,7 +526,7 @@ var frCA = Strings{
 	ConvertShowBatchSettings:      "Afficher les paramètres par lot",
 	ConvertHideBatchSettings:      "Masquer les paramètres par lot",
 	ConvertHwAccelHint:            "Choix automatique du meilleur GPU ; si l'encodage échoue, passer en logiciel.",
-	ConvertTwoPassNote:            "L'encodage en deux passes est ignoré en mode CRF.",
+	ConvertTwoPassNote:            "L'encodage en deux passes n'est pas implémenté. Les modes de débit encodent en une seule passe, avec un débit de pointe plafonné.",
 	ConvertEncoderPresetHint:      "Choisir plus lent pour une meilleure compression, plus rapide pour la vitesse",
 	ConvertLoadVideoForCommand:    "Chargez une vidéo pour voir la commande FFmpeg.",
 	ConvertVideoFormatsHint:       "MP4, MOV, MKV et plus",
