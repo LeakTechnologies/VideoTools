@@ -2,12 +2,19 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev84 Scope (in review — not yet released)
+
+- [x] **Player: the dormant libVLC backend and its inert Settings toggle removed** (commit `f7ce4d3d`) — the tracker carried "libVLC Player Backend (Phase 1)" as the next slice after dev83, implying work in progress. A partial port had landed 2026-07-24 behind a `vlc` build tag and could never have been built: five unresolved libVLC C symbols, and **no workflow has ever passed that tag**, so it was never exercised in CI. The user-visible half was the real defect — Settings shipped a "Use libVLC backend" checkbox that persisted `UsePlayerVLC` and called `media.SetUseVLC`, but the only reader lived in `engine_factory_vlc.go` behind the tag no CI build compiles, so in every shipped binary the toggle did nothing and its hint claimed libVLC "is more stable for seek/resume" (never true for anyone). Same defect class as the Convert two-pass toggle, one layer down. Removed the four `vlc`-tagged media/UI files, `vlc_events.go` (it `#include`d the deleted header, so it could not have compiled either), `internal/player/vlc_controller.go` (502 lines nothing referenced), the toggle + its two i18n keys + `PrefsConfig` field + callbacks, `media.SetUseVLC`/`UseVLC`, and the `main` load-time call. Kept `media.PlaybackEngine` (the seam `InlineVideoPlayer` actually uses), `docs/VLC_PLAYER.md`, and the deprecated `BackendVLC` enum. Stale `UsePlayerVLC` JSON is ignored, not rejected — `LoadModuleJSON` decodes leniently. `engine_factory_default.go` drops its now-meaningless `&& !vlc`, so `-tags "native_media vlc"` compiles to the same binary as `-tags native_media`. Guards `TestNoDeadVLCBackendControl` + `TestNoVLCBackendCode`, both mutation-verified. **This removes a lie, it does not add a feature.**
+- [ ] **Convert audit #17 — one authoritative playback-state boundary** (next slice) — play/pause, speed, and track controls must not display stale state (`U-5/U-6/U-7/U-8`, `F-11`).
+- [ ] **Convert audit #22 — player lifecycle** (next slice) — source is never loaded on switch, rebuild fakes a pause, collapsed player is still fed frames (`F-3`, `F-4`, `L-4`). Both #17 and #22 need a real playback session plus a `docs/PLAYER_DEBUG.md` log review before landing.
+- [ ] **Tester verify: dev84 release** — (1) Settings no longer offers a "Use libVLC backend" checkbox; (2) Settings → Player still shows Auto-deinterlace and Seek accuracy and both still work; (3) playback is unchanged (the FFmpeg engine was the only backend that ever reached a binary); (4) no config error at startup for anyone whose prefs file still carries a `UsePlayerVLC` key.
+
 ## Dev83 Scope (released 2026-10-04 — tester verification pending)
 
 - [x] **Rip: LPCM (`pcm_dvd`) titles now rip losslessly instead of failing at the muxer** (tag `v0.1.1-dev83`, commit `e08538ae`) — a DVD title carrying 20-bit LPCM audio could not be ripped in the lossless formats: the rip stream-copied audio (`-c copy`) and the Matroska muxer has no tag for `pcm_dvd`, so the run died writing the container header (verified against ffmpeg 8.1 with a synthetic `pcm_dvd` VOB — exit −22 (AVERROR(EINVAL)), `No wav codec tag found for codec pcm_dvd`). The only recovery was the dvdvideo → VOB-concat fallback, which re-ran the same codecs against a different input and so failed identically while masking the real diagnostic. `runFFmpegWithProgress` now returns a typed `*ffmpegError` carrying ffmpeg's stderr, `isMuxerCodecError` classifies the codec/container rejection from it, and the executor retries once on the *same* input with `-c:a flac` (lossless, video still stream-copied) while skipping the doomed VOB fallback for that class. The stream-copy path now emits `-c:v copy` / `-c:s copy` / `-c:a <encoder>` instead of an all-or-nothing `-c copy` so the substitution is possible (verified: the split alone does NOT fix it — `-c:v copy -c:a copy` still exits −22). Regression tests include a real-ffmpeg end-to-end run over a synthetic VOB plus mutation tests; `dev-verify.ps1`, stub build, package-main and internal suites green.
 - [x] **Convert: stop advertising two-pass encoding (#23, commit `cf5352c5`)** — the "Two-pass encoding" checkbox was enabled in all four locales and described a two-pass VBR bitrate workflow, but no two-pass code existed anywhere: the checkbox was never read by the encoder argument builder. The control is now permanently disabled with an honest label, the four-locale disclosure is corrected, the false "Estimated size: N MB (2-pass)" claim is removed, and the dead `cfg.TwoPass = true` write is gone. Implementing video-bitrate two-pass is a separate feature, deliberately not started; this cycle makes the UI tell the truth. Guarded by `TestTwoPassDisclosedAsUnimplemented` + `TestNoTwoPassFfmpegArgs`, both negative-tested.
 - [ ] **Tester verify: dev83 release** — (1) rip a title whose audio is 20-bit LPCM (`pcm_dvd`) in a lossless format: the rip completes instead of failing with `No wav codec tag found for codec pcm_dvd`; the job log shows the "Muxer rejected the source audio codec — retrying with lossless FLAC audio" line; the output plays, video is still the copied MPEG-2 stream and audio is FLAC (`ffprobe`); a title that rips cleanly on the first attempt is unaffected (no spurious retry); menu VOBs export alongside without failing the same way. (2) Convert: the "Two-pass encoding" control reads as not implemented, toggling it does nothing, and no "2-pass" size claim appears in the preview.
-- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below; next slice after dev83.
+- [x] **libVLC Player Backend (Phase 1)** — superseded in dev84: the `vlc`-tagged port was removed, never having compiled or been built by any CI job (see Dev84 Scope).
 
 ## Dev82 Scope (released 2026-10-03 — tester verification pending)
 
@@ -29,7 +36,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Tester verify: dev64 release** — rip mode radio (scenes / full-movie of the longest title), per-language subtitle checkboxes (deselect a language → streams stripped from output; legacy configs default to all), scan-as-you-go DiscSummary snippets, Convert SMPTE idle restored on menu-driven re-entry + all dev63/dev62 content (metadata fold keeps the tappable header visible; ISO load shows "Reading disc information"; dev62 layout corrections) + the dev61→dev62 in-app update from a dev61 binary; move roadmap cards `rip-refinement`/`rip-overhaul` `done` → `shipped` on sign-off.
 - [ ] **Updater hardening (follow-ups)** — (a) bake `buildCommit` into release builds via ldflags (`-X main.buildCommit=<sha>`) so the same-tag patch-detection path works — CI change, ask before touching workflows; (b) Linux tar.gz extraction path (updater currently has zip-only extraction; Linux treats tar.gz as a direct binary); (c) fix the stale "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` (no such job exists).
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
-- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+- [x] **libVLC Player Backend (Phase 1)** — superseded in dev84: the `vlc`-tagged port was removed, never having compiled or been built by any CI job (see Dev84 Scope).
 
 ## Dev75 Scope (tag `v0.1.1-dev75` — released 2026-09-13; choose-titles default reworked in dev76)
 
@@ -157,7 +164,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Tester verify: in-app updater (dev61 → dev62)** — first end-to-end exercise of the fixed Install Update path: a dev61 binary should offer and install dev62 from Settings.
 - [ ] **Updater hardening (follow-ups)** — (a) bake `buildCommit` into release builds via ldflags (`-X main.buildCommit=<sha>`) so the same-tag patch-detection path works — CI change, ask before touching workflows; (b) Linux tar.gz extraction path (updater currently has zip-only extraction; Linux treats tar.gz as a direct binary); (c) fix the stale "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` (no such job exists).
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
-- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+- [x] **libVLC Player Backend (Phase 1)** — superseded in dev84: the `vlc`-tagged port was removed, never having compiled or been built by any CI job (see Dev84 Scope).
 
 ## Dev61 Scope (closed — released 2026-09-03; layout bugs found in testing, fixed in dev62)
 
@@ -167,7 +174,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Tester verify: dev61 release** — superseded: testing found the layout bugs fixed in dev62; verification folded into Dev62 scope.
 - [x] **Tester verify: in-app updater (from dev61 onward)** — superseded: dev61→dev62 is the exercise; tracked in Dev62 scope.
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3).
-- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+- [x] **libVLC Player Backend (Phase 1)** — superseded in dev84: the `vlc`-tagged port was removed, never having compiled or been built by any CI job (see Dev84 Scope).
 
 ## Dev60 Scope (closed — released 2026-09-02)
 
@@ -182,7 +189,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **CI FFmpeg build resilience** — cache `restore-keys` on all five cache steps (dev/release × linux/windows, msix) so tag runs reuse the previous tag's FFmpeg build; curl `--retry 3 --retry-delay 5 --retry-all-errors` / wget `--tries=5 --retry-connrefused --waitretry=5` on all source downloads (release #14 + MSIX #19 red'd on a transient cold-build source flake; dev #65 passed only via cache hit).
 - [ ] **Tester verify: rip module overhaul (dev58)** — confirm disc-info populates on ISO/VIDEO_TS load, scan flow reads clean, selection flow works; move roadmap card `done` → `shipped` on sign-off (AGENTS.md priority 4).
 - [ ] **Tester verify: no-scan multi-VOB rip** — confirm the dvdvideo path activates and no crash at the VOB boundary (AGENTS.md priority 3); move the dvdvideo roadmap card `done` → `shipped` on sign-off.
-- [ ] **libVLC Player Backend (Phase 1)** — see libVLC section below.
+- [x] **libVLC Player Backend (Phase 1)** — superseded in dev84: the `vlc`-tagged port was removed, never having compiled or been built by any CI job (see Dev84 Scope).
 
 ## Dev57 Scope (closed — release cut)
 
@@ -208,16 +215,18 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev50-54 Scope (current — preparing to ship)
 
-### libVLC Player Backend (dev56 — next)
+### libVLC Player Backend (dev56 design — implementation CUT in dev84)
 
-- [ ] **PlaybackEngine interface** — Extract formal Go interface from InlineVideoPlayer's Engine usage; `internal/media/engine_interface.go`
-- [ ] **FFmpegBackend** — Wrap existing Engine to implement PlaybackEngine interface; `internal/media/ffmpeg_backend.go`
-- [ ] **VLCBackend (Phase 1)** — Basic libVLC CGo wrapper: load, play, pause, seek, RGBA frame callbacks; `internal/media/vlc_engine.go`, `vlc_video.go`, `vlc_glue.h`
-- [ ] **InlineVideoPlayer refactor** — Accept `PlaybackEngine` interface instead of concrete `*Engine`
-- [ ] **Build-tag gating** — `//go:build native_media && vlc` for VLC files; default `!vlc` until validated
-- [ ] **Settings toggle** — Backend selection (FFmpeg vs VLC) in Settings → Player
-- [ ] **VLC Phase 2** — GrabFrame, thumbnails, track/chapter selection, speed control, EOF/error events
-- [ ] **VLC Phase 3** — User validation, flip default, retire FFmpeg player
+The design stands (`docs/VLC_PLAYER.md`); the code does not. What landed on 2026-07-24 was a `vlc`-tagged partial port that failed to compile and that no workflow ever built, surfaced to users as a Settings toggle that did nothing. All of it was removed in dev84 (`f7ce4d3d`). Do not tick any of the items below without provisioning the SDK and adding a CI job that builds the tag — that omission is exactly what let 1,400 lines of unbuildable code pose as an in-progress feature for a year.
+
+- [x] **PlaybackEngine interface** — shipped; `internal/media/engine_interface.go`, tagged `native_media` only and used by `InlineVideoPlayer`. Retained in dev84 as the seam a real backend plugs into.
+- [x] **Build-tag gating** — the tag is now inert: `engine_factory_default.go` builds on `native_media` alone, so `-tags "native_media vlc"` produces the same binary.
+- [x] **Settings toggle** — removed in dev84 rather than wired, because there was no backend to select.
+- [ ] **Precondition: provision the libVLC SDK in CI** — every Windows workflow, static-only, matching the x264/x265/libdvdnav precedent.
+- [ ] **Precondition: a CI job that actually builds the `vlc` tag** — without this, a broken backend is invisible to every gate.
+- [ ] **VLCBackend (Phase 1), if revived** — load, play, pause, seek, RGBA frame callbacks; must actually compile against the provisioned SDK.
+- [ ] **VLC Phase 2, if revived** — GrabFrame, thumbnails, track/chapter selection, speed control, EOF/error events.
+- [ ] **VLC Phase 3, if revived** — user validation, flip default, retire the FFmpeg player.
 
 ### Player Performance Fixes (dev54)
 

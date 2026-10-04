@@ -1,3 +1,19 @@
+> **Status: implementation CUT (2026-10-04, dev84). This document is retained as a design record.**
+>
+> The `vlc`-tagged partial port described below landed on 2026-07-24 but never compiled (five
+> unresolved libVLC C symbols) and was never built by any CI workflow, so it never reached a
+> binary. It surfaced to users as a Settings checkbox that did nothing. All of it was removed in
+> dev84 (`f7ce4d3d`), along with `internal/player/vlc_controller.go`. See `DONE.md` for the entry.
+>
+> The `PlaybackEngine` interface described in *Phase 1* **did** ship and is retained — it is the
+> seam a real backend plugs into, and `InlineVideoPlayer` uses it today.
+>
+> If you revive this: provision the libVLC SDK in CI, **and add a CI job that actually builds the
+> `vlc` tag**, before exposing any user-facing control. Skipping the second step is what let ~1,400
+> lines of unbuildable code pose as an in-progress feature for a year. Guards
+> `TestNoDeadVLCBackendControl` and `TestNoVLCBackendCode` will fail if a control is advertised
+> without a working backend, or if the plumbing is reintroduced without one.
+
 # VLC Player Backend
 
 Replace the custom FFmpeg demux/decode/sync engine with libVLC for video playback.
