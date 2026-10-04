@@ -153,6 +153,12 @@ type ExecuteOptions struct {
 	ChapterStart int
 	ChapterEnd   int
 
+	// AudioEncoder overrides the audio codec for menu-VOB exports. Empty = copy
+	// the source stream. Set by Execute when the content rip had to substitute
+	// an audio encoder (the muxer rejected the source codec), so the exported
+	// menus get the same treatment instead of failing the same way.
+	AudioEncoder string
+
 	GetLogsDir   func() string
 	LogSuffix    string
 	OnProbeVideo func(path string) (*ProbeResult, error)

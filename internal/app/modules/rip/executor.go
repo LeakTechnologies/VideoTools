@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -304,6 +305,13 @@ type RipArgs struct {
 	VideoTSPath   string   // VIDEO_TS directory for -f dvdvideo (seamless branching)
 	TitleNumber   int      // 1-based title index from VMG TT_SRPT for -f dvdvideo
 
+	// AudioEncoder overrides the audio codec instead of copying the source
+	// stream. Empty = copy (the default, and what a lossless rip wants). Set by
+	// the executor's retry when the muxer rejects the source audio codec (a DVD
+	// title with pcm_dvd cannot be stream-copied into MKV), which substitutes a
+	// lossless encoder so the rip still completes without re-encoding video.
+	AudioEncoder string
+
 	// ChapterStartSec/ChapterEndSec trim the output to a chapter range as
 	// output-side -ss/-to. Start > 0 enables the trim; End must be > Start.
 	// Used on both the dvdvideo path and the whole-file VOB-concat path when
@@ -388,8 +396,12 @@ func BuildRipArgs(ra RipArgs) []string {
 			"-c:v", "libx264",
 			"-crf", "18",
 			"-preset", "medium",
-			"-c:a", "copy",
 		)
+		audioEncoder := "copy"
+		if ra.AudioEncoder != "" {
+			audioEncoder = ra.AudioEncoder
+		}
+		args = append(args, "-c:a", audioEncoder)
 		switch ra.RegionConvert {
 		case "pal2ntsc":
 			args = append(args, "-af", "atempo=0.9600")
@@ -411,7 +423,15 @@ func BuildRipArgs(ra RipArgs) []string {
 			args = append(args, "-af", "atempo=1.0417")
 		}
 	default:
-		args = append(args, "-c", "copy")
+		// Stream copy. AudioEncoder is split out rather than using a bare
+		// "-c copy" so a retry can re-encode just the audio when the muxer
+		// rejects the source audio codec; "-c copy" would be all-or-nothing.
+		args = append(args, "-c:v", "copy", "-c:s", "copy")
+		audioEncoder := "copy"
+		if ra.AudioEncoder != "" {
+			audioEncoder = ra.AudioEncoder
+		}
+		args = append(args, "-c:a", audioEncoder)
 	}
 
 	// Per-stream language metadata
@@ -905,9 +925,30 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 
 	err = runWithArgs(ra)
-	if err != nil && useDVDVideo && ctx.Err() == nil {
+	// Muxer rejected the source audio codec (e.g. a DVD title carrying pcm_dvd,
+	// which Matroska cannot store). Changing the input cannot help — the codec
+	// is identical either way — so substitute a lossless audio encoder and
+	// re-run on the same input instead. Video is still stream-copied, so this
+	// stays a lossless rip; only the audio is repacked. Guarded on
+	// AudioEncoder being unset so a retry can never loop.
+	if err != nil && ctx.Err() == nil && ra.AudioEncoder == "" && isMuxerCodecError(err) {
+		appendLog("Muxer rejected the source audio codec — retrying with lossless FLAC audio (video still stream-copied)")
+		ra.AudioEncoder = "flac"
+		if err2 := runWithArgs(ra); err2 == nil {
+			err = nil
+			opts.AudioEncoder = "flac" // menus carry the same audio codec
+		} else {
+			// Report the original codec failure only if the retry failed for an
+			// unrelated reason; the retry's own error is the more recent fact.
+			appendLog(fmt.Sprintf("FLAC audio retry also failed: %v", err2))
+			err = err2
+		}
+	}
+	if err != nil && useDVDVideo && ctx.Err() == nil && !isMuxerCodecError(err) {
 		// -f dvdvideo opened/ran but failed (demux error, CSS auth unavailable,
 		// etc.). Retry with the reliable VOB concat path.
+		// A muxer/codec rejection is excluded: it would fail identically on the
+		// concat input, and the retry would mask the real cause.
 		// Chapter/audio/subtitle enrichment is preserved; only the demuxer input
 		// changes. Concat + -c copy can write PTS discontinuities at VOB
 		// boundaries, so log the fallback for diagnosis. Do NOT fall back on
@@ -1254,13 +1295,22 @@ func exportMenuVOB(ctx context.Context, opts ExecuteOptions, menuVOBPath, output
 		"-map_metadata", "-1",
 	}
 
+	// Audio is split out from video/subtitle rather than using a bare "-c copy"
+	// so a menu VOB carrying pcm_dvd can be re-encoded losslessly when the
+	// muxer rejects the source audio codec (same class of failure as the content
+	// rip; see the FLAC retry in Execute).
+	audioEncoder := "copy"
+	if opts.AudioEncoder != "" {
+		audioEncoder = opts.AudioEncoder
+	}
+
 	switch format {
 	case FormatH264MKV:
-		args = append(args, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "copy")
+		args = append(args, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", audioEncoder)
 	case FormatH264MP4:
 		args = append(args, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "aac", "-b:a", "192k")
 	default:
-		args = append(args, "-c", "copy")
+		args = append(args, "-c:v", "copy", "-c:s", "copy", "-c:a", audioEncoder)
 	}
 
 	args = append(args, "-max_interleave_delta", "0", outputPath)
@@ -1690,9 +1740,70 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 		if stderrStr != "" && logFn != nil {
 			logFn(stderrStr)
 		}
-		return fmt.Errorf("ffmpeg failed: %w", err)
+		return &ffmpegError{err: err, stderr: stderrStr}
 	}
 	return nil
+}
+
+// ffmpegError is a failed ffmpeg run that carries ffmpeg's stderr alongside the
+// process error. The exit status alone cannot tell a transient demux failure
+// (worth retrying down a different input path) from a muxer that rejects the
+// stream codecs outright (retrying with the same codecs can never succeed), so
+// the caller needs the stderr text to classify the failure.
+type ffmpegError struct {
+	err    error
+	stderr string
+}
+
+func (e *ffmpegError) Error() string {
+	if e.stderr != "" {
+		return fmt.Sprintf("ffmpeg failed: %v: %s", e.err, e.stderr)
+	}
+	return fmt.Sprintf("ffmpeg failed: %v", e.err)
+}
+
+func (e *ffmpegError) Unwrap() error { return e.err }
+
+// Stderr returns ffmpeg's captured stderr, for failure classification.
+func (e *ffmpegError) Stderr() string { return e.stderr }
+
+// isMuxerCodecError reports whether an ffmpeg failure is the muxer refusing the
+// stream codecs rather than a source/demux problem.
+//
+// A DVD title can carry LPCM audio (pcm_dvd) which the Matroska muxer cannot
+// store. A stream-copy rip of such a title fails while writing the header,
+// verified against ffmpeg 8.1 with a synthetic pcm_dvd VOB (exit 1, stderr):
+//
+//	[matroska @ ...] No wav codec tag found for codec pcm_dvd
+//	[out#0/matroska @ ...] Could not write header (incorrect codec parameters ?): Invalid argument
+//
+// Retrying that run with a different input (the VOB-concat fallback) is
+// pointless — the codec is the same either way — and the retry then reports a
+// second, misleading failure. Detecting the class lets the executor substitute
+// a compatible audio codec instead of changing the input.
+func isMuxerCodecError(err error) bool {
+	var fe *ffmpegError
+	if !errors.As(err, &fe) {
+		return false
+	}
+	s := strings.ToLower(fe.stderr)
+	if s == "" {
+		return false
+	}
+	markers := []string{
+		"no wav codec tag found for codec", // matroska rejecting pcm_dvd (observed)
+		"could not write header",           // matroska rejecting a stream at header write (observed)
+		"invalid audio codec",              // older/other muxer phrasing
+		"unsupported codec",                // ogv/other containers
+		"could not find tag for codec",     // generic codec-id tag missing
+		"audio codec not supported",
+	}
+	for _, m := range markers {
+		if strings.Contains(s, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // formatETA returns a compact string like "ETA 2m 34s" or "ETA < 1s".
