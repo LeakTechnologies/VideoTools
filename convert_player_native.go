@@ -26,6 +26,53 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
+// speedLabelFor maps a playback speed back to its selector label. It returns ""
+// for a speed outside the offered set, which callers treat as "leave the
+// selector alone" rather than snapping it to a value the engine is not using.
+func speedLabelFor(speed float64, steps []float64, labels []string) string {
+	for i, s := range steps {
+		if s == speed {
+			return labels[i]
+		}
+	}
+	// The engine only ever holds a value from steps, but guard against a
+	// fractional drift making every comparison fail.
+	for i, s := range steps {
+		if math.Abs(s-speed) < 0.001 {
+			return labels[i]
+		}
+	}
+	return ""
+}
+
+// audioLabelIndex maps an authoritative audio-track index to a position in the
+// selector's option list. A -1 (nothing explicitly selected) means track 0.
+func audioLabelIndex(idx int, names []string) int {
+	if len(names) == 0 {
+		return -1
+	}
+	if idx < 0 || idx >= len(names) {
+		return 0
+	}
+	return idx
+}
+
+// subtitleLabelIndex maps an authoritative subtitle-track index to a position
+// in the selector's option list, where index 0 is the synthetic "Off" entry.
+// A -1 (subtitles off) maps to 0; track i maps to i+1.
+func subtitleLabelIndex(idx int, total int) int {
+	if total == 0 {
+		return -1
+	}
+	if idx < 0 {
+		return 0
+	}
+	if idx+1 >= total {
+		return 0
+	}
+	return idx + 1
+}
+
 func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
@@ -60,9 +107,11 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		stageWidth = stageHeight * aspect
 	}
 
-	// Ensure the play button state is consistent: every time a new player pane
-	// is built, the player starts paused (Load() always ends in paused state).
-	state.playerPaused = true
+	// Playback state is NOT seeded here. This pane is rebuilt on every
+	// showConvertView (source switch, Reset, panel toggle), and assigning a
+	// paused flag during construction made the UI claim a pause the engine
+	// never entered. Everything below derives from ui.InlineVideoPlayer, the
+	// single authority (Convert audit #20 / #11 F-4).
 
 	player := GetConvertPlayer()
 	playerWidget := player.Widget()
@@ -208,16 +257,13 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	// Feed playback position back to the seek slider as the video plays.
 	player.SetOnProgress(updateProgress)
 
-	// Reset play button and seek position when video reaches end-of-stream.
+	// Reset the seek position when video reaches end-of-stream. The play/pause
+	// icon is not touched here: the EOF transition publishes the new playback
+	// state through OnPlayStateChange, which owns the icon.
 	var playBtn *widget.Button
 	player.SetOnEnd(func() {
-		state.playerPaused = true
 		slider.SetValue(0)
 		currentTime.SetText(formatClock(0))
-		if playBtn != nil {
-			playBtn.Icon = ui.GetIcon("play_arrow")
-			playBtn.Refresh()
-		}
 	})
 
 	// navy returns a VT-Navy tinted icon for use on VT-green button backgrounds.
@@ -280,24 +326,55 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	updateVolIcon()
 	volSlider.Refresh()
 
-	playBtn = widget.NewButtonWithIcon("", navy("play_arrow"), func() {
-		if state.playerPaused {
-			state.playNative()
-			state.playerPaused = false
+	// transportSyncs holds every painter that must follow playback state. A single
+	// notification fans out to all of them, so opening the fullscreen window
+	// registers an extra painter instead of displacing the inline button's
+	// subscription — otherwise closing fullscreen would leave the inline
+	// transport unsubscribed and frozen.
+	var transportSyncs []func()
+	player.OnPlayStateChange(func(bool) {
+		for _, fn := range transportSyncs {
+			if fn != nil {
+				fn()
+			}
+		}
+	})
+
+	// syncTransportUI paints the transport button from the authoritative playback
+	// state. It is the only writer of playBtn.Icon, so the button cannot
+	// disagree with the engine.
+	syncTransportUI := func() {
+		if playBtn == nil {
+			return
+		}
+		if player.IsPlaying() {
 			playBtn.Icon = navy("pause")
 		} else {
-			state.pauseNative()
-			state.playerPaused = true
 			playBtn.Icon = navy("play_arrow")
 		}
 		playBtn.Refresh()
+	}
+	transportSyncs = append(transportSyncs, syncTransportUI)
+
+	playBtn = widget.NewButtonWithIcon("", navy("play_arrow"), func() {
+		// Decide from the authority, not from a cached flag. The resulting
+		// state change is published back to us and repaints the icon.
+		if player.IsPlaying() {
+			state.pauseNative()
+		} else {
+			state.playNative()
+		}
+		syncTransportUI()
 	})
 	playBtn.Importance = widget.LowImportance
 
+	// Any transition — tap, keyboard, overlay, end-of-stream, frame step, load
+	// reset, peer player, Close — repaints every registered transport painter.
+	syncTransportUI()
+
 	prevFrameBtn := widget.NewButtonWithIcon("", navy("skip_previous"), func() {
-		state.playerPaused = true
-		state.pauseNative()
 		state.stepFrameNative(-1)
+		syncTransportUI()
 		if srcFrameRate > 0 {
 			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
 		}
@@ -305,9 +382,8 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	prevFrameBtn.Importance = widget.LowImportance
 
 	nextFrameBtn := widget.NewButtonWithIcon("", navy("skip_next"), func() {
-		state.playerPaused = true
-		state.pauseNative()
 		state.stepFrameNative(1)
+		syncTransportUI()
 		if srcFrameRate > 0 {
 			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
 		}
@@ -332,15 +408,37 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	// Speed control — select widget cycling common rates.
 	speedSteps := []float64{0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0}
 	speedLabels := []string{"0.25×", "0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"}
-	speedSelect := widget.NewSelect(speedLabels, func(s string) {
+
+	// Seed from the authority rather than hardcoding "1×". widget.NewSelect
+	// installs OnChanged *before* SetSelected runs, so constructing with a
+	// handler and then calling SetSelected fires it and mutates the engine
+	// during widget construction — exactly what the no-construction-side-effects
+	// rule forbids. Build with a nil handler, seed, then install.
+	speedSelect := widget.NewSelect(speedLabels, nil)
+	speedSelect.SetSelected(speedLabelFor(player.GetSpeed(), speedSteps, speedLabels))
+	var syncingSpeed bool
+	speedSelect.OnChanged = func(s string) {
+		if syncingSpeed {
+			return
+		}
 		for i, lbl := range speedLabels {
 			if lbl == s {
 				player.SetSpeed(speedSteps[i])
 				break
 			}
 		}
+	}
+	// Follow speed changes made anywhere else: the overlay pill's toggleSpeed,
+	// a peer player, or any programmatic SetSpeed.
+	player.OnSpeedChange(func(speed float64) {
+		label := speedLabelFor(speed, speedSteps, speedLabels)
+		if label == "" || label == speedSelect.Selected {
+			return
+		}
+		syncingSpeed = true
+		speedSelect.SetSelected(label)
+		syncingSpeed = false
 	})
-	speedSelect.SetSelected("1×")
 
 	// Chapter navigation — only rendered when the loaded file has chapters.
 	chapters := player.GetChapters()
@@ -410,23 +508,31 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		})
 
 		fsPlayBtn := widget.NewButtonWithIcon("", navy("pause"), nil)
-		if state.playerPaused {
-			fsPlayBtn.Icon = navy("play_arrow")
-		}
-		fsPlayBtn.OnTapped = func() {
-			if state.playerPaused {
-				state.playNative()
-				state.playerPaused = false
+		// The fullscreen transport reads the same authority as the inline one
+		// and is repainted from the same notification, so the two buttons can no
+		// longer disagree with each other or with the engine.
+		syncFullscreenUI := func() {
+			if player.IsPlaying() {
 				fsPlayBtn.Icon = navy("pause")
-				playBtn.Icon = navy("pause")
 			} else {
-				state.pauseNative()
-				state.playerPaused = true
 				fsPlayBtn.Icon = navy("play_arrow")
-				playBtn.Icon = navy("play_arrow")
 			}
 			fsPlayBtn.Refresh()
-			playBtn.Refresh()
+		}
+		// Register as an extra painter on the single fan-out rather than
+		// calling OnPlayStateChange again, and drop it when the window closes so
+		// a closed fullscreen button is never repainted.
+		fsSlot := len(transportSyncs)
+		transportSyncs = append(transportSyncs, syncFullscreenUI)
+		syncFullscreenUI()
+		fsPlayBtn.OnTapped = func() {
+			if player.IsPlaying() {
+				state.pauseNative()
+			} else {
+				state.playNative()
+			}
+			syncTransportUI()
+			syncFullscreenUI()
 		}
 		fsPlayBtn.Importance = widget.LowImportance
 
@@ -474,6 +580,10 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			fullscreenWin = nil
 			player.SetOnFrame(nil)
 			player.SetOnProgress(updateProgress)
+			// Retire this window's painter.
+			if fsSlot < len(transportSyncs) {
+				transportSyncs = append(transportSyncs[:fsSlot], transportSyncs[fsSlot+1:]...)
+			}
 		})
 	})
 	fullBtn.Importance = widget.LowImportance
@@ -521,8 +631,14 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			names[i] = label
 		}
 		audioTrackSelect.Options = names
-		audioTrackSelect.SetSelected(names[0])
+		// Seed from the authority. A fresh engine reports -1 (nothing
+		// explicitly selected), which means track 0 is the active one.
+		audioTrackSelect.SetSelected(names[audioLabelIndex(player.CurrentAudioTrack(), names)])
+		var syncingAudio bool
 		audioTrackSelect.OnChanged = func(selected string) {
+			if syncingAudio {
+				return
+			}
 			for i, n := range names {
 				if n == selected {
 					state.selectAudioTrackNative(i)
@@ -530,6 +646,16 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 				}
 			}
 		}
+		// Follow audio-track changes made outside this pane.
+		player.OnAudioTrackChange(func(idx int) {
+			label := names[audioLabelIndex(idx, names)]
+			if label == "" || label == audioTrackSelect.Selected {
+				return
+			}
+			syncingAudio = true
+			audioTrackSelect.SetSelected(label)
+			syncingAudio = false
+		})
 		audioTrackSelect.Show()
 	}
 
@@ -553,8 +679,13 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			names[i+1] = label
 		}
 		subtitleTrackSelect.Options = names
-		subtitleTrackSelect.SetSelected(names[0])
+		// Seed from the authority: -1 means subtitles are off, which is names[0].
+		subtitleTrackSelect.SetSelected(names[subtitleLabelIndex(player.CurrentSubtitleTrack(), len(names))])
+		var syncingSub bool
 		subtitleTrackSelect.OnChanged = func(selected string) {
+			if syncingSub {
+				return
+			}
 			if selected == "Off" {
 				state.selectSubtitleTrackNative(-1)
 				return
@@ -566,6 +697,16 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 				}
 			}
 		}
+		// Follow subtitle-track changes made outside this pane.
+		player.OnSubtitleTrackChange(func(idx int) {
+			label := names[subtitleLabelIndex(idx, len(names))]
+			if label == "" || label == subtitleTrackSelect.Selected {
+				return
+			}
+			syncingSub = true
+			subtitleTrackSelect.SetSelected(label)
+			syncingSub = false
+		})
 		subtitleTrackSelect.Show()
 	}
 

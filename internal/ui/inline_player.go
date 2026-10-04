@@ -24,6 +24,9 @@ type InlineVideoPlayer struct {
 	engine      media.PlaybackEngine
 	scrubber    media.Scrubber
 	playing     bool
+	speed       float64            // authoritative speed; mirrors the engine, survives engine swaps
+	audioIdx    int                // active audio track index, -1 when unknown/none
+	subtitleIdx int                // active subtitle track index, -1 when subtitles are off
 	currentPath string             // path of the most recently loaded file; used for EOF→reload
 	onProgress  func(float64)      // called from playbackLoop with current time in seconds
 	onEnd       func()             // called on clean end-of-stream; NOT called on error
@@ -33,6 +36,21 @@ type InlineVideoPlayer struct {
 	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
 	resumeState *state.ResumeState // persisted playback position (optional)
 	lastSave    time.Time          // throttle for resume auto-save
+
+	// Authoritative playback-state change notifications. Modules derive their
+	// displayed transport/speed/track state from these instead of keeping an
+	// independent copy that can drift (Convert audit #20). Each fires only on an
+	// actual change, and always on the main Fyne goroutine so subscribers may
+	// touch widgets directly.
+	onPlayState   func(bool)
+	onSpeedChange func(float64)
+	onAudioTrack  func(int)
+	onSubtitleTrk func(int)
+
+	// notifiedPlaying is the value last handed to onPlayState. Comparing against
+	// it is what makes the notification fire on genuine changes only, without any
+	// caller having to remember whether it was the one that changed the state.
+	notifiedPlaying bool
 
 	// Frame timing diagnostics (P1-8)
 	frameTimingVisible  bool
@@ -113,6 +131,125 @@ func (v *InlineVideoPlayer) SetOnLoad(fn func(LoadEvent)) {
 	v.mu.Unlock()
 }
 
+// ---------------------------------------------------------------------------
+// Authoritative playback state (Convert audit #20)
+//
+// These getters and notifications are the single source of truth for
+// play/pause, speed and track selection. A module must derive what it displays
+// from here rather than caching its own copy: a widget-construction-time
+// assignment or a fixed default will disagree with the engine the moment
+// anything changes the state through another path (the overlay pill, a peer
+// player, a programmatic SetSpeed, end-of-stream, frame stepping).
+// ---------------------------------------------------------------------------
+
+// OnPlayStateChange registers a callback fired whenever playback state changes.
+// It runs on the main Fyne goroutine, so subscribers may update widgets.
+func (v *InlineVideoPlayer) OnPlayStateChange(cb func(bool)) {
+	v.mu.Lock()
+	v.onPlayState = cb
+	v.mu.Unlock()
+}
+
+// OnSpeedChange registers a callback fired when the playback speed changes.
+func (v *InlineVideoPlayer) OnSpeedChange(cb func(float64)) {
+	v.mu.Lock()
+	v.onSpeedChange = cb
+	v.mu.Unlock()
+}
+
+// OnAudioTrackChange registers a callback fired when the active audio track
+// changes. The index is -1 when no audio track is active.
+func (v *InlineVideoPlayer) OnAudioTrackChange(cb func(int)) {
+	v.mu.Lock()
+	v.onAudioTrack = cb
+	v.mu.Unlock()
+}
+
+// OnSubtitleTrackChange registers a callback fired when the active subtitle
+// track changes. The index is -1 when subtitles are off.
+func (v *InlineVideoPlayer) OnSubtitleTrackChange(cb func(int)) {
+	v.mu.Lock()
+	v.onSubtitleTrk = cb
+	v.mu.Unlock()
+}
+
+// IsPlaying reports the authoritative playback state: true only while the
+// playback loop is running. Read this instead of caching a local paused flag.
+func (v *InlineVideoPlayer) IsPlaying() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.playing
+}
+
+// GetSpeed returns the authoritative playback speed (1.0 when unset).
+func (v *InlineVideoPlayer) GetSpeed() float64 {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.speed
+}
+
+// CurrentAudioTrack returns the index of the active audio track, or -1 when
+// none is known or active.
+func (v *InlineVideoPlayer) CurrentAudioTrack() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.audioIdx
+}
+
+// CurrentSubtitleTrack returns the index of the active subtitle track, or -1
+// when subtitles are off.
+func (v *InlineVideoPlayer) CurrentSubtitleTrack() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.subtitleIdx
+}
+
+// fireOnMain marshals fn onto the Fyne main goroutine, because widget
+// mutations are only legal there and every authoritative-state notification
+// originates on the playback, seek, or engine goroutine.
+//
+// It is a no-op when no Fyne app is running: the app is not yet constructed
+// during early boot, and tests construct players headless. Silently skipping is
+// safe there because there is no widget tree to mutate.
+func fireOnMain(fn func()) {
+	if fn == nil {
+		return
+	}
+	if app := fyne.CurrentApp(); app == nil || app.Driver() == nil {
+		return
+	}
+	fyne.CurrentApp().Driver().DoFromGoroutine(fn, false)
+}
+
+// notifyPlayState fires onPlayState if the authoritative state differs from
+// what subscribers were last told, then records what they were told.
+//
+// It deliberately does NOT assign v.playing. Callers assign the field under
+// v.mu, release the lock, and then call this. That ordering matters: it means a
+// late notification can never resurrect a state that has already moved on.
+//
+// The naive alternative — `defer v.publishPlayState(true)` in Play() — is a
+// real race. Play() starts playbackLoop() before returning, so a short clip can
+// reach EOF, set playing=false and publish it, and only then would the deferred
+// call force playing back to true. The button would show "playing" over a
+// finished video and every later Pause() would look like a no-op transition.
+//
+// v.mu must NOT be held.
+func (v *InlineVideoPlayer) notifyPlayState() {
+	v.mu.Lock()
+	playing := v.playing
+	if v.notifiedPlaying == playing {
+		v.mu.Unlock()
+		return
+	}
+	v.notifiedPlaying = playing
+	cb := v.onPlayState
+	v.mu.Unlock()
+	if cb != nil {
+		fireOnMain(func() { cb(playing) })
+	}
+}
+
 // SetPeer designates peer as a follower: every Play, Pause, and Seek on this
 // player is mirrored to peer. The peer's built-in controls are disabled so
 // only the primary player's transport bar drives both.
@@ -134,7 +271,7 @@ func (v *InlineVideoPlayer) fireLoad(evt LoadEvent) {
 	if fn == nil {
 		return
 	}
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() { fn(evt) }, false)
+	fireOnMain(func() { fn(evt) })
 }
 
 // SetFrameTimingOverlayVisible enables or disables the per-frame timing
@@ -157,6 +294,12 @@ func (v *InlineVideoPlayer) SetFrameTimingOverlayVisible(visible bool) {
 func NewInlineVideoPlayer() *InlineVideoPlayer {
 	v := &InlineVideoPlayer{
 		player: media.NewInlineVideoPlayer(),
+		// Authoritative state defaults. The engine, the audio clock and the
+		// master clock all start at 1.0 with no config round-trip, so a fresh
+		// player is neither playing, nor speed-modified, nor on any track.
+		speed:       1.0,
+		audioIdx:    -1,
+		subtitleIdx: -1,
 		// seekCh starts nil; Load() allocates it and starts seekLoop each time
 		// a file is opened. This avoids a leaked goroutine when a player is
 		// constructed but never loaded, and makes Load() the single owner.
@@ -340,11 +483,40 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 	v.engine = nil
 	v.seekCh = nil
 
+	// A new source resets every piece of authoritative state: the fresh engine
+	// starts paused at 1.0 with no track selected. Publish the reset so a
+	// module's transport, speed selector and track selectors re-seed from the
+	// authority instead of continuing to display the previous file's values.
+	//
+	// The "did it actually change" flags are captured BEFORE the assignment,
+	// not after: v.playing was already cleared above, so reading it here would
+	// always report "unchanged" and a load while playing would never repaint.
+	resetSpeed := v.speed != 1.0
+	resetAudio, resetSub := v.audioIdx != -1, v.subtitleIdx != -1
+	v.speed = 1.0
+	v.audioIdx = -1
+	v.subtitleIdx = -1
+	speedCB := v.onSpeedChange
+	audioCB, subCB := v.onAudioTrack, v.onSubtitleTrk
+
 	// Fresh seek channel and loop for the new file.
 	v.seekCh = make(chan float64, 1)
 	go v.seekLoop()
 
 	v.mu.Unlock()
+
+	// Playing → paused across a source swap is handled by the shared notifier,
+	// which compares against what subscribers were last told.
+	v.notifyPlayState()
+	if resetSpeed && speedCB != nil {
+		fireOnMain(func() { speedCB(1.0) })
+	}
+	if resetAudio && audioCB != nil {
+		fireOnMain(func() { audioCB(-1) })
+	}
+	if resetSub && subCB != nil {
+		fireOnMain(func() { subCB(-1) })
+	}
 
 	// Close the old seekCh synchronously so seekLoop exits and can't forward
 	// stale seeks to the new engine we're about to create.
@@ -494,6 +666,11 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 }
 
 func (v *InlineVideoPlayer) Play() {
+	// Covers every exit path from Play() below: the state change is published
+	// once, after the lock is released, and never resurrects a state that has
+	// since moved on (see notifyPlayState for why that matters at EOF).
+	defer v.notifyPlayState()
+
 	v.mu.Lock()
 	eng := v.engine
 	if eng == nil {
@@ -510,9 +687,9 @@ func (v *InlineVideoPlayer) Play() {
 		if eng.IsPaused() {
 			eng.Resume()
 		}
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		fireOnMain(func() {
 			v.player.SetPlaying(true)
-		}, false)
+		})
 		if peer != nil {
 			go peer.Play()
 		}
@@ -595,9 +772,10 @@ func (v *InlineVideoPlayer) Pause() {
 	v.engine.Pause()
 	peer := v.peer
 	v.mu.Unlock()
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+	v.notifyPlayState()
+	fireOnMain(func() {
 		v.player.SetPlaying(false)
-	}, false)
+	})
 	if peer != nil {
 		go peer.Pause()
 	}
@@ -688,14 +866,20 @@ func (v *InlineVideoPlayer) nextChapter() {
 	v.Seek(chapters[current+1].StartTime)
 }
 
+// SetSpeed sets the playback speed and publishes the new authoritative value.
 func (v *InlineVideoPlayer) SetSpeed(speed float64) {
 	v.mu.Lock()
 	eng := v.engine
+	changed := v.speed != speed
+	v.speed = speed
+	cb := v.onSpeedChange
 	v.mu.Unlock()
-	if eng == nil {
-		return
+	if eng != nil {
+		eng.SetSpeed(speed)
 	}
-	eng.SetSpeed(speed)
+	if changed && cb != nil {
+		fireOnMain(func() { cb(speed) })
+	}
 }
 
 func (v *InlineVideoPlayer) StepFrame(dir int) {
@@ -705,9 +889,12 @@ func (v *InlineVideoPlayer) StepFrame(dir int) {
 		v.mu.Unlock()
 		return
 	}
+	// Frame stepping always leaves the player paused; publish that transition so
+	// a module's play/pause icon follows the engine instead of lagging behind.
 	v.playing = false
 	eng.Pause()
 	v.mu.Unlock()
+	v.notifyPlayState()
 	if img, err := eng.Step(dir); err == nil {
 		v.player.SetFrame(img)
 		v.player.SetCurrentTime(eng.CurrentTime())
@@ -805,11 +992,23 @@ func (v *InlineVideoPlayer) GetAudioTracks() []media.StreamInfo {
 	return v.engine.GetAudioTracks()
 }
 
+// SelectAudioTrack makes idx the active audio track and publishes the change.
 func (v *InlineVideoPlayer) SelectAudioTrack(idx int) error {
 	if v.engine == nil {
 		return fmt.Errorf("no media loaded")
 	}
-	return v.engine.SelectAudioTrack(idx)
+	if err := v.engine.SelectAudioTrack(idx); err != nil {
+		return err
+	}
+	v.mu.Lock()
+	changed := v.audioIdx != idx
+	v.audioIdx = idx
+	cb := v.onAudioTrack
+	v.mu.Unlock()
+	if changed && cb != nil {
+		fireOnMain(func() { cb(idx) })
+	}
+	return nil
 }
 
 func (v *InlineVideoPlayer) SetVolume(vol float64) {
@@ -833,18 +1032,40 @@ func (v *InlineVideoPlayer) GetSubtitleTracks() []media.StreamInfo {
 	return v.engine.GetSubtitleTracks()
 }
 
+// SelectSubtitleTrack makes idx the active subtitle track and publishes the
+// change.
 func (v *InlineVideoPlayer) SelectSubtitleTrack(idx int) error {
 	if v.engine == nil {
 		return fmt.Errorf("no media loaded")
 	}
-	return v.engine.SelectSubtitleTrack(idx)
+	if err := v.engine.SelectSubtitleTrack(idx); err != nil {
+		return err
+	}
+	v.mu.Lock()
+	changed := v.subtitleIdx != idx
+	v.subtitleIdx = idx
+	cb := v.onSubtitleTrk
+	v.mu.Unlock()
+	if changed && cb != nil {
+		fireOnMain(func() { cb(idx) })
+	}
+	return nil
 }
 
+// DisableSubtitles turns the subtitle track off (index -1) and publishes it.
 func (v *InlineVideoPlayer) DisableSubtitles() {
 	if v.engine == nil {
 		return
 	}
 	v.engine.DisableSubtitles()
+	v.mu.Lock()
+	changed := v.subtitleIdx != -1
+	v.subtitleIdx = -1
+	cb := v.onSubtitleTrk
+	v.mu.Unlock()
+	if changed && cb != nil {
+		fireOnMain(func() { cb(-1) })
+	}
 }
 
 // CurrentPath returns the path most recently opened by Load/LoadDVD/LoadURL,
@@ -864,15 +1085,34 @@ func (v *InlineVideoPlayer) Close() {
 	// waiting for goroutines and FFmpeg calls to finish — runs on a background
 	// goroutine so the UI thread is never frozen when the user presses Back.
 	v.mu.Lock()
+	// Capture "was it actually non-default" before resetting, so a Close on an
+	// idle player doesn't fire four pointless widget refreshes.
+	wasSpeed, wasAudio, wasSub := v.speed != 1.0, v.audioIdx != -1, v.subtitleIdx != -1
 	v.playing = false
 	v.currentPath = ""
+	v.speed = 1.0
+	v.audioIdx = -1
+	v.subtitleIdx = -1
 	scrubber := v.scrubber
 	engine := v.engine
 	seekCh := v.seekCh
 	v.scrubber = nil
 	v.engine = nil
 	v.seekCh = nil
+	speedCB := v.onSpeedChange
+	audioCB, subCB := v.onAudioTrack, v.onSubtitleTrk
 	v.mu.Unlock()
+
+	v.notifyPlayState()
+	if wasSpeed && speedCB != nil {
+		fireOnMain(func() { speedCB(1.0) })
+	}
+	if wasAudio && audioCB != nil {
+		fireOnMain(func() { audioCB(-1) })
+	}
+	if wasSub && subCB != nil {
+		fireOnMain(func() { subCB(-1) })
+	}
 
 	// Close seekCh synchronously so seekLoop exits before Load() might create
 	// a new one. seekLoop ranges over the old channel; closing it unblocks it.
@@ -970,6 +1210,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 				reloadPath := v.currentPath
 				isGrowing := eng.IsGrowingFile()
 				v.mu.Unlock()
+				v.notifyPlayState()
 
 				// Mark completed in resume state (unless growing file).
 				if !isGrowing && rs != nil && path != "" {

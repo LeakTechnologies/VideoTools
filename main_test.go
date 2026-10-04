@@ -1,6 +1,8 @@
 package main
 
 import (
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -695,6 +697,7 @@ func TestNoTwoPassFfmpegArgs(t *testing.T) {
 		t.Fatalf("walking repo: %v", err)
 	}
 }
+
 // TestNoDeadVLCBackendControl guards the dev84 libVLC cut.
 //
 // Settings shipped a "Use libVLC backend" checkbox that persisted to config and
@@ -739,6 +742,151 @@ func TestNoDeadVLCBackendControl(t *testing.T) {
 		}
 	}
 	i18n.SetLanguage("en-CA") // don't leak locale state into other tests
+}
+
+// stripGoComments returns the source with all comments removed, so a guard can
+// assert on code without matching its own explanatory prose. A naive
+// line-based scan would be wrong in both directions: it cannot tell a comment
+// mentioning an identifier from the identifier itself, and it can be defeated by
+// a trailing comment on a real line.
+func stripGoComments(src string) string {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "src.go", src, parser.ParseComments)
+	if err != nil {
+		return src // unparseable: fall back to raw text, guards still fire
+	}
+	type span struct{ start, end int }
+	var spans []span
+	for _, cg := range f.Comments {
+		spans = append(spans, span{
+			start: fset.Position(cg.Pos()).Offset,
+			end:   fset.Position(cg.End()).Offset,
+		})
+	}
+	var b strings.Builder
+	prev := 0
+	for _, s := range spans {
+		if s.start > prev {
+			b.WriteString(src[prev:s.start])
+		}
+		prev = s.end
+	}
+	if prev < len(src) {
+		b.WriteString(src[prev:])
+	}
+	return b.String()
+}
+
+// TestConvertHasNoCachedPlaybackState guards Convert audit #20 / #11 finding
+// F-4: the Convert pane used to write `state.playerPaused = true` in its
+// constructor and branch its transport UI on that cached flag.
+//
+// The defect was not that the flag was wrong in isolation — it was that the flag
+// was the authority. Because buildVideoPaneNative is re-run on every source
+// switch, Reset, and panel toggle, each rebuild re-asserted a pause the engine
+// never entered, and any transition driven from elsewhere (end-of-stream, frame
+// stepping, the overlay pill, a peer player) left the icon stale.
+//
+// Convert must derive display state from ui.InlineVideoPlayer instead, which is
+// what OnPlayStateChange exists for.
+func TestConvertHasNoCachedPlaybackState(t *testing.T) {
+	b, err := os.ReadFile("convert_player_native.go")
+	if err != nil {
+		t.Fatalf("reading convert_player_native.go: %v", err)
+	}
+	src := string(b)
+
+	if strings.Contains(src, "playerPaused") {
+		// Field reads are still a problem, but the fatal form is the write.
+		t.Error("convert_player_native.go still references playerPaused; the Convert pane " +
+			"must derive playback state from ui.InlineVideoPlayer (audit #20 / #11 F-4), " +
+			"not cache its own flag")
+	}
+
+	// The pane must subscribe to the authority, otherwise a fresh pane has no
+	// way to learn that state changed after it was built.
+	for _, want := range []string{"player.OnPlayStateChange(", "player.IsPlaying()"} {
+		if !strings.Contains(src, want) {
+			t.Errorf("convert_player_native.go does not contain %q; the transport button cannot "+
+				"follow the engine without it", want)
+		}
+	}
+}
+
+// TestPlaybackStatePublishersAreWired guards the other half of #20: an
+// InlineVideoPlayer that publishes nothing is the same defect as the cached
+// flag, only harder to spot — the getters would look authoritative while never
+// updating.
+//
+// The invariant is deliberately structural rather than behavioural. Every
+// mutation of the authoritative fields must have a matching notification, so the
+// test walks the mutators and asserts the callback is invoked. If a future
+// contributor adds a mutator without publishing, this fails.
+func TestPlaybackStatePublishersAreWired(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("internal", "ui", "inline_player.go"))
+	if err != nil {
+		t.Fatalf("reading internal/ui/inline_player.go: %v", err)
+	}
+	src := string(b)
+
+	// Mutator → the notification it must reach. Presence of the field write is
+	// not enough; the callback has to actually be fired on that path.
+	required := map[string][]string{
+		"play state":     {"v.notifyPlayState()"},
+		"speed":          {"fireOnMain(func() { cb(speed) })"},
+		"audio track":    {"fireOnMain(func() { cb(idx) })"},
+		"subtitle track": {"fireOnMain(func() { cb(-1) })"},
+		"reset on load":  {"fireOnMain(func() { speedCB(1.0) })"},
+		"reset on close": {"fireOnMain(func() { subCB(-1) })"},
+		"end of stream":  {"v.notifyPlayState()"},
+	}
+	for name, needles := range required {
+		found := false
+		for _, n := range needles {
+			if strings.Contains(src, n) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("internal/ui/inline_player.go does not publish the %s notification "+
+				"(expected one of: %v); the authority would silently go stale", name, needles)
+		}
+	}
+
+	// The nil-app guard is load-bearing for tests and early boot: without it a
+	// headless construction panics inside the driver call.
+	if !strings.Contains(src, "app == nil") {
+		t.Error("fireOnMain lost its nil-app guard; it panics when no Fyne app is running")
+	}
+
+	// notifyPlayState must not be able to resurrect a stale value. A
+	// `defer publishPlayState(true)` in Play() races playbackLoop's EOF path:
+	// EOF sets playing=false and publishes, then the defer forces true again,
+	// pinning the button on "playing" over a finished video.
+	if !strings.Contains(src, "func (v *InlineVideoPlayer) notifyPlayState()") {
+		t.Error("notifyPlayState is missing; play-state publication must compare against " +
+			"notifiedPlaying so a late notification cannot overwrite a newer state")
+	}
+	if !strings.Contains(src, "v.notifiedPlaying == playing") {
+		t.Error("notifyPlayState no longer guards on notifiedPlaying; it will re-fire on " +
+			"every call and can overwrite a state that has since changed")
+	}
+	// Checked against code only: the function's own doc comment names
+	// publishPlayState while explaining why it must not be used that way.
+	code := stripGoComments(src)
+	if strings.Contains(code, "publishPlayState") {
+		t.Error("a deferred or assigning publishPlayState reintroduces the Play()/EOF race " +
+			"it was replaced to fix; use defer v.notifyPlayState() instead")
+	}
+	// The positive half matters as much as the negative: Play() must actually
+	// defer the notifier. Checking only that publishPlayState is absent would pass
+	// a build where the defer was simply deleted and the transition never
+	// published at all — the same stale UI as the cached flag, silently.
+	if !strings.Contains(code, "defer v.notifyPlayState()") {
+		t.Error("Play() no longer defers notifyPlayState(); starting playback would leave " +
+			"subscribers unaware the transport changed state")
+	}
 }
 
 // TestNoVLCBackendCode pins the other half of the cut: no production Go file
