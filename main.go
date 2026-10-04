@@ -8621,7 +8621,6 @@ func runGUI() {
 		state.defaultOutputDir = prefs.DefaultOutputDir
 		ui.ShowTooltips = prefs.ShowTooltips
 		setHWDecodeEnabled(prefs.HWDecodeEnabled)
-		setUsePlayerVLC(prefs.UsePlayerVLC)
 		logging.SetVerboseDisc(prefs.VerboseDiscLogging)
 		ui.SetFontSizePreference(prefs.FontSize)
 	} else if !errors.Is(err, os.ErrNotExist) {

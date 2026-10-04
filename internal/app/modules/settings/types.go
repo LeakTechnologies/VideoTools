@@ -66,8 +66,6 @@ type PreferencesCallbacks interface {
 	SetPlayerSeekAccuracy(accuracy string)
 	PlayerAVOffset() int
 	SetPlayerAVOffset(ms int)
-	UsePlayerVLC() bool
-	SetUsePlayerVLC(enabled bool)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -103,7 +101,6 @@ type PrefsConfig struct {
 	ShowTooltips            bool   `json:"ShowTooltips"`
 	AutoDeinterlace           bool   `json:"AutoDeinterlace"`
 	HWDecodeEnabled           bool   `json:"HWDecodeEnabled"`
-	UsePlayerVLC              bool   `json:"UsePlayerVLC"`
 	PlayerFont               string `json:"PlayerFont"`
 	FontSize                 string `json:"FontSize"`
 	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`

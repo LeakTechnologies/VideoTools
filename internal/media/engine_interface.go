@@ -9,9 +9,14 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/media/filters"
 )
 
-// PlaybackEngine is the interface that both the FFmpeg and VLC backends implement.
+// PlaybackEngine is the interface the playback backends implement.
 // InlineVideoPlayer stores this instead of *Engine so the backend is swappable.
 // The interface contains only the methods InlineVideoPlayer actually calls.
+//
+// FFmpeg's *Engine is currently the only implementation. The libVLC backend
+// that briefly existed here was removed in dev84: it never compiled, no
+// workflow ever built its build tag, and its Settings toggle was inert in every
+// shipped binary. See docs/VLC_PLAYER.md for the retained design.
 type PlaybackEngine interface {
 	// Lifecycle
 	Close()
@@ -91,13 +96,11 @@ type PlaybackEngine interface {
 	// Thumbnail extraction
 	StartThumbnailExtraction(onFrame func(time float64, img *image.RGBA))
 
-	// Scrubber factory — returns a SmoothScrubbing for FFmpeg, nil for VLC.
+	// Scrubber factory — returns a Scrubber for backends that need one.
 	NewScrubber() Scrubber
 }
 
 // Scrubber provides smooth scrubbing during slider drag.
-// FFmpegBackend returns a SmoothScrubbing; VLCBackend returns nil
-// (VLC handles seeking internally via libvlc_media_player_set_position).
 type Scrubber interface {
 	Start()
 	Stop()

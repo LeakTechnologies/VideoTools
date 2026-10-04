@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -686,6 +687,74 @@ func TestNoTwoPassFfmpegArgs(t *testing.T) {
 			if idx := strings.Index(string(b), banned); idx >= 0 {
 				t.Errorf("%s emits ffmpeg %s (offset %d): two-pass is not implemented and the UI says so",
 					path, banned, idx)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking repo: %v", err)
+	}
+}
+// TestNoDeadVLCBackendControl guards the dev84 libVLC cut.
+//
+// Settings shipped a "Use libVLC backend" checkbox that persisted to config and
+// called into media.SetUseVLC, but the only reader of that flag lived in
+// engine_factory_vlc.go behind a `vlc` build tag that no workflow has ever
+// built. In every shipped binary the checkbox therefore changed nothing: the
+// same user-facing lie as the Convert two-pass toggle (#23), one layer down.
+//
+// This asserts no user-facing string may advertise a playback backend that does
+// not exist. If a real libVLC backend ever lands, it must come with a CI job
+// that builds its build tag, and this test should be revisited at that point
+// rather than quietly deleted.
+func TestNoDeadVLCBackendControl(t *testing.T) {
+	for _, lang := range []string{"en-CA", "fr-CA"} {
+		i18n.SetLanguage(lang)
+		v := reflect.ValueOf(i18n.T())
+		for i := 0; i < v.NumField(); i++ {
+			s, ok := v.Field(i).Interface().(string)
+			if !ok {
+				continue
+			}
+			if strings.Contains(strings.ToLower(s), "libvlc") {
+				t.Errorf("locale %s: %s still advertises the removed libVLC backend: %q", lang, v.Type().Field(i).Name, s)
+			}
+		}
+	}
+	i18n.SetLanguage("en-CA") // don't leak locale state into other tests
+}
+
+// TestNoVLCBackendCode pins the other half of the cut: no production Go file
+// may reintroduce libVLC engine plumbing. docs/VLC_PLAYER.md is retained as the
+// design document for a future attempt, but the implementation is gone and must
+// not creep back in unbuilt and unverified.
+func TestNoVLCBackendCode(t *testing.T) {
+	skipDir := func(name string) bool {
+		return name == "_fyne" || name == "vendor" || name == "testdata" || name == "docs" ||
+			strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
+	}
+	banned := []string{"NewVLCEngine", "libvlc_media_player", "vlc_glue.h", "vlcFrameCtx"}
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path != "." && skipDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		b, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		src := string(b)
+		for _, sym := range banned {
+			if strings.Contains(src, sym) {
+				t.Errorf("%s reintroduces libVLC plumbing (%q); the backend was cut in dev84 as unbuildable", path, sym)
 			}
 		}
 		return nil

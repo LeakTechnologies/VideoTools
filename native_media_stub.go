@@ -19,8 +19,6 @@ func setHWCodecDenyList(string)    {}
 func setPlayerSeekAccuracy(string) {}
 func setPlayerAVOffset(int)       {}
 func applyPlayerDefaultAspect(string) {}
-func usePlayerVLC() bool          { return false }
-func setUsePlayerVLC(bool)        {}
 
 func initNativeMediaAssets(_ *appState) {}
 
