@@ -9446,6 +9446,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			videoPanel.Show()
 		} else {
 			videoPanel.Hide()
+			// L-4: collapsing the player should not leave it decoding/feeding
+			// frames. Pause it so the engine stops consuming resources until
+			// the panel is expanded again. Do not resume on expand (preserve
+			// the user's last explicit play/pause state).
+			if HasNativeMediaPlayer() {
+				p := GetConvertPlayer()
+				if p != nil && p.IsPlaying() {
+					p.Pause()
+				}
+			}
 		}
 		resolveLeftOffset()
 	})
@@ -15323,6 +15333,11 @@ func (s *appState) switchToVideo(index int) {
 	s.playerReady = false
 	s.playerPos = 0
 	s.playerPaused = true
+
+	// Load into the native media player (same as loadVideo/loadMultipleVideos)
+	if HasNativeMediaPlayer() {
+		s.loadVideoNative(src.Path)
+	}
 
 	if len(src.PreviewFrames) > 0 {
 		s.currentFrame = src.PreviewFrames[0]
