@@ -1,6 +1,8 @@
 package rip
 
 import (
+	"context"
+	"errors"
 	"math"
 	"os"
 	"strings"
@@ -168,6 +170,164 @@ func TestInvariantBulkSelectBypassesTheModeLock(t *testing.T) {
 // TestInvariantSelectAllIgnoresGreyedTitles pins the observable consequence:
 // with titles present, a bulk Select All must reach every one of them, and
 // Deselect All must clear every one of them.
+// TestRipFailureClassification drives the retry policy from observed ffmpeg
+// stderr rather than from an exclusion list.
+//
+// The retry this governs swaps the INPUT (dvdvideo -> VOB concat), so it may
+// only ever fire when the input is what failed. The prior gate was a deny-list
+// (`!isMuxerCodecError`), which admitted output-side failures: an unwritable
+// destination triggered a second full rip and then reported the fallback's
+// error, hiding the real cause behind a demuxer diagnostic.
+func TestRipFailureClassification(t *testing.T) {
+	cases := []struct {
+		name   string
+		stderr string
+		want   ripFailureClass
+	}{
+		{
+			// Observed: output path blocked by a non-directory component.
+			name:   "output path blocked",
+			stderr: "[out#0/matroska @ 0000] Error opening output C:\\x\\notadir\\out.mkv: No such file or directory\nError opening output file C:\\x\\notadir\\out.mkv.\nError opening output files: No such file or directory",
+			want:   failureOutput,
+		},
+		{
+			name:   "disk full",
+			stderr: "[out#0/matroska @ 0000] Error writing trailer: No space left on device",
+			want:   failureOutput,
+		},
+		{
+			name:   "permission denied on output",
+			stderr: "[out#0/matroska @ 0000] Error opening output /readonly/out.mkv: Permission denied",
+			want:   failureOutput,
+		},
+		{
+			// Observed: libdvdnav rejects the source structure.
+			name:   "libdvdread cannot open VIDEO_TS",
+			stderr: "libdvdread: Could not open C:\\disc\\VIDEO_TS with libdvdcss.\n[in#0 @ 0000] Unable to open the DVD-Video structure\nError opening input file C:\\disc\\VIDEO_TS.",
+			want:   failureSourceStructure,
+		},
+		{
+			// The dev-era case f512625f was written for.
+			name:   "dvdnav zero check failure",
+			stderr: "libdvdnav: Zero check failed for vmgi_mat->zero_3\nError opening input file C:\\disc\\VIDEO_TS.",
+			want:   failureSourceStructure,
+		},
+		{
+			name:   "css unavailable",
+			stderr: "libdvdread: Could not open C:\\disc\\VIDEO_TS with libdvdcss.",
+			want:   failureSourceStructure,
+		},
+		{
+			// pcm_dvd rejected by the matroska muxer: a selection problem that
+			// would recur identically on the concat input.
+			name:   "muxer rejects codec",
+			stderr: "[matroska @ 0000] Could not find tag for codec pcm_dvd in stream #1, codec not currently supported in container",
+			want:   failureSelection,
+		},
+		{
+			// Real shape: libdvdread chatters on the way in, then the WRITE
+			// fails. Both marker families are present, so classification depends
+			// entirely on output being tested before source. Getting this order
+			// wrong retries a full rip and blames the demuxer for a disk-full.
+			name:   "source chatter then output failure",
+			stderr: "libdvdread: DVD structure 0x0, zero check failed for vmgi_mat->zero_3\n[out#0/matroska @ 0000] Error opening output C:\\x\\out.mkv: No such file or directory\nError opening output files: No such file or directory",
+			want:   failureOutput,
+		},
+		{
+			// Unexplained: must NOT be retried, or the real error is buried.
+			name:   "unattributable failure",
+			stderr: "something went wrong deep inside a filter graph",
+			want:   failureUnknown,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := &ffmpegError{err: errors.New("exit status 1"), stderr: c.stderr}
+			if got := classifyRipFailure(context.Background(), err); got != c.want {
+				t.Errorf("classifyRipFailure() = %v, want %v\nstderr: %s", got, c.want, c.stderr)
+			}
+		})
+	}
+}
+
+// TestOnlySourceStructureFailuresRetry asserts the retry predicate directly:
+// it must admit exactly the source-structure class.
+func TestOnlySourceStructureFailuresRetry(t *testing.T) {
+	retryable := &ffmpegError{err: errors.New("exit status 1"),
+		stderr: "libdvdread: Could not open C:\\disc\\VIDEO_TS with libdvdcss.\nError opening input file."}
+	if !isRetryableWithConcat(retryable) {
+		t.Error("a source-structure failure must be retried on the concat input; this is " +
+			"the case the fallback exists for (f512625f)")
+	}
+
+	// The regression: an unwritable destination is not a demuxer problem.
+	output := &ffmpegError{err: errors.New("exit status 1"),
+		stderr: "Error opening output file C:\\x\\out.mkv.\nError opening output files: No such file or directory"}
+	if isRetryableWithConcat(output) {
+		t.Error("an output-side failure must NOT retry: the concat input would fail " +
+			"identically, costing a second full rip and then reporting this fallback's " +
+			"error in place of the real cause")
+	}
+
+	// A muxer/codec rejection is a selection problem, not an input problem.
+	sel := &ffmpegError{err: errors.New("exit status 1"),
+		stderr: "Could not find tag for codec pcm_dvd in stream #1"}
+	if isRetryableWithConcat(sel) {
+		t.Error("a muxer codec rejection must NOT retry: the same streams hit the same " +
+			"muxer regardless of input, and the retry masks the codec as the cause")
+	}
+
+	if isRetryableWithConcat(&ffmpegError{err: errors.New("exit status 1"), stderr: "???"}) {
+		t.Error("an unattributable failure must NOT retry: retrying it replaces the " +
+			"real error with the fallback's")
+	}
+}
+
+// TestCancellationIsNeverRetried asserts the abort contract: a cancelled rip
+// must not be re-launched on another input.
+func TestCancellationIsNeverRetried(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := &ffmpegError{err: context.Canceled, stderr: "libdvdread: Could not open VIDEO_TS"}
+	if got := classifyRipFailure(ctx, err); got != failureCancelled {
+		t.Errorf("classifyRipFailure(cancelled ctx) = %v, want cancelled", got)
+	}
+	if isRetryableWithConcat(err) {
+		t.Error("a cancelled rip must never be retried; the user aborted it")
+	}
+
+	// Even with a live context, an explicit cancellation error is honoured.
+	if got := classifyRipFailure(context.Background(), context.Canceled); got != failureCancelled {
+		t.Errorf("classifyRipFailure(context.Canceled) = %v, want cancelled", got)
+	}
+}
+
+// TestFailureToStartFFmpegIsNotRetried asserts a missing/broken ffmpeg is not
+// mistaken for a source problem.
+func TestFailureToStartFFmpegIsNotRetried(t *testing.T) {
+	for _, msg := range []string{
+		"ffmpeg start: exec: \"ffmpeg.exe\": file does not exist",
+		"stdout pipe: unexpected EOF",
+	} {
+		err := errors.New(msg)
+		if got := classifyRipFailure(context.Background(), err); got != failureExecution {
+			t.Errorf("classifyRipFailure(%q) = %v, want execution", msg, got)
+		}
+		if isRetryableWithConcat(err) {
+			t.Errorf("%q must not retry: ffmpeg never ran, so the input was never read", msg)
+		}
+	}
+}
+
+// TestNilErrorIsNotRetryable keeps a nil from classifying as a source failure.
+func TestNilErrorIsNotRetryable(t *testing.T) {
+	if isRetryableWithConcat(nil) {
+		t.Error("a nil error must never be retryable")
+	}
+}
+
 func TestInvariantSelectAllIgnoresGreyedTitles(t *testing.T) {
 	titles := []DiscTitle{
 		{Number: 1, Duration: 5900},

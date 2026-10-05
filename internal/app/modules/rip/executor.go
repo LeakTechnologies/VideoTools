@@ -944,11 +944,19 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			err = err2
 		}
 	}
-	if err != nil && useDVDVideo && ctx.Err() == nil && !isMuxerCodecError(err) {
-		// -f dvdvideo opened/ran but failed (demux error, CSS auth unavailable,
-		// etc.). Retry with the reliable VOB concat path.
-		// A muxer/codec rejection is excluded: it would fail identically on the
-		// concat input, and the retry would mask the real cause.
+	if err != nil && useDVDVideo && ctx.Err() == nil && isRetryableWithConcat(err) {
+		// The dvdvideo input could not be read: a structural failure of the
+		// demuxer, the IFO, or the source VIDEO_TS. The VOB concat path reads
+		// the same bytes without libdvdnav, so it can succeed where dvdvideo
+		// cannot — that is the whole point of this retry.
+		//
+		// Only source-side failures get here. Output-side and process-side
+		// failures (unwritable path, disk full, missing ffmpeg) are rejected by
+		// isRetryableWithConcat, because a second run would fail identically
+		// while burning a full rip and then reporting the fallback's error in
+		// place of the real cause. An unattributable failure is equally not
+		// retried, since a retry buries the real error under the fallback's.
+		//
 		// Chapter/audio/subtitle enrichment is preserved; only the demuxer input
 		// changes. Concat + -c copy can write PTS discontinuities at VOB
 		// boundaries, so log the fallback for diagnosis. Do NOT fall back on
@@ -1804,6 +1812,140 @@ func isMuxerCodecError(err error) bool {
 		}
 	}
 	return false
+}
+
+// ripFailureClass categorises a failed rip run so the retry policy can be
+// stated positively instead of by exclusion.
+type ripFailureClass int
+
+const (
+	// failureUnknown is an ffmpeg failure whose cause could not be attributed.
+	// Treated as NOT retryable: retrying an unexplained failure tends to
+	// replace the real error with the fallback's error.
+	failureUnknown ripFailureClass = iota
+	// failureSourceStructure is a failure to READ the input — the demuxer, the
+	// IFO, or the source VIDEO_TS. A different input path may still read it.
+	failureSourceStructure
+	// failureSelection is a rejection of the requested streams/codecs. It would
+	// recur identically on a different input, so changing the input is futile.
+	failureSelection
+	// failureOutput is a failure to WRITE the output — unwritable path, disk
+	// full, bad container. Entirely independent of the input.
+	failureOutput
+	// failureExecution is a failure to run ffmpeg at all (missing binary, start
+	// error). Independent of the input.
+	failureExecution
+	// failureCancelled is the user aborting the rip.
+	failureCancelled
+)
+
+func (c ripFailureClass) String() string {
+	switch c {
+	case failureSourceStructure:
+		return "source-structure"
+	case failureSelection:
+		return "selection"
+	case failureOutput:
+		return "output"
+	case failureExecution:
+		return "execution"
+	case failureCancelled:
+		return "cancelled"
+	default:
+		return "unknown"
+	}
+}
+
+// classifyRipFailure attributes a failed rip run to one of the failure classes.
+//
+// The distinction that matters is input-side versus everything else. Only a
+// failure to read the input justifies retrying with a different input, because
+// the concat path differs from the dvdvideo path precisely in HOW it reads the
+// source. An output-side or execution-side failure would recur identically,
+// and retrying it costs a full rip while burying the original error.
+func classifyRipFailure(ctx context.Context, err error) ripFailureClass {
+	if err == nil {
+		return failureUnknown
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return failureCancelled
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return failureCancelled
+	}
+
+	// A failure to start ffmpeg never reached the input. runFFmpegWithProgress
+	// wraps these distinctly ("ffmpeg start: ...", "stdout pipe: ...").
+	msg := strings.ToLower(err.Error())
+	for _, m := range []string{"ffmpeg start:", "stdout pipe:"} {
+		if strings.Contains(msg, m) {
+			return failureExecution
+		}
+	}
+
+	// A muxer/codec rejection is a selection problem: the same streams would be
+	// rejected by the same muxer on any input.
+	if isMuxerCodecError(err) {
+		return failureSelection
+	}
+
+	var fe *ffmpegError
+	if !errors.As(err, &fe) || fe.stderr == "" {
+		return failureUnknown
+	}
+	s := strings.ToLower(fe.stderr)
+
+	// Order matters: "Error opening output file" is checked before the generic
+	// "error opening ... file" phrasing so an output failure is never mistaken
+	// for a source failure. ffmpeg emits "Error opening output file <path>" and
+	// "Error opening output files: <reason>" for a write-side problem.
+	for _, m := range []string{
+		"error opening output",
+		"could not write to output",
+		"no space left on device",
+		"permission denied",
+		"disk full",
+		"invalid argument", // e.g. writing a container to an impossible path
+	} {
+		if strings.Contains(s, m) {
+			return failureOutput
+		}
+	}
+
+	// Input-side failures: dvdvideo/libdvdnav could not read the structure, or
+	// the source could not be opened at all.
+	for _, m := range []string{
+		"libdvdread",
+		"libdvdnav",
+		"dvdvideo",
+		"dvd-video structure",
+		"unable to open the dvd",
+		"zero check failed",
+		"error opening input",
+		"could not open",
+		"invalid dvdnav",
+		"vmgi_mat",
+		"vts_ifo",
+	} {
+		if strings.Contains(s, m) {
+			return failureSourceStructure
+		}
+	}
+
+	return failureUnknown
+}
+
+// isRetryableWithConcat reports whether a failed run should be retried on the
+// VOB concat input.
+//
+// Only a source-structure failure qualifies: the concat path reads the same
+// VOB bytes without libdvdnav, so it can succeed where the dvdvideo demuxer
+// cannot. Every other class is rejected — most importantly output-side
+// failures, which would otherwise cost a second full rip and then surface the
+// fallback's error instead of the actual cause (an unwritable destination
+// reported as a demuxer problem).
+func isRetryableWithConcat(err error) bool {
+	return classifyRipFailure(context.Background(), err) == failureSourceStructure
 }
 
 // formatETA returns a compact string like "ETA 2m 34s" or "ETA < 1s".
