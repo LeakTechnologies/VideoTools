@@ -1,5 +1,39 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev84 — Rip Audit + S1 Stabilization
+
+The audit ran to establish Rip's *actual* state before any code was touched, and it materially changed the picture: four behaviours the tracker implied were defective were confirmed already correct, and two real defects the tracker did not show were found and fixed.
+
+### Rip audit: four verified behaviours are now regression constraints
+
+These are **closed facts about the current implementation, not open items.** All four are silent-corruption classes — the rip completes, the job reports success, and the output is simply wrong — so nothing else in the suite would catch a regression.
+
+- **`dvdvideo -title` must precede `-i`** (`executor.go:341`). FFmpeg binds a demuxer option after `-i` to the *next* input, so it landed on the ffmetadata chapters input, FFmpeg rejected the invocation, and every rip fell back to whole-file VOB concat — which rips the **first title's content for all titles**. The dev79 root cause, with a comment so it does not regress.
+- **Bulk Select All clears the mode lock and raises the per-card `updating` guard** (`content_list.go:292`). Respecting the lock selects nothing (dev79). Removing the guard **deadlocks the UI thread**: `SetChecked` fires `OnChanged` synchronously and the handler re-acquires `cb.mu`, which is held across the loop.
+- **An all-chapter range is a whole-title passthrough** (`executor.go:763`). A `From=1/To=N` range is the whole title; routing it through the range pipeline re-slices cells that already span it.
+- **Chapter ranges resolve semantically** through `chapterRange()`, restrict the cell-accurate concat list to the span, and remap embedded chapters so chapter N still marks the same boundary.
+
+Guards live in `internal/app/modules/rip/invariants_test.go`. Every one was mutation-verified: reordering the dvdvideo flags, deleting the lock-clearing, deleting the `updating` guard, and removing the all-chapter short-circuit each turn the suite red with a message naming the defect.
+
+### Rip: the `dvdvideo` → VOB-concat retry no longer fires for output-side failures (`4a4dfcd0`)
+
+- **The defect.** The retry swaps the *input*, so it may only ever fire when the input is what failed. Its gate was a deny-list (`!isMuxerCodecError`), which admitted output-side failures. Verified by running ffmpeg directly and reading the stderr: a blocked output path gives `Error opening output file … No such file or directory`, a full disk gives `No space left on device`, an unreadable source gives `libdvdread: Could not open … Unable to open the DVD-Video structure`. The old gate could not tell those apart.
+- **The consequence.** An unwritable destination or a full disk launched **a second full rip**, then surfaced the fallback's error — reporting `dvdvideo demuxer failed (…)` for what was really a write failure, after paying for the duplicate rip.
+- **The fix.** `classifyRipFailure` attributes a run to source-structure / selection / output / execution / cancelled from ffmpeg's own stderr; only source-structure retries. **Output markers are tested before source markers**, because ffmpeg emits `libdvdread` chatter on runs that later fail at the write stage. **Unattributable failures deliberately do not retry** — a retry buries the real error under the fallback's, which is exactly the behaviour being fixed.
+
+### Rip: a one-title disc no longer rips when nothing is selected (`e12be7c9`)
+
+- **The defect.** `addToQueue` branched on the **count** of scanned titles. More than one iterated the selection and refused an empty selection; exactly one — and no scan result at all — took an unconditional path that always enqueued. Since dev76 made "Movie + extras (choose titles)" start deliberately **empty**, a one-title disc in that mode displayed *"ready to rip — no titles selected"* and then ripped anyway: the readiness line and the queue disagreed about what would happen.
+- **The fix.** `ripTargetTitles` makes the selection the sole authority for whether a title rips, at every title count. With no scan result there is nothing to select against, so the executor's own main-feature defaults still apply and that case stays unconditional. Mutation-verified.
+
+### Test infrastructure: the native test suite is now actually run (`38c02c0f`)
+
+`dev-verify.ps1` ran build+vet but **never the tests**, which is why a broken test invocation could stay invisible. `internal/media`, `internal/app/appcfg`, and `internal/app/modules/rip` had been recorded as "pre-existing environment failures" because a package that could not *start* (`0xc0000135` = `STATUS_DLL_NOT_FOUND` — the FFmpeg shared DLLs not on `PATH`) looked identical in the output to a real failure. **They were never failing.** They are green, and that baseline-failure claim was wrong — produced twice across two commit messages, then carried forward instead of chased down. The script now puts `C:\ffmpeg\bin` on `PATH`, runs the suite, and names `0xc0000135` explicitly so it is never again mistaken for a code defect.
+
+### Scope note
+
+Stabilization was deliberately **S1-only**. The larger architectural shape — explicit job/plan types, output verification as a first-class stage, source-identity generations — is **not** started. It is a shape to consider only when a defect demonstrates the current structure cannot express an invariant. The remaining proof is real-media acceptance: **DVD → Rip → Convert → playback**, after which Upscale can be scoped.
+
 ## v0.1.1-dev84 — Player: The Dormant libVLC Backend and Its Inert Settings Toggle Removed
 
 - **The dormant libVLC backend and the Settings toggle that did nothing are gone.** A partial libVLC port had landed on 2026-07-24 behind a `vlc` build tag and could never have been built: five unresolved C symbols (`libvlc_audio_get_track_descriptions`, `libvlc_media_state_end`, `libvlc_track_description_get_id`/`_get_name`, `libvlc_video_get_spu_descriptions`), and no workflow has ever passed that tag — `dev.yml` and `release.yml` only build `-tags native_media` — so the flag was never exercised in CI either. Roughly 1,400 lines of dormant code read like an in-progress feature.
