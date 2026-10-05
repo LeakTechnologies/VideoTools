@@ -328,6 +328,102 @@ func TestNilErrorIsNotRetryable(t *testing.T) {
 	}
 }
 
+// TestRipTargetTitlesHonoursSingleTitleSelection is the regression for the
+// readiness/queue disagreement on a one-title disc.
+//
+// addToQueue branched on the TITLE COUNT: more than one title iterated the
+// selection and refused an empty one, while exactly one title (and no scan
+// result) took an unconditional path that always enqueued. Since "Movie +
+// extras (choose titles)" deliberately starts with an EMPTY selection, a
+// one-title disc switched to that mode showed "ready to rip — no titles
+// selected" and then ripped anyway.
+//
+// The selection is now the single authority for whether a title rips, at every
+// title count.
+func TestRipTargetTitlesHonoursSingleTitleSelection(t *testing.T) {
+	single := []DiscTitle{
+		{Number: 1, VTSNumber: 1, Duration: 4200},
+	}
+
+	// Nothing ticked: the disc must not rip. This is the defect.
+	if _, ok := ripTargetTitles(single, map[int]bool{}); ok {
+		t.Error("a one-title disc with an empty selection must NOT rip; the readiness " +
+			"line says 'no titles selected' and the queue must agree")
+	}
+
+	// A nil selection map is the same as nothing ticked, not a panic.
+	if _, ok := ripTargetTitles(single, nil); ok {
+		t.Error("a nil selection must not rip a scanned disc")
+	}
+
+	// Ticked: it rips, with the scanned VTS/title numbers.
+	titles, ok := ripTargetTitles(single, map[int]bool{1: true})
+	if !ok {
+		t.Fatal("a ticked one-title disc must rip")
+	}
+	if len(titles) != 1 || titles[0].TitleNumber != 1 || titles[0].VTSNumber != 1 {
+		t.Errorf("expected the scanned title 1 / VTS 1, got %+v", titles)
+	}
+
+	// No scan result at all: the executor's own main-feature defaults apply, so
+	// this stays unconditional (titleNumber 0 = "you pick").
+	titles, ok = ripTargetTitles(nil, nil)
+	if !ok || len(titles) != 1 {
+		t.Fatalf("with no scan result the executor picks its own default; got %+v ok=%v", titles, ok)
+	}
+	if titles[0].TitleNumber != 0 {
+		t.Errorf("with no scan result TitleNumber must be 0 (executor default), got %d", titles[0].TitleNumber)
+	}
+
+	// Multi-title behaves as before: empty selection refused, partial honoured.
+	multi := []DiscTitle{
+		{Number: 1, VTSNumber: 1, Duration: 5900},
+		{Number: 2, VTSNumber: 1, Duration: 840},
+		{Number: 3, VTSNumber: 1, Duration: 600},
+	}
+	if _, ok := ripTargetTitles(multi, map[int]bool{}); ok {
+		t.Error("a multi-title disc with an empty selection must not rip")
+	}
+	titles, ok = ripTargetTitles(multi, map[int]bool{2: true})
+	if !ok || len(titles) != 1 || titles[0].TitleNumber != 2 {
+		t.Errorf("a partial selection must rip exactly the ticked title, got %+v ok=%v", titles, ok)
+	}
+
+	// The modes that pre-select must produce a rippable set.
+	for _, mode := range []string{"main", "full"} {
+		if _, ok := ripTargetTitles(multi, CanonicalSelection(multi, mode, SceneSetInfo{})); !ok {
+			t.Errorf("mode %q pre-selects titles, so it must be rippable", mode)
+		}
+	}
+
+	// "Movie + extras" on a disc with NO scene set starts EMPTY by design
+	// (dev76) — so it is correctly NOT rippable until the user ticks something.
+	// This is the case that made the one-title path visibly wrong.
+	sel := CanonicalSelection(multi, "", SceneSetInfo{})
+	if len(sel) != 0 {
+		t.Errorf("mode \"\" with no scene set must start empty, got %v", sel)
+	}
+	if _, ok := ripTargetTitles(multi, sel); ok {
+		t.Error("an empty choose-titles selection must not rip; the user must tick a title")
+	}
+
+	// With a scene set present, the same mode pre-selects main + extras and is
+	// rippable.
+	ss := SceneSetInfo{
+		Present:       true,
+		SceneTitles:   map[int]bool{3: true},
+		WholeTitles:   map[int]bool{1: true},
+		Representative: 1,
+	}
+	sel = CanonicalSelection(multi, "", ss)
+	if len(sel) == 0 {
+		t.Error("mode \"\" with a scene set must pre-select main + extras")
+	}
+	if _, ok := ripTargetTitles(multi, sel); !ok {
+		t.Error("mode \"\" with a scene set must be rippable")
+	}
+}
+
 func TestInvariantSelectAllIgnoresGreyedTitles(t *testing.T) {
 	titles := []DiscTitle{
 		{Number: 1, Duration: 5900},

@@ -474,21 +474,42 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		var jobs []titleJob
 
-		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
+		// The selection is the only authority for whether a title rips, at every
+		// title count. This used to branch on the COUNT of scanned titles: more
+		// than one iterated vs.selectedTitles and refused an empty selection,
+		// while exactly one (and no scan result) took an unconditional path.
+		// Since "Movie + extras (choose titles)" deliberately starts EMPTY
+		// (dev76), a one-title disc in that mode reported "ready to rip — no
+		// titles selected" and then ripped anyway: the readiness line and the
+		// queue disagreed about what would happen.
+		//
+		// With no scan result there is nothing to select against, so the
+		// executor's own main-feature defaults apply (largest VTS set / title 1)
+		// and that single case stays unconditional.
+		var scanned []DiscTitle
+		if vs.scanResult != nil {
+			scanned = vs.scanResult.Titles
+		}
+		targets, anySelected := ripTargetTitles(scanned, vs.selectedTitles)
+		if !anySelected {
+			return fmt.Errorf("%s", t.RipReadyNoSelection)
+		}
+
+		if len(scanned) > 1 {
 			ext := filepath.Ext(vs.outputPath)
 			base := strings.TrimSuffix(vs.outputPath, ext)
 
 			// Find the main feature (longest duration).
 			mainIdx := 0
 			mainDur := 0.0
-			for i, dt := range vs.scanResult.Titles {
+			for i, dt := range scanned {
 				if dt.Duration > mainDur {
 					mainDur = dt.Duration
 					mainIdx = i
 				}
 			}
 
-			for i, dt := range vs.scanResult.Titles {
+			for i, dt := range scanned {
 				if !vs.selectedTitles[dt.Number] {
 					continue
 				}
@@ -508,19 +529,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 					jobTitle:    jobLabel,
 				})
 			}
-			if len(jobs) == 0 {
-				return fmt.Errorf("no titles selected")
-			}
 		} else {
-			vtsNumber := 0
-			titleNumber := 0
-			if vs.scanResult != nil && len(vs.scanResult.Titles) == 1 {
-				vtsNumber = vs.scanResult.Titles[0].VTSNumber
-				titleNumber = vs.scanResult.Titles[0].Number
-			}
 			jobs = []titleJob{{
-				vtsNumber:   vtsNumber,
-				titleNumber: titleNumber,
+				vtsNumber:   targets[0].VTSNumber,
+				titleNumber: targets[0].TitleNumber,
 				outputPath:  vs.outputPath,
 				jobTitle:    fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath)),
 			}}

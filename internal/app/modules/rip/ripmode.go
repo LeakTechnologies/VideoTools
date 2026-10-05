@@ -1,5 +1,41 @@
 package rip
 
+// ripTargetTitle is one title's resolved rip work.
+type ripTargetTitle struct {
+	VTSNumber   int
+	TitleNumber int
+}
+
+// ripTargetTitles returns the titles a rip should extract, and whether that set
+// is non-empty.
+//
+// The selection is the ONLY authority for whether a title rips, at every title
+// count. addToQueue previously branched on the COUNT of scanned titles: more
+// than one iterated the selection and refused an empty one, while exactly one
+// (and no scan result) took an unconditional path that always enqueued. Because
+// "Movie + extras (choose titles)" deliberately starts with an EMPTY selection,
+// a one-title disc switched to that mode reported "ready to rip — no titles
+// selected" and then ripped anyway: the readiness line and the queue disagreed
+// about what would happen.
+//
+// With no scan result there is nothing to select against, so the executor's own
+// main-feature defaults apply (largest VTS set / title 1) and a single
+// zero-numbered target is returned — that case stays unconditional.
+func ripTargetTitles(titles []DiscTitle, selected map[int]bool) ([]ripTargetTitle, bool) {
+	if len(titles) == 0 {
+		return []ripTargetTitle{{}}, true
+	}
+
+	out := make([]ripTargetTitle, 0, len(titles))
+	for _, dt := range titles {
+		if !selected[dt.Number] {
+			continue
+		}
+		out = append(out, ripTargetTitle{VTSNumber: dt.VTSNumber, TitleNumber: dt.Number})
+	}
+	return out, len(out) > 0
+}
+
 // CanonicalSelection returns the title selection the active rip mode implies:
 //
 //	"main"     — only the single longest title (the main feature)
