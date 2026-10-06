@@ -2,377 +2,377 @@
 
 ## v0.1.1-dev84 (October 2026)
 
-### Rip: the dvdvideo → VOB-concat retry no longer fires for output-side failures
+### Rip: the dvdvideo â†’ VOB-concat retry no longer fires for output-side failures
 
-- **The defect.** The fallback that retries a rip on the VOB-concat input swapped the *input*, so it may only ever fire when the input is what failed. Its gate was a deny-list — `err != nil && useDVDVideo && ctx.Err() == nil && !isMuxerCodecError(err)` — which admitted output-side failures. Confirmed by running ffmpeg directly on the build machine and reading the stderr it produced: a blocked output path gives `Error opening output file … No such file or directory`, a full disk gives `No space left on device`, and an unreadable source gives `libdvdread: Could not open … Unable to open the DVD-Video structure`. The old gate could not tell those apart. An unwritable destination or a full disk therefore launched **a second full rip** and then surfaced the fallback's error, so the user was told `dvdvideo demuxer failed (…)` for what was really a write failure — after paying for the duplicate rip. This is the same defect class dev83 fixed one layer up, where a doomed retry masked a muxer rejection.
-- **The fix (`4a4dfcd0`).** `classifyRipFailure` attributes a failed run to `source-structure`, `selection`, `output`, `execution`, or `cancelled` using ffmpeg's own stderr, and only source-structure is retryable. Two decisions worth recording: **output markers are tested before source markers**, because ffmpeg emits `libdvdread` chatter on runs that later fail at the write stage, so the ordering decides the verdict; and **unattributable failures do not retry**, because a retry buries the real error under the fallback's — the exact behaviour being fixed. A muxer/codec rejection stays classed as `selection` (the same streams hit the same muxer on any input) and keeps its existing same-input FLAC retry from dev83.
+- **The defect.** The fallback that retries a rip on the VOB-concat input swapped the *input*, so it may only ever fire when the input is what failed. Its gate was a deny-list â€” `err != nil && useDVDVideo && ctx.Err() == nil && !isMuxerCodecError(err)` â€” which admitted output-side failures. Confirmed by running ffmpeg directly on the build machine and reading the stderr it produced: a blocked output path gives `Error opening output file â€¦ No such file or directory`, a full disk gives `No space left on device`, and an unreadable source gives `libdvdread: Could not open â€¦ Unable to open the DVD-Video structure`. The old gate could not tell those apart. An unwritable destination or a full disk therefore launched **a second full rip** and then surfaced the fallback's error, so the user was told `dvdvideo demuxer failed (â€¦)` for what was really a write failure â€” after paying for the duplicate rip. This is the same defect class dev83 fixed one layer up, where a doomed retry masked a muxer rejection.
+- **The fix (`40ec5889`).** `classifyRipFailure` attributes a failed run to `source-structure`, `selection`, `output`, `execution`, or `cancelled` using ffmpeg's own stderr, and only source-structure is retryable. Two decisions worth recording: **output markers are tested before source markers**, because ffmpeg emits `libdvdread` chatter on runs that later fail at the write stage, so the ordering decides the verdict; and **unattributable failures do not retry**, because a retry buries the real error under the fallback's â€” the exact behaviour being fixed. A muxer/codec rejection stays classed as `selection` (the same streams hit the same muxer on any input) and keeps its existing same-input FLAC retry from dev83.
 - **Tests.** The classification table is driven by stderr captured on this machine, not invented strings, and the ordering dependency is pinned by a mixed-marker case containing both families. Mutation-verified twice: deleting the output marker list turns three cases red, and swapping the two blocks so source is tested first turns the mixed case red.
-- **Commit.** `4a4dfcd0`.
+- **Commit.** `40ec5889`.
 
 ### Rip: a one-title disc no longer rips when nothing is selected
 
-- **The defect (`e12be7c9`).** `addToQueue` branched on the **count** of scanned titles. More than one title iterated `vs.selectedTitles` and refused an empty selection; exactly one title — and no scan result at all — took an unconditional path that always enqueued. Since dev76 made "Movie + extras (choose titles)" start deliberately **empty**, a one-title disc switched to that mode displayed *"ready to rip — no titles selected"* in the readiness line and then ripped anyway. The summary and the queue disagreed about what would happen, and the rip was not something the user asked for. The readiness/queue disagreement is the user-visible symptom; the count-based branch is the cause.
+- **The defect (`982e8066`).** `addToQueue` branched on the **count** of scanned titles. More than one title iterated `vs.selectedTitles` and refused an empty selection; exactly one title â€” and no scan result at all â€” took an unconditional path that always enqueued. Since dev76 made "Movie + extras (choose titles)" start deliberately **empty**, a one-title disc switched to that mode displayed *"ready to rip â€” no titles selected"* in the readiness line and then ripped anyway. The summary and the queue disagreed about what would happen, and the rip was not something the user asked for. The readiness/queue disagreement is the user-visible symptom; the count-based branch is the cause.
 - **The fix.** `ripTargetTitles` makes the selection the only authority for whether a title rips, at every title count. With no scan result there is nothing to select against, so the executor's own main-feature defaults still apply and that single case stays unconditional. The refusal reuses the existing `RipReadyNoSelection` string instead of adding a near-duplicate key, and the raw `"no titles selected"` literal on the multi-title path is replaced with the same key.
-- **Tests.** Mutation-verified: restoring the unconditional single-title path turns the suite red. The test also asserts that a mode which pre-selects (`main`, `full`, and `""` on a scene-set disc) is always rippable, and that `""` on a disc with **no** scene set is correctly *not* rippable — that empty selection is the dev76 rule working as designed, not a defect.
-- **Commit.** `e12be7c9`.
+- **Tests.** Mutation-verified: restoring the unconditional single-title path turns the suite red. The test also asserts that a mode which pre-selects (`main`, `full`, and `""` on a scene-set disc) is always rippable, and that `""` on a disc with **no** scene set is correctly *not* rippable â€” that empty selection is the dev76 rule working as designed, not a defect.
+- **Commit.** `982e8066`.
 
 ### Test infrastructure: the native test suite is now actually run
 
-- **The defect (`38c02c0f`).** `dev-verify.ps1` ran `go build` and `go vet` but **never the tests**. That is why a broken test invocation could stay invisible: the CGo-linked packages' test binaries import the FFmpeg shared DLLs, and without `C:\ffmpeg\bin` on `PATH` a package that could not even start reported `0xc0000135` (`STATUS_DLL_NOT_FOUND`) — indistinguishable, in the output, from a real failure. `internal/media`, `internal/app/appcfg`, and `internal/app/modules/rip` had been recorded as "pre-existing environment failures" on that basis. **They were never failing.** They are green with the DLLs present, and the "baseline failure" claim was wrong.
+- **The defect (`b441655b`).** `dev-verify.ps1` ran `go build` and `go vet` but **never the tests**. That is why a broken test invocation could stay invisible: the CGo-linked packages' test binaries import the FFmpeg shared DLLs, and without `C:\ffmpeg\bin` on `PATH` a package that could not even start reported `0xc0000135` (`STATUS_DLL_NOT_FOUND`) â€” indistinguishable, in the output, from a real failure. `internal/media`, `internal/app/appcfg`, and `internal/app/modules/rip` had been recorded as "pre-existing environment failures" on that basis. **They were never failing.** They are green with the DLLs present, and the "baseline failure" claim was wrong.
 - **The fix.** `dev-verify.ps1` prepends `C:\ffmpeg\bin` to `PATH` for the test run, runs `go test -tags=native_media ./...`, and names `0xc0000135` explicitly as a missing runtime dependency so it is never again mistaken for a code defect. Verified end-to-end in a clean shell: exit 0, full suite green.
-- **Process correction.** Two earlier commit messages in this cycle described those three packages as carrying pre-existing failures. That was a misdiagnosis — a local `PATH` gap read as a baseline code problem, and then carried forward instead of chased down. Corrected here so it is not inherited.
-- **Commit.** `38c02c0f`.
+- **Process correction.** Two earlier commit messages in this cycle described those three packages as carrying pre-existing failures. That was a misdiagnosis â€” a local `PATH` gap read as a baseline code problem, and then carried forward instead of chased down. Corrected here so it is not inherited.
+- **Commit.** `b441655b`.
 
 ### Rip audit: four verified behaviours pinned as regression constraints
 
-- **Purpose.** An audit of the Rip module established its actual state before any stabilization work, rather than implementing old tracker assumptions. Four behaviours were confirmed **already correct** and are recorded as closed facts about the current implementation, not open items — all four are silent-corruption classes where the rip completes, the job reports success, and the output is simply wrong:
-  - **`dvdvideo -title` must precede `-i`** (dev79 root cause). FFmpeg binds a demuxer option after `-i` to the *next* input, so it landed on the ffmetadata chapters input, FFmpeg rejected the invocation, and every rip fell back to whole-file VOB concat — which rips the first title's content for all titles.
-  - **Bulk Select All must clear the mode lock, not respect it**, and must raise the per-card `updating` guard around `SetChecked` (dev79). `SetChecked` fires `OnChanged` synchronously and that handler re-acquires `cb.mu`, which the bulk path holds — removing the guard deadlocks the UI thread.
+- **Purpose.** An audit of the Rip module established its actual state before any stabilization work, rather than implementing old tracker assumptions. Four behaviours were confirmed **already correct** and are recorded as closed facts about the current implementation, not open items â€” all four are silent-corruption classes where the rip completes, the job reports success, and the output is simply wrong:
+  - **`dvdvideo -title` must precede `-i`** (dev79 root cause). FFmpeg binds a demuxer option after `-i` to the *next* input, so it landed on the ffmetadata chapters input, FFmpeg rejected the invocation, and every rip fell back to whole-file VOB concat â€” which rips the first title's content for all titles.
+  - **Bulk Select All must clear the mode lock, not respect it**, and must raise the per-card `updating` guard around `SetChecked` (dev79). `SetChecked` fires `OnChanged` synchronously and that handler re-acquires `cb.mu`, which the bulk path holds â€” removing the guard deadlocks the UI thread.
   - **An all-chapter range is the whole title** and must leave the dvdvideo/cell pipeline untouched (dev81).
   - **Chapter-range semantics** resolve through `chapterRange()` to a semantic span, restrict the cell-accurate concat list to that span, and remap embedded chapters so chapter N still marks the same boundary.
-- **Tests.** `internal/app/modules/rip/invariants_test.go`, each guard mutation-verified: reordering the dvdvideo flags, deleting the lock-clearing, deleting the `updating` guard, and removing the all-chapter short-circuit each turn the suite red with a message naming the defect. One guard was tightened during the pass — it initially tripped on "flag pattern absent" rather than the ordering assertion, which would have misdiagnosed the very bug it exists to catch.
-- **Commit.** `a484d889`.
+- **Tests.** `internal/app/modules/rip/invariants_test.go`, each guard mutation-verified: reordering the dvdvideo flags, deleting the lock-clearing, deleting the `updating` guard, and removing the all-chapter short-circuit each turn the suite red with a message naming the defect. One guard was tightened during the pass â€” it initially tripped on "flag pattern absent" rather than the ordering assertion, which would have misdiagnosed the very bug it exists to catch.
+- **Commit.** `e7721a84`.
 
 ### Player: the dormant libVLC backend and its inert Settings toggle are removed
 
-- **The defect.** The tracker carried "libVLC Player Backend (Phase 1)" as the next slice after dev83, implying work in progress. In fact a partial implementation had landed on 2026-07-24 (`7264af58`, `97d89893`, `d2101053`) behind a `vlc` build tag and could never have been built. It failed to compile on five unresolved C symbols (`libvlc_audio_get_track_descriptions`, `libvlc_media_state_end`, `libvlc_track_description_get_id`/`_get_name`, `libvlc_video_get_spu_descriptions`), and **no workflow had ever passed that tag** — `dev.yml` and `release.yml` only ever build `-tags native_media` — so the flag was never exercised in CI either. About 1,400 lines of dormant code sat in the tree reading like a plan.
-- **The user-visible half was the real defect.** Settings shipped a "Use libVLC backend" checkbox that persisted `UsePlayerVLC` to config and called `media.SetUseVLC` — but the only reader of that flag lived in `engine_factory_vlc.go`, behind the tag no CI build compiles. In every shipped binary the checkbox did nothing at all, and its hint told users libVLC *"is more stable for seek/resume"*, a claim that was never true for anyone. Same defect class as the Convert two-pass toggle (#23), one layer down: a control that looks real and changes nothing.
-- **Removed.** The four `vlc`-tagged media/UI files (`vlc_engine.go` 696, `vlc_video.go` 117, `vlc_glue.h` 68, `engine_factory_vlc.go` 19), plus `vlc_events.go` (54 — it `#include`d the deleted header, so it could not have compiled either) and `internal/player/vlc_controller.go` (502 lines of CLI-based VLC plumbing that nothing referenced and that `factory.go` already refused to construct, since `BackendVLC` returned an error). Also the Settings toggle, its two i18n keys in the three locales that defined them (`en_ca`, `fr_ca`, `iu` — `iu_latin` never had them), the `PrefsConfig` field, the settings callbacks and adapter methods, `media.SetUseVLC`/`UseVLC` and its package var, and the load-time call in `main.go`.
-- **Deliberately kept.** `media.PlaybackEngine` — tagged only `native_media`, genuinely used by `InlineVideoPlayer`, and the seam a future backend slots into; only its stale comments described the removed backend, and those were corrected. `docs/VLC_PLAYER.md` as the design document. `internal/player.BackendVLC` as a deprecated enum value that already errors in the factory.
+- **The defect.** The tracker carried "libVLC Player Backend (Phase 1)" as the next slice after dev83, implying work in progress. In fact a partial implementation had landed on 2026-07-24 (`dc0d8c63`, `80bb893d`, `778b9e98`) behind a `vlc` build tag and could never have been built. It failed to compile on five unresolved C symbols (`libvlc_audio_get_track_descriptions`, `libvlc_media_state_end`, `libvlc_track_description_get_id`/`_get_name`, `libvlc_video_get_spu_descriptions`), and **no workflow had ever passed that tag** â€” `dev.yml` and `release.yml` only ever build `-tags native_media` â€” so the flag was never exercised in CI either. About 1,400 lines of dormant code sat in the tree reading like a plan.
+- **The user-visible half was the real defect.** Settings shipped a "Use libVLC backend" checkbox that persisted `UsePlayerVLC` to config and called `media.SetUseVLC` â€” but the only reader of that flag lived in `engine_factory_vlc.go`, behind the tag no CI build compiles. In every shipped binary the checkbox did nothing at all, and its hint told users libVLC *"is more stable for seek/resume"*, a claim that was never true for anyone. Same defect class as the Convert two-pass toggle (#23), one layer down: a control that looks real and changes nothing.
+- **Removed.** The four `vlc`-tagged media/UI files (`vlc_engine.go` 696, `vlc_video.go` 117, `vlc_glue.h` 68, `engine_factory_vlc.go` 19), plus `vlc_events.go` (54 â€” it `#include`d the deleted header, so it could not have compiled either) and `internal/player/vlc_controller.go` (502 lines of CLI-based VLC plumbing that nothing referenced and that `factory.go` already refused to construct, since `BackendVLC` returned an error). Also the Settings toggle, its two i18n keys in the three locales that defined them (`en_ca`, `fr_ca`, `iu` â€” `iu_latin` never had them), the `PrefsConfig` field, the settings callbacks and adapter methods, `media.SetUseVLC`/`UseVLC` and its package var, and the load-time call in `main.go`.
+- **Deliberately kept.** `media.PlaybackEngine` â€” tagged only `native_media`, genuinely used by `InlineVideoPlayer`, and the seam a future backend slots into; only its stale comments described the removed backend, and those were corrected. `docs/VLC_PLAYER.md` as the design document. `internal/player.BackendVLC` as a deprecated enum value that already errors in the factory.
 - **Config safety.** Prefs decode through `appcfg.LoadModuleJSON` with plain `json.Unmarshal` and no `DisallowUnknownFields`, so an existing config carrying `UsePlayerVLC` is ignored rather than rejected. No migration needed.
-- **Honest status.** This removes a lie; it does not add a feature. No playback behaviour changed, because the tag never reached a binary. Reviving libVLC remains reasonable, but it must first provision the SDK and add a CI job that builds its tag — otherwise this exact defect returns. `engine_factory_default.go` drops its now-meaningless `&& !vlc` condition, so `-tags "native_media vlc"` now compiles to exactly the same binary as `-tags native_media`: proof it was always inert.
+- **Honest status.** This removes a lie; it does not add a feature. No playback behaviour changed, because the tag never reached a binary. Reviving libVLC remains reasonable, but it must first provision the SDK and add a CI job that builds its tag â€” otherwise this exact defect returns. `engine_factory_default.go` drops its now-meaningless `&& !vlc` condition, so `-tags "native_media vlc"` now compiles to exactly the same binary as `-tags native_media`: proof it was always inert.
 - **Guards.** `TestNoDeadVLCBackendControl` asserts no user-facing string in any locale may advertise a backend that does not exist; `TestNoVLCBackendCode` asserts no production file may reintroduce the plumbing. Both mutation-verified (re-adding a libVLC-advertising string, and reintroducing the plumbing, each turn them red).
-- **Gates.** `dev-verify.ps1` green, untagged stub build green, `-tags "native_media vlc"` green, package-main and internal suites green. No new gofmt-dirty files — the repo is 942-files gofmt-dirty at HEAD from line endings, so `gofmt -l` is not a usable signal here and was deliberately not applied.
-- **Commit.** `f7ce4d3d`.
+- **Gates.** `dev-verify.ps1` green, untagged stub build green, `-tags "native_media vlc"` green, package-main and internal suites green. No new gofmt-dirty files â€” the repo is 942-files gofmt-dirty at HEAD from line endings, so `gofmt -l` is not a usable signal here and was deliberately not applied.
+- **Commit.** `3b054dd8`.
 
 ## v0.1.1-dev83 (October 2026)
 
 ### Rip: LPCM (pcm_dvd) titles now rip losslessly instead of failing at the muxer
 
-- **The defect.** A DVD title whose audio track is 20-bit LPCM (`pcm_dvd`) could not be ripped in the lossless formats. The rip stream-copied audio (`-c copy`), and the Matroska muxer has no tag for that codec, so the run died writing the container header. Reproduced against ffmpeg 8.1 with a synthetic DVD-shaped VOB (`mpeg2video` + `pcm_dvd`): exit −22 (AVERROR(EINVAL)), stderr `No wav codec tag found for codec pcm_dvd` followed by `Could not write header (incorrect codec parameters ?): Invalid argument`. It was not a demux problem — a reader-side fix could never have addressed it.
-- **The second failure.** The only recovery path was the dvdvideo → VOB-concat fallback. That retry re-runs the same codecs against a different input, so it failed identically while replacing the real diagnostic with a misleading one — a whole title re-demuxed from the start for nothing.
-- **The fix (`e08538ae`).** `runFFmpegWithProgress` now returns a typed `*ffmpegError` carrying ffmpeg's stderr (the process error stays reachable via `errors.Is`/`errors.As`), and `isMuxerCodecError` classifies a codec/container rejection from that stderr — deliberately *not* matching a bare "invalid argument" or "codec", which appear throughout ordinary demux noise and would misclassify a recoverable failure. On a codec rejection the executor retries once **on the same input** with `-c:a flac`, so the rip still completes losslessly and video is never re-encoded. The doomed VOB fallback is skipped for that class. To allow the substitution, the stream-copy path no longer emits an all-or-nothing `-c copy` but `-c:v copy` / `-c:s copy` / `-c:a <encoder>`; the MP4 path is unaffected (it already re-encodes to AAC). The retry is guarded on `AudioEncoder` being unset so it can never loop, and when it succeeds the same substitution is applied to menu-VOB exports, which carry the same codec.
-- **Tests.** `audiocodec_test.go` pins the classification (the observed stderr, the other muxers' phrasings, and the demux/CSS failures that must *not* classify as codec rejections), `errors.Is`/`errors.As` reachability, and the argument shape including the "no bare `-c copy`" regression. `audiocodec_integration_test.go` drives real ffmpeg end to end against a synthetic `pcm_dvd` VOB: the default stream-copy attempt still fails *and is classified as a codec rejection* (so the retry provably fires), then the FLAC retry completes and ffprobe confirms the output is `mpeg2video` (stream-copied) + `flac`. Both files were mutation-tested: neutering the classifier, dropping the retry, or reverting the argument split each turns the suite red. The stream split alone was verified *not* to be a fix on its own — `-c:v copy -c:a copy` still exits −22; only the FLAC substitution completes.
-- **Losslessness is measured, not asserted.** Re-verified against the *shipped* `v0.1.1-dev83` release artifact (its own static ffmpeg/ffprobe 8.1, not a local dev build) on a genuine 20-bit LPCM track (`pcm_dvd`, `sample_fmt=s32`, 24-bit container words). The default attempt fails exactly as documented (`exit −22`, `No wav codec tag found for codec pcm_dvd`); the FLAC retry completes. Video elementary streams extracted from the source VOB and the output MKV are **byte-identical** (MD5 match — a true stream copy, no re-encode), and both sides decode to **bit-exact PCM** (MD5 match, 288000 bytes at 24-bit) after the 20-bit LPCM → FLAC round trip. Full decode of the output is clean (0 errors, 2 streams, 2.003 s). The whole rip package suite, including the end-to-end `pcm_dvd` retry test driving the production executor path, passes against those release binaries.
-- **Gates.** `dev-verify.ps1` green, untagged stub build green, package-main and internal test suites green. *(Corrected in dev84: this entry previously reported the CGo-linked internal packages as failing at binary load with `0xc0000135`. That was wrong — see the dev84 test-infrastructure entry. The DLLs are present under `C:\ffmpeg\bin`; the failure was a local `PATH` gap, and those packages are green.)*
+- **The defect.** A DVD title whose audio track is 20-bit LPCM (`pcm_dvd`) could not be ripped in the lossless formats. The rip stream-copied audio (`-c copy`), and the Matroska muxer has no tag for that codec, so the run died writing the container header. Reproduced against ffmpeg 8.1 with a synthetic DVD-shaped VOB (`mpeg2video` + `pcm_dvd`): exit âˆ’22 (AVERROR(EINVAL)), stderr `No wav codec tag found for codec pcm_dvd` followed by `Could not write header (incorrect codec parameters ?): Invalid argument`. It was not a demux problem â€” a reader-side fix could never have addressed it.
+- **The second failure.** The only recovery path was the dvdvideo â†’ VOB-concat fallback. That retry re-runs the same codecs against a different input, so it failed identically while replacing the real diagnostic with a misleading one â€” a whole title re-demuxed from the start for nothing.
+- **The fix (`f77cdd67`).** `runFFmpegWithProgress` now returns a typed `*ffmpegError` carrying ffmpeg's stderr (the process error stays reachable via `errors.Is`/`errors.As`), and `isMuxerCodecError` classifies a codec/container rejection from that stderr â€” deliberately *not* matching a bare "invalid argument" or "codec", which appear throughout ordinary demux noise and would misclassify a recoverable failure. On a codec rejection the executor retries once **on the same input** with `-c:a flac`, so the rip still completes losslessly and video is never re-encoded. The doomed VOB fallback is skipped for that class. To allow the substitution, the stream-copy path no longer emits an all-or-nothing `-c copy` but `-c:v copy` / `-c:s copy` / `-c:a <encoder>`; the MP4 path is unaffected (it already re-encodes to AAC). The retry is guarded on `AudioEncoder` being unset so it can never loop, and when it succeeds the same substitution is applied to menu-VOB exports, which carry the same codec.
+- **Tests.** `audiocodec_test.go` pins the classification (the observed stderr, the other muxers' phrasings, and the demux/CSS failures that must *not* classify as codec rejections), `errors.Is`/`errors.As` reachability, and the argument shape including the "no bare `-c copy`" regression. `audiocodec_integration_test.go` drives real ffmpeg end to end against a synthetic `pcm_dvd` VOB: the default stream-copy attempt still fails *and is classified as a codec rejection* (so the retry provably fires), then the FLAC retry completes and ffprobe confirms the output is `mpeg2video` (stream-copied) + `flac`. Both files were mutation-tested: neutering the classifier, dropping the retry, or reverting the argument split each turns the suite red. The stream split alone was verified *not* to be a fix on its own â€” `-c:v copy -c:a copy` still exits âˆ’22; only the FLAC substitution completes.
+- **Losslessness is measured, not asserted.** Re-verified against the *shipped* `v0.1.1-dev83` release artifact (its own static ffmpeg/ffprobe 8.1, not a local dev build) on a genuine 20-bit LPCM track (`pcm_dvd`, `sample_fmt=s32`, 24-bit container words). The default attempt fails exactly as documented (`exit âˆ’22`, `No wav codec tag found for codec pcm_dvd`); the FLAC retry completes. Video elementary streams extracted from the source VOB and the output MKV are **byte-identical** (MD5 match â€” a true stream copy, no re-encode), and both sides decode to **bit-exact PCM** (MD5 match, 288000 bytes at 24-bit) after the 20-bit LPCM â†’ FLAC round trip. Full decode of the output is clean (0 errors, 2 streams, 2.003 s). The whole rip package suite, including the end-to-end `pcm_dvd` retry test driving the production executor path, passes against those release binaries.
+- **Gates.** `dev-verify.ps1` green, untagged stub build green, package-main and internal test suites green. *(Corrected in dev84: this entry previously reported the CGo-linked internal packages as failing at binary load with `0xc0000135`. That was wrong â€” see the dev84 test-infrastructure entry. The DLLs are present under `C:\ffmpeg\bin`; the failure was a local `PATH` gap, and those packages are green.)*
 
 ### Convert: stop advertising two-pass encoding (it was never implemented)
 
-- **The defect (`cf5352c5`, issue #23).** The Convert module exposed an enabled "Two-pass encoding" checkbox in all four locales, described it as *"first pass collects data, second pass writes at target bitrate — best quality at a set size (VBR-style)"*, and showed *"Estimated size: N MB (2-pass)"*. No two-pass code existed anywhere: the checkbox was never read by the encoder argument builder, so enabling it changed nothing at all. The disclosure was worse than the dead control — it described a two-pass VBR bitrate workflow as available when the app only ever did single-pass CRF encoding.
-- **The fix.** The control is permanently disabled with an honest label ("not implemented — single-pass CRF only"), the four-locale strings were corrected in `en_ca`/`fr_ca`/`iu`/`iu_latin`, and the false VBR/two-pass size claim was removed from the preview. The dead `cfg.TwoPass = true` write (UI mutating config that nothing consumed) was removed.
-- **Scope decision.** The audit question — "should two-pass be implemented?" — was answered from source rather than assumed: the design is video-bitrate two-pass, a materially different feature. Deliberately left unimplemented; this cycle makes the UI tell the truth. `TestTwoPassDisclosedAsUnimplemented` and `TestNoTwoPassFfmpegArgs` guard it, both negative-tested by reverting the fix.
+- **The defect (`69615c3c`, issue #23).** The Convert module exposed an enabled "Two-pass encoding" checkbox in all four locales, described it as *"first pass collects data, second pass writes at target bitrate â€” best quality at a set size (VBR-style)"*, and showed *"Estimated size: N MB (2-pass)"*. No two-pass code existed anywhere: the checkbox was never read by the encoder argument builder, so enabling it changed nothing at all. The disclosure was worse than the dead control â€” it described a two-pass VBR bitrate workflow as available when the app only ever did single-pass CRF encoding.
+- **The fix.** The control is permanently disabled with an honest label ("not implemented â€” single-pass CRF only"), the four-locale strings were corrected in `en_ca`/`fr_ca`/`iu`/`iu_latin`, and the false VBR/two-pass size claim was removed from the preview. The dead `cfg.TwoPass = true` write (UI mutating config that nothing consumed) was removed.
+- **Scope decision.** The audit question â€” "should two-pass be implemented?" â€” was answered from source rather than assumed: the design is video-bitrate two-pass, a materially different feature. Deliberately left unimplemented; this cycle makes the UI tell the truth. `TestTwoPassDisclosedAsUnimplemented` and `TestNoTwoPassFfmpegArgs` guard it, both negative-tested by reverting the fix.
 
 ## v0.1.1-dev82 (October 2026)
 
-### Convert Module Audit Fixes — Output Allocation, Codec Vocabulary, Interlace Identity, Config Migration, Layout Reset
+### Convert Module Audit Fixes â€” Output Allocation, Codec Vocabulary, Interlace Identity, Config Migration, Layout Reset
 
-Seven verified defects from the Convert-module audit (tracked as issues #10–#24) fixed in this cycle. Each fix carries its own regression tests; both build variants (native_media + untagged stub) and the full package-main + internal test suites are green.
+Seven verified defects from the Convert-module audit (tracked as issues #10â€“#24) fixed in this cycle. Each fix carries its own regression tests; both build variants (native_media + untagged stub) and the full package-main + internal test suites are green.
 
-- **Persisted Convert-config migration (#19, `336c7e06`).** The config loader unmarshalled into a zero-valued struct, so any field written after a user's config was created arrived as the Go zero value. The layout migration assumed "all three false" = legacy config, silently rewriting a deliberate full collapse to all-open on every load; key presence now decides (absent → default, present → authoritative). `NormalizeLUFS`/`NormalizeTruePeak` never migrated — a legacy config left them at 0, which would build `loudnorm` targeting 0 LUFS / 0 dBTP; both now default (−16 / −1.5), with a present-but-zero value repaired. Presence matching mirrors `encoding/json`'s case-insensitive fallback. Idempotent: a migrated config re-normalises to itself. 11 tests in `internal/app/appcfg/store_test.go`.
-- **Queued loudness normalization (#15 F-7, `e86d3c4b`).** The queue executor read its settings from a job map that carried `normalizeAudio` but never the loudness targets, and only forced stereo/48 kHz — the `loudnorm` filter existed solely in the direct-run path. All three convert enqueue sites now carry the targets and the executor emits the same filter the direct path builds. Channel mixing is skipped while normalizing (two `-af` flags would make ffmpeg honour only the last, silently dropping loudnorm); the command preview (`buildFFmpegCommandFromJob`) mirrors the executor; `normalizeLoudnessFromJob` repairs missing/zero targets for jobs persisted by older builds (the queue writes jobs to JSON on disk).
-- **Reset drives the panel-toggle transitions (#10, `c35abdbc`).** The Convert Reset handler wrote `leftColumn.SetOffset(0.5)` directly while the split policy lives in the `resolveLeftOffset` closure, and it restored the layout booleans without driving the transitions the toggles perform — panels stayed hidden, header arrows stayed stale. Reset now routes through the same transitions (player/settings visibility + headers, the metadata fold via a new exported `setMetaOpen` from `buildMetadataPanel`, and the shared offset policy). `buildMetadataPanel` gains a third return so a programmatic restore cannot desync the fold from the persisted `MetadataOpen`.
-- **Stub player-pane signature alignment (#16, `4abf5e1e`).** `BuildConvertPlayerPane` returned `(fyne.CanvasObject, interface{})` in the stub build and the concrete `*ui.InlineVideoPlayer` in the native build — the lone divergence in an otherwise identical method surface (the stub type exists in both variants via `inline_player_stub.go`). Signature-only change; both build variants verified green. A repo-wide search found zero callers — the divergence was latent, but it violated the identical-method-set rule for stubs.
-- **Canonical video-codec vocabulary; ProRes/Theora presets stop falling through (#13, `f3511503`).** `friendlyCodecFromPreset` matched substrings 265/264/vp9/av1/mpeg2 and returned `""` for anything else, so the MOV (ProRes) and OGG (Theora) presets (`prores_ks`/`libtheora`) never resolved: MOV (ProRes) silently encoded H.264, and OGG (Theora) fell to H.264-in-OGV, which the OGV muxer rejects outright (verified empirically: exit −22, `Unsupported codec id`). The preset→UI, UI→encoder, and codec-select mappings now derive from one `codecIdentity` table; `normalizeCodecName` (probed-codec normalization, a different domain) is untouched. The OGV audio path mirrors the WebM substitution — the Ogg/Theora muxer accepts Vorbis/Opus/FLAC only (verified empirically; AAC/MP3/AC-3 fail at header write). The triplicated format-alignment condition is consolidated into `codecFollowsFormat` (H.26x cross-pair swap and user-override survival preserved; codec-specific presets adopted in both directions). The headline test: preset→UI→encoder round-trip over every format option.
-- **Interlace analysis: one operation + results carry source identity (#21 + #14, `fea7239c`).** Six UI call sites each ran their own detector + timeout and wrote a shared result field with no source identity — the stale-result window (select A, analyze A, switch to B, A's result lands and renders in B's context). One shared `dispatchInterlaceAnalysis` owns the operation only (no result slots, no UI knowledge); each result slot carries a generation counter, and a result may publish only while the generation it was dispatched under is still current — including the rapid A→B→A case, where a path comparison would wrongly accept the first A's result. All seven Convert source transitions route through `setConvertSource` (clears the published result, invalidates in-flight claims); the Inspect `ClearFile` now clears the interlace state it previously leaked. Tests include real end-to-end dispatch against a synthetic source via the PATH ffmpeg.
-- **Deterministic Convert queue output allocation (#12, `1869f8e0`).** The three insertion paths decided availability three ways: single-add had no collision check and no default-output-dir fallback; the multi-add carried the only allocator; the batch-add ignored both configured output directories entirely (always writing next to the source) with no source-avoidance and no collision check. One `convertOutputAllocator` now owns availability for every path (a single add is a batch of one): the directory chain (module OutputDir → app default output dir → source dir — the multi-add chain is the single semantics), source-path avoidance, and deterministic `-2, -3, …` suffixing against both the filesystem and paths already allocated in the current batch. Naming construction stays with the callers (`resolveOutputBase`'s per-path `keepExisting` is intentional). The executor-side `pathsAreSameFile` check remains the hard safety net.
+- **Persisted Convert-config migration (#19, `a8fe9dbc`).** The config loader unmarshalled into a zero-valued struct, so any field written after a user's config was created arrived as the Go zero value. The layout migration assumed "all three false" = legacy config, silently rewriting a deliberate full collapse to all-open on every load; key presence now decides (absent â†’ default, present â†’ authoritative). `NormalizeLUFS`/`NormalizeTruePeak` never migrated â€” a legacy config left them at 0, which would build `loudnorm` targeting 0 LUFS / 0 dBTP; both now default (âˆ’16 / âˆ’1.5), with a present-but-zero value repaired. Presence matching mirrors `encoding/json`'s case-insensitive fallback. Idempotent: a migrated config re-normalises to itself. 11 tests in `internal/app/appcfg/store_test.go`.
+- **Queued loudness normalization (#15 F-7, `9dbeff23`).** The queue executor read its settings from a job map that carried `normalizeAudio` but never the loudness targets, and only forced stereo/48 kHz â€” the `loudnorm` filter existed solely in the direct-run path. All three convert enqueue sites now carry the targets and the executor emits the same filter the direct path builds. Channel mixing is skipped while normalizing (two `-af` flags would make ffmpeg honour only the last, silently dropping loudnorm); the command preview (`buildFFmpegCommandFromJob`) mirrors the executor; `normalizeLoudnessFromJob` repairs missing/zero targets for jobs persisted by older builds (the queue writes jobs to JSON on disk).
+- **Reset drives the panel-toggle transitions (#10, `9222ca26`).** The Convert Reset handler wrote `leftColumn.SetOffset(0.5)` directly while the split policy lives in the `resolveLeftOffset` closure, and it restored the layout booleans without driving the transitions the toggles perform â€” panels stayed hidden, header arrows stayed stale. Reset now routes through the same transitions (player/settings visibility + headers, the metadata fold via a new exported `setMetaOpen` from `buildMetadataPanel`, and the shared offset policy). `buildMetadataPanel` gains a third return so a programmatic restore cannot desync the fold from the persisted `MetadataOpen`.
+- **Stub player-pane signature alignment (#16, `ae0b4333`).** `BuildConvertPlayerPane` returned `(fyne.CanvasObject, interface{})` in the stub build and the concrete `*ui.InlineVideoPlayer` in the native build â€” the lone divergence in an otherwise identical method surface (the stub type exists in both variants via `inline_player_stub.go`). Signature-only change; both build variants verified green. A repo-wide search found zero callers â€” the divergence was latent, but it violated the identical-method-set rule for stubs.
+- **Canonical video-codec vocabulary; ProRes/Theora presets stop falling through (#13, `63a95962`).** `friendlyCodecFromPreset` matched substrings 265/264/vp9/av1/mpeg2 and returned `""` for anything else, so the MOV (ProRes) and OGG (Theora) presets (`prores_ks`/`libtheora`) never resolved: MOV (ProRes) silently encoded H.264, and OGG (Theora) fell to H.264-in-OGV, which the OGV muxer rejects outright (verified empirically: exit âˆ’22, `Unsupported codec id`). The presetâ†’UI, UIâ†’encoder, and codec-select mappings now derive from one `codecIdentity` table; `normalizeCodecName` (probed-codec normalization, a different domain) is untouched. The OGV audio path mirrors the WebM substitution â€” the Ogg/Theora muxer accepts Vorbis/Opus/FLAC only (verified empirically; AAC/MP3/AC-3 fail at header write). The triplicated format-alignment condition is consolidated into `codecFollowsFormat` (H.26x cross-pair swap and user-override survival preserved; codec-specific presets adopted in both directions). The headline test: presetâ†’UIâ†’encoder round-trip over every format option.
+- **Interlace analysis: one operation + results carry source identity (#21 + #14, `154eefd4`).** Six UI call sites each ran their own detector + timeout and wrote a shared result field with no source identity â€” the stale-result window (select A, analyze A, switch to B, A's result lands and renders in B's context). One shared `dispatchInterlaceAnalysis` owns the operation only (no result slots, no UI knowledge); each result slot carries a generation counter, and a result may publish only while the generation it was dispatched under is still current â€” including the rapid Aâ†’Bâ†’A case, where a path comparison would wrongly accept the first A's result. All seven Convert source transitions route through `setConvertSource` (clears the published result, invalidates in-flight claims); the Inspect `ClearFile` now clears the interlace state it previously leaked. Tests include real end-to-end dispatch against a synthetic source via the PATH ffmpeg.
+- **Deterministic Convert queue output allocation (#12, `53548707`).** The three insertion paths decided availability three ways: single-add had no collision check and no default-output-dir fallback; the multi-add carried the only allocator; the batch-add ignored both configured output directories entirely (always writing next to the source) with no source-avoidance and no collision check. One `convertOutputAllocator` now owns availability for every path (a single add is a batch of one): the directory chain (module OutputDir â†’ app default output dir â†’ source dir â€” the multi-add chain is the single semantics), source-path avoidance, and deterministic `-2, -3, â€¦` suffixing against both the filesystem and paths already allocated in the current batch. Naming construction stays with the callers (`resolveOutputBase`'s per-path `keepExisting` is intentional). The executor-side `pathsAreSameFile` check remains the hard safety net.
 - **Audit infrastructure.** The audit's findings were re-verified against source before filing (external-audit line coordinates drifted +6 to +30 and were discarded); every fix's issue carries a full record. Refuted findings (L-1, L-2) stay closed and are not re-reported. A known local-env limitation was proven pre-existing at HEAD via stash: `go test -tags native_media` on the CGo-linked internal packages fails at binary load (DLL not found) while the same binaries pass when run directly.
 
 ## v0.1.1-dev81 (September 2026)
 
 ### Rip a Title by Chapter Range
 
-- **Rip: "Rip chapters only" with From/To chapter selects.** The rip view gains a per-rip "Rip chapters only" toggle plus From/To selects whenever the scan reports chapter counts. The selects' upper bound is the greatest chapter count across ALL scanned titles (so the range never invalidates when the picked title changes), clamped per title at execute; titles without PGC program data report "N/A" and the controls stay disabled. The toggle is inert for full-disc rips, region conversion, and the archivist format, and the selection is a per-rip transient — it is never persisted to config. New i18n keys `RipChapterOnly`/`RipChapterFrom`/`RipChapterTo` across en/fr/iu/iu_latin.
-- **Executor: output-side trim for the dvdvideo path.** The range is expressed as `-ss`/`-to` appended to the end of the FFmpeg command (after all inputs, so every input has been declared), using the absolute chapter timestamps from the title's chapter list — the output timeline normalises to 0. Embedded chapters are remapped to the range base (`firstChapter → 0`) so the MKV's chapter list describes the trimmed file, and progress tracks the range span, not the whole title.
-- **Executor: cell-accurate slicing for the VOB-concat fallback.** `ifo.TitleInfo` now retains the PGC program map (`ProgramEntryCells []int`, filled from the same PGC pass that reads chapters). The concat fallback slices each VOB to the range's cell span — `[entry(cs)−1, entry(ce+1)−1)` via `chapterCellSpan`, where `entry(p)` is the cell serving program `p` — coalescing adjacent cells per VOB as before. The whole-cover short-circuit is skipped while a range is active (a ranged rip must always slice), and a cells-unresolvable range degrades to whole-file concat plus the `-ss`/`-to` trim. The stale-PTS failover cap becomes `range duration + 5 s` when the cell list is engaged, so the trim always sits inside a safe region.
-- Verified by unit tests: `chapterRange` remap (base = chapter cs−1, span = cs..ce chapters, end = chapter `ce` or the title duration), `chapterCellSpan` (shared entry cells, `cs > n` rejection, `ce < cs` rejection, whole-title equivalence), and `cellConcatList` slicing a mid-title range with whole-cover detection disabled when ranged.
-- **Repo hygiene:** this feature rides on the existing dev81 doc slice — roadmap card `rip-chapter-range` marked done, `docs/RIP_CHAPTER_RANGE.md` carries the feature doc + tester checklist. Six docs + version triad synced in the release commit.
+- **Rip: "Rip chapters only" with From/To chapter selects.** The rip view gains a per-rip "Rip chapters only" toggle plus From/To selects whenever the scan reports chapter counts. The selects' upper bound is the greatest chapter count across ALL scanned titles (so the range never invalidates when the picked title changes), clamped per title at execute; titles without PGC program data report "N/A" and the controls stay disabled. The toggle is inert for full-disc rips, region conversion, and the archivist format, and the selection is a per-rip transient â€” it is never persisted to config. New i18n keys `RipChapterOnly`/`RipChapterFrom`/`RipChapterTo` across en/fr/iu/iu_latin.
+- **Executor: output-side trim for the dvdvideo path.** The range is expressed as `-ss`/`-to` appended to the end of the FFmpeg command (after all inputs, so every input has been declared), using the absolute chapter timestamps from the title's chapter list â€” the output timeline normalises to 0. Embedded chapters are remapped to the range base (`firstChapter â†’ 0`) so the MKV's chapter list describes the trimmed file, and progress tracks the range span, not the whole title.
+- **Executor: cell-accurate slicing for the VOB-concat fallback.** `ifo.TitleInfo` now retains the PGC program map (`ProgramEntryCells []int`, filled from the same PGC pass that reads chapters). The concat fallback slices each VOB to the range's cell span â€” `[entry(cs)âˆ’1, entry(ce+1)âˆ’1)` via `chapterCellSpan`, where `entry(p)` is the cell serving program `p` â€” coalescing adjacent cells per VOB as before. The whole-cover short-circuit is skipped while a range is active (a ranged rip must always slice), and a cells-unresolvable range degrades to whole-file concat plus the `-ss`/`-to` trim. The stale-PTS failover cap becomes `range duration + 5 s` when the cell list is engaged, so the trim always sits inside a safe region.
+- Verified by unit tests: `chapterRange` remap (base = chapter csâˆ’1, span = cs..ce chapters, end = chapter `ce` or the title duration), `chapterCellSpan` (shared entry cells, `cs > n` rejection, `ce < cs` rejection, whole-title equivalence), and `cellConcatList` slicing a mid-title range with whole-cover detection disabled when ranged.
+- **Repo hygiene:** this feature rides on the existing dev81 doc slice â€” roadmap card `rip-chapter-range` marked done, `docs/RIP_CHAPTER_RANGE.md` carries the feature doc + tester checklist. Six docs + version triad synced in the release commit.
 
 ## v0.1.1-dev80 (September 2026)
 
 ### Thumbnail "Both" Mode Output Fix + Queue Timestamp Bug + Full Thumbnail Run in Job Logs
 
-- **Thumbnail: output mode "both" now produces AND surfaces the separate thumbnails, matching the contact-sheet grid count.** The user report: clicking "both" "only gives me the information of the contact sheet, it doesn't actually give me the separate thumbnails". The generator's run list folded "both" into the contact-sheet path and routed every thumbnail through the sheet callback, so the live preview showed the sheet but no separate images were generated/reflected. The generator now exposes a distinct `OnContactSheetGenerated` callback (`generateContactSheet` falls back to `OnThumbGenerated` when unset); "both" runs true individual generation at the contact-sheet tile width (`count = columns×rows`, kept in lock-step with the grid) and the live preview shows the sheet as a grid cell plus the accumulating individual thumbnails. `createThumbnailJobForPath` descriptions are per-mode accurate ("Contact sheet + N thumbnails (Wpx, matches grid)" / "Contact sheet: C×R grid (N thumbnails)" / "N individual thumbnails (Wpx width)"). In the view, "both" now renders both settings boxes, and the individual box carries a locked "Count: N (matches contact sheet)" label (`ThumbnailCountMatchesSheetFmt`, new i18n key across en/fr/iu/iu_latin) that tracks the grid sliders live — the separate individual width select is removed because "both" tiles always use the sheet width. Individual mode still generates just the separate thumbnails (at its own width) and contact-sheet mode just the sheet.
+- **Thumbnail: output mode "both" now produces AND surfaces the separate thumbnails, matching the contact-sheet grid count.** The user report: clicking "both" "only gives me the information of the contact sheet, it doesn't actually give me the separate thumbnails". The generator's run list folded "both" into the contact-sheet path and routed every thumbnail through the sheet callback, so the live preview showed the sheet but no separate images were generated/reflected. The generator now exposes a distinct `OnContactSheetGenerated` callback (`generateContactSheet` falls back to `OnThumbGenerated` when unset); "both" runs true individual generation at the contact-sheet tile width (`count = columnsÃ—rows`, kept in lock-step with the grid) and the live preview shows the sheet as a grid cell plus the accumulating individual thumbnails. `createThumbnailJobForPath` descriptions are per-mode accurate ("Contact sheet + N thumbnails (Wpx, matches grid)" / "Contact sheet: CÃ—R grid (N thumbnails)" / "N individual thumbnails (Wpx width)"). In the view, "both" now renders both settings boxes, and the individual box carries a locked "Count: N (matches contact sheet)" label (`ThumbnailCountMatchesSheetFmt`, new i18n key across en/fr/iu/iu_latin) that tracks the grid sliders live â€” the separate individual width select is removed because "both" tiles always use the sheet width. Individual mode still generates just the separate thumbnails (at its own width) and contact-sheet mode just the sheet.
 - **Queue: job StartedAt/CompletedAt timestamp bug fixed.** `nextJob.StartedAt = &now` then `now = time.Now()` overwrote the SAME variable, so every popped job carried identical start/end timestamps (zero apparent elapsed). Separate `startedAt`/`completedAt` variables now record the real instants.
 - **Queue history now shows Progress.** `addToHistory` copied CompletedAt/Error/FFmpegCmd but never `Progress`, so finished jobs read `Progress: 0` in the history panel; `Progress: job.Progress` is now stored.
-- **Thumbnail: the job log captures the whole run.** `generateIndividual` re-opened the log with `os.Create` (truncate) once per thumbnail, so the on-disk log ended up containing only the last screenshot's run. The log is now opened once in `O_APPEND|O_CREATE|O_WRONLY` with a deferred Close and each thumbnail writes under its own `===== thumbnail N (t=..) -> path =====` header, while `generateContactSheet` still opens first and truncates — a "both" job logs the sheet plus every individual thumbnail.
+- **Thumbnail: the job log captures the whole run.** `generateIndividual` re-opened the log with `os.Create` (truncate) once per thumbnail, so the on-disk log ended up containing only the last screenshot's run. The log is now opened once in `O_APPEND|O_CREATE|O_WRONLY` with a deferred Close and each thumbnail writes under its own `===== thumbnail N (t=..) -> path =====` header, while `generateContactSheet` still opens first and truncates â€” a "both" job logs the sheet plus every individual thumbnail.
 
 ## v0.1.1-dev79 (September 2026)
 
 ### dvdvideo -title Ordering Root-Cause Fix + Bulk-Selection State Sync + Release CI Fix
 
-- **Rip: dvdvideo `-title` arg ordering fixed — the root cause of every dvdvideo rip failure.** The shipped dvdvideo path failed on every disc: the 0/77 audit result was not the library, it was this one ordering bug. `-title N` was emitted on the far side of `-i VIDEO_TS` (`-f dvdvideo -i VIDEO_TS -title 1`); FFmpeg binds any option between two `-i` flags (or before a later input) to the NEXT input, and the rip also inserts a chapters ffmetadata input after the dvdvideo input — so `-title 1` bound to that second input, which has no `title` option → "Option title not found" → ffmpeg exit `0xabafb008`. Every intended-dvdvideo rip silently fell back to VOB concatenation, and for seamless-branching / multi-VOB titles whole-file VOB concat writes PTS discontinuities at VOB boundaries — the 26h-freeze / post-cutoff slideshow corruption. `-title` is now placed **before** `-i` (`-f dvdvideo -title 1 -i VIDEO_TS`) so it binds to the dvdvideo input itself. Verified live on a grey-market DVD (a seamless-branching multi-VOB disc): exit 0, 112603 video packets, exact 40 ms cadence, zero backward PTS, audio + chapters + metadata preserved end to end.
-- **Rip: ContentBrowser Select All / Deselect All now mirror the selection state.** Bulk selection was applied to the view model (`UpdateRipSummary` — the summary radio/preview) but never propagated to `viewState.selectedTitles`, so titles blocked/locked by a rip-mode lock kept their stale selection state after a bulk select. New `SetOnBulkSelection` mirrors bulk selection into the selection state so the checked cards, the readiness summary, and the queued rip all agree.
-- **CI: release.yml now installs meson + ninja.** The dev78 harfbuzz build steps were added to all four Windows pipelines, but the release.yml `setup-msys2` install list was missed — only dev.yml and windows-msix.yml declared `mingw-w64-ucrt-x86_64-meson/-ninja`, so the v0.1.1-dev78 release run failed with "meson: command not found" while the MSIX run (which installs them via pacman) passed. Both packages are now in the release install list.
+- **Rip: dvdvideo `-title` arg ordering fixed â€” the root cause of every dvdvideo rip failure.** The shipped dvdvideo path failed on every disc: the 0/77 audit result was not the library, it was this one ordering bug. `-title N` was emitted on the far side of `-i VIDEO_TS` (`-f dvdvideo -i VIDEO_TS -title 1`); FFmpeg binds any option between two `-i` flags (or before a later input) to the NEXT input, and the rip also inserts a chapters ffmetadata input after the dvdvideo input â€” so `-title 1` bound to that second input, which has no `title` option â†’ "Option title not found" â†’ ffmpeg exit `0xabafb008`. Every intended-dvdvideo rip silently fell back to VOB concatenation, and for seamless-branching / multi-VOB titles whole-file VOB concat writes PTS discontinuities at VOB boundaries â€” the 26h-freeze / post-cutoff slideshow corruption. `-title` is now placed **before** `-i` (`-f dvdvideo -title 1 -i VIDEO_TS`) so it binds to the dvdvideo input itself. Verified live on a grey-market DVD (a seamless-branching multi-VOB disc): exit 0, 112603 video packets, exact 40 ms cadence, zero backward PTS, audio + chapters + metadata preserved end to end.
+- **Rip: ContentBrowser Select All / Deselect All now mirror the selection state.** Bulk selection was applied to the view model (`UpdateRipSummary` â€” the summary radio/preview) but never propagated to `viewState.selectedTitles`, so titles blocked/locked by a rip-mode lock kept their stale selection state after a bulk select. New `SetOnBulkSelection` mirrors bulk selection into the selection state so the checked cards, the readiness summary, and the queued rip all agree.
+- **CI: release.yml now installs meson + ninja.** The dev78 harfbuzz build steps were added to all four Windows pipelines, but the release.yml `setup-msys2` install list was missed â€” only dev.yml and windows-msix.yml declared `mingw-w64-ucrt-x86_64-meson/-ninja`, so the v0.1.1-dev78 release run failed with "meson: command not found" while the MSIX run (which installs them via pacman) passed. Both packages are now in the release install list.
 
 ## v0.1.1-dev78 (September 2026)
 
 ### Harfbuzz-Complete Drawtext CI Fix + dev77 Content Released
 
-- **CI: drawtext filter now fully enabled in all Windows FFmpeg sidecar builds.** The dev77 CI fix was incomplete: it added `--enable-libfreetype` but FFmpeg 8.x also requires `libharfbuzz` for the drawtext filter (`drawtext_filter_deps="libfreetype libharfbuzz"`; `vf_drawtext.c:1372` calls `hb_ft_font_create_referenced`). All four Windows pipelines (dev/release/msix/forgejo) now build harfbuzz 14.4.0 from source via meson (`-Dfreetype=enabled`, all other backends disabled) and rewrite `harfbuzz.pc` so `-lfreetype -lstdc++ -lsupc++ -lm` sit in `Libs` directly (FFmpeg's Windows configure calls pkg-config without `--static`, so the stock `Requires` is never expanded — same precedent as x265.pc/dvdnav.pc). The pure-Go CGo link expands `-lharfbuzz -lstdc++ -lfreetype` from pkg-config `--libs --static` (CI strips `-lsupc++`); no new Go flags needed.
-- **CI: post-build drawtext gate corrected.** The gate now uses `ffmpeg -filters | grep drawtext` — FFmpeg 8.1 moved the filter list away from `-h filters` (which now prints generic options only), so the old gate failed even on a fully correct freetype+harfbuzz build. Only the three GitHub workflows gate; the Forgejo build does not.
+- **CI: drawtext filter now fully enabled in all Windows FFmpeg sidecar builds.** The dev77 CI fix was incomplete: it added `--enable-libfreetype` but FFmpeg 8.x also requires `libharfbuzz` for the drawtext filter (`drawtext_filter_deps="libfreetype libharfbuzz"`; `vf_drawtext.c:1372` calls `hb_ft_font_create_referenced`). All four Windows pipelines (dev/release/msix/forgejo) now build harfbuzz 14.4.0 from source via meson (`-Dfreetype=enabled`, all other backends disabled) and rewrite `harfbuzz.pc` so `-lfreetype -lstdc++ -lsupc++ -lm` sit in `Libs` directly (FFmpeg's Windows configure calls pkg-config without `--static`, so the stock `Requires` is never expanded â€” same precedent as x265.pc/dvdnav.pc). The pure-Go CGo link expands `-lharfbuzz -lstdc++ -lfreetype` from pkg-config `--libs --static` (CI strips `-lsupc++`); no new Go flags needed.
+- **CI: post-build drawtext gate corrected.** The gate now uses `ffmpeg -filters | grep drawtext` â€” FFmpeg 8.1 moved the filter list away from `-h filters` (which now prints generic options only), so the old gate failed even on a fully correct freetype+harfbuzz build. Only the three GitHub workflows gate; the Forgejo build does not.
 - **v0.1.1-dev77 tag abandoned (red CI, never released).** The dev77 tag was pushed at commit `ee806367` before the harfbuzz fix landed; its release run failed with `FATAL: drawtext filter not enabled after FFmpeg build`. Repo rules forbid deleting/retargeting dev tags, so the dev77 content + this CI fix shipped together as dev78 (commit `2b81a0c7`, dev CI green).
 - Cache keys bumped: dev/release `v12`, msix `v6`, forgejo `v9` + `.built-v10` marker.
 
-## v0.1.1-dev77 (September 2026) — *never released; shipped as v0.1.1-dev78*
+## v0.1.1-dev77 (September 2026) â€” *never released; shipped as v0.1.1-dev78*
 
 ### Thumbnail Native Resolution + Movie+Extras Auto-Select + Drawtext-Restored CI FFmpeg
 
 - **Thumbnail: "Native (WxH)" size option.** Contact-sheet and individual thumbnail size selects gain a "Native (WxH)" entry that resolves to the source video's real width, so screenshots can be judged at source resolution. Blank/reset fallbacks unchanged. New i18n key across en/fr/iu/iu_latin.
 - **Thumbnail: contact-sheet live total counter.** The "Total thumbnails" count derived from a captured opts struct value, so moving the columns/rows sliders left a stale count on screen; it now computes from the live slider values.
-- **Thumbnail: drawtext-absent degradation.** When the bundled FFmpeg lacks the drawtext filter (the static build shipped without libfreetype/libfontconfig), the generator probes once per run (`ffmpeg -filters`), skips the timestamp overlay + metadata header, and emits plain output plus a debug warning via a new result `Warnings` list — no more hard "No such filter: 'drawtext'" failure. CI now rebuilds FFmpeg with libfreetype + libharfbuzz (v0.1.1-dev78), so shipped binaries keep the overlays; the degradation path protects non-freetype builds.
-- **CI: Windows FFmpeg sidecars rebuilt with libfreetype + libharfbuzz (v0.1.1-dev78).** The dev/release/msix/forgejo workflows build freetype 2.13.3 from source (static-only, optional rasterizer deps disabled) and configure FFmpeg with `--enable-libfreetype --enable-libharfbuzz` (harfbuzz built via meson, -Dfreetype=enabled). Each build hard-gates on `ffmpeg -filters | grep drawtext` so a partial build is never cached; the pure-Go link needs no new flags (pkg-config `--libs --static` pulls `-lharfbuzz -lstdc++ -lfreetype` through libavfilter.pc). Cache keys: dev/release v12, msix v6, forgejo v9 + marker v10. Linux unchanged — `--disable-programs` + system ffmpeg.
-- **Rip: "Movie + extras (choose titles)" now pre-selects the main feature + genuine extras on scene-set discs.** `CanonicalSelection` for the `""` mode selects the main feature plus any genuine extras WITHOUT the scene segments (the movie already contains them — re-ripping downloads the same footage twice) and WITHOUT duplicate whole-movie copies (one encode suffices). On a disc with no detected scene set the list still starts empty — what you tick is exactly what rips (Select All still opts into everything; `"full"` keeps its single-Job path). The representative whole copy is only forced when the caller passed it in titles. Unit tests cover movie-only (no scenes/dupes), genuine extras included, no-scene-set empty, and empty-titles.
+- **Thumbnail: drawtext-absent degradation.** When the bundled FFmpeg lacks the drawtext filter (the static build shipped without libfreetype/libfontconfig), the generator probes once per run (`ffmpeg -filters`), skips the timestamp overlay + metadata header, and emits plain output plus a debug warning via a new result `Warnings` list â€” no more hard "No such filter: 'drawtext'" failure. CI now rebuilds FFmpeg with libfreetype + libharfbuzz (v0.1.1-dev78), so shipped binaries keep the overlays; the degradation path protects non-freetype builds.
+- **CI: Windows FFmpeg sidecars rebuilt with libfreetype + libharfbuzz (v0.1.1-dev78).** The dev/release/msix/forgejo workflows build freetype 2.13.3 from source (static-only, optional rasterizer deps disabled) and configure FFmpeg with `--enable-libfreetype --enable-libharfbuzz` (harfbuzz built via meson, -Dfreetype=enabled). Each build hard-gates on `ffmpeg -filters | grep drawtext` so a partial build is never cached; the pure-Go link needs no new flags (pkg-config `--libs --static` pulls `-lharfbuzz -lstdc++ -lfreetype` through libavfilter.pc). Cache keys: dev/release v12, msix v6, forgejo v9 + marker v10. Linux unchanged â€” `--disable-programs` + system ffmpeg.
+- **Rip: "Movie + extras (choose titles)" now pre-selects the main feature + genuine extras on scene-set discs.** `CanonicalSelection` for the `""` mode selects the main feature plus any genuine extras WITHOUT the scene segments (the movie already contains them â€” re-ripping downloads the same footage twice) and WITHOUT duplicate whole-movie copies (one encode suffices). On a disc with no detected scene set the list still starts empty â€” what you tick is exactly what rips (Select All still opts into everything; `"full"` keeps its single-Job path). The representative whole copy is only forced when the caller passed it in titles. Unit tests cover movie-only (no scenes/dupes), genuine extras included, no-scene-set empty, and empty-titles.
 - **Queue: completed jobs show just "Status: Completed".** The redundant "| Duration: Ns" suffix is dropped from the completed-job status line.
-- **Rip: executor log header records the app version**, and the start-up checks are green — `go vet` clean, and govulncheck reports 0 reachable vulnerabilities after bumping `golang.org/x/image` to v0.43.0, `golang.org/x/net` to v0.55.0 (plus x/text v0.38.0, x/sys v0.45.0) and `go` to 1.26.6 in go.mod. Staticcheck's three real findings fixed en route: ineffective switch-scoped `break` in the UDF VDS scan (now stops at the terminating descriptor), dead `vtsATRTEntries` accumulation in IFO regen, and a dead `isFocused` branch in the rip content list. gitleaks detects no leaks in the repo.
+- **Rip: executor log header records the app version**, and the start-up checks are green â€” `go vet` clean, and govulncheck reports 0 reachable vulnerabilities after bumping `golang.org/x/image` to v0.43.0, `golang.org/x/net` to v0.55.0 (plus x/text v0.38.0, x/sys v0.45.0) and `go` to 1.26.6 in go.mod. Staticcheck's three real findings fixed en route: ineffective switch-scoped `break` in the UDF VDS scan (now stops at the terminating descriptor), dead `vtsATRTEntries` accumulation in IFO regen, and a dead `isFocused` branch in the rip content list. gitleaks detects no leaks in the repo.
 
 ## v0.1.1-dev76 (September 2026)
 
 ### ISO 9660 Resolve Fix + Menu Dedup + Choose-Titles Starts Empty
 
-- **Rip: `resolveISOWithUDF` now finds flat-extracted disc content.** The native readers (`internal/dvd/udf` and `internal/dvd/iso9660`) extract a target directory's descendants FLAT into the destination root — e.g. the DVD lands as `tempDir\VIDEO_TS.IFO` + `tempDir\VTS_01_0.IFO`, not inside a nested `tempDir\VIDEO_TS` folder — but the resolver demanded the nested folder, so every ISO 9660-only grey-market image failed the rip path with "`VIDEO_TS not found in ISO 9660 image`" even though the scan had just succeeded (user report on `ISO9660-sample-A.iso`; reproduced on `ISO9660-sample-B.iso` — both burners-write a junk UDF bridge and are pure ISO 9660). New `extractedVideoTSPath` accepts the nested dir when present, otherwise the flat layout (marker `targetDir.IFO` for DVD, `index.bdmv` for Blu-ray), and both the UDF-success and ISO 9660-fallback branches use it. Verified end-to-end via the `VT_REAL_ISO`-gated test on both reported images: UDF extraction fails on the junk VDS, ISO 9660 fallback extracts 11/10 files, `resolveISOWithUDF` returns the flat `VIDEO_TS` and the full scan returns both titles. New unit tests cover nested-preferred / flat-DVD-marker / flat-BD-marker / no-markers.
-- **Rip: menu export now skips menus already written to the output directory.** Every title rip re-collected the same per-VTS menus and appended a fresh `_Menu_<label>.mkv` per output base, so ripping multiple titles of one disc produced several identical copies of each animated menu. The executor now dedups by matching `*_Menu_<label><ext>` files already present in the output directory whose size equals the source menu VOB — same content, lazily but exactly identified, and per-title prefixes can't break it. Skips log "already exported (same menu content)". The animated-menu capability stays for full reauthoring; repeated title rips stop piling up duplicates.
-- **Rip: switching to "Movie + extras (choose titles)" no longer auto-selects every title.** The dev75 reshape re-derived "choose titles" as *all* titles, so a user who switched mode to pick two extras found the whole disc ticked and the queue ripped the main feature plus every extra still checked (user report: "It has made the title, and then `_03/_04/_05` … downloading more than we want"). `CanonicalSelection` now returns an empty selection for the `""` (choose-titles) mode — whatever is ticked is exactly what rips (Select All still opts into everything; full-disc mode keeps its select-all job path) — while `"main"` and `"segments"` keep their single/main and scene-segment defaults. Summary line shows the existing no-selection state and the queue errors "no titles selected" instead of enumerating a surprise batch. Unit test updated.
+- **Rip: `resolveISOWithUDF` now finds flat-extracted disc content.** The native readers (`internal/dvd/udf` and `internal/dvd/iso9660`) extract a target directory's descendants FLAT into the destination root â€” e.g. the DVD lands as `tempDir\VIDEO_TS.IFO` + `tempDir\VTS_01_0.IFO`, not inside a nested `tempDir\VIDEO_TS` folder â€” but the resolver demanded the nested folder, so every ISO 9660-only grey-market image failed the rip path with "`VIDEO_TS not found in ISO 9660 image`" even though the scan had just succeeded (user report on `ISO9660-sample-A.iso`; reproduced on `ISO9660-sample-B.iso` â€” both burners-write a junk UDF bridge and are pure ISO 9660). New `extractedVideoTSPath` accepts the nested dir when present, otherwise the flat layout (marker `targetDir.IFO` for DVD, `index.bdmv` for Blu-ray), and both the UDF-success and ISO 9660-fallback branches use it. Verified end-to-end via the `VT_REAL_ISO`-gated test on both reported images: UDF extraction fails on the junk VDS, ISO 9660 fallback extracts 11/10 files, `resolveISOWithUDF` returns the flat `VIDEO_TS` and the full scan returns both titles. New unit tests cover nested-preferred / flat-DVD-marker / flat-BD-marker / no-markers.
+- **Rip: menu export now skips menus already written to the output directory.** Every title rip re-collected the same per-VTS menus and appended a fresh `_Menu_<label>.mkv` per output base, so ripping multiple titles of one disc produced several identical copies of each animated menu. The executor now dedups by matching `*_Menu_<label><ext>` files already present in the output directory whose size equals the source menu VOB â€” same content, lazily but exactly identified, and per-title prefixes can't break it. Skips log "already exported (same menu content)". The animated-menu capability stays for full reauthoring; repeated title rips stop piling up duplicates.
+- **Rip: switching to "Movie + extras (choose titles)" no longer auto-selects every title.** The dev75 reshape re-derived "choose titles" as *all* titles, so a user who switched mode to pick two extras found the whole disc ticked and the queue ripped the main feature plus every extra still checked (user report: "It has made the title, and then `_03/_04/_05` â€¦ downloading more than we want"). `CanonicalSelection` now returns an empty selection for the `""` (choose-titles) mode â€” whatever is ticked is exactly what rips (Select All still opts into everything; full-disc mode keeps its select-all job path) â€” while `"main"` and `"segments"` keep their single/main and scene-segment defaults. Summary line shows the existing no-selection state and the queue errors "no titles selected" instead of enumerating a surprise batch. Unit test updated.
 
 ## v0.1.1-dev75 (September 2026)
 
 ### Dynamic Rip-Mode Selection + Bulk-Selection Deadlock Fix
 
-- **Rip: switching the rip mode now reshapes the selection dynamically.** The previous flow left the content browser carrying the old mode's restrictions: switching from "Main feature only" to "Movie + extras (choose titles)" kept only the main title selected, so the user had to manually re-tick everything (and noticed the browser looked "messed up"). The mode radio now re-derives the selection on every mode transition — "Movie + extras (choose titles)" auto-selects all titles, "Main feature only" keeps only the longest (anchored), "Scene segments only" selects just the detected segments. Manual per-title toggles inside a mode persist; only a mode change re-shapes. New `internal/app/modules/rip/ripmode.go` centralises the pure mode → selection/lock mapping (`CanonicalSelection`/`CanonicalLock`, unit-tested) — the lock layer (`ApplyModeLock`) is now purely visual (greyed/anchored), and selection is owned by `ContentBrowser.ReshapeSelection` (whole-map replacement, no per-title OnChanged).
-- **Rip: Select All / Deselect All hard-freeze fixed (root cause).** Select All / Deselect All called `SetChecked` on each title card while holding the ContentBrowser mutex; the checkbox's OnChanged handler then tried to re-acquire that same mutex and deadlocked the UI thread — a hard freeze whenever the bulk buttons actually changed a value (e.g. right after switching modes left only the main title selected). Bulk selections now raise the card's `updating` guard (OnChanged early-returns) before `SetChecked`, so no callback re-enters the mutex. A freshly loaded disc resets the rip mode to "Main feature only" and re-shapes once, so a previous disc's segment mode never leaks its restrictions into the new disc.
+- **Rip: switching the rip mode now reshapes the selection dynamically.** The previous flow left the content browser carrying the old mode's restrictions: switching from "Main feature only" to "Movie + extras (choose titles)" kept only the main title selected, so the user had to manually re-tick everything (and noticed the browser looked "messed up"). The mode radio now re-derives the selection on every mode transition â€” "Movie + extras (choose titles)" auto-selects all titles, "Main feature only" keeps only the longest (anchored), "Scene segments only" selects just the detected segments. Manual per-title toggles inside a mode persist; only a mode change re-shapes. New `internal/app/modules/rip/ripmode.go` centralises the pure mode â†’ selection/lock mapping (`CanonicalSelection`/`CanonicalLock`, unit-tested) â€” the lock layer (`ApplyModeLock`) is now purely visual (greyed/anchored), and selection is owned by `ContentBrowser.ReshapeSelection` (whole-map replacement, no per-title OnChanged).
+- **Rip: Select All / Deselect All hard-freeze fixed (root cause).** Select All / Deselect All called `SetChecked` on each title card while holding the ContentBrowser mutex; the checkbox's OnChanged handler then tried to re-acquire that same mutex and deadlocked the UI thread â€” a hard freeze whenever the bulk buttons actually changed a value (e.g. right after switching modes left only the main title selected). Bulk selections now raise the card's `updating` guard (OnChanged early-returns) before `SetChecked`, so no callback re-enters the mutex. A freshly loaded disc resets the rip mode to "Main feature only" and re-shapes once, so a previous disc's segment mode never leaks its restrictions into the new disc.
 
 ## v0.1.1-dev74 (September 2026)
 
 ### Scene-Segment Rip Modes + Cell-Accurate VOB Concat
 
-- **Rip: scene-segment rip mode.** The rip view now detects scene-segmented discs (several titles sharing one VTS that split a movie into segments). `DetectSceneSets` bins scanned titles into whole-movie copies (the longest run plus near-equal durations) and scene segments (shorter independent titles), tolerant of near-duplicate run durations (e.g. the 7-title scene-segmented disc's T01/T02 5926/5932 s runs and T03–T07 866/615/1978/1331/1141 s segments). A third radio option — "Scene segments only (skip full movie)" — appears once a scan detects a scene set: it greys/locks out the whole-movie titles, pre-selects every scene segment (still individually toggleable), and clicking a greyed title exits back to "Movie + extras (choose titles)". "Main feature only" now locks every title except the main one. New i18n keys `RipModeScenesOnly`/`RipReadyScenesOne`/`RipReadyScenesManyFmt` across en/fr/iu/iu_latin.
-- **Rip: cell-accurate VOB-concat fallback (root-cause content fix).** Scene-segment rips are now *correct*, not just correctly timed: on Windows builds the ffmpeg dvdvideo demuxer can't open the source (libdvdnav rejects it), every rip falls back to whole-file VOB concatenation, and a shared-VTS extra title therefore ripped as the movie's opening. `ifo.TitleInfo` now exposes each title's PGC cells (VOBID/CellID/FirstSector/LastSector), read from the PGC cell position table combined with the sector extents of the PGC cell playback table. The executor builds a cell-accurate concat list (`cellConcatList`) that slices each VOB to the selected title's cell byte ranges (sector × 2048, adjacent cells coalesced per VOB), wired into both the primary VOB-concat path and the dvdvideo-failure retry. Slicing is skipped when the cells already span the whole VOB set (whole-file is then exact), on angle discs (interleaved data would be mis-sliced), or when any cell VOB can't be resolved — each with a logged fallback. Unit tests cover the no-cells, angles, whole-set-coverage, multi-VOB partial, and missing-VOB branches.
+- **Rip: scene-segment rip mode.** The rip view now detects scene-segmented discs (several titles sharing one VTS that split a movie into segments). `DetectSceneSets` bins scanned titles into whole-movie copies (the longest run plus near-equal durations) and scene segments (shorter independent titles), tolerant of near-duplicate run durations (e.g. the 7-title scene-segmented disc's T01/T02 5926/5932 s runs and T03â€“T07 866/615/1978/1331/1141 s segments). A third radio option â€” "Scene segments only (skip full movie)" â€” appears once a scan detects a scene set: it greys/locks out the whole-movie titles, pre-selects every scene segment (still individually toggleable), and clicking a greyed title exits back to "Movie + extras (choose titles)". "Main feature only" now locks every title except the main one. New i18n keys `RipModeScenesOnly`/`RipReadyScenesOne`/`RipReadyScenesManyFmt` across en/fr/iu/iu_latin.
+- **Rip: cell-accurate VOB-concat fallback (root-cause content fix).** Scene-segment rips are now *correct*, not just correctly timed: on Windows builds the ffmpeg dvdvideo demuxer can't open the source (libdvdnav rejects it), every rip falls back to whole-file VOB concatenation, and a shared-VTS extra title therefore ripped as the movie's opening. `ifo.TitleInfo` now exposes each title's PGC cells (VOBID/CellID/FirstSector/LastSector), read from the PGC cell position table combined with the sector extents of the PGC cell playback table. The executor builds a cell-accurate concat list (`cellConcatList`) that slices each VOB to the selected title's cell byte ranges (sector Ã— 2048, adjacent cells coalesced per VOB), wired into both the primary VOB-concat path and the dvdvideo-failure retry. Slicing is skipped when the cells already span the whole VOB set (whole-file is then exact), on angle discs (interleaved data would be mis-sliced), or when any cell VOB can't be resolved â€” each with a logged fallback. Unit tests cover the no-cells, angles, whole-set-coverage, multi-VOB partial, and missing-VOB branches.
 - **Rip: loading a new disc no longer inherits the previous movie's Title.** `loadDisc` now resets `discTitle`/`outputTouched` and clears the Title field, so the default output filename is re-derived from the new source instead of keeping e.g. "previous title.mkv".
 
 ## v0.1.1-dev73 (September 2026)
 
 ### Per-Title PGC Duration Scan Consistency
 
-- **Rip: the scan now reports each title's real duration and chapter count on multi-PGC discs.** Some discs (scene-segmented "extras" titles) put several titles in one VTS, each served by its own PGC. The scan cached a single per-VTS `ifo.ReadTitleInfo` and the IFO reader only ever read the first title-domain PGC, so every title showed that PGC's play time — the 7-title scene-segmented disc listed all 7 titles as "1h 38m" even though T03–T07 were 14/10/33/22/19-minute scene segments. `ReadTitleInfoForTTN` (new) selects the PGC for a specific VTS title using the PGCI_SRP TitleNr byte (shared-PGC rule, with index fallback for authors that don't populate it); the scan caches per (VTS, TTN) so title cards, scan snippets, and the longest-title/"main feature" pick all reflect true per-title durations.
-- **Rip: the executor reads the selected title's PGC, not title 1's.** Chapter embedding and the IFO-sourced VOB-concat `-t` cap used the first title-domain PGC's values, so ripping a segment title embedded the whole movie's 15 chapters and capped against the wrong duration. The executor now resolves the picked title's per-VTS TTN from the VMG TT_SRPT (`resolveVTS_TTN`) and reads its PGC — a segment rip gets its own 3 chapters and its own cap.
-- Verified on `the 7-title scene-segmented disc's VIDEO_TS`: T01/T02 5926.48/5932.48 s (15 chapters), T03–T07 866.04/615.40/1977.60/1331.08/1141.16 s (3 chapters each), matching the cell-bin analysis (Σ 5926.48 s). Unit tests cover the shared-PGC rule (0x82/0x85 TitleNr), the index fallback, and ttn=0 legacy equivalence.
+- **Rip: the scan now reports each title's real duration and chapter count on multi-PGC discs.** Some discs (scene-segmented "extras" titles) put several titles in one VTS, each served by its own PGC. The scan cached a single per-VTS `ifo.ReadTitleInfo` and the IFO reader only ever read the first title-domain PGC, so every title showed that PGC's play time â€” the 7-title scene-segmented disc listed all 7 titles as "1h 38m" even though T03â€“T07 were 14/10/33/22/19-minute scene segments. `ReadTitleInfoForTTN` (new) selects the PGC for a specific VTS title using the PGCI_SRP TitleNr byte (shared-PGC rule, with index fallback for authors that don't populate it); the scan caches per (VTS, TTN) so title cards, scan snippets, and the longest-title/"main feature" pick all reflect true per-title durations.
+- **Rip: the executor reads the selected title's PGC, not title 1's.** Chapter embedding and the IFO-sourced VOB-concat `-t` cap used the first title-domain PGC's values, so ripping a segment title embedded the whole movie's 15 chapters and capped against the wrong duration. The executor now resolves the picked title's per-VTS TTN from the VMG TT_SRPT (`resolveVTS_TTN`) and reads its PGC â€” a segment rip gets its own 3 chapters and its own cap.
+- Verified on `the 7-title scene-segmented disc's VIDEO_TS`: T01/T02 5926.48/5932.48 s (15 chapters), T03â€“T07 866.04/615.40/1977.60/1331.08/1141.16 s (3 chapters each), matching the cell-bin analysis (Î£ 5926.48 s). Unit tests cover the shared-PGC rule (0x82/0x85 TitleNr), the index fallback, and ttn=0 legacy equivalence.
 
 ## v0.1.1-dev72 (September 2026)
 
 ### ISO 9660 Fallback for Non-UDF Disc Images
 
-- **Rip: ISO scanning and extraction can now read a disc image whose UDF volume is unusable.** Some grey-market DVDs carry a burner-written UDF bridge whose anchor points at a VDS that scans as PVD/IUVD/PD/LVD/USD/TD descriptor tags but whose LVD fails to parse — the old UDF reader reported `LVD not found in VDS` and the disc could not be scanned or ripped (reported on the junk-UDF ISO). A new native ISO 9660 reader (`internal/dvd/iso9660`) parses the Primary Volume Descriptor at sector 16, walks the directory tree with the spec-correct single-byte `.`/`..` identifiers (0x00/0x01) and `;version`-stripped filenames, and folds multi-extent continuation records (flag 0x80) into the owning file. The scan path (`scanISOViaUDF`) and the extraction path (`resolveISOWithUDF`) both try UDF first and fall back to ISO 9660, logging which backend served the files; when both fail the error names both backends, so an image that is neither UDF nor ISO 9660 is surfaced honestly instead of being falsely labelled corrupt.
+- **Rip: ISO scanning and extraction can now read a disc image whose UDF volume is unusable.** Some grey-market DVDs carry a burner-written UDF bridge whose anchor points at a VDS that scans as PVD/IUVD/PD/LVD/USD/TD descriptor tags but whose LVD fails to parse â€” the old UDF reader reported `LVD not found in VDS` and the disc could not be scanned or ripped (reported on the junk-UDF ISO). A new native ISO 9660 reader (`internal/dvd/iso9660`) parses the Primary Volume Descriptor at sector 16, walks the directory tree with the spec-correct single-byte `.`/`..` identifiers (0x00/0x01) and `;version`-stripped filenames, and folds multi-extent continuation records (flag 0x80) into the owning file. The scan path (`scanISOViaUDF`) and the extraction path (`resolveISOWithUDF`) both try UDF first and fall back to ISO 9660, logging which backend served the files; when both fail the error names both backends, so an image that is neither UDF nor ISO 9660 is surfaced honestly instead of being falsely labelled corrupt.
 - Verified on the reported ISO: the ISO 9660 reader returns `VIDEO_TS.IFO` (12288 B) and `VTS_01_0.IFO` (94208 B) matching the ISO 9660 directory listing byte-for-byte, and the full `scanISOViaUDF` path yields both titles with chapters, audio and duration. Unit tests cover ReadFileData (exact bytes, case-insensitive paths, `;1` stripping, multi-sector files), missing-path errors, ExtractDirectory round-trip, and non-ISO-9660 detection; `VT_REAL_ISO`-gated integration tests exercise the reader and the scan fallback against real authored media.
 
 ## v0.1.1-dev71 (September 2026)
 
 ### VOB-Concat Stale-PTS Cap Hardened + Title-Driven Output Names
 
-- **Rip: the VOB-concat stale-PTS duration cap now always engages.** A second grey-market disc exposed a probe-failure gap in dev69: the stale PTS offset bakes into the *entire* second VOB (it probes to +93822 s, and the bundled static ffprobe errors on it), so the old logic hit the "could not probe all VOB durations" branch and left the rip uncapped — 26hrs again. The cap source is now hierarchical: per-VOB media durations when sane (sum under 3× the IFO PGC play time — exactly the dev69 behaviour on clean-PTS discs), otherwise the IFO's authored PGC duration, which is immune to stale file PTS offsets. A safe `-t ceil(cap + 60s)` is computed regardless of probe health, verified on the reported disc (VTS_02, same VOB layout as the dev69 title): `-t 1884` reproduces 1822.816 s — the real ~30m23s — instead of 26hrs.
+- **Rip: the VOB-concat stale-PTS duration cap now always engages.** A second grey-market disc exposed a probe-failure gap in dev69: the stale PTS offset bakes into the *entire* second VOB (it probes to +93822 s, and the bundled static ffprobe errors on it), so the old logic hit the "could not probe all VOB durations" branch and left the rip uncapped â€” 26hrs again. The cap source is now hierarchical: per-VOB media durations when sane (sum under 3Ã— the IFO PGC play time â€” exactly the dev69 behaviour on clean-PTS discs), otherwise the IFO's authored PGC duration, which is immune to stale file PTS offsets. A safe `-t ceil(cap + 60s)` is computed regardless of probe health, verified on the reported disc (VTS_02, same VOB layout as the dev69 title): `-t 1884` reproduces 1822.816 s â€” the real ~30m23s â€” instead of 26hrs.
 - **Rip: the Title field now drives the output filename by default.** Setting a Title ("test") names the output `test.mkv` in the usual `DVD_Rips` folder (metadata embedding unchanged), and a blank Title/source/format changes fall back to the source folder's name. Full-disc/region-conversion runs get the title-based directory name too (`FullDiscOutputTitlePath`). Hand-editing the output path stops auto-naming for that run (new `DefaultOutputTitlePath` + `outputTouched` flag).
 
 ## v0.1.1-dev70 (September 2026)
 
 ### Rip UI Polish: Mode Labels + Title Card Info Line + Language Select-All
 
-- **Rip mode radio reworded** — "Full movie (main feature)" is now "**Main feature only**" and "Selected scenes" is "**Movie + extras (choose titles)**" (the scenes option is really title-by-title selection where every title starts checked, i.e. movie + extras). The radio stacks vertically instead of horizontally so the longer labels fit the narrow left column; "Main feature only" is still the default and first option.
-- **Content Browser title-card info line cleaned up** — the info line repeated the card header (T## + duration) and, with the `·` separators + word-wrap, dropped "1 audio" onto its own wrapped line. It is now a single compact, localized line of "N chapters · N audio · N subs" (singular/plural handled via new `RipTitleAudioOne/Many` + `RipTitleSubsOne/Many` i18n keys across en/fr/iu/iu_latin). `RipTitleCardFmt` dropped its T##/duration prefix — the highlighted header above owns the duration display. The 1h53m vs 1h54m discrepancy reported alongside this is under investigation (both lines derive from the same `dt.Duration`, so it is likely a stale recollection — re-check on dev70).
-- **Subtitle-language picker gains Select All / Deselect All** — shown only when a title has more than one language; bulk-application sets the selection slice outright and suppresses/restores the per-language `OnChanged` callbacks (so `selectedSubtitleLangs` never accumulates duplicates), then persists config. Reuses the existing `RipSelectAll`/`RipDeselectAll` keys already shared with the Content Browser.
+- **Rip mode radio reworded** â€” "Full movie (main feature)" is now "**Main feature only**" and "Selected scenes" is "**Movie + extras (choose titles)**" (the scenes option is really title-by-title selection where every title starts checked, i.e. movie + extras). The radio stacks vertically instead of horizontally so the longer labels fit the narrow left column; "Main feature only" is still the default and first option.
+- **Content Browser title-card info line cleaned up** â€” the info line repeated the card header (T## + duration) and, with the `Â·` separators + word-wrap, dropped "1 audio" onto its own wrapped line. It is now a single compact, localized line of "N chapters Â· N audio Â· N subs" (singular/plural handled via new `RipTitleAudioOne/Many` + `RipTitleSubsOne/Many` i18n keys across en/fr/iu/iu_latin). `RipTitleCardFmt` dropped its T##/duration prefix â€” the highlighted header above owns the duration display. The 1h53m vs 1h54m discrepancy reported alongside this is under investigation (both lines derive from the same `dt.Duration`, so it is likely a stale recollection â€” re-check on dev70).
+- **Subtitle-language picker gains Select All / Deselect All** â€” shown only when a title has more than one language; bulk-application sets the selection slice outright and suppresses/restores the per-language `OnChanged` callbacks (so `selectedSubtitleLangs` never accumulates duplicates), then persists config. Reuses the existing `RipSelectAll`/`RipDeselectAll` keys already shared with the Content Browser.
 
 ## v0.1.1-dev69 (September 2026)
 
 ### VOB-Concat Stale-PTS Duration Cap
 
-- **Rip: concat-fallback output duration cap** — a grey-market disc rip completed via the dvdvideo→VOB-concat fallback but the produced MKV "was classed as 26hrs" while the real title was 30m23s (chapters ended at the title duration). The disc's second VOB carries a stale PTS offset: FFmpeg's concat + `-c copy` muxes a trailing phantom 32-byte video packet authored at ~+26h into the MKV, so the last-packet timestamp (95443.8 s) inflates the file's reported duration even though the real content is intact. The fallback now probes every VOB's duration (`probeDuration`) and caps the output with `-t ceil(Σ durations + 60s)` (new `RipArgs.MaxDuration`), stopping the muxer before those phantom-tail packets while preserving all real content; on healthy discs the cap sits above real content and changes nothing. Verified end-to-end on the reported disc (uncapped run reproduces 95443.815 s; capped run yields 1822.784 s, exit 0) and on the lying-IFO disc (the dev68 clamped 9-subtitle run still completes with the cap applied, all labels intact, nothing truncated).
+- **Rip: concat-fallback output duration cap** â€” a grey-market disc rip completed via the dvdvideoâ†’VOB-concat fallback but the produced MKV "was classed as 26hrs" while the real title was 30m23s (chapters ended at the title duration). The disc's second VOB carries a stale PTS offset: FFmpeg's concat + `-c copy` muxes a trailing phantom 32-byte video packet authored at ~+26h into the MKV, so the last-packet timestamp (95443.8 s) inflates the file's reported duration even though the real content is intact. The fallback now probes every VOB's duration (`probeDuration`) and caps the output with `-t ceil(Î£ durations + 60s)` (new `RipArgs.MaxDuration`), stopping the muxer before those phantom-tail packets while preserving all real content; on healthy discs the cap sits above real content and changes nothing. Verified end-to-end on the reported disc (uncapped run reproduces 95443.815 s; capped run yields 1822.784 s, exit 0) and on the lying-IFO disc (the dev68 clamped 9-subtitle run still completes with the cap applied, all labels intact, nothing truncated).
 
 ## v0.1.1-dev68 (September 2026)
 
 ### VOB-Concat Subtitle-Map Clamp for Lying-IFO Discs
 
-- **Rip: concat-fallback subtitle-map clamp** — some discs' IFOs advertise more subtitle languages than the VOBs carry physical subpicture streams for (grey-market/bootleg media). The per-stream `-map 0:s:<idx>` flags (dev64's per-language subtitle selection) then reference streams that don't exist and ffmpeg hard-fails the whole rip (`Stream map '0:s:N' matches no streams`). When the dvdvideo→VOB-concat fallback runs, the executor now probes the concat input's actual subtitle stream count (`probeSubtitleCount`) and clamps `SubtitleLangs`/`SubtitleSel` to the leading languages that exist, logging the drop ("VOB concatenation exposes N subtitle stream(s) (IFO advertised M) — dropping M−N trailing subtitle mapping(s)"). Verified end-to-end on a real 10-IFO-language/9-stream disc — the clamped command completes with the 9 present subtitle streams correctly labelled.
+- **Rip: concat-fallback subtitle-map clamp** â€” some discs' IFOs advertise more subtitle languages than the VOBs carry physical subpicture streams for (grey-market/bootleg media). The per-stream `-map 0:s:<idx>` flags (dev64's per-language subtitle selection) then reference streams that don't exist and ffmpeg hard-fails the whole rip (`Stream map '0:s:N' matches no streams`). When the dvdvideoâ†’VOB-concat fallback runs, the executor now probes the concat input's actual subtitle stream count (`probeSubtitleCount`) and clamps `SubtitleLangs`/`SubtitleSel` to the leading languages that exist, logging the drop ("VOB concatenation exposes N subtitle stream(s) (IFO advertised M) â€” dropping Mâˆ’N trailing subtitle mapping(s)"). Verified end-to-end on a real 10-IFO-language/9-stream disc â€” the clamped command completes with the 9 present subtitle streams correctly labelled.
 
 ## v0.1.1-dev67 (September 2026)
 
 ### Settings Keyboard-Nav Fix + Rip De-clutter + Default Rip Mode
 
-- **Settings keyboard navigation fixed** — the dev66 shortcuts were dead: the Fyne GLFW driver only synthesizes `desktop.CustomShortcut` when the modifier is non-zero (`internal/driver/glfw/window.go`), so unmodified PageUp/PageDown/Home/End never reached `canvas.AddShortcut`. The keys now dispatch through a focused 1×1 key-catcher widget (`settings.Options.KeyCatcher` — a `fyne.Focusable` + `desktop.Keyable` `settingsKeyNav` whose `TypedKey` serves every press including repeats), with canvas `desktop.Canvas` `SetOnKeyDown`/`SetOnKeyUp` as the fallback when nothing else has focus. Previous handlers are chained; keys are unregistered on leaving Settings.
-- **Rip: Disc Menu preview and in-app Rip Log removed** — tester-requested de-clutter so the Content Browser owns the full left-column height; rip activity/errors now surface only in the on-disk executor log. `menu_preview.go` deleted and `RipLog*`/`RipMenuPreview`/`RipPreserveMenus`/`RipLoadingMenu`/`RipNoMenuPlaceholder` i18n keys retired across en/fr/iu/iu_latin.
+- **Settings keyboard navigation fixed** â€” the dev66 shortcuts were dead: the Fyne GLFW driver only synthesizes `desktop.CustomShortcut` when the modifier is non-zero (`internal/driver/glfw/window.go`), so unmodified PageUp/PageDown/Home/End never reached `canvas.AddShortcut`. The keys now dispatch through a focused 1Ã—1 key-catcher widget (`settings.Options.KeyCatcher` â€” a `fyne.Focusable` + `desktop.Keyable` `settingsKeyNav` whose `TypedKey` serves every press including repeats), with canvas `desktop.Canvas` `SetOnKeyDown`/`SetOnKeyUp` as the fallback when nothing else has focus. Previous handlers are chained; keys are unregistered on leaving Settings.
+- **Rip: Disc Menu preview and in-app Rip Log removed** â€” tester-requested de-clutter so the Content Browser owns the full left-column height; rip activity/errors now surface only in the on-disk executor log. `menu_preview.go` deleted and `RipLog*`/`RipMenuPreview`/`RipPreserveMenus`/`RipLoadingMenu`/`RipNoMenuPlaceholder` i18n keys retired across en/fr/iu/iu_latin.
 - **Rip: "Full movie (main feature)" is now the default and first rip-mode radio option** (was "Selected scenes"); deselecting re-selects Main Feature.
 
 ## v0.1.1-dev64 (September 2026)
 
 ### Rip Modes + Per-Language Subtitle Selection + Convert SMPTE-Idle Restore
 
-- **Rip mode selection (Selected scenes / Full movie)** — a horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip of the longest title (one job through the existing per-title executor path with `extractMode "main"`; falls back to executor defaults when there is no scan result). Hidden while PAL↔NTSC conversion forces full-disc extraction. The readiness line reads "Ready to rip main feature: Title N · duration".
-- **Per-language subtitle selection** — the single "Include subtitles" checkbox becomes one checkbox per subtitle language on the main title. Selected languages map to per-stream `-map 0:s:<index>` arguments (VOBSUB pairs stay together), so only the selected languages are muxed into the output. Legacy configs (no recorded selection) default to all languages.
-- **Scan-as-you-go disc snippets** — the disc scan emits facts incrementally (region · type · title count, per-title `T0N duration · ch · audio · subs` lines, video standard) and the DiscSummary scanning state shows them as they are discovered.
-- **Convert SMPTE-idle restore** — visiting another module and returning to Convert via the menu re-showed the previous module's last frame instead of idle SMPTE bars. `InlineVideoPlayer` gained `CurrentPath()`, `Close()` now clears it, and `showConvertView` resets the shared primary player unless it already shows the convert source.
+- **Rip mode selection (Selected scenes / Full movie)** â€” a horizontal radio under the subtitle checkbox switches between per-title "Selected scenes" rips and a single "Full movie (main feature)" rip of the longest title (one job through the existing per-title executor path with `extractMode "main"`; falls back to executor defaults when there is no scan result). Hidden while PALâ†”NTSC conversion forces full-disc extraction. The readiness line reads "Ready to rip main feature: Title N Â· duration".
+- **Per-language subtitle selection** â€” the single "Include subtitles" checkbox becomes one checkbox per subtitle language on the main title. Selected languages map to per-stream `-map 0:s:<index>` arguments (VOBSUB pairs stay together), so only the selected languages are muxed into the output. Legacy configs (no recorded selection) default to all languages.
+- **Scan-as-you-go disc snippets** â€” the disc scan emits facts incrementally (region Â· type Â· title count, per-title `T0N duration Â· ch Â· audio Â· subs` lines, video standard) and the DiscSummary scanning state shows them as they are discovered.
+- **Convert SMPTE-idle restore** â€” visiting another module and returning to Convert via the menu re-showed the previous module's last frame instead of idle SMPTE bars. `InlineVideoPlayer` gained `CurrentPath()`, `Close()` now clears it, and `showConvertView` resets the shared primary player unless it already shows the convert source.
 
 ## v0.1.1-dev66 (September 2026)
 
 ### Settings Keyboard Navigation + Updater Messaging
 
-- **Settings keyboard navigation** — PageUp / PageDown scroll the active Settings tab (Preferences/Dependencies/Benchmark) by one viewport; Home jumps to the top, End to the bottom. Each tab stays a `ui.NewFastVScroll`; a new `settings.Options.ActiveScroll` resolver captures the visible tab via `tabs.OnSelected`, and canvas shortcuts (`desktop.CustomShortcut`, registered only while the settings module is on screen and removed on the way out) drive `ScrollBy`. 480px viewport fallback when the container reports no height; ±1e6 deltas clamp Home/End.
-- **Updater error-message hardening** — the update check dialog now explains what actually went wrong instead of a bare network detail: connection/timeout failures, GitHub API 403 rate-limits ("wait about an hour"), releases not yet published (404), and missing platform assets all get distinct, actionable text. Raw errors are logged under `CatSystem`. The stale "PATCHed on every nightly run" comment in `fetchUpdateInfo` is corrected.
+- **Settings keyboard navigation** â€” PageUp / PageDown scroll the active Settings tab (Preferences/Dependencies/Benchmark) by one viewport; Home jumps to the top, End to the bottom. Each tab stays a `ui.NewFastVScroll`; a new `settings.Options.ActiveScroll` resolver captures the visible tab via `tabs.OnSelected`, and canvas shortcuts (`desktop.CustomShortcut`, registered only while the settings module is on screen and removed on the way out) drive `ScrollBy`. 480px viewport fallback when the container reports no height; Â±1e6 deltas clamp Home/End.
+- **Updater error-message hardening** â€” the update check dialog now explains what actually went wrong instead of a bare network detail: connection/timeout failures, GitHub API 403 rate-limits ("wait about an hour"), releases not yet published (404), and missing platform assets all get distinct, actionable text. Raw errors are logged under `CatSystem`. The stale "PATCHed on every nightly run" comment in `fetchUpdateInfo` is corrected.
 
 ## v0.1.1-dev65 (September 2026, released 2026-09-07)
 
 ### Rip Refinement Follow-up (vertical-space layout pass + Load Disc)
 
-- **Rip vertical-space layout pass** — the Content Browser (title list) is the flexible region of the left column but was starved by fixed-height consumers. The Rip Log is now a collapsed-by-default strip (VSplit offset 0.97, only the LOG pill control visible; expands to a bounded ~28% at 0.72; auto-opens on rip activity/errors via the new `SetRipLogExpand` hook) and the Disc Menu preview collapses to a ~40px strip until a menu frame loads (Preserve/Main check row hidden; Clear ISO resets it). The title list reclaims the freed height with no row/typography changes or 55/45 HSplit touch.
-- **Rip: load disc directly from an optical drive** — a new LOAD DISC button in the rip Source row detects optical drives (reuses the burn module's `detectOpticalDrives`), asks which one when several are present (radio custom-confirm dialog), resolves the disc's `VIDEO_TS` folder (Windows drive letter / Linux mount point from `/proc/mounts`), and feeds the normal load/scan/rip path. New i18n keys `RipLoadDisc`/`RipErrNoDrive`/`RipErrNoDVD`/`RipDriveNotMounted`/`RipSelectDriveTitle` (en/fr/iu/iu_latin). Design: `docs/RIP_LOAD_DISC.md`.
+- **Rip vertical-space layout pass** â€” the Content Browser (title list) is the flexible region of the left column but was starved by fixed-height consumers. The Rip Log is now a collapsed-by-default strip (VSplit offset 0.97, only the LOG pill control visible; expands to a bounded ~28% at 0.72; auto-opens on rip activity/errors via the new `SetRipLogExpand` hook) and the Disc Menu preview collapses to a ~40px strip until a menu frame loads (Preserve/Main check row hidden; Clear ISO resets it). The title list reclaims the freed height with no row/typography changes or 55/45 HSplit touch.
+- **Rip: load disc directly from an optical drive** â€” a new LOAD DISC button in the rip Source row detects optical drives (reuses the burn module's `detectOpticalDrives`), asks which one when several are present (radio custom-confirm dialog), resolves the disc's `VIDEO_TS` folder (Windows drive letter / Linux mount point from `/proc/mounts`), and feeds the normal load/scan/rip path. New i18n keys `RipLoadDisc`/`RipErrNoDrive`/`RipErrNoDVD`/`RipDriveNotMounted`/`RipSelectDriveTitle` (en/fr/iu/iu_latin). Design: `docs/RIP_LOAD_DISC.md`.
 
 ## v0.1.1-dev63 (September 2026)
 
 ### Base Cycle + dev62 Follow-up Patches
 
-- **Convert/Filters/Upscale metadata-panel fold bug fixed (all three modules)** — the metadata panel folded away its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel` (folding hid the whole panel, so it could never be re-expanded). The header row now stays visible and only the body hides; `buildMetadataPanel` gained an `initiallyOpen` param and the caller's `onToggle` no longer Show()/Hide()s the whole panel (it only persists the open state and adjusts the split offset). Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open.
-- **Rip ISO-load scanning-state bug fixed** — `loadDisc` called `SetScanning()` before `rebuildEnrich()`, which calls `updateDiscInfo()` and renders `SetEmpty()` for a nil scan result, clobbering the scanning state. `SetScanning()` now runs after the enrich rebuild so the card actually shows "Reading disc information" while an ISO/folder scan is in flight.
+- **Convert/Filters/Upscale metadata-panel fold bug fixed (all three modules)** â€” the metadata panel folded away its tappable `METADATA` header because `metaHeader` lived inside the hidden `metaPanel` (folding hid the whole panel, so it could never be re-expanded). The header row now stays visible and only the body hides; `buildMetadataPanel` gained an `initiallyOpen` param and the caller's `onToggle` no longer Show()/Hide()s the whole panel (it only persists the open state and adjusts the split offset). Convert honours `state.convert.MetadataOpen`; Filters/Upscale default open.
+- **Rip ISO-load scanning-state bug fixed** â€” `loadDisc` called `SetScanning()` before `rebuildEnrich()`, which calls `updateDiscInfo()` and renders `SetEmpty()` for a nil scan result, clobbering the scanning state. `SetScanning()` now runs after the enrich rebuild so the card actually shows "Reading disc information" while an ISO/folder scan is in flight.
 
 ### Dev62 Patches (reported after release, landed here)
 
 - See dev62 section below for the released layout-correction pass; the above two items are the follow-up fixes requested for what the tester saw.
-- **ISO scan hardening (dev63)** — the scan goroutine now runs through `runISOScan`: a panic in the UDF reader (malformed descriptor lengths, bad `pageLen` in `parseFIDs`) converts to a visible `SetError` instead of killing the whole process or leaving the card stuck at "No disc loaded", and start/done/failure are logged under `CatDVD` so a stalled image is diagnosable. Re-entering the rip module also re-triggers the scan for a previously chosen source path (the view builds a fresh scan state each entry, which previously left the restored path showing "No disc loaded" until browsed again).
+- **ISO scan hardening (dev63)** â€” the scan goroutine now runs through `runISOScan`: a panic in the UDF reader (malformed descriptor lengths, bad `pageLen` in `parseFIDs`) converts to a visible `SetError` instead of killing the whole process or leaving the card stuck at "No disc loaded", and start/done/failure are logged under `CatDVD` so a stalled image is diagnosable. Re-entering the rip module also re-triggers the scan for a previously chosen source path (the view builds a fresh scan state each entry, which previously left the restored path showing "No disc loaded" until browsed again).
 
 ## v0.1.1-dev62 (September 2026)
 
 ### Rip Layout Correction Pass
 
-- **Giant action-button band fixed (root cause)** — the readiness label had `TextWrapWord` inside an HBox. Fyne HBox children stretch to the container's height, and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall — so the action bar grew into a huge band, `PillButton` (which fills whatever size it is given) stretched into tall boxes, the right column was clipped behind it, and the same label rendered one-character-per-line ("Load a disc to begin."). The bar is now a Border: buttons in the right edge at natural height, label as the centre with ellipsis truncation.
-- **DiscSummary compact empty state** — tech/main-feature rows are hidden in empty/scanning/error states (hidden rows contribute no MinSize, so the card collapses to title + hint); title label uses the `Truncation` field instead of a `TextTruncate` value assigned to `Wrapping`.
-- **MenuPreview bounded empty state** — `NO MENU FOUND` collapses to a 40px strip (the hidden 16:9 menu image no longer contributes MinSize in the stack); the full 280×158 preview returns when a menu loads.
-- **ContentBrowser empty-state hint** — a centred "Load an ISO or VIDEO_TS folder to begin." overlays the flexible title-list region and hides once titles load, so the empty left column reads as intentional rather than a blank void.
-- dev61→dev62 is the first end-to-end exercise of the fixed in-app updater.
+- **Giant action-button band fixed (root cause)** â€” the readiness label had `TextWrapWord` inside an HBox. Fyne HBox children stretch to the container's height, and a wrapping label collapses to its narrowest word-boundary width then re-measures multi-line tall â€” so the action bar grew into a huge band, `PillButton` (which fills whatever size it is given) stretched into tall boxes, the right column was clipped behind it, and the same label rendered one-character-per-line ("Load a disc to begin."). The bar is now a Border: buttons in the right edge at natural height, label as the centre with ellipsis truncation.
+- **DiscSummary compact empty state** â€” tech/main-feature rows are hidden in empty/scanning/error states (hidden rows contribute no MinSize, so the card collapses to title + hint); title label uses the `Truncation` field instead of a `TextTruncate` value assigned to `Wrapping`.
+- **MenuPreview bounded empty state** â€” `NO MENU FOUND` collapses to a 40px strip (the hidden 16:9 menu image no longer contributes MinSize in the stack); the full 280Ã—158 preview returns when a menu loads.
+- **ContentBrowser empty-state hint** â€” a centred "Load an ISO or VIDEO_TS folder to begin." overlays the flexible title-list region and hides once titles load, so the empty left column reads as intentional rather than a blank void.
+- dev61â†’dev62 is the first end-to-end exercise of the fixed in-app updater.
 
 ## v0.1.1-dev61 (September 2026)
 
 ### Rip Density Refinement + Global Header Migration
 
-- **Two-column rip workspace** — the dev58 rip overhaul read as one long vertical scroll. Now a 55/45 HSplit: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as the flexible center with internal scroll), RIGHT = PROCESSING (Format + enrichment, Output, Status), with SOURCE spanning the top and the action bar (readiness line left, Add to Queue / Open in Player / RIP NOW right) spanning the bottom above the log.
-- **`ui.SectionBox` shared component** — compact 28px teal-accent header, navy body, optional header actions that don't grow the header. Replaces the per-module `buildXxxBox` duplication across the rip module plus 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + trim stub); trim's `*fyne.Container` return loosened to `fyne.CanvasObject`; audio's dead shadowed package-level helper removed.
-- **Density passes** — section gaps 10px→6px, title thumbnails 80×60→56×42, menu preview 320×180→280×158, OUTPUT PATH demoted from a coloured SectionBox to a plain bold subsection label, DiscSummary empty-state spacer removed so the card keeps natural height. Build + vet + gofmt green across all 9 commits.
+- **Two-column rip workspace** â€” the dev58 rip overhaul read as one long vertical scroll. Now a 55/45 HSplit: LEFT = CONTENT (DiscSummary pinned top, MenuPreview pinned bottom, title list as the flexible center with internal scroll), RIGHT = PROCESSING (Format + enrichment, Output, Status), with SOURCE spanning the top and the action bar (readiness line left, Add to Queue / Open in Player / RIP NOW right) spanning the bottom above the log.
+- **`ui.SectionBox` shared component** â€” compact 28px teal-accent header, navy body, optional header actions that don't grow the header. Replaces the per-module `buildXxxBox` duplication across the rip module plus 7 other module helpers (audio/upscale/thumbnail/inspect/compare/filters/trim + trim stub); trim's `*fyne.Container` return loosened to `fyne.CanvasObject`; audio's dead shadowed package-level helper removed.
+- **Density passes** â€” section gaps 10pxâ†’6px, title thumbnails 80Ã—60â†’56Ã—42, menu preview 320Ã—180â†’280Ã—158, OUTPUT PATH demoted from a coloured SectionBox to a plain bold subsection label, DiscSummary empty-state spacer removed so the card keeps natural height. Build + vet + gofmt green across all 9 commits.
 
 ### In-App Updater Fixed
 
-- **Install Update always failed** — `fetchReleaseAssetURL` looked for assets ending `_windows.zip`/`_linux.zip`, but CI publishes `VideoTools_vX.Y.Z-devN_windows_amd64.zip`/`_linux_amd64.tar.gz`, so every install attempt died with "no compatible asset found in release" before downloading anything. Suffix now matches the real artifact names. From dev61 onward in-app updates work; dev60-and-older binaries still carry the bug, so dev61 is the last manual download.
-- **Known updater follow-ups (flagged in TODO)** — release builds don't bake `buildCommit` via ldflags, so the same-tag patch-detection path is dead (`patchesAvailable` always false); Linux has no tar.gz extraction path; the "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` is stale (no such job exists).
+- **Install Update always failed** â€” `fetchReleaseAssetURL` looked for assets ending `_windows.zip`/`_linux.zip`, but CI publishes `VideoTools_vX.Y.Z-devN_windows_amd64.zip`/`_linux_amd64.tar.gz`, so every install attempt died with "no compatible asset found in release" before downloading anything. Suffix now matches the real artifact names. From dev61 onward in-app updates work; dev60-and-older binaries still carry the bug, so dev61 is the last manual download.
+- **Known updater follow-ups (flagged in TODO)** â€” release builds don't bake `buildCommit` via ldflags, so the same-tag patch-detection path is dead (`patchesAvailable` always false); Linux has no tar.gz extraction path; the "target_commitish is PATCHed on every nightly run" comment in `fetchUpdateInfo` is stale (no such job exists).
 
 ## v0.1.1-dev60 (September 2026)
 
-### Release Cut — dev59 content + CI FFmpeg Build Resilience
+### Release Cut â€” dev59 content + CI FFmpeg Build Resilience
 
-- **dev59's GitHub Release was never published; its content ships here as dev60.** dev59 was tagged at `a188ed7c`, but the tag release run had its `release` job **skipped**: the windows FFmpeg cold build red'd on a transient source-download flake, `softprops/action-gh-release` needs `[linux, windows]`, and GitHub's "Re-run failed jobs" does not re-run **skipped** jobs — so the publish step never fired and `v0.1.1-dev58` remained latest. The dev59 content below (rip crash fix, Codeberg retirement, blocked-straggler cleanup) plus the CI resilience shipped here instead, cut from the hardened `07a10c03` where the tag pipeline uses the retry-enabled workflow.
-- **CI FFmpeg build resilience** — all five cache steps (dev/release × linux/windows, msix) gained `restore-keys` so a new tag reuses the previous tag's cached FFmpeg build; `curl` source downloads retry (`--retry 3 --retry-delay 5 --retry-all-errors`) and msix `wget` retries (`--tries=5 --retry-connrefused --waitretry=5`). release run #14 + MSIX #19 red'd on a transient cold-build source flake while dev #65 "passed" purely via cache hit — dev-status was not evidence the cold build path was healthy.
-- **dev60 release published 2026-09-02** — both platform assets live (windows_amd64.zip 58.3 MB, linux_amd64.tar.gz 27.4 MB) at https://github.com/LeakTechnologies/VideoTools/releases/tag/v0.1.1-dev60; the tag run's cold FFmpeg builds went green on both platforms.
-- **MSIX dvdread/ffmpeg configure fixed** — `Setup static FFmpeg (Windows)` failed twice (`dvdread` not found at libdvdnav configure) because the msix step set **no `PKG_CONFIG_PATH`**: `dvdread.pc` was written to `/c/ffmpeg-static/lib/pkgconfig` but pkg-config never searched that dir, and the `.pc` copy to `/ucrt64/lib/pkgconfig` ran only after configure had already failed. dev/release carry `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig`; msix did not. Added the export plus a `pkg-config --exists dvdread` guard, matching dev/release.
+- **dev59's GitHub Release was never published; its content ships here as dev60.** dev59 was tagged at `aa73122b`, but the tag release run had its `release` job **skipped**: the windows FFmpeg cold build red'd on a transient source-download flake, `softprops/action-gh-release` needs `[linux, windows]`, and GitHub's "Re-run failed jobs" does not re-run **skipped** jobs â€” so the publish step never fired and `v0.1.1-dev58` remained latest. The dev59 content below (rip crash fix, Codeberg retirement, blocked-straggler cleanup) plus the CI resilience shipped here instead, cut from the hardened `0166aa61` where the tag pipeline uses the retry-enabled workflow.
+- **CI FFmpeg build resilience** â€” all five cache steps (dev/release Ã— linux/windows, msix) gained `restore-keys` so a new tag reuses the previous tag's cached FFmpeg build; `curl` source downloads retry (`--retry 3 --retry-delay 5 --retry-all-errors`) and msix `wget` retries (`--tries=5 --retry-connrefused --waitretry=5`). release run #14 + MSIX #19 red'd on a transient cold-build source flake while dev #65 "passed" purely via cache hit â€” dev-status was not evidence the cold build path was healthy.
+- **dev60 release published 2026-09-02** â€” both platform assets live (windows_amd64.zip 58.3 MB, linux_amd64.tar.gz 27.4 MB) at https://github.com/LeakTechnologies/VideoTools/releases/tag/v0.1.1-dev60; the tag run's cold FFmpeg builds went green on both platforms.
+- **MSIX dvdread/ffmpeg configure fixed** â€” `Setup static FFmpeg (Windows)` failed twice (`dvdread` not found at libdvdnav configure) because the msix step set **no `PKG_CONFIG_PATH`**: `dvdread.pc` was written to `/c/ffmpeg-static/lib/pkgconfig` but pkg-config never searched that dir, and the `.pc` copy to `/ucrt64/lib/pkgconfig` ran only after configure had already failed. dev/release carry `export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig`; msix did not. Added the export plus a `pkg-config --exists dvdread` guard, matching dev/release.
 
-## v0.1.1-dev59 (September 2026 — content shipped as dev60)
+## v0.1.1-dev59 (September 2026 â€” content shipped as dev60)
 
-### Crash Fix — Rip Module Opening
+### Crash Fix â€” Rip Module Opening
 
-- **Rip view panics immediately on open** — `internal/app/modules/rip/view.go` assigned `updateDiscInfo` (the DiscSummary update closure) **after** the initial `rebuildEnrich()` call, but `rebuildEnrich` calls `updateDiscInfo()` during that first render. The nil closure panic bypassed `setContent`'s recover (the panic fired while `buildRipView()` was being evaluated as an argument, before the recover was armed), so the process died silently with no `crashes.log` entry — only the `showModule: dispatching to module handler for rip` line in `videotools.log`. Fixed by assigning `discSummary`/`updateDiscInfo` before the initial `rebuildEnrich()`; also added a `showRipView` recover that logs a full stack trace to `crashes.log` before re-panicking, so any future rip-view build failure is traceable. Bonus: found the bug by reading the log the user reported (`videotools.log` stops right after the rip dispatch line).
+- **Rip view panics immediately on open** â€” `internal/app/modules/rip/view.go` assigned `updateDiscInfo` (the DiscSummary update closure) **after** the initial `rebuildEnrich()` call, but `rebuildEnrich` calls `updateDiscInfo()` during that first render. The nil closure panic bypassed `setContent`'s recover (the panic fired while `buildRipView()` was being evaluated as an argument, before the recover was armed), so the process died silently with no `crashes.log` entry â€” only the `showModule: dispatching to module handler for rip` line in `videotools.log`. Fixed by assigning `discSummary`/`updateDiscInfo` before the initial `rebuildEnrich()`; also added a `showRipView` recover that logs a full stack trace to `crashes.log` before re-panicking, so any future rip-view build failure is traceable. Bonus: found the bug by reading the log the user reported (`videotools.log` stops right after the rip dispatch line).
 
-### CI — FFmpeg Build Resilience
+### CI â€” FFmpeg Build Resilience
 
-- **Tag builds no longer force a cold FFmpeg rebuild** — release/MSIX jobs cache under `ffmpeg-release-${{ runner.os }}-v10` with no `restore-keys`, so a fresh tag ref missed the cache and rebuilt FFmpeg from source every time (~16 min), and a transient source-download flake red'd the whole pipeline. All five cache steps (dev/release × linux/windows, msix) now define `restore-keys: <key-prefix>-` so each new tag reuses the previous tag's cached FFmpeg build. dev #65 had "passed" only by cache-hit luck (3m25s, build skipped) while release #14 and MSIX #19 died in the actual cold build — dev-status was not evidence the FFmpeg path was healthy.
-- **Source downloads retry on transient failure** — the `curl` downloads (ffmpeg.org `.tar.xz`/`.tar.bz2`, videolan.org libdvdread/libdvdnav `.tar.bz2`) got `--retry 3 --retry-delay 5 --retry-all-errors` and the msix `wget` calls got `--tries=5 --retry-connrefused --waitretry=5`. A one-off runner-side network blip (verified: mirrors answered HTTP 200 in <600 ms immediately after the failures) no longer reds the FFmpeg build.
+- **Tag builds no longer force a cold FFmpeg rebuild** â€” release/MSIX jobs cache under `ffmpeg-release-${{ runner.os }}-v10` with no `restore-keys`, so a fresh tag ref missed the cache and rebuilt FFmpeg from source every time (~16 min), and a transient source-download flake red'd the whole pipeline. All five cache steps (dev/release Ã— linux/windows, msix) now define `restore-keys: <key-prefix>-` so each new tag reuses the previous tag's cached FFmpeg build. dev #65 had "passed" only by cache-hit luck (3m25s, build skipped) while release #14 and MSIX #19 died in the actual cold build â€” dev-status was not evidence the FFmpeg path was healthy.
+- **Source downloads retry on transient failure** â€” the `curl` downloads (ffmpeg.org `.tar.xz`/`.tar.bz2`, videolan.org libdvdread/libdvdnav `.tar.bz2`) got `--retry 3 --retry-delay 5 --retry-all-errors` and the msix `wget` calls got `--tries=5 --retry-connrefused --waitretry=5`. A one-off runner-side network blip (verified: mirrors answered HTTP 200 in <600 ms immediately after the failures) no longer reds the FFmpeg build.
 
 ### Blocked-Straggler Cleanup
 
-- **Upscale legacy render-based dual player removed** — `OnDualPlayerSeek`/`OnDualPlayerRender` (`internal/app/modules/upscale/types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` + `native_media_stub.go`) had no consumer: the module's dual-pane uses the modern `InlineVideoPlayer` `SetPeer` model (mirrors play/pause/seek + re-applies the filter pipeline), so the legacy render API was dead surface. Deleted instead of implemented. `time` imports cleaned from all three files.
-- **Local Windows builds unblocked** — new `scripts/windows/dev-verify.ps1` sets `CGO_ENABLED=1`, `CGO_LDFLAGS_ALLOW=-Wl,.*` and a quoted gcc/g++, then runs `go build -tags native_media ./...` + `go vet ./...`. Same environment CI uses; bare `go build` on Windows was silently blocked at the CGo gate by the `-Wl,--stack,4194304` LDFLAG. AGENTS.md Verification Discipline now points at it.
-- **Stale blocker documentation retired** — AGENTS.md "Blocked stragglers" section and the `renderDualPlayerPreview` priority row removed. `PillIconButton.SetIcon` has existed since dev48 (the "lacks dynamic SetIcon" blocker note was wrong — the convert transport icons keep their green-square custom styling by design, not because the API was missing). The `utils → ui → benchmark → utils` import cycle was already resolved when `MakeIconButton` reverted to the plain `widget.NewButton` body.
+- **Upscale legacy render-based dual player removed** â€” `OnDualPlayerSeek`/`OnDualPlayerRender` (`internal/app/modules/upscale/types.go`) and the `renderDualPlayerPreview` no-op stub (`native_media.go` + `native_media_stub.go`) had no consumer: the module's dual-pane uses the modern `InlineVideoPlayer` `SetPeer` model (mirrors play/pause/seek + re-applies the filter pipeline), so the legacy render API was dead surface. Deleted instead of implemented. `time` imports cleaned from all three files.
+- **Local Windows builds unblocked** â€” new `scripts/windows/dev-verify.ps1` sets `CGO_ENABLED=1`, `CGO_LDFLAGS_ALLOW=-Wl,.*` and a quoted gcc/g++, then runs `go build -tags native_media ./...` + `go vet ./...`. Same environment CI uses; bare `go build` on Windows was silently blocked at the CGo gate by the `-Wl,--stack,4194304` LDFLAG. AGENTS.md Verification Discipline now points at it.
+- **Stale blocker documentation retired** â€” AGENTS.md "Blocked stragglers" section and the `renderDualPlayerPreview` priority row removed. `PillIconButton.SetIcon` has existed since dev48 (the "lacks dynamic SetIcon" blocker note was wrong â€” the convert transport icons keep their green-square custom styling by design, not because the API was missing). The `utils â†’ ui â†’ benchmark â†’ utils` import cycle was already resolved when `MakeIconButton` reverted to the plain `widget.NewButton` body.
 
 ## v0.1.1-dev58 (August 2026)
 
 ### Rip Module Overhaul (UX)
 
-- **Linear SOURCE→DISC→TITLES→OUTPUT→ACTION workflow** — the old two-panel split (Content Browser dominating the screen) is replaced by a single vertical flow: Source box → Disc summary → Content Browser (reused as the TITLES section) → Format → Menu preview → Output → Action box. The discard-heavy browsing pane no longer owns the screen.
-- **Disc info populates reliably on load** — two fixes behind it. (1) `ScanDisc` read a per-VTS cache entry before the cache was populated, so `VideoStandard` was never set and NTSC/PAL never surfaced; the standard is now derived from the first title's VTS after the loop (real disc verified: DVD-9, PAL, Region Free, 4 titles). (2) The disc summary is decoupled from the heavier enrichment rebuild into a dedicated `updateDiscInfo()` that runs on scan completion, so a partial enrichment failure can never hide disc info.
-- **Dedicated `DiscSummary` card** — explicit empty / scanning / scanned / error states, showing type · standard · region · size · title count, plus ★ Main Feature (the longest title). Scrollable with the rest of the flow, not an afterthought label.
-- **Advanced accordion** — common output options (chapters, audio, subtitles) stay first-class; uncommon ones (Preserve menus as separate files, PAL≠NTSC conversion, full-disc extraction with IFO regeneration) are grouped under an Advanced accordion. Format-aware visibility preserved (lossless/archivist formats still hide region/full-disc controls).
-- **Readiness line + action area** — "Ready to rip N title(s)" (or a load/selection prompt) updates on scan completion and per-title selection change, driving RIP NOW / Add to Queue / Open in Player in a dedicated action box.
-- **Compact log** — the rip log is now a collapsible strip (default 0.92 offset, ▼/▶ LOG toggle) rather than a full-height pane.
-- **i18n pass** — every hardcoded rip label, option, dialog, and region string ("Embed chapters", "All audio tracks", "Include subtitles", "Preserve menus (separate files)", "Full disc extraction", "Region Conversion", "Advanced", "Loading menu...", "Region Free/Region N/Regions N...") moved into `internal/i18n` across en/fr/iu/iu_latin.
+- **Linear SOURCEâ†’DISCâ†’TITLESâ†’OUTPUTâ†’ACTION workflow** â€” the old two-panel split (Content Browser dominating the screen) is replaced by a single vertical flow: Source box â†’ Disc summary â†’ Content Browser (reused as the TITLES section) â†’ Format â†’ Menu preview â†’ Output â†’ Action box. The discard-heavy browsing pane no longer owns the screen.
+- **Disc info populates reliably on load** â€” two fixes behind it. (1) `ScanDisc` read a per-VTS cache entry before the cache was populated, so `VideoStandard` was never set and NTSC/PAL never surfaced; the standard is now derived from the first title's VTS after the loop (real disc verified: DVD-9, PAL, Region Free, 4 titles). (2) The disc summary is decoupled from the heavier enrichment rebuild into a dedicated `updateDiscInfo()` that runs on scan completion, so a partial enrichment failure can never hide disc info.
+- **Dedicated `DiscSummary` card** â€” explicit empty / scanning / scanned / error states, showing type Â· standard Â· region Â· size Â· title count, plus â˜… Main Feature (the longest title). Scrollable with the rest of the flow, not an afterthought label.
+- **Advanced accordion** â€” common output options (chapters, audio, subtitles) stay first-class; uncommon ones (Preserve menus as separate files, PALâ‰ NTSC conversion, full-disc extraction with IFO regeneration) are grouped under an Advanced accordion. Format-aware visibility preserved (lossless/archivist formats still hide region/full-disc controls).
+- **Readiness line + action area** â€” "Ready to rip N title(s)" (or a load/selection prompt) updates on scan completion and per-title selection change, driving RIP NOW / Add to Queue / Open in Player in a dedicated action box.
+- **Compact log** â€” the rip log is now a collapsible strip (default 0.92 offset, â–¼/â–¶ LOG toggle) rather than a full-height pane.
+- **i18n pass** â€” every hardcoded rip label, option, dialog, and region string ("Embed chapters", "All audio tracks", "Include subtitles", "Preserve menus (separate files)", "Full disc extraction", "Region Conversion", "Advanced", "Loading menu...", "Region Free/Region N/Regions N...") moved into `internal/i18n` across en/fr/iu/iu_latin.
 
 ## v0.1.1-dev57 (August 2026)
 
-- **Release cut after dvdvideo detection fixes.** dev56 is closed and shipped as `v0.1.1-dev57`: the CI verify grep and the rip `SupportsDVDVideo()` runtime probe both used the spaced long name `"DVD video demuxer"` (real long_name is `DVD-Video`, hyphenated), so a correct build always failed the FATAL gate and every rip silently fell back to VOB concat. Both now match the `dvdvideo` short name — Windows CI green (`69ec8610`), runtime probe green (verified against a real FFmpeg 8.1 binary), and cell-accurate dvdvideo rips finally activate.
-- **CI: dvdread.pc fail-fast guard** — libdvdread's `make install` intermittently drops `dvdread.pc`, surfacing confusingly ~10 minutes later at FFmpeg configure as `Package 'dvdread' not found`. All three Windows workflows (dev, release, msix) now check `dvdread.pc` existence and pkg-config visibility (dev/release) right after the dvdread install and fail fast with a clear message and a dump of the pkgconfig dir. Verification-only, no cache-key bump.
-- **Rip: dvdvideo → VOB concat runtime fallback** — the dvdvideo demuxer (libdvdnav/libdvdread) rejects some sources that concat handles fine, e.g. a nonzero reserved root-IFO field ("Zero check failed ... vmgi_mat->zero_3") or a plain folder extract with no CSS auth. A dvdvideo rip previously hard-failed with "Error opening input file". `Execute` now builds the concat list up-front and retries with VOB concat when the dvdvideo attempt fails (skipped on user cancellation); chapter/audio/subtitle enrichment is preserved. Verified on a real source folder where dvdvideo fails and concat succeeds.
-- **Rip: disc-info panel populates reliably on load** — two fixes. (1) `ScanDisc` never set `VideoStandard` because it read a per-VTS cache entry *before* the cache was populated (that dev56 entry above was aspirational — the disc-info label never actually showed NTSC/PAL); the standard is now derived from the first title's VTS after the loop. (2) The disc summary is decoupled from the heavier enrichment rebuild into a dedicated `updateDiscInfo()` that runs on scan completion and shows type · standard · region · size · title count, plus a scanning/error state, so a partial enrichment failure can never hide disc info.
+- **Release cut after dvdvideo detection fixes.** dev56 is closed and shipped as `v0.1.1-dev57`: the CI verify grep and the rip `SupportsDVDVideo()` runtime probe both used the spaced long name `"DVD video demuxer"` (real long_name is `DVD-Video`, hyphenated), so a correct build always failed the FATAL gate and every rip silently fell back to VOB concat. Both now match the `dvdvideo` short name â€” Windows CI green (`eab76992`), runtime probe green (verified against a real FFmpeg 8.1 binary), and cell-accurate dvdvideo rips finally activate.
+- **CI: dvdread.pc fail-fast guard** â€” libdvdread's `make install` intermittently drops `dvdread.pc`, surfacing confusingly ~10 minutes later at FFmpeg configure as `Package 'dvdread' not found`. All three Windows workflows (dev, release, msix) now check `dvdread.pc` existence and pkg-config visibility (dev/release) right after the dvdread install and fail fast with a clear message and a dump of the pkgconfig dir. Verification-only, no cache-key bump.
+- **Rip: dvdvideo â†’ VOB concat runtime fallback** â€” the dvdvideo demuxer (libdvdnav/libdvdread) rejects some sources that concat handles fine, e.g. a nonzero reserved root-IFO field ("Zero check failed ... vmgi_mat->zero_3") or a plain folder extract with no CSS auth. A dvdvideo rip previously hard-failed with "Error opening input file". `Execute` now builds the concat list up-front and retries with VOB concat when the dvdvideo attempt fails (skipped on user cancellation); chapter/audio/subtitle enrichment is preserved. Verified on a real source folder where dvdvideo fails and concat succeeds.
+- **Rip: disc-info panel populates reliably on load** â€” two fixes. (1) `ScanDisc` never set `VideoStandard` because it read a per-VTS cache entry *before* the cache was populated (that dev56 entry above was aspirational â€” the disc-info label never actually showed NTSC/PAL); the standard is now derived from the first title's VTS after the loop. (2) The disc summary is decoupled from the heavier enrichment rebuild into a dedicated `updateDiscInfo()` that runs on scan completion and shows type Â· standard Â· region Â· size Â· title count, plus a scanning/error state, so a partial enrichment failure can never hide disc info.
 
 ## v0.1.1-dev56 (August 2026)
 
-### Rip Module — NTSC/PAL Video Standard Detection
+### Rip Module â€” NTSC/PAL Video Standard Detection
 
-- **Video standard detected on disc load** — `DiscScanResult.VideoStandard` is now set to `"NTSC"` or `"PAL"` from the first title's VTS IFO PGC frame-rate bits (the `IsNTSC` flag was already extracted by the IFO layer but never surfaced). Displayed in the disc-info label: `DVD-9 · NTSC · Region 1 · 7.2 GB`.
+- **Video standard detected on disc load** â€” `DiscScanResult.VideoStandard` is now set to `"NTSC"` or `"PAL"` from the first title's VTS IFO PGC frame-rate bits (the `IsNTSC` flag was already extracted by the IFO layer but never surfaced). Displayed in the disc-info label: `DVD-9 Â· NTSC Â· Region 1 Â· 7.2 GB`.
 
-### CI — Windows FFmpeg Build Fixes
+### CI â€” Windows FFmpeg Build Fixes
 
-- **FFmpeg download switched from `.tar.xz` to `.tar.bz2`** — MSYS2's `tar` may lack xz decompression support on current GitHub-hosted runner images. The MSIX workflow already used `.tar.bz2` successfully; dev.yml and release.yml now match. Cache bumped to v9 to force a fresh build.
-- **Configure failure diagnostics** — `ffbuild/config.log` (last 80 lines) is now dumped when FFmpeg's `./configure` fails, making the root cause visible in the Actions log without raw-log access.
-- **dvdvideo diagnostic probes** — pkg-config checks for dvdnav/dvdread, dvdnav.pc dump, and config.log grep for dvd-related entries are printed before and after configure, so silent detection failures are diagnosable.
-- **dvdvideo verify grep fixed** — the Build/Verify steps grepped `"DVD video demuxer"`, which never matches: the demuxer's `long_name` is `DVD-Video` (hyphenated), so the FATAL gate always fired on a correct build. Steps now grep the `dvdvideo` short name. **Windows FFmpeg builds are GREEN** (`69ec8610`).
+- **FFmpeg download switched from `.tar.xz` to `.tar.bz2`** â€” MSYS2's `tar` may lack xz decompression support on current GitHub-hosted runner images. The MSIX workflow already used `.tar.bz2` successfully; dev.yml and release.yml now match. Cache bumped to v9 to force a fresh build.
+- **Configure failure diagnostics** â€” `ffbuild/config.log` (last 80 lines) is now dumped when FFmpeg's `./configure` fails, making the root cause visible in the Actions log without raw-log access.
+- **dvdvideo diagnostic probes** â€” pkg-config checks for dvdnav/dvdread, dvdnav.pc dump, and config.log grep for dvd-related entries are printed before and after configure, so silent detection failures are diagnosable.
+- **dvdvideo verify grep fixed** â€” the Build/Verify steps grepped `"DVD video demuxer"`, which never matches: the demuxer's `long_name` is `DVD-Video` (hyphenated), so the FATAL gate always fired on a correct build. Steps now grep the `dvdvideo` short name. **Windows FFmpeg builds are GREEN** (`eab76992`).
 
-### Rip Module — dvdvideo runtime detection fix
+### Rip Module â€” dvdvideo runtime detection fix
 
-- **`SupportsDVDVideo()` probe fixed** — same root-cause string: it grepped `"DVD video demuxer"` (spaces) against `ffmpeg -h demuxer=dvdvideo`, which never matches FFmpeg 8.1's output. The probe always returned `false`, so **every rip silently fell back to VOB concat** (the PTS-discontinuity path) even on builds that ship the demuxer. Now greps the `dvdvideo` short name (safe: a missing demuxer exits non-zero and returns early at the `err` gate). This finally activates the cell-accurate dvdvideo path for normal rips — ready for the no-scan multi-VOB tester re-run.
+- **`SupportsDVDVideo()` probe fixed** â€” same root-cause string: it grepped `"DVD video demuxer"` (spaces) against `ffmpeg -h demuxer=dvdvideo`, which never matches FFmpeg 8.1's output. The probe always returned `false`, so **every rip silently fell back to VOB concat** (the PTS-discontinuity path) even on builds that ship the demuxer. Now greps the `dvdvideo` short name (safe: a missing demuxer exits non-zero and returns early at the `err` gate). This finally activates the cell-accurate dvdvideo path for normal rips â€” ready for the no-scan multi-VOB tester re-run.
 
-### Rip Module — Content Browser Build Fixes
+### Rip Module â€” Content Browser Build Fixes
 
-- **7 compile errors resolved** — `dvdPlayer` declaration reordered before ContentBrowser callback (was undefined), `CreateRenderer` + renderer structs added to ContentBrowser and MenuPreview (fyne.Widget interface), `float32` conversion fix in MenuPreview.SetMinSize, local `formatTimestamp` helper added to content_list.go (was referencing unexported function from `internal/ui`).
+- **7 compile errors resolved** â€” `dvdPlayer` declaration reordered before ContentBrowser callback (was undefined), `CreateRenderer` + renderer structs added to ContentBrowser and MenuPreview (fyne.Widget interface), `float32` conversion fix in MenuPreview.SetMinSize, local `formatTimestamp` helper added to content_list.go (was referencing unexported function from `internal/ui`).
 
 ## v0.1.1-dev55 (July 2026)
 
 ### Player Crash Fix (seekGen log spam)
 
-- **seekGen log spam crash fixed** — `lastSeekGen` was compared against `e.seekGen` every decoded frame but never updated, causing "first frame after seek" to log 60×/sec forever. Over 40+ minutes this generated enough I/O pressure to kill the process (dev53 crash on seek). Fix: `lastSeekGen = gen` after the check, so only the actual first frame after a seek logs. Also removed the redundant per-frame "frame fmt=" log line.
+- **seekGen log spam crash fixed** â€” `lastSeekGen` was compared against `e.seekGen` every decoded frame but never updated, causing "first frame after seek" to log 60Ã—/sec forever. Over 40+ minutes this generated enough I/O pressure to kill the process (dev53 crash on seek). Fix: `lastSeekGen = gen` after the check, so only the actual first frame after a seek logs. Also removed the redundant per-frame "frame fmt=" log line.
 
 ### Convert Module Layout Fixes
 
-- **Settings panel collapse fix** — captured `settingsHeaderUpdate` callback, calls with `state.convert.SettingsOpen`; `settingsTabsPanel.Hide()`/`Show()` for visual collapse.
-- **Metadata header arrow sync** — captured `metaHeaderUpdate` callback, calls with `state.convert.MetadataOpen` on creation.
-- **Player/metadata collapse offset conflict fixed** — player and metadata onToggle callbacks each wrote their own `leftColumn.SetOffset`, so collapsing one panel could fight the other's persisted state (e.g. collapsing the player then toggling metadata reset the split to 50/50 with the player still hidden). Both headers now call a single `resolveLeftOffset()` closure (same pattern as Filters/Upscale) that derives the offset from both `PlayerOpen`+`MetadataOpen` states; used at build-time restore too.
-- **Config migration** — pre-dev54 configs default to all panels expanded.
-- **Convert button colour** — changed from `ui.Magenta` to `convertColor` (#7225D0).
+- **Settings panel collapse fix** â€” captured `settingsHeaderUpdate` callback, calls with `state.convert.SettingsOpen`; `settingsTabsPanel.Hide()`/`Show()` for visual collapse.
+- **Metadata header arrow sync** â€” captured `metaHeaderUpdate` callback, calls with `state.convert.MetadataOpen` on creation.
+- **Player/metadata collapse offset conflict fixed** â€” player and metadata onToggle callbacks each wrote their own `leftColumn.SetOffset`, so collapsing one panel could fight the other's persisted state (e.g. collapsing the player then toggling metadata reset the split to 50/50 with the player still hidden). Both headers now call a single `resolveLeftOffset()` closure (same pattern as Filters/Upscale) that derives the offset from both `PlayerOpen`+`MetadataOpen` states; used at build-time restore too.
+- **Config migration** â€” pre-dev54 configs default to all panels expanded.
+- **Convert button colour** â€” changed from `ui.Magenta` to `convertColor` (#7225D0).
 
-### Player Minimize — Metadata Full Column
+### Player Minimize â€” Metadata Full Column
 
-- **Player collapse now actually collapses in Filters/Upscale/Inspect/Trim** — the collapsible headers only moved the split offset; the video content was never hidden, so Fyne's `Split` clamped to the video's 480×270 minimum and the player frame stayed on screen while the metadata panel stayed squashed. Fix mirrors the Convert pattern: player `onToggle` now calls `Hide()`/`Show()` on the video area (`videoArea` in Filters/Upscale, `videoContainer` in Inspect/Trim), so the split shrinks to just the header bar and the metadata panel (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim) get the full column.
-- **Filters/Upscale metadata toggle hides its panel too** — matching Convert, a folded metadata pane frees the full column for the player. Upscale's `metaPanel` was restructured to var-then-assign so the `onToggle` closure can reference it (Convert already used this pattern).
+- **Player collapse now actually collapses in Filters/Upscale/Inspect/Trim** â€” the collapsible headers only moved the split offset; the video content was never hidden, so Fyne's `Split` clamped to the video's 480Ã—270 minimum and the player frame stayed on screen while the metadata panel stayed squashed. Fix mirrors the Convert pattern: player `onToggle` now calls `Hide()`/`Show()` on the video area (`videoArea` in Filters/Upscale, `videoContainer` in Inspect/Trim), so the split shrinks to just the header bar and the metadata panel (Filters/Upscale), info tabs (Inspect), or timeline+toolbar (Trim) get the full column.
+- **Filters/Upscale metadata toggle hides its panel too** â€” matching Convert, a folded metadata pane frees the full column for the player. Upscale's `metaPanel` was restructured to var-then-assign so the `onToggle` closure can reference it (Convert already used this pattern).
 
 ### Player Stability
 
-- **Resume crash fix** — `Resume()` flushes stale video+audio queues, drains `frameQueue`, flushes video codec buffers, resets `decodeEOFSent`/`seekFlushBefore`.
-- **Thumbnail extraction deferred** — 3 seconds after load via goroutine.
+- **Resume crash fix** â€” `Resume()` flushes stale video+audio queues, drains `frameQueue`, flushes video codec buffers, resets `decodeEOFSent`/`seekFlushBefore`.
+- **Thumbnail extraction deferred** â€” 3 seconds after load via goroutine.
 
 ### Strategic Decision
 
-- **libVLC player backend** — replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
+- **libVLC player backend** â€” replace custom FFmpeg engine with libVLC for user-facing playback. Design doc: `docs/VLC_PLAYER.md`. FFmpeg engine stays as long-term plan.
 
-### Rip Module — dvdvideo demuxer actually ships
+### Rip Module â€” dvdvideo demuxer actually ships
 
-- **dvdvideo demuxer wired into CI** — libdvdread 6.1.3 + libdvdnav 6.1.1 are now built from source (static-only) in all three Windows workflows (dev, release, msix); FFmpeg configure gets `--enable-libdvdnav --enable-libdvdread`. `dvdnav.pc` is rewritten after install so `-ldvdread` sits in `Libs` directly — FFmpeg's Windows configure calls pkg-config *without* `--static`, so the stock `Requires.private: dvdread` entry was never expanded and the `dvdnav_open2` link test failed (same precedent as the x265.pc overwrite). A `Verify dvdvideo demuxer` step gates each pipeline on `ffmpeg -h demuxer=dvdvideo`.
-- **Executor: no-scan rips now use dvdvideo** — `useDVDVideo` no longer requires `TitleNumber > 0`; when no scan ran, title defaults to 1 with a log line, and `ra.TitleNumber` carries the resolved value. Previously such rips fell through to the concat path, which wrote raw PTS discontinuities at VOB boundaries (the ~25–32% player crash on multi-VOB discs).
-- **Menu VOB audio tolerance** — menu VOB export paths use `-map 0:a?` so menu VOBs with no audio stream no longer fail.
+- **dvdvideo demuxer wired into CI** â€” libdvdread 6.1.3 + libdvdnav 6.1.1 are now built from source (static-only) in all three Windows workflows (dev, release, msix); FFmpeg configure gets `--enable-libdvdnav --enable-libdvdread`. `dvdnav.pc` is rewritten after install so `-ldvdread` sits in `Libs` directly â€” FFmpeg's Windows configure calls pkg-config *without* `--static`, so the stock `Requires.private: dvdread` entry was never expanded and the `dvdnav_open2` link test failed (same precedent as the x265.pc overwrite). A `Verify dvdvideo demuxer` step gates each pipeline on `ffmpeg -h demuxer=dvdvideo`.
+- **Executor: no-scan rips now use dvdvideo** â€” `useDVDVideo` no longer requires `TitleNumber > 0`; when no scan ran, title defaults to 1 with a log line, and `ra.TitleNumber` carries the resolved value. Previously such rips fell through to the concat path, which wrote raw PTS discontinuities at VOB boundaries (the ~25â€“32% player crash on multi-VOB discs).
+- **Menu VOB audio tolerance** â€” menu VOB export paths use `-map 0:a?` so menu VOBs with no audio stream no longer fail.
 
-### Rip Module — Content Browser Redesign
+### Rip Module â€” Content Browser Redesign
 
-- **ContentBrowser replaces player pane** — scrollable list of DVD titles with cycling-still thumbnails (5 keyframes extracted via ffmpeg), duration, chapter/audio/subtitle counts, and per-title selection checkboxes. Left accent bar: teal = selected for export, pink = not selected. Header bar with Select All / Deselect All buttons. Clicking a card focuses it for preview.
-- **MenuPreview widget** — static menu frame capture with Preserve Menus and Main Feature toggles, placed between Format and Output sections. Falls back to placeholder when no menu found.
-- **Old title nav dropdown removed** — per-title checkboxes in the enrichment panel replaced by ContentBrowser's integrated selection.
-- **CI cache keys bumped** — Windows ffmpeg cache `v5`→`v6` (dev + release), msix `v2`→`v3`, forcing a rebuild with the dvd libs.
+- **ContentBrowser replaces player pane** â€” scrollable list of DVD titles with cycling-still thumbnails (5 keyframes extracted via ffmpeg), duration, chapter/audio/subtitle counts, and per-title selection checkboxes. Left accent bar: teal = selected for export, pink = not selected. Header bar with Select All / Deselect All buttons. Clicking a card focuses it for preview.
+- **MenuPreview widget** â€” static menu frame capture with Preserve Menus and Main Feature toggles, placed between Format and Output sections. Falls back to placeholder when no menu found.
+- **Old title nav dropdown removed** â€” per-title checkboxes in the enrichment panel replaced by ContentBrowser's integrated selection.
+- **CI cache keys bumped** â€” Windows ffmpeg cache `v5`â†’`v6` (dev + release), msix `v2`â†’`v3`, forcing a rebuild with the dvd libs.
 
 ## v0.1.1-dev54 (July 2026)
 
 ### Player Performance Fixes (6 bottlenecks)
 
-- **Decode loop CPU spin fixed** — `videoDecodeLoop` replaced `TryGet()` + 1ms sleep poll with `TimedGet(20ms)` condition-variable wait. Eliminates 100% CPU usage when the frame queue is empty.
-- **Seek-on-resume stutter fixed** — Resume path now calls `FlushAudioCodec()` (drains PCM ring + flushes audio codec buffers) instead of a full `Seek()` to current PTS. Removes 50-200ms audio stutter on unpause.
-- **Slider update congestion fixed** — `SetCurrentTime()` throttled to ~15fps (66ms minimum interval). Reduces GUI thread pressure during playback.
-- **Per-frame subtitle lock eliminated** — `hasSubtitleActive` atomic.Bool on Engine replaces `subtitleCodecMu` lock/unlock 30x/sec when no subtitles are active.
-- **sws_scale performance improved** — `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC|SWS_ACCURATE_RND` for same-resolution intermediate format conversion.
-- **Decode loop paused check optimized** — `pausedAtomic` (atomic.Bool) replaces `lockMu()` for the paused flag check in the decode loop. ~1ns atomic read vs ~50ns mutex round-trip.
+- **Decode loop CPU spin fixed** â€” `videoDecodeLoop` replaced `TryGet()` + 1ms sleep poll with `TimedGet(20ms)` condition-variable wait. Eliminates 100% CPU usage when the frame queue is empty.
+- **Seek-on-resume stutter fixed** â€” Resume path now calls `FlushAudioCodec()` (drains PCM ring + flushes audio codec buffers) instead of a full `Seek()` to current PTS. Removes 50-200ms audio stutter on unpause.
+- **Slider update congestion fixed** â€” `SetCurrentTime()` throttled to ~15fps (66ms minimum interval). Reduces GUI thread pressure during playback.
+- **Per-frame subtitle lock eliminated** â€” `hasSubtitleActive` atomic.Bool on Engine replaces `subtitleCodecMu` lock/unlock 30x/sec when no subtitles are active.
+- **sws_scale performance improved** â€” `SWS_FAST_BILINEAR` replaces `SWS_BICUBIC|SWS_ACCURATE_RND` for same-resolution intermediate format conversion.
+- **Decode loop paused check optimized** â€” `pausedAtomic` (atomic.Bool) replaces `lockMu()` for the paused flag check in the decode loop. ~1ns atomic read vs ~50ns mutex round-trip.
 
 ## v0.1.1-dev53 (July 2026)
 
@@ -387,37 +387,37 @@ Seven verified defects from the Convert-module audit (tracked as issues #10–#2
 - **Removed `NoInheritHandles: true`** from `internal/utils/exec_windows.go`
   (`CreateCommand`/`CreateCommandRaw`). Added in dev49 for the "file in use"
   fix, it also disabled inheritance of the standard-handle pipes, so on Windows
-  `cmd.Output()`/`StdoutPipe()` returned nothing — `probeVideo` got empty
+  `cmd.Output()`/`StdoutPipe()` returned nothing â€” `probeVideo` got empty
   output and **every drag-drop / Browse import failed** with "Failed to
   analyze", and ffmpeg `-progress` reads were broken. Modern Go passes only the
   std-pipe handles via `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, so the engine's
   `avformat_open_input` handles are not leaked to children even without the
   flag; the file-in-use fix does not regress. Job Object still handles
   crash-safe cleanup.
-- **Import failures now show the real reason** — `loadMultipleVideos` /
+- **Import failures now show the real reason** â€” `loadMultipleVideos` /
   `batchAddToQueue` surface ffprobe's actual stderr (and log it at Warning)
   instead of only the filename.
 
 
-### DVD Author / Menu System — Spec-Compliance Fixes
+### DVD Author / Menu System â€” Spec-Compliance Fixes
 
 Audit of the native DVD authoring engine (`docs/AUTHOR_MENU_AUDIT.md`) found
 12 byte-level spec deviations behind the long-standing "menus display but
 don't work" issues. All fixed with regression tests (player validation
 pending):
 
-- **TMAP header byte order** (`internal/dvd/ifo/vtsi.go`) — `tmu` now precedes
+- **TMAP header byte order** (`internal/dvd/ifo/vtsi.go`) â€” `tmu` now precedes
   `zero_1` per libdvdread `vts_tmap_t`; resolves the long-unresolved
   `dvdnav: Zero check failed ... zero_1 : 0x01` error.
-- **PCI highlight block** (`internal/dvd/vob/nav.go`) — `hli_t` relocated to
+- **PCI highlight block** (`internal/dvd/vob/nav.go`) â€” `hli_t` relocated to
   the spec offset 96 (pci_gi is 60 bytes, not 32); `hli_ss` now set (was never
   written, so players skipped all button processing); button activation uses
   the inline 8-byte VM command in `btni_t` (the previous `cmd_nr` indirection
   does not exist in the spec).
-- **NAV PES substream IDs** — PCI/DSI payloads now begin with the 0x00/0x01
+- **NAV PES substream IDs** â€” PCI/DSI payloads now begin with the 0x00/0x01
   substream ID; the DSI was previously unrecognizable and PCI parsed one byte
   off.
-- **Domain-relative sectors** — PGC cell sectors and `VMGM_VOBS_Sector` are
+- **Domain-relative sectors** â€” PGC cell sectors and `VMGM_VOBS_Sector` are
   VOBS-relative in both ISO and folder modes (ISO mode was writing
   disc-absolute UDF sectors while TMAP/ADMAP stayed relative).
 - **VMGM Menu C_ADT + VOBU_ADMAP** now generated (offsets existed, tables did
@@ -430,149 +430,149 @@ pending):
 
 ### CI & Infrastructure Hardening (all pipelines green)
 
-- **GitHub Actions CI green on both platforms** — six root-cause fixes to the Windows build (MSYS2 shell, GOROOT derivation, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt, libstdc++ dedup).
-- **Windows ships as three fully static binaries** (settled decision) — static ffmpeg.exe/ffprobe.exe sidecars, DLL/ folder retired, objdump dependency gates on every shipped binary in every pipeline. Fixes the libbz2-1.dll / zlib1.dll missing-DLL errors permanently.
+- **GitHub Actions CI green on both platforms** â€” six root-cause fixes to the Windows build (MSYS2 shell, GOROOT derivation, CC via cygpath, pkg-config with loud failure, crypt32/ncrypt, libstdc++ dedup).
+- **Windows ships as three fully static binaries** (settled decision) â€” static ffmpeg.exe/ffprobe.exe sidecars, DLL/ folder retired, objdump dependency gates on every shipped binary in every pipeline. Fixes the libbz2-1.dll / zlib1.dll missing-DLL errors permanently.
 - **All four Windows pipelines aligned and verified**: dev.yml, release.yml, windows-msix.yml (incl. pack.ps1 input-path fix and MSYS2 git/wget install), Forgejo dev-packages.yml.
 - **App bootstrap**: static sidecars are the primary state (`StaticSidecarsWork()`); ffprobe smoke test authoritative; DLL checks legacy-only.
-- **AGENTS.md restructured** (612 → ~190 lines) — rules-only, shipped history delegated to DONE.md/CHANGELOG.md; release protocol codified (agents drive version bumps + tags).
-- **Docs refresh** — README to dev5x reality (static binaries, no BtbN), stale BtbN download instructions purged from all Windows install docs, DLL_BOOTSTRAP retirement notice.
-- **Git history hygiene** — repository history rewritten to remove AI authorship/attribution; commit identity and no-attribution rules codified in AGENTS.md.
+- **AGENTS.md restructured** (612 â†’ ~190 lines) â€” rules-only, shipped history delegated to DONE.md/CHANGELOG.md; release protocol codified (agents drive version bumps + tags).
+- **Docs refresh** â€” README to dev5x reality (static binaries, no BtbN), stale BtbN download instructions purged from all Windows install docs, DLL_BOOTSTRAP retirement notice.
+- **Git history hygiene** â€” repository history rewritten to remove AI authorship/attribution; commit identity and no-attribution rules codified in AGENTS.md.
 
 ## v0.1.1-dev51 (June 2026)
 
-### GitHub Actions CI — Windows Build Fixed (both platforms green)
+### GitHub Actions CI â€” Windows Build Fixed (both platforms green)
 
-- **Windows dev/release CI green for the first time since the GitHub Actions migration** — six root causes fixed across `.github/workflows/dev.yml` and `release.yml`:
+- **Windows dev/release CI green for the first time since the GitHub Actions migration** â€” six root causes fixed across `.github/workflows/dev.yml` and `release.yml`:
   - Build step restored to `shell: msys2 {0}` (Git Bash resolved the wrong gcc from `C:\mingw64` and a Strawberry Perl pkg-config that ignores `PKG_CONFIG_PATH`).
-  - `GOROOT` derived inside the MSYS2 shell via `ls -d /c/hostedtoolcache/windows/go/*/x64` (setup-go's env doesn't reach the msys2 shell — previously `go: command not found`).
-  - `CC=$(cygpath -m /ucrt64/bin/gcc)` — `setup-msys2` installs to `D:\a\_temp\msys64`, not `C:\msys64`; never hardcode the MSYS2 path.
-  - FFmpeg link flags from `pkg-config --libs --static` with a loud `exit 1` on empty output — a silent empty result previously fell back to cgo_preamble.go's local-dev `-LC:/ffmpeg/lib`.
+  - `GOROOT` derived inside the MSYS2 shell via `ls -d /c/hostedtoolcache/windows/go/*/x64` (setup-go's env doesn't reach the msys2 shell â€” previously `go: command not found`).
+  - `CC=$(cygpath -m /ucrt64/bin/gcc)` â€” `setup-msys2` installs to `D:\a\_temp\msys64`, not `C:\msys64`; never hardcode the MSYS2 path.
+  - FFmpeg link flags from `pkg-config --libs --static` with a loud `exit 1` on empty output â€” a silent empty result previously fell back to cgo_preamble.go's local-dev `-LC:/ffmpeg/lib`.
   - `-lsupc++` stripped from pkg-config output; no extra static `-lstdc++` (pkg-config already emits it for FFmpeg 8.1's C++ gfxcapture filter; doubling it caused multiple-definition errors).
   - `-lcrypt32 -lncrypt` added for FFmpeg 8.1 Schannel TLS; `CGO_LDFLAGS_ALLOW: "-Wl,.*"`.
-- **FFmpeg CI cache now saves** — cache only persists on green jobs; subsequent Windows runs skip the ~15-minute FFmpeg source build.
+- **FFmpeg CI cache now saves** â€” cache only persists on green jobs; subsequent Windows runs skip the ~15-minute FFmpeg source build.
 
-### Windows: Three Static Binaries — DLL/ Folder Retired (settled decision)
+### Windows: Three Static Binaries â€” DLL/ Folder Retired (settled decision)
 
-- **VideoTools.exe statically links everything** — bz2/z/lzma/iconv/stdc++ static archives promoted into the FFmpeg prefix (first `-L` dir) so ld picks `.a` over MSYS2's `.dll.a`. Fixes the `libbz2-1.dll` / `zlib1.dll` missing-DLL errors on user machines.
-- **ffmpeg.exe/ffprobe.exe now built static** — FFmpeg configure gains `--extra-ldflags="-static"` and drops `--disable-programs`; the sidecar binaries are fully self-contained. The shared FFmpeg build and the `DLL/` folder are eliminated from the GitHub CI product.
-- **CI gate: objdump dependency check** — all three shipped binaries are scanned for MinGW runtime DLL references (`libbz2`, `zlib1`, `liblzma`, `libiconv`, `libstdc++`, `libwinpthread`, `libgcc`); any hit fails the job so this failure class can never reach a tester again.
-- **Windows zip now contains all three binaries** — previous packaging shipped `VideoTools.exe` alone.
-- **App bootstrap: static sidecars are the primary state** — new `appcfg.StaticSidecarsWork()`; `AddFFmpegDllsToPath()` no-ops successfully when static sidecars run; `ValidateFFmpegDLLs()` treats the ffprobe smoke test as authoritative and only falls back to per-DLL diagnostics for legacy shared bundles. Startup dialog copy updated.
-- **All three Windows pipelines aligned** — `windows-msix.yml` and Forgejo `dev-packages.yml` receive the same surgery: shared FFmpeg build steps deleted, static build gains `-static` extra-ldflags + programs, MSIX layout and `ci-build.ps1` zip bundle static sidecars with per-binary objdump gates (no DLL/ folder). `ci-build.ps1` promotion list extended to lzma/iconv/stdc++ and its DLL import report is now a fatal gate.
+- **VideoTools.exe statically links everything** â€” bz2/z/lzma/iconv/stdc++ static archives promoted into the FFmpeg prefix (first `-L` dir) so ld picks `.a` over MSYS2's `.dll.a`. Fixes the `libbz2-1.dll` / `zlib1.dll` missing-DLL errors on user machines.
+- **ffmpeg.exe/ffprobe.exe now built static** â€” FFmpeg configure gains `--extra-ldflags="-static"` and drops `--disable-programs`; the sidecar binaries are fully self-contained. The shared FFmpeg build and the `DLL/` folder are eliminated from the GitHub CI product.
+- **CI gate: objdump dependency check** â€” all three shipped binaries are scanned for MinGW runtime DLL references (`libbz2`, `zlib1`, `liblzma`, `libiconv`, `libstdc++`, `libwinpthread`, `libgcc`); any hit fails the job so this failure class can never reach a tester again.
+- **Windows zip now contains all three binaries** â€” previous packaging shipped `VideoTools.exe` alone.
+- **App bootstrap: static sidecars are the primary state** â€” new `appcfg.StaticSidecarsWork()`; `AddFFmpegDllsToPath()` no-ops successfully when static sidecars run; `ValidateFFmpegDLLs()` treats the ffprobe smoke test as authoritative and only falls back to per-DLL diagnostics for legacy shared bundles. Startup dialog copy updated.
+- **All three Windows pipelines aligned** â€” `windows-msix.yml` and Forgejo `dev-packages.yml` receive the same surgery: shared FFmpeg build steps deleted, static build gains `-static` extra-ldflags + programs, MSIX layout and `ci-build.ps1` zip bundle static sidecars with per-binary objdump gates (no DLL/ folder). `ci-build.ps1` promotion list extended to lzma/iconv/stdc++ and its DLL import report is now a fatal gate.
 
 ### Player Overlay & Cleanup
 
-- **P0: Error/loading/buffering overlay indicators now render** — the four widgets (`loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator`) were created and hidden/shown by `SetLoading`/`SetBuffering`/`SetError`/`ClearError`, but never added to the renderer's `Objects()` or positioned in `Layout()`. Now render centred over the video with proper z-ordering.
-- **Stub method-set divergence fixed** — added 9 missing methods to `inline_player_stub.go`: `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`.
-- **Dead fields/callbacks removed from VideoPlayer** — `OnFrameRate`, `OnChapterSelect`, `OnHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark` — all declared but never used or wired.
-- **Cosmetic fullscreen/PiP buttons removed** — `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` removed. These flipped booleans and buttons but never entered fullscreen or picture-in-picture.
-- **CC button wired to subtitle engine** — `InlineVideoPlayer.NewInlineVideoPlayer()` now wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling subtitles (first available track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
-- **Orphaned `internal/media/gpu/` package removed** — 8 Go files, 3 GLSL shaders, zero imports.
-- **P1: view.go component split** — 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
-- **P1: UDF thread safety** — `partitionStartAbs` was read/written without mutex protection in 9 locations (1 write in `findLVD`, 8 reads throughout). Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers; replaced all direct field access. Added `SetProgressCallback()` for per-file extraction progress reporting. `iso_udf.go` now uses `defer reader.Cleanup()` for correct cleanup on all paths.
-- **Legacy alias vars removed** — 10 per-module player vars (`convertInlinePlayer`, `trimInlinePlayer`, `inspectInlinePlayer`, `subtitleInlinePlayer`, `upscaleInlinePlayer`, `audioInlinePlayer`, `filtersInlinePlayer`, `filtersPreviewPlayer`, `upscalePreviewPlayer`, `convertPreviewPlayer`) removed from `native_media.go`. All callers already migrated to `GetXxxPlayer()` getters during dev49 consolidation. Legacy getter functions retained as thin wrappers around `GetPrimaryPlayer()`/`GetPreviewPlayer()`.
+- **P0: Error/loading/buffering overlay indicators now render** â€” the four widgets (`loadingSpinner`, `bufferingLabel`, `errorLabel`, `errorIndicator`) were created and hidden/shown by `SetLoading`/`SetBuffering`/`SetError`/`ClearError`, but never added to the renderer's `Objects()` or positioned in `Layout()`. Now render centred over the video with proper z-ordering.
+- **Stub method-set divergence fixed** â€” added 9 missing methods to `inline_player_stub.go`: `SetSeekAccuracy`, `SetAudioDelay`, `SetFilterPipeline`, `GetLastVideoPTS`, `GetLastAudioPTS`, `Enqueue`, `ClearPlaylist`, `PlaylistLen`, `SetPeer`.
+- **Dead fields/callbacks removed from VideoPlayer** â€” `OnFrameRate`, `OnChapterSelect`, `OnHover`, `GetHoverFrame`, `displayFrame`, `displayWidth`, `displayHeight`, `frameSeq`, `lastFrameSeq`, `chapterMark` â€” all declared but never used or wired.
+- **Cosmetic fullscreen/PiP buttons removed** â€” `toggleFullscreen`/`SetFullscreen`/`IsFullscreen`/`OnFullscreen`/`isFullscreen`/`fullscreenBtn` and `togglePiP`/`IsPiP`/`OnPiP`/`isPiP`/`pipBtn` removed. These flipped booleans and buttons but never entered fullscreen or picture-in-picture.
+- **CC button wired to subtitle engine** â€” `InlineVideoPlayer.NewInlineVideoPlayer()` now wires `OnSubtitles` to call `SelectSubtitleTrack(0)` when enabling subtitles (first available track) or `DisableSubtitles()` when disabling. Previously the CC button just flipped a boolean and logged.
+- **Orphaned `internal/media/gpu/` package removed** â€” 8 Go files, 3 GLSL shaders, zero imports.
+- **P1: view.go component split** â€” 1442-line monolith split into 5 focused files: `view.go` (566, struct/renderer/draw), `split_view.go` (193, independent SplitView widget), `control_overlay.go` (598, transport/OSD/callbacks), `keyboard_shortcuts.go` (50, tap/key handlers), `thumbnail_preview.go` (36, cache). Missing `OnSubtitles()` setter added back.
+- **P1: UDF thread safety** â€” `partitionStartAbs` was read/written without mutex protection in 9 locations (1 write in `findLVD`, 8 reads throughout). Added `partitionStart()`/`setPartitionStart()` mutex-protected helpers; replaced all direct field access. Added `SetProgressCallback()` for per-file extraction progress reporting. `iso_udf.go` now uses `defer reader.Cleanup()` for correct cleanup on all paths.
+- **Legacy alias vars removed** â€” 10 per-module player vars (`convertInlinePlayer`, `trimInlinePlayer`, `inspectInlinePlayer`, `subtitleInlinePlayer`, `upscaleInlinePlayer`, `audioInlinePlayer`, `filtersInlinePlayer`, `filtersPreviewPlayer`, `upscalePreviewPlayer`, `convertPreviewPlayer`) removed from `native_media.go`. All callers already migrated to `GetXxxPlayer()` getters during dev49 consolidation. Legacy getter functions retained as thin wrappers around `GetPrimaryPlayer()`/`GetPreviewPlayer()`.
 
 ## v0.1.1-dev50 (June 2026)
 
 ### Windows DLL Pipeline Overhaul (BUG-012 + BUG-013 fix)
 
-- **All three CI pipelines now build FFmpeg shared from source** — Forgejo dev-packages.yml, GitHub release.yml, and GitHub windows-msix.yml all build FFmpeg 8.1 from the same source tarball twice: once static (for CGo link into VideoTools.exe) and once shared (for DLLs, ffmpeg.exe, ffprobe.exe). BtbN downloads completely eliminated.
-- **GitHub `release.yml` rewritten** — previous workflow used BtbN for the CGo static link (no `.a` libs — linker dead end), only bundled `av*.dll`+`sw*.dll` (missing all transitive deps), and never included `ffmpeg.exe`/`ffprobe.exe`. Now uses source-built FFmpeg 8.1 + x264 + x265 with MSYS2 ucrt64, builds shared FFmpeg from same source, includes objdump transitive-DLL scan.
-- **GitHub `windows-msix.yml` rewritten** — same pattern as release.yml. MSIX layout includes `DLL/` with full dep scan.
-- **`ExpectedFFmpegDLLs()` updated to glob patterns** — changed from hardcoded ABI versions (`avcodec-61.dll`) to glob patterns (`avcodec-*.dll`). This prevents validation breakage when FFmpeg bumps its ABI version. Added `liblzma-*.dll` for the transitive avformat dependency.
-- **`ValidateFFmpegDLLs()` uses glob matching** — validates expected DLLs using `filepath.Glob` instead of exact filename `os.Stat`.
-- **BUG-013 closed** — BtbN `latest` moving tag is no longer used. Shared DLLs are built from the same pinned FFmpeg 8.1 source, eliminating ABI drift entirely.
-- **`docs/DLL_BOOTSTRAP.md` pipeline docs updated** — architecture diagram and table reflect source-built shared DLLs with no BtbN dependency.
+- **All three CI pipelines now build FFmpeg shared from source** â€” Forgejo dev-packages.yml, GitHub release.yml, and GitHub windows-msix.yml all build FFmpeg 8.1 from the same source tarball twice: once static (for CGo link into VideoTools.exe) and once shared (for DLLs, ffmpeg.exe, ffprobe.exe). BtbN downloads completely eliminated.
+- **GitHub `release.yml` rewritten** â€” previous workflow used BtbN for the CGo static link (no `.a` libs â€” linker dead end), only bundled `av*.dll`+`sw*.dll` (missing all transitive deps), and never included `ffmpeg.exe`/`ffprobe.exe`. Now uses source-built FFmpeg 8.1 + x264 + x265 with MSYS2 ucrt64, builds shared FFmpeg from same source, includes objdump transitive-DLL scan.
+- **GitHub `windows-msix.yml` rewritten** â€” same pattern as release.yml. MSIX layout includes `DLL/` with full dep scan.
+- **`ExpectedFFmpegDLLs()` updated to glob patterns** â€” changed from hardcoded ABI versions (`avcodec-61.dll`) to glob patterns (`avcodec-*.dll`). This prevents validation breakage when FFmpeg bumps its ABI version. Added `liblzma-*.dll` for the transitive avformat dependency.
+- **`ValidateFFmpegDLLs()` uses glob matching** â€” validates expected DLLs using `filepath.Glob` instead of exact filename `os.Stat`.
+- **BUG-013 closed** â€” BtbN `latest` moving tag is no longer used. Shared DLLs are built from the same pinned FFmpeg 8.1 source, eliminating ABI drift entirely.
+- **`docs/DLL_BOOTSTRAP.md` pipeline docs updated** â€” architecture diagram and table reflect source-built shared DLLs with no BtbN dependency.
 
 ### DLL Startup Validation + CGo Consolidation
 
-- **`ValidateFFmpegDLLs()` in `internal/app/appcfg/ffmpeg_bootstrap.go`** — runs `ffprobe.exe -version` as a live smoke test after adding DLLs to PATH. Checks every expected FFmpeg ABI DLL exists. On failure, displays a non-blocking Fyne error dialog at startup with actionable guidance, rather than a silent log warning that users never see.
-- **`--dllcheck` CLI flag** — prints full DLL diagnostics (directory, all files with sizes, expected DLLs, PATH entries, ffprobe presence, smoke test result) and exits. Exit code 1 on validation failure. Designed for tester debugging without needing to launch the GUI.
-- **`DiagnoseDLLSetup()` helper** — multi-line diagnostic string covering DLL directory, every file found, expected-but-missing DLLs, PATH entries containing "ffmpeg"/"dll", and bundled executable status.
-- **CGo directive consolidation** — all 15 duplicate `#cgo windows CFLAGS/LDFLAGS` blocks removed from `engine.go`, `playback.go`, `hdr.go`, `hwdecode.go`, `subtitle_engine.go`, `subtitle.go`, `audio.go`, `audio_filter.go`, `errors.go`, `scrub.go`, `framepool.go`, `deinterlace.go`, `seh_wrapper.go`, `queue.go`, `thumbnail.go`. Consolidated into a single `internal/media/cgo_preamble.go` with a single set of build directives and a clear comment explaining the CI/local-dev path story.
-- **`docs/DLL_BOOTSTRAP.md`** — new documentation covering the full DLL pipeline: why DLLs are needed (shared-linked ffmpeg.exe/ffprobe.exe, not VideoTools.exe itself), DLL/ folder structure, search order, startup validation flow, common issues with fixes, `--dllcheck` usage, and developer setup instructions.
+- **`ValidateFFmpegDLLs()` in `internal/app/appcfg/ffmpeg_bootstrap.go`** â€” runs `ffprobe.exe -version` as a live smoke test after adding DLLs to PATH. Checks every expected FFmpeg ABI DLL exists. On failure, displays a non-blocking Fyne error dialog at startup with actionable guidance, rather than a silent log warning that users never see.
+- **`--dllcheck` CLI flag** â€” prints full DLL diagnostics (directory, all files with sizes, expected DLLs, PATH entries, ffprobe presence, smoke test result) and exits. Exit code 1 on validation failure. Designed for tester debugging without needing to launch the GUI.
+- **`DiagnoseDLLSetup()` helper** â€” multi-line diagnostic string covering DLL directory, every file found, expected-but-missing DLLs, PATH entries containing "ffmpeg"/"dll", and bundled executable status.
+- **CGo directive consolidation** â€” all 15 duplicate `#cgo windows CFLAGS/LDFLAGS` blocks removed from `engine.go`, `playback.go`, `hdr.go`, `hwdecode.go`, `subtitle_engine.go`, `subtitle.go`, `audio.go`, `audio_filter.go`, `errors.go`, `scrub.go`, `framepool.go`, `deinterlace.go`, `seh_wrapper.go`, `queue.go`, `thumbnail.go`. Consolidated into a single `internal/media/cgo_preamble.go` with a single set of build directives and a clear comment explaining the CI/local-dev path story.
+- **`docs/DLL_BOOTSTRAP.md`** â€” new documentation covering the full DLL pipeline: why DLLs are needed (shared-linked ffmpeg.exe/ffprobe.exe, not VideoTools.exe itself), DLL/ folder structure, search order, startup validation flow, common issues with fixes, `--dllcheck` usage, and developer setup instructions.
 
 ### Collapsible Player Panel (Convert, Filters, Upscale, Inspect, Trim)
 
-- **`BuildCollapsibleHeader` for player panel** in Convert module — `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.
+- **`BuildCollapsibleHeader` for player panel** in Convert module â€” `playerHeader` wraps `videoPanel` in a collapsible header bar using `t.ConvertSectionPlayer` (i18n: `"Player"` / `"Lecteur"`). Toggling the header sets `leftColumn.SetOffset(0.5)` when open or `0.03` when collapsed, giving the metadata panel nearly the full vertical height when the player is folded. `videoPanelWithHeader` is a `container.NewBorder` wrapping the canvas; `leftColumn` VSplit updated to use it.
 - **`ConvertSectionPlayer string`** i18n key added to `internal/i18n/strings.go` and all four locale files.
-- **Filters + Upscale collapsible player** — `BuildCollapsibleHeader(t.ConvertSectionPlayer, …)` wraps the video area in both modules. `resolveOffset()` tracks `playerOpen` + `metaOpen` state: both open → 0.65/0.60; player closed → 0.03; meta closed → 0.97. Metadata toggle callbacks updated to use `resolveOffset` so collapsing the player then re-opening metadata stays consistent. Upscale drops the old `buildUpscaleBox` wrapper for the video section in favour of the collapsible header.
-- **Inspect collapsible player** — fixed `GridWithColumns(2)` replaced with `container.NewHSplit` (`mainSplit`). `BuildCollapsibleHeader` wraps the video column; toggle drives `mainSplit.SetOffset(0.5 / 0.03)`, expanding the tabbed Metadata/Chapters/Sync panel when the player is folded.
-- **Trim collapsible player** — `leftSide` Border replaced with `container.NewVSplit` (`leftVSplit`): top = `playerHdr + videoContainer` at 65%; bottom = `timeline + toolbar + in/out controls` always visible. Collapsing drives `leftVSplit.SetOffset(0.03)` so the timeline and controls take the full left-panel height.
+- **Filters + Upscale collapsible player** â€” `BuildCollapsibleHeader(t.ConvertSectionPlayer, â€¦)` wraps the video area in both modules. `resolveOffset()` tracks `playerOpen` + `metaOpen` state: both open â†’ 0.65/0.60; player closed â†’ 0.03; meta closed â†’ 0.97. Metadata toggle callbacks updated to use `resolveOffset` so collapsing the player then re-opening metadata stays consistent. Upscale drops the old `buildUpscaleBox` wrapper for the video section in favour of the collapsible header.
+- **Inspect collapsible player** â€” fixed `GridWithColumns(2)` replaced with `container.NewHSplit` (`mainSplit`). `BuildCollapsibleHeader` wraps the video column; toggle drives `mainSplit.SetOffset(0.5 / 0.03)`, expanding the tabbed Metadata/Chapters/Sync panel when the player is folded.
+- **Trim collapsible player** â€” `leftSide` Border replaced with `container.NewVSplit` (`leftVSplit`): top = `playerHdr + videoContainer` at 65%; bottom = `timeline + toolbar + in/out controls` always visible. Collapsing drives `leftVSplit.SetOffset(0.03)` so the timeline and controls take the full left-panel height.
 
-### Updater — Sidecar File Refresh (DLL + ffmpeg/ffprobe)
+### Updater â€” Sidecar File Refresh (DLL + ffmpeg/ffprobe)
 
-- **`updateSidecars(zipPath, exeDir string)`** added to `settings_module.go` — after extracting `VideoTools.exe` from the update zip, iterates all zip entries and extracts: any `DLL/*.dll` file (into `<exeDir>/DLL/`) and `ffmpeg.exe`/`ffprobe.exe` (into `<exeDir>/`). Uses `extractZipEntry(f *zip.File, destPath string)` which renames over the destination atomically. Ensures in-place updates via the built-in updater refresh all side-car binaries so DLL mismatches can't persist across updates.
-- **Root cause addressed** — previous updater only extracted `VideoTools.exe`, leaving `ffmpeg.exe`, `ffprobe.exe`, and `DLL/` from the original install permanently stale. Any DLL added after first install (e.g. `liblzma-5.dll`) would only appear on a fresh download, not on an in-place update.
+- **`updateSidecars(zipPath, exeDir string)`** added to `settings_module.go` â€” after extracting `VideoTools.exe` from the update zip, iterates all zip entries and extracts: any `DLL/*.dll` file (into `<exeDir>/DLL/`) and `ffmpeg.exe`/`ffprobe.exe` (into `<exeDir>/`). Uses `extractZipEntry(f *zip.File, destPath string)` which renames over the destination atomically. Ensures in-place updates via the built-in updater refresh all side-car binaries so DLL mismatches can't persist across updates.
+- **Root cause addressed** â€” previous updater only extracted `VideoTools.exe`, leaving `ffmpeg.exe`, `ffprobe.exe`, and `DLL/` from the original install permanently stale. Any DLL added after first install (e.g. `liblzma-5.dll`) would only appear on a fresh download, not on an in-place update.
 
-### Logging — Windows Log-Clear Fix + Version Header
+### Logging â€” Windows Log-Clear Fix + Version Header
 
-- **`logging.Clear()` Windows fix** — `file.Truncate(0)` on a file opened with `O_APPEND` returns "Access is denied" on Windows. Fixed by: closing the append handle → reopening with `O_WRONLY|O_CREATE|O_TRUNC` → writing the cleared-at timestamp + session header → closing → reopening with `O_WRONLY|O_APPEND`. All three steps use the internal `fileMu` lock so no log writes race the truncate.
-- **`logging.SetVersion(v string)`** — sets `sessionVersion` package-level var. Called from `main.go` before `logging.Init()`. Version string is embedded into the session header printed at startup and on every `Clear()` call, so logs are always self-identifying even when sent as a fragment.
-- **`sessionHeader()` helper** — formats a two-line block: `=== VideoTools <version> session started at <RFC3339> ===` + `Platform: <GOOS>/<GOARCH>`. Used by both `Init()` and `Clear()`.
+- **`logging.Clear()` Windows fix** â€” `file.Truncate(0)` on a file opened with `O_APPEND` returns "Access is denied" on Windows. Fixed by: closing the append handle â†’ reopening with `O_WRONLY|O_CREATE|O_TRUNC` â†’ writing the cleared-at timestamp + session header â†’ closing â†’ reopening with `O_WRONLY|O_APPEND`. All three steps use the internal `fileMu` lock so no log writes race the truncate.
+- **`logging.SetVersion(v string)`** â€” sets `sessionVersion` package-level var. Called from `main.go` before `logging.Init()`. Version string is embedded into the session header printed at startup and on every `Clear()` call, so logs are always self-identifying even when sent as a fragment.
+- **`sessionHeader()` helper** â€” formats a two-line block: `=== VideoTools <version> session started at <RFC3339> ===` + `Platform: <GOOS>/<GOARCH>`. Used by both `Init()` and `Clear()`.
 
-### CI — Stale DLL Cache Detection
+### CI â€” Stale DLL Cache Detection
 
-- **`liblzmaPresent` check** in `.forgejo/workflows/dev-packages.yml` — skip-download guard now requires both `avcodec*.dll` AND `liblzma-5.dll`. If the cache directory exists but `liblzma-5.dll` is missing, the script logs `"Stale DLL cache detected"` then wipes `C:\ffmpeg-shared\dll` and `C:\ffmpeg-shared\bin` before re-downloading. Prevents the persistent runner reusing a cache built before `liblzma-5.dll` was a required DLL (introduced transitively by `avformat.dll` in recent BtbN builds).
+- **`liblzmaPresent` check** in `.forgejo/workflows/dev-packages.yml` â€” skip-download guard now requires both `avcodec*.dll` AND `liblzma-5.dll`. If the cache directory exists but `liblzma-5.dll` is missing, the script logs `"Stale DLL cache detected"` then wipes `C:\ffmpeg-shared\dll` and `C:\ffmpeg-shared\bin` before re-downloading. Prevents the persistent runner reusing a cache built before `liblzma-5.dll` was a required DLL (introduced transitively by `avformat.dll` in recent BtbN builds).
 
-### UDF Reader — Allocation Descriptor Parsing + Partition Offset
+### UDF Reader â€” Allocation Descriptor Parsing + Partition Offset
 
-- **`readFIDs` ShortAd parsing** (`internal/dvd/udf/reader.go`) — previously assumed directory data resided at `TagLocation+1`; now parses `ShortAd` allocation descriptors from ICB data, concatenating all extents for multi-extent directories.
-- **Partition offset applied universally** — all `LongAd` locations are partition-relative LBNs. `partitionStartAbs` (from `PartitionDescriptor`, default 257) is now added to every ICB read and data seek in `findFSD`, `extractRecursively`, `extractFile`, and `ReadFileData`. Previously LBNs were treated as absolute, causing reads from wrong disc sectors.
-- **`extractFile` / `ReadFileData` data source** — file data is now read using allocation descriptors with `InformationLength` from the ICB, not from `icb.Location`/`Len` (which point to the descriptor itself, not the payload). Fixes reading empty or corrupted data for most files extracted from DVD ISOs.
+- **`readFIDs` ShortAd parsing** (`internal/dvd/udf/reader.go`) â€” previously assumed directory data resided at `TagLocation+1`; now parses `ShortAd` allocation descriptors from ICB data, concatenating all extents for multi-extent directories.
+- **Partition offset applied universally** â€” all `LongAd` locations are partition-relative LBNs. `partitionStartAbs` (from `PartitionDescriptor`, default 257) is now added to every ICB read and data seek in `findFSD`, `extractRecursively`, `extractFile`, and `ReadFileData`. Previously LBNs were treated as absolute, causing reads from wrong disc sectors.
+- **`extractFile` / `ReadFileData` data source** â€” file data is now read using allocation descriptors with `InformationLength` from the ICB, not from `icb.Location`/`Len` (which point to the descriptor itself, not the payload). Fixes reading empty or corrupted data for most files extracted from DVD ISOs.
 
 ### Playlist / Sequential Playback
 
-- **`InlineVideoPlayer.Enqueue(path string)`** — appends a file path to the internal playlist. When the current item reaches clean end-of-stream, `playbackLoop` auto-advances to the next queued item: loads it (via `loadViaOpen` with `resetPlaylist=false`) then calls `Play()` immediately.
-- **`InlineVideoPlayer.ClearPlaylist()`** — empties the queued items without affecting the currently playing item.
-- **`InlineVideoPlayer.PlaylistLen() int`** — returns the number of items remaining in the queue (items not yet played).
-- **Auto-reset on manual load** — calling `Load`, `LoadDVD`, or `LoadURL` directly resets `playlist` and `playlistIdx` to zero so a new user-initiated load starts fresh, independent of any previously queued items.
-- **`InlineVideoPlayer` struct** — added `playlist []string` and `playlistIdx int` (both protected by `mu`).
+- **`InlineVideoPlayer.Enqueue(path string)`** â€” appends a file path to the internal playlist. When the current item reaches clean end-of-stream, `playbackLoop` auto-advances to the next queued item: loads it (via `loadViaOpen` with `resetPlaylist=false`) then calls `Play()` immediately.
+- **`InlineVideoPlayer.ClearPlaylist()`** â€” empties the queued items without affecting the currently playing item.
+- **`InlineVideoPlayer.PlaylistLen() int`** â€” returns the number of items remaining in the queue (items not yet played).
+- **Auto-reset on manual load** â€” calling `Load`, `LoadDVD`, or `LoadURL` directly resets `playlist` and `playlistIdx` to zero so a new user-initiated load starts fresh, independent of any previously queued items.
+- **`InlineVideoPlayer` struct** â€” added `playlist []string` and `playlistIdx int` (both protected by `mu`).
 
 ### HDR Tone-Mapping
 
-- **`internal/media/hdr.go`** — new CGo file (build tag `native_media`) following the `deinterlace.go` pattern. C preamble implements three helpers: `frame_is_hdr` (checks `color_trc` for `AVCOL_TRC_SMPTE2084`/`AVCOL_TRC_ARIB_STD_B67`), `create_hdr_tonemap_filter` (builds libavfilter graph: `buffer → zscale(t=linear,npl=1000) → format(gbrpf32le) → tonemap(hable,desat=0.5) → zscale(t=bt709,m=bt709) → format(yuv420p) → buffersink`), `run_hdr_tonemap` (pushes a frame through and returns an SDR `yuv420p` output). Color metadata (TRC, primaries, matrix, range) is forwarded to the `buffersrc` args so zscale correctly identifies the input transfer characteristic.
-- **`Engine` struct fields** — `hdrFilterGraph *C.AVFilterGraph`, `hdrBuffersrc *C.AVFilterContext`, `hdrBuffersink *C.AVFilterContext`, `hdrInputPixFmt C.enum_AVPixelFormat`, `hdrTonemapUnsupported bool`. Graph is created lazily on first HDR frame. `hdrTonemapUnsupported` suppresses retry when zscale (libzimg) is absent, avoiding per-frame graph-creation attempts.
-- **`renderSWFrame()` helper in `playback.go`** — centralises the SW→RGBA pipeline: checks `isFrameHDR`→`applyHDRTonemap`→`ensureSwsCtx(tonemapped.format)`→`toRGBA(tonemapped)`, or falls through to `ensureSwsCtx(e.frame.format)`→bwdif deinterlace (if enabled)→`toRGBA`. Replaces four separate inline decode-to-RGBA blocks in `GrabFrame` and `videoDecodeLoop` (SW path and HW→SW-fallback path in each).
-- **`freeHDRFilter()` in `Close()`** — releases AVFilterGraph and resets all HDR pointers. Called after `freeDeinterlaceFilter()` in the engine teardown sequence.
+- **`internal/media/hdr.go`** â€” new CGo file (build tag `native_media`) following the `deinterlace.go` pattern. C preamble implements three helpers: `frame_is_hdr` (checks `color_trc` for `AVCOL_TRC_SMPTE2084`/`AVCOL_TRC_ARIB_STD_B67`), `create_hdr_tonemap_filter` (builds libavfilter graph: `buffer â†’ zscale(t=linear,npl=1000) â†’ format(gbrpf32le) â†’ tonemap(hable,desat=0.5) â†’ zscale(t=bt709,m=bt709) â†’ format(yuv420p) â†’ buffersink`), `run_hdr_tonemap` (pushes a frame through and returns an SDR `yuv420p` output). Color metadata (TRC, primaries, matrix, range) is forwarded to the `buffersrc` args so zscale correctly identifies the input transfer characteristic.
+- **`Engine` struct fields** â€” `hdrFilterGraph *C.AVFilterGraph`, `hdrBuffersrc *C.AVFilterContext`, `hdrBuffersink *C.AVFilterContext`, `hdrInputPixFmt C.enum_AVPixelFormat`, `hdrTonemapUnsupported bool`. Graph is created lazily on first HDR frame. `hdrTonemapUnsupported` suppresses retry when zscale (libzimg) is absent, avoiding per-frame graph-creation attempts.
+- **`renderSWFrame()` helper in `playback.go`** â€” centralises the SWâ†’RGBA pipeline: checks `isFrameHDR`â†’`applyHDRTonemap`â†’`ensureSwsCtx(tonemapped.format)`â†’`toRGBA(tonemapped)`, or falls through to `ensureSwsCtx(e.frame.format)`â†’bwdif deinterlace (if enabled)â†’`toRGBA`. Replaces four separate inline decode-to-RGBA blocks in `GrabFrame` and `videoDecodeLoop` (SW path and HWâ†’SW-fallback path in each).
+- **`freeHDRFilter()` in `Close()`** â€” releases AVFilterGraph and resets all HDR pointers. Called after `freeDeinterlaceFilter()` in the engine teardown sequence.
 
 ### Per-Codec HW Decode Deny-List
 
-- **`media.SetHWCodecDenyList(s string)` / `GetHWCodecDenyList()`** — package-level API in `hwdecode.go`. Populates `hwCodecDenyList map[string]struct{}` from a comma-separated string of FFmpeg codec names. `codecCanUseHWDevice` checks the deny-list before the built-in allowlist, unconditionally falling back to SW decode for listed codecs.
-- **`PrefsConfig.HWCodecDenyList string`** — persisted in `settings.json` (JSON key `HWCodecDenyList`). Loaded by `initNativeMediaAssets` at startup via `setHWCodecDenyList(s.prefs.HWCodecDenyList)`. Updated by adapter method `SetHWCodecDenyList`.
-- **Settings → Player — "HW Decode Deny-List" text entry** — `hwDenyListEntry` placed below the HW decode auto-detect section. Placeholder: `e.g. vc1,wmv3,mpeg2video`. Changes are applied immediately and saved. Uses `t.SettingsHWDenyList` / `t.SettingsHWDenyListHint` i18n keys (all 4 locales).
+- **`media.SetHWCodecDenyList(s string)` / `GetHWCodecDenyList()`** â€” package-level API in `hwdecode.go`. Populates `hwCodecDenyList map[string]struct{}` from a comma-separated string of FFmpeg codec names. `codecCanUseHWDevice` checks the deny-list before the built-in allowlist, unconditionally falling back to SW decode for listed codecs.
+- **`PrefsConfig.HWCodecDenyList string`** â€” persisted in `settings.json` (JSON key `HWCodecDenyList`). Loaded by `initNativeMediaAssets` at startup via `setHWCodecDenyList(s.prefs.HWCodecDenyList)`. Updated by adapter method `SetHWCodecDenyList`.
+- **Settings â†’ Player â€” "HW Decode Deny-List" text entry** â€” `hwDenyListEntry` placed below the HW decode auto-detect section. Placeholder: `e.g. vc1,wmv3,mpeg2video`. Changes are applied immediately and saved. Uses `t.SettingsHWDenyList` / `t.SettingsHWDenyListHint` i18n keys (all 4 locales).
 
-### Error Resilience — Explicit `FF_EC_GUESS_MVS | FF_EC_DEBLOCK`
+### Error Resilience â€” Explicit `FF_EC_GUESS_MVS | FF_EC_DEBLOCK`
 
-- **`setVideoCodecErrorFlags(ctx *C.AVCodecContext)`** — package-level helper in `engine.go` that sets `ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2`. Called on both video codec init paths: `SelectVideoTrack` and `openFinalize` SW decode path. FFmpeg's default for this field already matches, but `avcodec_parameters_to_context` can reset it; explicit assignment makes the intent clear and guards against future FFmpeg default changes. Motion-vector extrapolation (GUESS_MVS) and deblocking (DEBLOCK) are now guaranteed active on corrupt or streamed content.
+- **`setVideoCodecErrorFlags(ctx *C.AVCodecContext)`** â€” package-level helper in `engine.go` that sets `ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK` before `avcodec_open2`. Called on both video codec init paths: `SelectVideoTrack` and `openFinalize` SW decode path. FFmpeg's default for this field already matches, but `avcodec_parameters_to_context` can reset it; explicit assignment makes the intent clear and guards against future FFmpeg default changes. Motion-vector extrapolation (GUESS_MVS) and deblocking (DEBLOCK) are now guaranteed active on corrupt or streamed content.
 
 ### Mid-Playback Audio and Subtitle Track Switching
 
-- **`Engine.SelectAudioTrack` use-after-free fixed** — Previous implementation freed `audioCodecCtx` while the `audioDecodeLoop` goroutine (running inside the old `AudioPlayer`) was still using it. Fixed ordering: close `AudioPlayer` first (stops goroutine), then flush queue, then free codec, then open new codec. New `AudioPlayer` has `thread_count=1` (matching `openFinalize`), restores speed/volume/muted state, seeks to current video PTS for A/V resync, and resumes if engine was playing.
-- **`Engine.SelectSubtitleTrack` codec reinit** — Previously only updated `subtitleStreamIdx` without reinitialising the codec context, causing the old stream's codec to decode packets from the new stream. Fixed: flushes `subtitleQueue`, frees old `subtitleCodecCtx`, calls `initSubtitleDecoder` for the new stream index, clears stale on-screen subtitle.
-- **`Engine.subtitleCodecMu`** — New `sync.Mutex` (level 3.5) protects all `subtitleCodecCtx` access. Guards: `demuxerLoop` stream routing check, `NextFrame` subtitle decode branch, `decodeSubtitle` per-packet decode call, `SelectSubtitleTrack` reinit, `DisableSubtitles`, and `Close`. Eliminates data race between the playback goroutine and UI-initiated track switches.
+- **`Engine.SelectAudioTrack` use-after-free fixed** â€” Previous implementation freed `audioCodecCtx` while the `audioDecodeLoop` goroutine (running inside the old `AudioPlayer`) was still using it. Fixed ordering: close `AudioPlayer` first (stops goroutine), then flush queue, then free codec, then open new codec. New `AudioPlayer` has `thread_count=1` (matching `openFinalize`), restores speed/volume/muted state, seeks to current video PTS for A/V resync, and resumes if engine was playing.
+- **`Engine.SelectSubtitleTrack` codec reinit** â€” Previously only updated `subtitleStreamIdx` without reinitialising the codec context, causing the old stream's codec to decode packets from the new stream. Fixed: flushes `subtitleQueue`, frees old `subtitleCodecCtx`, calls `initSubtitleDecoder` for the new stream index, clears stale on-screen subtitle.
+- **`Engine.subtitleCodecMu`** â€” New `sync.Mutex` (level 3.5) protects all `subtitleCodecCtx` access. Guards: `demuxerLoop` stream routing check, `NextFrame` subtitle decode branch, `decodeSubtitle` per-packet decode call, `SelectSubtitleTrack` reinit, `DisableSubtitles`, and `Close`. Eliminates data race between the playback goroutine and UI-initiated track switches.
 
 ### HW Decode Default-On + Error Concealment
 
-- **`hwDecodeEnabled` default flipped to `true`** (`internal/media/hwdecode.go`) — D3D11VA/VAAPI/QSV now active by default. All FFmpeg call sites in the video decode path are wrapped in `safe_bridge.c` SEH `__try` guards. `DegradeToSoftware()` is wired into the decode loop and falls back to SW on the first HW failure. Previously held at `false` pending SEH coverage; coverage was confirmed complete.
-- **Error concealment — last-good-frame** (`internal/media/engine.go`, `internal/media/playback.go`) — `Engine.lastGoodFrame atomic.Pointer[image.RGBA]` stores the most recently displayed frame. `Engine.decodeErrored atomic.Bool` is set on fatal decode errors (SEH exception or already-degraded SW failure). On decode-error EOF, `NextFrame` returns the frozen last frame exactly once via `CompareAndSwap(true, false)` instead of going black, then propagates `io.EOF`. Natural EOF (file ends cleanly) is unaffected.
+- **`hwDecodeEnabled` default flipped to `true`** (`internal/media/hwdecode.go`) â€” D3D11VA/VAAPI/QSV now active by default. All FFmpeg call sites in the video decode path are wrapped in `safe_bridge.c` SEH `__try` guards. `DegradeToSoftware()` is wired into the decode loop and falls back to SW on the first HW failure. Previously held at `false` pending SEH coverage; coverage was confirmed complete.
+- **Error concealment â€” last-good-frame** (`internal/media/engine.go`, `internal/media/playback.go`) â€” `Engine.lastGoodFrame atomic.Pointer[image.RGBA]` stores the most recently displayed frame. `Engine.decodeErrored atomic.Bool` is set on fatal decode errors (SEH exception or already-degraded SW failure). On decode-error EOF, `NextFrame` returns the frozen last frame exactly once via `CompareAndSwap(true, false)` instead of going black, then propagates `io.EOF`. Natural EOF (file ends cleanly) is unaffected.
 
 ### ASS Subtitle Format Fixes
 
-- **`formatASSTime` centiseconds bug** — `int(d.Milliseconds()) / 10` used total milliseconds, producing values like `372345` instead of `45`. Fixed to `(int(d.Milliseconds()) % 1000) / 10` to isolate the sub-second component before dividing.
-- **`escapeASSText` closing-brace over-escape** — `}` was being escaped to `\}`, producing `\{bold\}` instead of `\{bold}`. In ASS format only `{` (tag opener) needs escaping; `}` alone is not a special character. Removed the `}` replacement.
+- **`formatASSTime` centiseconds bug** â€” `int(d.Milliseconds()) / 10` used total milliseconds, producing values like `372345` instead of `45`. Fixed to `(int(d.Milliseconds()) % 1000) / 10` to isolate the sub-second component before dividing.
+- **`escapeASSText` closing-brace over-escape** â€” `}` was being escaped to `\}`, producing `\{bold\}` instead of `\{bold}`. In ASS format only `{` (tag opener) needs escaping; `}` alone is not a special character. Removed the `}` replacement.
 
 ### P1-5: A-B Loop
 
-- **`Engine.SetLoopPoints(a, b float64)` / `SetABLoopEnabled(bool)`** — stores loopA and loopB PTS thresholds; when enabled, `NextFrame` checks PTS after each decoded frame and seeks back to loopA when PTS >= loopB. Loop-back scheduled via `abLoopPending` flag on next `NextFrame` call, returning the frame at B first.
-- **`InlineVideoPlayer.SetABLoopEnabled(bool)` / `SetLoopPoints(a, b float64)`** — forwards to Engine through the standard InlineVideoPlayer API layer.
-- **Zero overhead when disabled** — `abLoopEnabled` check is a single `IsABLoopEnabled()` call after each frame decode; no branching cost for normal playback when disabled.
+- **`Engine.SetLoopPoints(a, b float64)` / `SetABLoopEnabled(bool)`** â€” stores loopA and loopB PTS thresholds; when enabled, `NextFrame` checks PTS after each decoded frame and seeks back to loopA when PTS >= loopB. Loop-back scheduled via `abLoopPending` flag on next `NextFrame` call, returning the frame at B first.
+- **`InlineVideoPlayer.SetABLoopEnabled(bool)` / `SetLoopPoints(a, b float64)`** â€” forwards to Engine through the standard InlineVideoPlayer API layer.
+- **Zero overhead when disabled** â€” `abLoopEnabled` check is a single `IsABLoopEnabled()` call after each frame decode; no branching cost for normal playback when disabled.
 
 ### P1-8: Frame Timing Diagnostics Overlay
 
-- **`InlineVideoPlayer.SetFrameTimingOverlayVisible(bool)`** — toggle drives `VideoPlayer.SetFrameTimingVisible` flag; overlay renders in top-right corner showing: sequential frame count, PTS (s), inter-frame delta (ms), and PTS delta (s).
-- **Per-frame collection at InlineVideoPlayer level** — frame count, last PTS, and last-received timestamp tracked in `InlineVideoPlayer` fields; formatted string pushed to widget via `DoFromGoroutine` each frame.
-- **Semi-transparent background** — auto-sized to text width using `fyne.MeasureText`; green monospace text on dark background.
+- **`InlineVideoPlayer.SetFrameTimingOverlayVisible(bool)`** â€” toggle drives `VideoPlayer.SetFrameTimingVisible` flag; overlay renders in top-right corner showing: sequential frame count, PTS (s), inter-frame delta (ms), and PTS delta (s).
+- **Per-frame collection at InlineVideoPlayer level** â€” frame count, last PTS, and last-received timestamp tracked in `InlineVideoPlayer` fields; formatted string pushed to widget via `DoFromGoroutine` each frame.
+- **Semi-transparent background** â€” auto-sized to text width using `fyne.MeasureText`; green monospace text on dark background.
 
 ### P1-11: Clock Drift Correction
 
@@ -580,62 +580,62 @@ pending):
 
 ### P1-10: Growing/In-Progress File Support
 
-- **`Engine.SetGrowingFile(bool)` / `IsGrowingFile()`** — atomic toggle alongside `looping`, wired through `InlineVideoPlayer.SetGrowingFile(bool)`.
-- **`InlineVideoPlayer.growingFileWatcher()`** — goroutine polls `os.Stat` every 2s; on growth, calls `Load(path)` to re-open, `Seek(lastPos)` to restore position, `Play()` to resume.
+- **`Engine.SetGrowingFile(bool)` / `IsGrowingFile()`** â€” atomic toggle alongside `looping`, wired through `InlineVideoPlayer.SetGrowingFile(bool)`.
+- **`InlineVideoPlayer.growingFileWatcher()`** â€” goroutine polls `os.Stat` every 2s; on growth, calls `Load(path)` to re-open, `Seek(lastPos)` to restore position, `Play()` to resume.
 - **EOF handler modified**: when `eng.IsGrowingFile()` is true, skips `onEnd` callback + `MarkCompleted`, starts watcher instead.
 
 ### P1-7: Bilinear Scaling (docs-only)
 
-- **FFmpeg sws_scale confirmed using SWS_BICUBIC** at `engine.go:1445` (video decode → RGBA) and `framepool.go:36` (thumbnail pipeline). The actual colour conversion and dimension scaling have always been bicubic — no code change needed.
-- **`scaleNearest` docstring clarified** in `view.go:833` — documented that the nearest-neighbour canvas blit is purely a last-mile positioning step with negligible visual impact. The quality-determining FFmpeg swscale pipeline is and remains SWS_BICUBIC.
+- **FFmpeg sws_scale confirmed using SWS_BICUBIC** at `engine.go:1445` (video decode â†’ RGBA) and `framepool.go:36` (thumbnail pipeline). The actual colour conversion and dimension scaling have always been bicubic â€” no code change needed.
+- **`scaleNearest` docstring clarified** in `view.go:833` â€” documented that the nearest-neighbour canvas blit is purely a last-mile positioning step with negligible visual impact. The quality-determining FFmpeg swscale pipeline is and remains SWS_BICUBIC.
 
 ### P1-2: Resume/Watch-Later
 
-- **`InlineVideoPlayer` auto-saves playback position** — `resumeState` field + `SetResumeState(s)` method. During `playbackLoop`, saves position every 5s (throttled) via `state.ResumeState.SavePosition()`. On EOF, calls `rs.MarkCompleted()`. On load, auto-restores via `GetPosition()` + `ShouldResume()`.
-- **`state/resume.go` build constraint removed** — the `//go:build native_media` tag was unnecessary (pure Go with no CGo/FFmpeg deps), allowing `inline_player_stub.go` to import the package without a matching stub type.
-- **Shared ResumeState wired in `initNativeMediaAssets`** — created from `filepath.Join(defaultVideoToolsRoot(), "state")` and set on both `primaryInlinePlayer` and `previewPlayer`. Every module using the shared singletons gets resume for free.
-- Trim module retains its independent `ResumeState` (created with empty configDir) for backward compatibility — no functional overlap since it uses a separate state file.
+- **`InlineVideoPlayer` auto-saves playback position** â€” `resumeState` field + `SetResumeState(s)` method. During `playbackLoop`, saves position every 5s (throttled) via `state.ResumeState.SavePosition()`. On EOF, calls `rs.MarkCompleted()`. On load, auto-restores via `GetPosition()` + `ShouldResume()`.
+- **`state/resume.go` build constraint removed** â€” the `//go:build native_media` tag was unnecessary (pure Go with no CGo/FFmpeg deps), allowing `inline_player_stub.go` to import the package without a matching stub type.
+- **Shared ResumeState wired in `initNativeMediaAssets`** â€” created from `filepath.Join(defaultVideoToolsRoot(), "state")` and set on both `primaryInlinePlayer` and `previewPlayer`. Every module using the shared singletons gets resume for free.
+- Trim module retains its independent `ResumeState` (created with empty configDir) for backward compatibility â€” no functional overlap since it uses a separate state file.
 
 ### P1-1: Network/URL Streaming
 
 - **`Engine.OpenURL(url string, opts map[string]string) error`** added to `internal/media/engine.go`: builds AVDictionary with sensible defaults (60s I/O timeout, `reconnect_streamed=1`, `reconnect_on_network_error=1`, `reconnect_delay_max=5`). User-provided opts override defaults. Passes `&dict` to `avformat_open_input` for full network protocol support (HTTP/HTTPS/HLS/DASH/RTSP/RTMP).
-- **`InlineVideoPlayer.LoadURL(url string, opts map[string]string) error`** added to `internal/ui/inline_player.go` — follows `loadViaOpen` pattern, same lifecycle as `Load()`/`LoadDVD()`. Stub in `inline_player_stub.go` preserves build without `native_media` tag.
+- **`InlineVideoPlayer.LoadURL(url string, opts map[string]string) error`** added to `internal/ui/inline_player.go` â€” follows `loadViaOpen` pattern, same lifecycle as `Load()`/`LoadDVD()`. Stub in `inline_player_stub.go` preserves build without `native_media` tag.
 
-### P0-5: OpenAuto — Open→OpenDVD Fallback
+### P0-5: OpenAuto â€” Openâ†’OpenDVD Fallback
 
-- **`Engine.OpenAuto(path string) error`** — tries `Open()` (generic avformat), falls back to `OpenDVD(path, 0)` (dvdvideo demuxer, longest title) on failure. `InlineVideoPlayer.Load()` now calls `OpenAuto` instead of `Open`, so ISOs and VIDEO_TS directories load automatically in Convert, Inspect, Filters, Upscale, Trim, Audio, and Subtitles modules without explicit disc-aware callers.
+- **`Engine.OpenAuto(path string) error`** â€” tries `Open()` (generic avformat), falls back to `OpenDVD(path, 0)` (dvdvideo demuxer, longest title) on failure. `InlineVideoPlayer.Load()` now calls `OpenAuto` instead of `Open`, so ISOs and VIDEO_TS directories load automatically in Convert, Inspect, Filters, Upscale, Trim, Audio, and Subtitles modules without explicit disc-aware callers.
 
-### P0-1 + P0-2: HW→SW Decoder Degradation + NextFrame Hang Fix
+### P0-1 + P0-2: HWâ†’SW Decoder Degradation + NextFrame Hang Fix
 
 - **`vt_clear_hw_decode` C helper** (`errors.go`): unrefs `hw_device_ctx` from the codec context, resets the `get_format` callback and `opaque` pointer to NULL, and re-enables `FF_THREAD_SLICE` threading. Prevents the codec from attempting HW pixel-format negotiation after degradation.
 - **`DegradeToSoftware()` now fully functional**: previously only freed the engine's HW context references; the codec context still had `hw_device_ctx` set + `get_format` wired, causing the codec to re-init HW on the next decode cycle. Now calls `vt_clear_hw_decode` + `avcodec_flush_buffers` to break the cycle and discard buffered HW frames.
 - **`videoDecodeLoop` degradation wired in**: when `retrieveHWFrame` sets `videoDecodeDead=true` (SEH in `av_hwframe_transfer_data` or `sws_scale`), the decode loop now calls `RecordHWFailure()` + `DegradeToSoftware()`, clears the dead flag, and continues. The next iteration runs the SW decode branch (`hwDevice == HWDeviceNone`). If degradation was already attempted and SW is also failing, sends EOF sentinel and exits.
 - **EOF sentinel sent on all fatal `videoDecodeLoop` exit paths** (P0-2): `SafeSendPacket` SEH, `SafeReceiveFrame` SEH, and already-degraded fatal path all now send `decodeEOFPTS` into `frameQueue` before returning. `NextFrame` unblocks and returns `io.EOF` instead of hanging forever.
 
-### P0-5: OpenAuto with Open→OpenDVD Fallback
+### P0-5: OpenAuto with Openâ†’OpenDVD Fallback
 
-- **`Engine.OpenAuto(path)`** added: tries `Open(path)`, falls back to `OpenDVD(path, 0)` on failure. `InlineVideoPlayer.Load()` now uses `OpenAuto` instead of `Open` — ISOs and VIDEO_TS directories load automatically in every module without calling `LoadDVD()`.
+- **`Engine.OpenAuto(path)`** added: tries `Open(path)`, falls back to `OpenDVD(path, 0)` on failure. `InlineVideoPlayer.Load()` now uses `OpenAuto` instead of `Open` â€” ISOs and VIDEO_TS directories load automatically in every module without calling `LoadDVD()`.
 
 ### P0-3: Backward Frame Stepping (un-break StepFrame(-1))
 
-- **`Engine.Step(frames int)`** at `playback.go:335-338` previously rejected `frames <= 0` — all `StepFrame(-1)` callers silently failed. Now handles negative values: seeks back ~2 safety-seconds before the target frame's PTS, then decodes forward `abs(frames)` frames and returns the last one. Uses `GetFrameRate()` to calculate per-frame duration; falls back to position 0 if target < 0.
+- **`Engine.Step(frames int)`** at `playback.go:335-338` previously rejected `frames <= 0` â€” all `StepFrame(-1)` callers silently failed. Now handles negative values: seeks back ~2 safety-seconds before the target frame's PTS, then decodes forward `abs(frames)` frames and returns the last one. Uses `GetFrameRate()` to calculate per-frame duration; falls back to position 0 if target < 0.
 
 ### P0-4: Error Ring Buffer (replaces single-slot lastError)
 
 - **Replaced `lastError *PlaybackError`** (single slot, written only in dead code, never read) with a 16-entry ring buffer. New `ErrorRecord` struct includes `Timestamp time.Time` so every error carries a temporal trace. Thread-safe via dedicated `errorMu`.
-- **`SetError()` wired into all SEH catch paths**: `GrabFrame` send_packet/receive_frame, `videoDecodeLoop` send_packet/receive_frame, `retrieveHWFrame` hwframe_transfer/sws_scale — every CGo crash route now writes to the ring buffer. `DegradeToSoftware()` also uses `SetError()` instead of direct `lastError` assignment.
+- **`SetError()` wired into all SEH catch paths**: `GrabFrame` send_packet/receive_frame, `videoDecodeLoop` send_packet/receive_frame, `retrieveHWFrame` hwframe_transfer/sws_scale â€” every CGo crash route now writes to the ring buffer. `DegradeToSoftware()` also uses `SetError()` instead of direct `lastError` assignment.
 - **`GetErrorHistory() []ErrorRecord`** returns all entries in chronological order. `GetLastError()` preserved as backward-compat wrapper. `ClearError()` / `ClearErrorHistory()` reset the ring.
 - Build clean, 31/31 media tests pass (2 pre-existing ASS subtitle failures unaffected).
 
 ### Comprehensive Media Engine Gap Analysis
 
 - **Full audit of every missing player feature** vs. production players (VLC/MPV). 20+ gaps catalogued across 4 phases.
-- **DegradeToSoftware confirmed dead code** (`errors.go:57`): HW→SW fallback is inline per-frame, retrying HW on every decode until `videoDecodeDead=true` kills decoding permanently. `DegradeToSoftware()`, `ShouldDegrade()`, `RecordHWFailure()`, `ResetHWFailureCount()` are all unreachable.
+- **DegradeToSoftware confirmed dead code** (`errors.go:57`): HWâ†’SW fallback is inline per-frame, retrying HW on every decode until `videoDecodeDead=true` kills decoding permanently. `DegradeToSoftware()`, `ShouldDegrade()`, `RecordHWFailure()`, `ResetHWFailureCount()` are all unreachable.
 - **NextFrame hang after HW crash** (`playback.go:662`): When SEH fires in videoDecodeLoop, remaining frame queue drains then NextFrame blocks forever receiving from a channel that will never get an EOF sentinel.
-- **Backward frame stepping broken** (`playback.go:335-338`): `Step(frames)` rejects negative values — all `StepFrame(-1)` callers silently fail.
+- **Backward frame stepping broken** (`playback.go:335-338`): `Step(frames)` rejects negative values â€” all `StepFrame(-1)` callers silently fail.
 - **lastError is orphaned dead data** (`engine.go:205`, `errors.go:17-48`): Single `*PlaybackError` pointer written only in dead code, `GetLastError()`/`ClearError()` never called by any module.
-- **No network streaming**: `avformat_open_input` gets `nil, nil` — no AVDictionary options for timeout, reconnect, protocol whitelist. FFmpeg natively supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP but VT has no URL opening path.
-- **SeekAccuracy locked to Keyframe**: All 3 callers hardcode `SeekAccuracyKeyframe` — Frame and Accurate modes defined but unreachable.
+- **No network streaming**: `avformat_open_input` gets `nil, nil` â€” no AVDictionary options for timeout, reconnect, protocol whitelist. FFmpeg natively supports HTTP/HTTPS/HLS/DASH/RTSP/RTMP but VT has no URL opening path.
+- **SeekAccuracy locked to Keyframe**: All 3 callers hardcode `SeekAccuracyKeyframe` â€” Frame and Accurate modes defined but unreachable.
 - **Resume/watch-later only in Trim module**: `internal/media/state/resume.go` used exclusively by trim/view.go.
 - **No audio delay, speed+pitch correction, A-B loop, bilinear scaling, frame timing overlay, clock drift correction, or growing-file support**.
 - **Design document**: `docs/MEDIA_ENGINE_GAP_ANALYSIS.md` with tiered list, file:line references, effort estimates, and VLC/MPV comparison.
@@ -644,98 +644,98 @@ pending):
 
 ## v0.1.1-dev49 (May 2026)
 
-### Select / Dropdown — Active Item Text Colour Fix
-- **`_fyne/widget/menu_item.go`**: `refreshText()` now uses `ColorNameForegroundOnPrimary` (mapped to `BgBase` #0B0F1A in `VTTheme` — near-black) when the menu item is active, instead of always using `ColorNameForeground` (light text). Active dropdown items render on the `ColorNameFocus` background (VT_Green #22c55e); the previous light text was illegible. Fixes all dropdowns app-wide: Settings, Convert, Filters, Upscale, Rip, etc.
+### Select / Dropdown â€” Active Item Text Colour Fix
+- **`_fyne/widget/menu_item.go`**: `refreshText()` now uses `ColorNameForegroundOnPrimary` (mapped to `BgBase` #0B0F1A in `VTTheme` â€” near-black) when the menu item is active, instead of always using `ColorNameForeground` (light text). Active dropdown items render on the `ColorNameFocus` background (VT_Green #22c55e); the previous light text was illegible. Fixes all dropdowns app-wide: Settings, Convert, Filters, Upscale, Rip, etc.
 
-### Media Engine — bwdif Deinterlace
+### Media Engine â€” bwdif Deinterlace
 - **Engine-level bwdif deinterlace**: New `internal/media/deinterlace.go` with libavfilter-based bwdif filter graph. Applied in `videoDecodeLoop` and `GrabFrame` when `AV_FRAME_FLAG_INTERLACED` is set on the decoded frame. bwdif parameters `mode=0:parity=-1:deint=0` (full-rate output, auto field-order detection, only intervene on flagged frames). Filter graph created lazily on first interlaced frame, cached per video, freed on `Close()`.
 - **`toRGBA()` signature extended**: Now accepts optional `*C.AVFrame` parameter (`nil` = use `e.frame`). Deinterlaced frames are passed directly to sws_scale without copying data back to `e.frame`.
 - **`AV_FRAME_FLAG_INTERLACED` check**: Uses the flags-based API (`frame->flags & AV_FRAME_FLAG_INTERLACED`) which is the only portable check across FFmpeg 6.x and 7.x+ (the deprecated `interlaced_frame` field was removed in FFmpeg 7.0).
-- **Settings toggle**: "Auto deinterlace" checkbox in Settings → Preferences → Player section, default on. Preference persisted to `PrefsConfig.AutoDeinterlace`. Wired through `InlineVideoPlayer.SetDeinterlaceEnabled()` → `Engine.SetDeinterlaceEnabled()`. Global default via `media.SetDefaultDeinterlaceEnabled()` ensures newly created engines respect the saved preference.
+- **Settings toggle**: "Auto deinterlace" checkbox in Settings â†’ Preferences â†’ Player section, default on. Preference persisted to `PrefsConfig.AutoDeinterlace`. Wired through `InlineVideoPlayer.SetDeinterlaceEnabled()` â†’ `Engine.SetDeinterlaceEnabled()`. Global default via `media.SetDefaultDeinterlaceEnabled()` ensures newly created engines respect the saved preference.
 - **i18n**: `SettingsAutoDeinterlace` / `SettingsAutoDeinterlaceHint` keys in all four locale files (en_ca, fr_ca, iu, iu_latin).
-- **disc_debug.c double-include fix**: Removed `#include "disc_debug.c"` from `disc_debug.go` C preamble — CGo auto-compiles `.c` files, causing duplicate symbol linker errors. Added `#include <stdlib.h>` for `C.free`.
+- **disc_debug.c double-include fix**: Removed `#include "disc_debug.c"` from `disc_debug.go` C preamble â€” CGo auto-compiles `.c` files, causing duplicate symbol linker errors. Added `#include <stdlib.h>` for `C.free`.
 
-### Thread Safety Formalisation — Lock Hierarchy & Lockdep
-- **Formal lock hierarchy established**: All Engine mutexes follow a documented acquisition order: `mu (level 1) → formatMu (level 2) → videoCodecMu (level 3) → framepoolMu (level 4)`. Clear rules documented in `internal/media/lock.go` and `docs/PLAYER_DEBUG.md`.
+### Thread Safety Formalisation â€” Lock Hierarchy & Lockdep
+- **Formal lock hierarchy established**: All Engine mutexes follow a documented acquisition order: `mu (level 1) â†’ formatMu (level 2) â†’ videoCodecMu (level 3) â†’ framepoolMu (level 4)`. Clear rules documented in `internal/media/lock.go` and `docs/PLAYER_DEBUG.md`.
 - **Lock wrapper helpers**: Every direct `.Lock()`/`.Unlock()` call across 6 Engine files (engine.go, playback.go, errors.go, buffer.go, framepool.go, scrub.go) replaced with named helpers: `lockMu()`/`unlockMu()`, `lockFormatMu()`/`unlockFormatMu()`, `lockVideoCodecMu()`/`unlockVideoCodecMu()`, `lockFramepoolMu()`/`unlockFramepoolMu()`. ~60 call sites migrated.
-- **Lockdep runtime verification**: New `lockdep_on.go` (`//go:build lockdep`) uses goroutine-local tracking via `sync.Map` + `runtime.Stack` goroutine ID parsing. Before each lock acquisition, verifies no held lock has level >= new level — panics with reverse-order deadlock diagnostic on violation. `lockdep_off.go` provides no-op stubs for release builds.
-- **DegradeToSoftware safety comment**: Documented that this function acquires `mu → videoCodecMu` and must NOT be called while already holding `videoCodecMu`. Currently unused (HW→SW fallback happens inline); added guidance to use `go e.DegradeToSoftware()` if wiring from within videoCodecMu context.
-- **framepoolMu comment fixed**: Updated from "must NOT be acquired under videoCodecMu" to reference the formal lock hierarchy — the lock IS acquired under videoCodecMu (in toRGBA) but this is safe because no path ever takes framepoolMu then videoCodecMu.
-- **Lock-free atomic fields documented**: `seekFlushBefore`, `seekGen`, `lastVideoPTSBits` use `atomic.Uint64` to avoid the `videoCodecMu → mu` reverse-order deadlock that would occur if they were mutex-guarded.
+- **Lockdep runtime verification**: New `lockdep_on.go` (`//go:build lockdep`) uses goroutine-local tracking via `sync.Map` + `runtime.Stack` goroutine ID parsing. Before each lock acquisition, verifies no held lock has level >= new level â€” panics with reverse-order deadlock diagnostic on violation. `lockdep_off.go` provides no-op stubs for release builds.
+- **DegradeToSoftware safety comment**: Documented that this function acquires `mu â†’ videoCodecMu` and must NOT be called while already holding `videoCodecMu`. Currently unused (HWâ†’SW fallback happens inline); added guidance to use `go e.DegradeToSoftware()` if wiring from within videoCodecMu context.
+- **framepoolMu comment fixed**: Updated from "must NOT be acquired under videoCodecMu" to reference the formal lock hierarchy â€” the lock IS acquired under videoCodecMu (in toRGBA) but this is safe because no path ever takes framepoolMu then videoCodecMu.
+- **Lock-free atomic fields documented**: `seekFlushBefore`, `seekGen`, `lastVideoPTSBits` use `atomic.Uint64` to avoid the `videoCodecMu â†’ mu` reverse-order deadlock that would occur if they were mutex-guarded.
 
-### Media Engine — Seek Corruption Fix & Player Consolidation
+### Media Engine â€” Seek Corruption Fix & Player Consolidation
 - **Accurate fallback seek corruption fixed**: `Engine.Seek()` (playback.go:179-181) used `AVSEEK_FLAG_ACCURATE` without `AVSEEK_FLAG_BACKWARD`, causing the format context to land mid-GOP. After `avcodec_flush_buffers` destroyed the decoder reference state, the first decoded P/B-frame had no reference I-frame, producing garbled output for 1-3 seconds after every seek that triggered the adaptive accuracy fallback. Fixed by adding `AVSEEK_FLAG_BACKWARD`.
 - **Verbose seek logging**: Added human-readable seek flags (`Seek: flags=`), accurate fallback confirmation, clock reset target with audio offset, frame queue drain count, and videoDecodeLoop seekGen change detection logging the first decoded frame's format/dimensions/PTS after each seek.
 - **InlineVideoPlayer seek logging**: `InlineVideoPlayer.Seek()` now logs the seek target and the first decoded frame status (`err=%v img=%v`).
-- **Player singleton consolidation**: All 10 per-module player singletons consolidated into 2 shared instances — `GetPrimaryPlayer()` (for Convert, Trim, Inspect, Filters, Upscale, Audio, Subtitles) and `GetPreviewPlayer()` (for Filters/Upscale before/after comparison). Per-module getters forward through these. Unused players (`convertPreviewPlayer`, `subtitleInlinePlayer`, `audioInlinePlayer`) retained as backward-compat aliases but now reference the shared instances. `applyPlayerDefaultAspect` updated to iterate only 2 players.
+- **Player singleton consolidation**: All 10 per-module player singletons consolidated into 2 shared instances â€” `GetPrimaryPlayer()` (for Convert, Trim, Inspect, Filters, Upscale, Audio, Subtitles) and `GetPreviewPlayer()` (for Filters/Upscale before/after comparison). Per-module getters forward through these. Unused players (`convertPreviewPlayer`, `subtitleInlinePlayer`, `audioInlinePlayer`) retained as backward-compat aliases but now reference the shared instances. `applyPlayerDefaultAspect` updated to iterate only 2 players.
 - **Media Engine Architecture document**: Created `docs/MEDIA_ENGINE_ARCHITECTURE.md` documenting the full three-layer stack, the 10-player problem, seek architecture with the fixed bug, frame pacing design, known issues, and the consolidation plan.
 
-### Settings — Log File Management
+### Settings â€” Log File Management
 - **Session rotation**: `logging.Init()` now trims the log file to the last 2 sessions on every startup. A `=== VideoTools session started` boundary marker is written at each boot; `rotateLog()` scans for these and discards anything before the most recent previous session. Old binary noise from stale installations disappears automatically after two runs.
-- **Clear Log File button**: Settings → Preferences → Log File card. Truncates the active log file in place (no restart needed) and writes a cleared-at timestamp. Useful for a fresh start before sending a log to a tester.
+- **Clear Log File button**: Settings â†’ Preferences â†’ Log File card. Truncates the active log file in place (no restart needed) and writes a cleared-at timestamp. Useful for a fresh start before sending a log to a tester.
 - **Open Log Folder button**: Opens the logs directory in the system file manager.
 
-### Queue & Process Management — File-in-Use & Zombie FFmpeg Fixes
+### Queue & Process Management â€” File-in-Use & Zombie FFmpeg Fixes
 - **`NoInheritHandles` on Windows subprocess creation** (`internal/utils/exec_windows.go`): `SysProcAttr` now sets `NoInheritHandles: true` on both `CreateCommand` and `CreateCommandRaw`. Previously, the VT media engine's open `avformat_open_input` file handles were inherited by every FFmpeg subprocess, holding the source video file open for the lifetime of the encode. On Windows, this caused "file in use" errors when deleting or moving the source file after conversion. `NoInheritHandles: true` prevents any parent handles from being duplicated into child processes.
-- **`Queue.Stop()` cancels running jobs** (`internal/queue/queue.go`): `Stop()` — called on app window close via `s.shutdown()` — now invokes `cancelRunningLocked()` before clearing the `running` flag. Previously, closing VT while a conversion was in progress left the FFmpeg subprocess running as an orphan. Context cancellation now propagates through `exec.CommandContext` to terminate the child process cleanly when the app closes.
-- **Windows Job Object — crash-resistant child process cleanup** (`internal/utils/jobobject_windows.go`): `utils.InitJobObject()` (called at app startup) creates a Windows Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. All long-running encode processes are assigned to it immediately after start via `utils.StartCmd()`. When VT exits for **any** reason — clean shutdown or crash — Windows automatically kills all Job Object members. Covers the 4K crash scenario where `Queue.Stop()` is never reached because VT itself goes down.
+- **`Queue.Stop()` cancels running jobs** (`internal/queue/queue.go`): `Stop()` â€” called on app window close via `s.shutdown()` â€” now invokes `cancelRunningLocked()` before clearing the `running` flag. Previously, closing VT while a conversion was in progress left the FFmpeg subprocess running as an orphan. Context cancellation now propagates through `exec.CommandContext` to terminate the child process cleanly when the app closes.
+- **Windows Job Object â€” crash-resistant child process cleanup** (`internal/utils/jobobject_windows.go`): `utils.InitJobObject()` (called at app startup) creates a Windows Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. All long-running encode processes are assigned to it immediately after start via `utils.StartCmd()`. When VT exits for **any** reason â€” clean shutdown or crash â€” Windows automatically kills all Job Object members. Covers the 4K crash scenario where `Queue.Stop()` is never reached because VT itself goes down.
 - **Linux `Pdeathsig: SIGKILL`** (`internal/utils/exec_linux.go`): Linux `CreateCommand`/`CreateCommandRaw` now set `SysProcAttr.Pdeathsig = syscall.SIGKILL`. The kernel automatically sends SIGKILL to every child process when the parent (VT) process exits, with no cooperative shutdown required.
 - **`utils.StartCmd()` replaces `cmd.Start()` at all encode sites**: All long-running FFmpeg invocations in `main.go`, `rip/executor.go`, `audio/executor.go`, `thumbnail/generator.go`, and `interlace/detector.go` now go through `StartCmd`. On Windows this assigns each process to the Job Object; on Linux `Pdeathsig` is already in `SysProcAttr` from `CreateCommand`.
 
-### Queue Module — Convert Navigation & Progress Refresh Bug Fixes
-- **Blocking dialog removed**: `convertNow()` no longer shows `dialog.ShowInformation` after queuing a job. Replaced with direct `s.showQueue()` — user is taken straight to the queue to watch progress. Previously, a modal dialog blocked the view; on fast hardware (e.g. AMF AV1 at 10× speed), the encode completed before the user could dismiss it.
+### Queue Module â€” Convert Navigation & Progress Refresh Bug Fixes
+- **Blocking dialog removed**: `convertNow()` no longer shows `dialog.ShowInformation` after queuing a job. Replaced with direct `s.showQueue()` â€” user is taken straight to the queue to watch progress. Previously, a modal dialog blocked the view; on fast hardware (e.g. AMF AV1 at 10Ã— speed), the encode completed before the user could dismiss it.
 - **Queue auto-refresh goroutine self-exit fixed**: `startQueueAutoRefresh` and `startQueueElapsedTicker` in `queue_module.go` both used `return` in the ticker case when `s.active != "queue"`, silently killing the goroutine while leaving `queueAutoRefreshRunning`/`queueElapsedRunning = true`. The next `showQueue()` call became a no-op (guard returned early), so the progress bar never updated. Fixed by changing both `return` statements to `continue`.
 
-### Convert Module — Collapsible Section Header Bars (BuildCollapsibleHeader)
-- **`internal/ui/collapsible.go`**: New `tappableBox` widget (implements `fyne.Tappable` via `widget.BaseWidget`) and `BuildCollapsibleHeader` function. Returns a full-width module-colored accent bar (CornerRadius 10, height 34) with uppercase bold ▼/▶ label matching the `buildConvertBox`/`buildRipBox` visual pattern. Accepts `extraRight` widgets and an `onToggle(open bool)` callback.
-- **Metadata panel collapse**: Metadata header is now a tappable `BuildCollapsibleHeader` bar labeled "▼ METADATA" / "▶ METADATA" with module color. Drives `leftColumn` VSplit (expanded 0.5 ↔ collapsed 0.97). Copy/Clear action buttons remain in the header right side.
-- **Settings panel collapse**: Settings column header is a tappable `BuildCollapsibleHeader` bar labeled "▼ SETTINGS" / "▶ SETTINGS". Drives `mainSplit` (expanded 0.65 ↔ collapsed 0.97). Replaces the old pill button in the top nav bar.
+### Convert Module â€” Collapsible Section Header Bars (BuildCollapsibleHeader)
+- **`internal/ui/collapsible.go`**: New `tappableBox` widget (implements `fyne.Tappable` via `widget.BaseWidget`) and `BuildCollapsibleHeader` function. Returns a full-width module-colored accent bar (CornerRadius 10, height 34) with uppercase bold â–¼/â–¶ label matching the `buildConvertBox`/`buildRipBox` visual pattern. Accepts `extraRight` widgets and an `onToggle(open bool)` callback.
+- **Metadata panel collapse**: Metadata header is now a tappable `BuildCollapsibleHeader` bar labeled "â–¼ METADATA" / "â–¶ METADATA" with module color. Drives `leftColumn` VSplit (expanded 0.5 â†” collapsed 0.97). Copy/Clear action buttons remain in the header right side.
+- **Settings panel collapse**: Settings column header is a tappable `BuildCollapsibleHeader` bar labeled "â–¼ SETTINGS" / "â–¶ SETTINGS". Drives `mainSplit` (expanded 0.65 â†” collapsed 0.97). Replaces the old pill button in the top nav bar.
 - **`ConvertSectionSettings` i18n key**: New key added across all four locale files (en_ca, fr_ca, iu, iu_latin) for the settings section label.
-- **Rip log relabeled**: Log toggle pill now reads "▼ LOG" / "▶ LOG" (was bare ▼/▶ arrows).
+- **Rip log relabeled**: Log toggle pill now reads "â–¼ LOG" / "â–¶ LOG" (was bare â–¼/â–¶ arrows).
 
-### Rip Module — Layout Alignment to Convert Style
-- **Player panel width**: HSplit offset 0.40 → 0.65; player now takes two-thirds of the module width, matching the Convert module's spatial balance.
-- **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) matching Convert's `buildConvertBox()` visual pattern — four sections: Source, Format, Output, Status.
+### Rip Module â€” Layout Alignment to Convert Style
+- **Player panel width**: HSplit offset 0.40 â†’ 0.65; player now takes two-thirds of the module width, matching the Convert module's spatial balance.
+- **Section boxes**: Controls panel restructured with `buildRipBox()` header sections (teal accent bars) matching Convert's `buildConvertBox()` visual pattern â€” four sections: Source, Format, Output, Status.
 - **Open in Player relocated**: Button moved from below the player canvas into the module footer action bar alongside the queue/rip buttons.
-- **Collapsible log**: ▼/▶ toggle in the RIP LOG console header collapses/expands the log section (logVSplit: expanded 0.60, collapsed 0.97). Log is proportionally larger when open (was 0.75 → now 0.60 main/log split).
+- **Collapsible log**: â–¼/â–¶ toggle in the RIP LOG console header collapses/expands the log section (logVSplit: expanded 0.60, collapsed 0.97). Log is proportionally larger when open (was 0.75 â†’ now 0.60 main/log split).
 
-### Rip Module — Menu Bleed, Chapters & Multi-Title Export
+### Rip Module â€” Menu Bleed, Chapters & Multi-Title Export
 - **Menu VOB bleed fixed**: `CollectVOBSets` now excludes `VTS_XX_0.VOB` (menu VOB) from content title sets. Previously the menu VOB was concatenated at the start of every rip, causing menu frames to glitch into the output video and shifting all chapter timestamps by the menu duration.
 - **Chapter embedding diagnostics**: Added verbose logging of chapter count, first/last timestamp, and embed decision to rip log for easier debugging.
 - **Menu preservation option**: New `IncludeMenus` config option + "Preserve menus" checkbox in rip view. When enabled, menu VOBs (`VIDEO_TS.VOB` + all `VTS_XX_0.VOB`) are exported as separate files alongside the main rip. Output naming `{base}_Menu_{VTS_Name}.{ext}`.
 - **Main/extra title naming**: The longest title (main feature) uses the main output path; shorter titles use `_Extra_Title_NN` suffix instead of the previous `_Title_NN` for all titles. Title selection UI marks the main feature with a star indicator.
 
-### Inuktitut Transliteration — Auto-Fill Missing Script Variants
-- **New `internal/i18n/translit/` package**: Pure-Go implementation of the iutools syllabics↔roman transliteration algorithm (MIT-licensed, National Research Council Canada). 270-entry mapping tables across all 15 Inuktitut consonant series plus short/long vowels, finals, and `lh` ASCII fallback for `ł`.
-- **Syllabics→Roman**: Handles compound sequences (r/q finals + k-series → rq/qq+vowel; ng/nng finals + g-series → ng/nng+vowel).
-- **Roman→Syllabics**: Greedy longest-prefix hash-table matching; `%`-verb escaping preserves printf format specifiers through translation.
+### Inuktitut Transliteration â€” Auto-Fill Missing Script Variants
+- **New `internal/i18n/translit/` package**: Pure-Go implementation of the iutools syllabicsâ†”roman transliteration algorithm (MIT-licensed, National Research Council Canada). 270-entry mapping tables across all 15 Inuktitut consonant series plus short/long vowels, finals, and `lh` ASCII fallback for `Å‚`.
+- **Syllabicsâ†’Roman**: Handles compound sequences (r/q finals + k-series â†’ rq/qq+vowel; ng/nng finals + g-series â†’ ng/nng+vowel).
+- **Romanâ†’Syllabics**: Greedy longest-prefix hash-table matching; `%`-verb escaping preserves printf format specifiers through translation.
 - **Script detection helpers**: `IsSyllabics(s)`, `SyllabicRatio(s)` for identifying script type; `RomanOnly(v)` mode toggle.
 - **i18n integration**: `translitFill()` wired into `SetLanguageWithScript`. Empty Inuktitut fields auto-filled from the other script variant via transliteration. Manually-entered strings take precedence as overrides.
-- **Test coverage**: 15 unit tests (276 round-trip assertions) + 3 integration tests for the i18n↔translit bridge — all passing.
+- **Test coverage**: 15 unit tests (276 round-trip assertions) + 3 integration tests for the i18nâ†”translit bridge â€” all passing.
 
-### Frame Pacing — PTS-Driven Timing Overhaul
+### Frame Pacing â€” PTS-Driven Timing Overhaul
 - **No-audio WaitForPTS**: Replaced `e.clock.SetTime(pts)` with `e.clock.WaitForPTS(pts)` in `NextFrame` for audio-less playback. The clock now ticks forward in real time between frames; `WaitForPTS` blocks for the correct PTS interval (e.g. 41.7ms at 24fps), eliminating the previous decode-speed pacing that caused non-smooth video.
-- **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of per-frame jitter (ΔV up to ±16.7ms on frame intervals). Frame timing is now purely PTS-driven, removing all vsync-alignment jitter.
+- **Removed WaitVsync from playbackLoop**: The `DwmFlush()` call after every `NextFrame` introduced 0-16.7ms of per-frame jitter (Î”V up to Â±16.7ms on frame intervals). Frame timing is now purely PTS-driven, removing all vsync-alignment jitter.
 - **Frame rate propagation**: `VideoPlayer.SetFrameRate()` now called during `loadViaOpen` from `Engine.GetFrameRate()`, giving the player widget frame-accurate display configuration.
 
-### VT Media Engine — Subsystem Split
-- **engine.go (3245→1117 lines)**: Broken into 6 focused subsystem files — errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go. framepool.go extracts frame buffer pool (toRGBA/ReleaseFrame/GetFramePoolSize/ensureSwsCtx). subtitle_engine.go extracts subtitle decoding+rendering (SubtitleOverlay, initSubtitleDecoder, decodeSubtitle, RenderSubtitles, drawBitmapText). buffer.go extracts buffer management (SetBufferMode, recordDecodeTime, AdjustBufferForPerformance, GetBufferHealth). playback.go extracts the entire playback pipeline (Start, demuxerLoop, Seek, ResetAfterGrab, GrabFrame, videoDecodeLoop, NextFrame, Pause, Resume, Close, Duration, etc.) plus all query helpers.
-- **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go — deferred to dev50.
-- **Player interface**: Extracting formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests — deferred to dev50.
+### VT Media Engine â€” Subsystem Split
+- **engine.go (3245â†’1117 lines)**: Broken into 6 focused subsystem files â€” errors.go, hwdecode.go, framepool.go, subtitle_engine.go, buffer.go, playback.go. framepool.go extracts frame buffer pool (toRGBA/ReleaseFrame/GetFramePoolSize/ensureSwsCtx). subtitle_engine.go extracts subtitle decoding+rendering (SubtitleOverlay, initSubtitleDecoder, decodeSubtitle, RenderSubtitles, drawBitmapText). buffer.go extracts buffer management (SetBufferMode, recordDecodeTime, AdjustBufferForPerformance, GetBufferHealth). playback.go extracts the entire playback pipeline (Start, demuxerLoop, Seek, ResetAfterGrab, GrabFrame, videoDecodeLoop, NextFrame, Pause, Resume, Close, Duration, etc.) plus all query helpers.
+- **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go â€” deferred to dev50.
+- **Player interface**: Extracting formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests â€” deferred to dev50.
 - **HW decode default-on**: Re-evaluating D3D11VA default with VEH/SEH crash bridge coverage; per-codec HW blacklist for known-crash decoders.
 - **Thread safety formalisation**: Lock hierarchy documentation, lockdep-style assertions, elimination of reverse-order lock paths (e.g. DegradeToSoftware).
 
-### VT ISO Engine — Production Hardening
+### VT ISO Engine â€” Production Hardening
 - **UDF reader robustness**: Fallback sector scanning for non-standard AVDP locations; format validation on all descriptor parsing; multi-extent file support; ISO 9660 bridge for non-UDF discs.
 - **Thread safety & progress**: Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup.
 
-### Rip Module — Source Section Rework
+### Rip Module â€” Source Section Rework
 - **Disc info moved to Source**: `discInfoLabel` (type/region/size) relocated from the Format box to the Source section, so basic disc metadata is visible directly under the source path entry.
-- **Single browse button**: ISO... and Folder... buttons replaced with a single `...` button that opens a 900×640 file dialog. Folder selection is handled via drag-and-drop on the droppable source entry.
+- **Single browse button**: ISO... and Folder... buttons replaced with a single `...` button that opens a 900Ã—640 file dialog. Folder selection is handled via drag-and-drop on the droppable source entry.
 - **Format validation**: `loadDisc` now rejects non-ISO/non-VIDEO_TS paths with a user-visible error message (`RipErrNotDisc`) shown in the disc info label, instead of silently failing.
 
-### Player — Configurable Idle Aspect Ratio
-- **Settings → Preferences**: New "Idle Aspect Ratio" dropdown (4:3, 16:9, 5:3, 21:9, 9:16) controls the aspect ratio of SMPTE colour bars displayed when no video is loaded. Persisted as `PlayerDefaultAspect` in `PrefsConfig`.
+### Player â€” Configurable Idle Aspect Ratio
+- **Settings â†’ Preferences**: New "Idle Aspect Ratio" dropdown (4:3, 16:9, 5:3, 21:9, 9:16) controls the aspect ratio of SMPTE colour bars displayed when no video is loaded. Persisted as `PlayerDefaultAspect` in `PrefsConfig`.
 - **VideoPlayer field**: `idleAspectRatio` field with `SetIdleAspectRatio`/`IdleAspectRatio` methods; `draw()` uses `IdleAspectRatio()` instead of hardcoded `4.0/3.0`.
 - **InlineVideoPlayer forwarding**: `SetIdleAspectRatio` method on `InlineVideoPlayer` forwards to the underlying `VideoPlayer`. All player singletons updated at startup and on pref change.
 
@@ -745,503 +745,503 @@ pending):
 
 ## v0.1.1-dev48 (May 2026)
 
-### Theme System — internal/theme/ Package
-- **VT_Navy colour palette** extracted to `internal/theme/palette.go` — BgBase/BgDark/BgLight/BgCard, Border/BorderDim, Text/TextMuted, InputBg, all status colours.
-- **PillButton widget** moved to `internal/theme/pillbutton.go` — pill shape, coloured border, hover/active/disabled states, bold text, initial-paint fix (r.Refresh() in CreateRenderer).
-- **PillIconButton widget** — `internal/theme/pilliconbutton.go` — square icon-only pill button for transport controls and toolbar actions.
-- **Text primitives** — `NewTitleLabel`, `NewSectionLabel`, `NewWrappingLabel`, `NewHintLabel`, `NewMonoLabel` in `internal/theme/text.go`.
-- **MonoTheme + main.go** — both now reference theme vars instead of hardcoded hex strings.
-- **Circular dependency resolved** — `ui/` re-exports theme symbols for backward compat; `media/` imports theme directly.
+### Theme System â€” internal/theme/ Package
+- **VT_Navy colour palette** extracted to `internal/theme/palette.go` â€” BgBase/BgDark/BgLight/BgCard, Border/BorderDim, Text/TextMuted, InputBg, all status colours.
+- **PillButton widget** moved to `internal/theme/pillbutton.go` â€” pill shape, coloured border, hover/active/disabled states, bold text, initial-paint fix (r.Refresh() in CreateRenderer).
+- **PillIconButton widget** â€” `internal/theme/pilliconbutton.go` â€” square icon-only pill button for transport controls and toolbar actions.
+- **Text primitives** â€” `NewTitleLabel`, `NewSectionLabel`, `NewWrappingLabel`, `NewHintLabel`, `NewMonoLabel` in `internal/theme/text.go`.
+- **MonoTheme + main.go** â€” both now reference theme vars instead of hardcoded hex strings.
+- **Circular dependency resolved** â€” `ui/` re-exports theme symbols for backward compat; `media/` imports theme directly.
 
 ### Player: Transport Controls Migrated
-- **speedBtn / subtitleBtn** — migrated from `widget.Button` to `theme.PillButton` with consistent pill styling.
-- **playBtn / volumeBtn / prevChapterBtn / nextChapterBtn / fullscreenBtn / pipBtn** — migrated to `theme.PillIconButton`.
+- **speedBtn / subtitleBtn** â€” migrated from `widget.Button` to `theme.PillButton` with consistent pill styling.
+- **playBtn / volumeBtn / prevChapterBtn / nextChapterBtn / fullscreenBtn / pipBtn** â€” migrated to `theme.PillIconButton`.
 - All transport buttons share navy-light background, hover border lightens, no invisible-first-paint bug.
 
 ### Bug Fixes
-- **Audio nil-widget crash** — `Player.Widget()` nil guard in Audio view; HSplit never receives nil.
-- **PillButton initial paint** — `CreateRenderer` now calls `r.Refresh()` so colours render on first paint (buttons were invisible until hover).
-- **Window recentering** — removed `CenterOnScreen()` from `maximizeWindow`; window position is preserved across module entries.
-- **i18n: Inuktitut script preference** — script choice (syllabics vs Latin) now persists across language switches and survives app restarts via `ScriptPrefs` in locale JSON.
+- **Audio nil-widget crash** â€” `Player.Widget()` nil guard in Audio view; HSplit never receives nil.
+- **PillButton initial paint** â€” `CreateRenderer` now calls `r.Refresh()` so colours render on first paint (buttons were invisible until hover).
+- **Window recentering** â€” removed `CenterOnScreen()` from `maximizeWindow`; window position is preserved across module entries.
+- **i18n: Inuktitut script preference** â€” script choice (syllabics vs Latin) now persists across language switches and survives app restarts via `ScriptPrefs` in locale JSON.
 
 ### Full Module Button + Slider Migration
-- **MakePillButton / MakePillIconButton** — renamed from `NewPillButton`/`NewPillIconButton` to follow Go widget factory naming convention (`MakeXxx`).
-- **All module-level `widget.Button` calls migrated** — every call to `widget.NewButton` / `widget.NewButtonWithIcon` across all module files replaced with `ui.MakePillButton` / `ui.MakePillIconButton`. Covered: convert, trim, merge, filters, audio, upscale, rip, author, burn, compare, subtitles, thumbnail, inspect, queue, settings, about, utils.
-- **`widget.Slider` → `ui.Slider` / `ui.MakeSlider`** — every raw `widget.Slider` / `widget.NewSlider` replaced with the styled `ui.Slider` type (VT theme, label, min/max display). `widget.ProgressBar` → `ui.MakeSlider` where used as a display-only bar.
-- **Slider naming** — canonical names confirmed: `ui.Slider` (type) and `ui.MakeSlider` (constructor); no `VTSlider`, no `NewVTSlider`, no `NewSlider` prefix variants.
+- **MakePillButton / MakePillIconButton** â€” renamed from `NewPillButton`/`NewPillIconButton` to follow Go widget factory naming convention (`MakeXxx`).
+- **All module-level `widget.Button` calls migrated** â€” every call to `widget.NewButton` / `widget.NewButtonWithIcon` across all module files replaced with `ui.MakePillButton` / `ui.MakePillIconButton`. Covered: convert, trim, merge, filters, audio, upscale, rip, author, burn, compare, subtitles, thumbnail, inspect, queue, settings, about, utils.
+- **`widget.Slider` â†’ `ui.Slider` / `ui.MakeSlider`** â€” every raw `widget.Slider` / `widget.NewSlider` replaced with the styled `ui.Slider` type (VT theme, label, min/max display). `widget.ProgressBar` â†’ `ui.MakeSlider` where used as a display-only bar.
+- **Slider naming** â€” canonical names confirmed: `ui.Slider` (type) and `ui.MakeSlider` (constructor); no `VTSlider`, no `NewVTSlider`, no `NewSlider` prefix variants.
 
 ### Player: STATUS_STACK_OVERFLOW Recovery
-- **VEH extension in `safe_bridge.c`** — Vectored Exception Handler now catches both `EXCEPTION_ACCESS_VIOLATION` and `STATUS_STACK_OVERFLOW (0xC00000FD)`. `_resetstkoflw()` called before `longjmp` to restore the stack guard page; `tl_veh_code` thread-local stores the exception code so callers can distinguish crash types.
-- **New return code** — `SAFE_BRIDGE_STACK_OVERFLOW (0xDEAD0003)` added to `safe_bridge.h`; callers log the stack overflow distinctly from access violations.
-- **4 MB default thread stack** — `#cgo windows LDFLAGS: -Wl,--stack,4194304` in `internal/media/engine.go` raises the PE default thread stack from 1 MB to 4 MB. This prevents the `glfw.CreateWindow()` stack overflow triggered by GPU driver DLL injection on first window creation.
-- **`CGO_LDFLAGS_ALLOW`** — Go's CGO security scanner rejects flags whose argument starts with `-`. The flag is allowed via `CGO_LDFLAGS_ALLOW=-Wl,--stack,.*` added to `scripts/windows/build.ps1` and `.github/workflows/windows-msix.yml`.
+- **VEH extension in `safe_bridge.c`** â€” Vectored Exception Handler now catches both `EXCEPTION_ACCESS_VIOLATION` and `STATUS_STACK_OVERFLOW (0xC00000FD)`. `_resetstkoflw()` called before `longjmp` to restore the stack guard page; `tl_veh_code` thread-local stores the exception code so callers can distinguish crash types.
+- **New return code** â€” `SAFE_BRIDGE_STACK_OVERFLOW (0xDEAD0003)` added to `safe_bridge.h`; callers log the stack overflow distinctly from access violations.
+- **4 MB default thread stack** â€” `#cgo windows LDFLAGS: -Wl,--stack,4194304` in `internal/media/engine.go` raises the PE default thread stack from 1 MB to 4 MB. This prevents the `glfw.CreateWindow()` stack overflow triggered by GPU driver DLL injection on first window creation.
+- **`CGO_LDFLAGS_ALLOW`** â€” Go's CGO security scanner rejects flags whose argument starts with `-`. The flag is allowed via `CGO_LDFLAGS_ALLOW=-Wl,--stack,.*` added to `scripts/windows/build.ps1` and `.github/workflows/windows-msix.yml`.
 
 ### Player: Dual Before/After Player Sync
-- **`InlineVideoPlayer.SetPeer()`** — new method designates a follower player that mirrors every Play/Pause/Seek from the primary. Peer's built-in transport overlay is disabled via `DisableBuiltinControls()`. Lock discipline: `peer` captured under `v.mu`, then peer methods called outside the lock to prevent cross-mutex deadlock.
-- **Filters module wired** — `filtersInlinePlayer.SetPeer(filtersPreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
-- **Upscale module wired** — `upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
-- **Goroutine dispatch** — peer Play/Pause/Seek are dispatched via `go peer.Method()` so the primary player's lock is never held during the call.
+- **`InlineVideoPlayer.SetPeer()`** â€” new method designates a follower player that mirrors every Play/Pause/Seek from the primary. Peer's built-in transport overlay is disabled via `DisableBuiltinControls()`. Lock discipline: `peer` captured under `v.mu`, then peer methods called outside the lock to prevent cross-mutex deadlock.
+- **Filters module wired** â€” `filtersInlinePlayer.SetPeer(filtersPreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
+- **Upscale module wired** â€” `upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
+- **Goroutine dispatch** â€” peer Play/Pause/Seek are dispatched via `go peer.Method()` so the primary player's lock is never held during the call.
 
 ### Button Straggler Migrations (dev48 close)
-- **About dialog** — 2 `widget.NewButton` → `MakePillButton` (Logs Link, Open).
-- **Compare fullscreen** — 2 `widget.NewButton` (backBtn) → `MakePillButton` in both native + stub paths.
-- **Settings tabs** — 2 `widget.NewButton` (testPatternBtn, refreshBtn) → `MakePillButton`.
-- **Command Editor** — 5 `widget.NewButtonWithIcon` + 2 `widget.NewButton` → all text-only `MakePillButton`. Struct fields `*widget.Button` → `*PillButton`. Removed unused `theme` import.
-- **MakeIconButton** — return type `*widget.Button` → `fyne.CanvasObject`; reverted to internal `widget.NewButton` to avoid `utils → ui → benchmark → utils` import cycle.
-- **Transport icon buttons** — 18 `widget.NewButtonWithIcon` in `convert_player_native.go` + `main.go` left as-is: blocked on PillIconButton lacking dynamic `SetIcon()` for play↔pause switching.
+- **About dialog** â€” 2 `widget.NewButton` â†’ `MakePillButton` (Logs Link, Open).
+- **Compare fullscreen** â€” 2 `widget.NewButton` (backBtn) â†’ `MakePillButton` in both native + stub paths.
+- **Settings tabs** â€” 2 `widget.NewButton` (testPatternBtn, refreshBtn) â†’ `MakePillButton`.
+- **Command Editor** â€” 5 `widget.NewButtonWithIcon` + 2 `widget.NewButton` â†’ all text-only `MakePillButton`. Struct fields `*widget.Button` â†’ `*PillButton`. Removed unused `theme` import.
+- **MakeIconButton** â€” return type `*widget.Button` â†’ `fyne.CanvasObject`; reverted to internal `widget.NewButton` to avoid `utils â†’ ui â†’ benchmark â†’ utils` import cycle.
+- **Transport icon buttons** â€” 18 `widget.NewButtonWithIcon` in `convert_player_native.go` + `main.go` left as-is: blocked on PillIconButton lacking dynamic `SetIcon()` for playâ†”pause switching.
 
 ### CI & Diagnostics
-- **Windows signing** — `SIGNPATH_API_TOKEN` added to Forgejo secrets; `SIGNPATH_ORGANIZATION_ID` already present. ci-build.ps1 calls sign-exe.ps1 non-fatally on every Windows build.
-- **Cache guard** — require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
-- **ci-build.ps1 encoding** — replaced UTF-8 em dashes with ASCII `--` for PowerShell 5.1 compatibility.
-- **Startup crash diagnostics** — `VT_STARTUP_DEBUG=1` env var enables per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes log file at crash-risk checkpoints. Root cause of `STATUS_STACK_OVERFLOW` confirmed as GPU driver DLL injection inside `glfw.CreateWindow()` — mitigated by 4 MB default stack and VEH recovery (see Player section above).
-- **Windows MSIX CI: `CGO_LDFLAGS_ALLOW`** — `$env:CGO_LDFLAGS_ALLOW = "-Wl,--stack,.*"` added to `.github/workflows/windows-msix.yml` build step so the 4 MB stack `#cgo LDFLAGS` flag passes the CGO security scanner in the GitHub Actions pipeline.
+- **Windows signing** â€” `SIGNPATH_API_TOKEN` added to Forgejo secrets; `SIGNPATH_ORGANIZATION_ID` already present. ci-build.ps1 calls sign-exe.ps1 non-fatally on every Windows build.
+- **Cache guard** â€” require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
+- **ci-build.ps1 encoding** â€” replaced UTF-8 em dashes with ASCII `--` for PowerShell 5.1 compatibility.
+- **Startup crash diagnostics** â€” `VT_STARTUP_DEBUG=1` env var enables per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes log file at crash-risk checkpoints. Root cause of `STATUS_STACK_OVERFLOW` confirmed as GPU driver DLL injection inside `glfw.CreateWindow()` â€” mitigated by 4 MB default stack and VEH recovery (see Player section above).
+- **Windows MSIX CI: `CGO_LDFLAGS_ALLOW`** â€” `$env:CGO_LDFLAGS_ALLOW = "-Wl,--stack,.*"` added to `.github/workflows/windows-msix.yml` build step so the 4 MB stack `#cgo LDFLAGS` flag passes the CGO security scanner in the GitHub Actions pipeline.
 
 ### Roadmap Visual Polish
-- **Deprecated status** — purple (`#a855f7`), no strikethrough, differentiated by border/glow only.
-- **Cycle filter row** — dynamically built from roadmap data, sorted newest-first; current version gets VT green outline.
-- **Testing Checklist modal** — pass/fail/untested per item, localStorage persistence, grouped by module, summary bar.
-- **Column reorder** — empty columns drift right; module-filtered columns hidden.
-- **Back-to-top button** — appears at 300px scroll on long boards.
-- **VT logo** — 96px, right-aligned, `align-items: flex-start` so logo top aligns with title.
-- **Modal drag-to-scroll** — changelog and checklist modals support click-and-drag vertical scrolling.
-- **Colour dots** — 16px circles across legend, status filter, and module filter buttons (standardised from 12px/7px).
-- **Future status** — changed from grey to orange (`#f97316`) with orange glow gradient on cards.
+- **Deprecated status** â€” purple (`#a855f7`), no strikethrough, differentiated by border/glow only.
+- **Cycle filter row** â€” dynamically built from roadmap data, sorted newest-first; current version gets VT green outline.
+- **Testing Checklist modal** â€” pass/fail/untested per item, localStorage persistence, grouped by module, summary bar.
+- **Column reorder** â€” empty columns drift right; module-filtered columns hidden.
+- **Back-to-top button** â€” appears at 300px scroll on long boards.
+- **VT logo** â€” 96px, right-aligned, `align-items: flex-start` so logo top aligns with title.
+- **Modal drag-to-scroll** â€” changelog and checklist modals support click-and-drag vertical scrolling.
+- **Colour dots** â€” 16px circles across legend, status filter, and module filter buttons (standardised from 12px/7px).
+- **Future status** â€” changed from grey to orange (`#f97316`) with orange glow gradient on cards.
 
 ## v0.1.1-dev47 (May 2026)
 
-### PAL→NTSC Full-Disc Conversion Pipeline — Stages 1-3
+### PALâ†’NTSC Full-Disc Conversion Pipeline â€” Stages 1-3
 
-- **Full-disc extraction mode** — New "Full disc extraction (DVD-Video with IFO regeneration)" checkbox in Rip module. Enabled when region conversion is active, iterates ALL VTS sets + VIDEO_TS.VOB menu.
-- **DVD-compliant MPEG-2 conversion** — Each VTS set re-encoded as MPEG-2 video + AC-3 audio with region conversion filter chain (yadif deinterlace, scale, fps, atempo).
-- **Menu VOB processing** — `CollectMenuVOB()` gathers VIDEO_TS.VOB for conversion alongside title VOBs.
-- **IFO/BUP regeneration** — New `RegenerateIFOs()` in `internal/app/modules/rip/ifo_regen.go` reads original IFO structure and writes new VTS and VMG IFO files with correct NTSC/PAL attributes, PGC timing, TMAPT sector maps, and chapter tables.
-- **New API** — `ExecuteOptions.ExtractMode` field ("main" or "full").
+- **Full-disc extraction mode** â€” New "Full disc extraction (DVD-Video with IFO regeneration)" checkbox in Rip module. Enabled when region conversion is active, iterates ALL VTS sets + VIDEO_TS.VOB menu.
+- **DVD-compliant MPEG-2 conversion** â€” Each VTS set re-encoded as MPEG-2 video + AC-3 audio with region conversion filter chain (yadif deinterlace, scale, fps, atempo).
+- **Menu VOB processing** â€” `CollectMenuVOB()` gathers VIDEO_TS.VOB for conversion alongside title VOBs.
+- **IFO/BUP regeneration** â€” New `RegenerateIFOs()` in `internal/app/modules/rip/ifo_regen.go` reads original IFO structure and writes new VTS and VMG IFO files with correct NTSC/PAL attributes, PGC timing, TMAPT sector maps, and chapter tables.
+- **New API** â€” `ExecuteOptions.ExtractMode` field ("main" or "full").
 - **New files:** `internal/app/modules/rip/ifo_regen.go`
 
 ## v0.1.1-dev46 (June 2026)
 
 ### Quick Access Dropdown - Functional
-- **FilesDropdownData wired** — `CurrentModule`, `RecentFiles`, `OnFileClick` passed to `BuildMainMenu()`
-- **OnOpenFolder callback** — Opens current module's output folder via explorer
-- **OnOpenMore callback** — Loads file into current module (`loadVideo()` for most)
-- **Recent files navigation** — Clicking recent file opens it in correct module
+- **FilesDropdownData wired** â€” `CurrentModule`, `RecentFiles`, `OnFileClick` passed to `BuildMainMenu()`
+- **OnOpenFolder callback** â€” Opens current module's output folder via explorer
+- **OnOpenMore callback** â€” Loads file into current module (`loadVideo()` for most)
+- **Recent files navigation** â€” Clicking recent file opens it in correct module
 
 ### Windows CI Fix
-- **Build FFmpeg shared DLLs** — Added `build-ffmpeg-shared.ps1` step in Windows CI job
-- **Bundle DLLs in release** — `DLL/` subfolder now included in Windows ZIP
-- **Fix missing Windows artifacts** — DLLs now built before packaging
+- **Build FFmpeg shared DLLs** â€” Added `build-ffmpeg-shared.ps1` step in Windows CI job
+- **Bundle DLLs in release** â€” `DLL/` subfolder now included in Windows ZIP
+- **Fix missing Windows artifacts** â€” DLLs now built before packaging
 
 ### FFmpeg DLL Bootstrap (from dev45)
-- **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
-- **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
-- **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
-- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
+- **Bundle DLLs in release** â€” FFmpeg shared DLLs built from source with all deps statically linked
+- **Remove BtbN download** â€” `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- **Build script** â€” `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
+- **Legacy fallback** â€” `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
 
 ---
 
 ## v0.1.1-dev45 (May 2026)
 
 ### Convert Module Improvements - Phase 1 (HIGH)
-- **Audio Sample Rate dropdown** — `audioSampleRateSelect` wired in buildConvertView
-- **Normalize Audio checkbox** — `normalizeAudioCheck` + LUFS/TruePeak sliders wired
-- **Deinterlace Mode dropdown** — `deinterlaceModeSelect` + `deinterlaceMethodSelect` wired
-- **H.264 Profile/Level controls** — `h264ProfileSelect` / `h264LevelSelect` wired; shown when H.264 codec is active
+- **Audio Sample Rate dropdown** â€” `audioSampleRateSelect` wired in buildConvertView
+- **Normalize Audio checkbox** â€” `normalizeAudioCheck` + LUFS/TruePeak sliders wired
+- **Deinterlace Mode dropdown** â€” `deinterlaceModeSelect` + `deinterlaceMethodSelect` wired
+- **H.264 Profile/Level controls** â€” `h264ProfileSelect` / `h264LevelSelect` wired; shown when H.264 codec is active
 
 ### Convert Module i18n (HIGH - Issue #5)
 - **~42 hardcoded strings** i18n'd: checkboxes, buttons, dialog messages, back button
 - **New keys added** to `internal/i18n/strings.go`, `en_ca.go`, `fr_ca.go`, `iu.go`, `iu_latin.go`
 
 ### Upscale Module Improvements (dev44)
-- **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows
-- **UI clarity** — Preset dropdown with description labels, clear AI+RIFE workflow
-- **Detection reliability** — VerifyTool() checks PATH + app-local bin + smoke test
-- **Optimization guide** — See `docs/UPSCALE_OPTIMIZATION.md` for hobbyist/semi-pro workflows
-- **Hardware acceleration** — Sync upscale HW accel from master setting
-- **Filters module HW accel** — Add hardware acceleration dropdown
+- **One-click presets** â€” Hobbyist SDâ†’HD, Semi-Pro 1080pâ†’4K, Anime, Restoration, Social Media workflows
+- **UI clarity** â€” Preset dropdown with description labels, clear AI+RIFE workflow
+- **Detection reliability** â€” VerifyTool() checks PATH + app-local bin + smoke test
+- **Optimization guide** â€” See `docs/UPSCALE_OPTIMIZATION.md` for hobbyist/semi-pro workflows
+- **Hardware acceleration** â€” Sync upscale HW accel from master setting
+- **Filters module HW accel** â€” Add hardware acceleration dropdown
 
 ### Audio Module Phase 2 (HIGH)
-- **InlineVideoPlayer** — Add player singleton like Convert
-- **Video preview pane** — Same layout pattern as Convert
-- **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
+- **InlineVideoPlayer** â€” Add player singleton like Convert
+- **Video preview pane** â€” Same layout pattern as Convert
+- **SMPTE bars idle state** â€” "DROP VIDEO TO LOAD"
 
 ### Audio Module Phase 3 (MEDIUM) - done dev45
-- **Enhanced track list** — Codec colors, language flags, duration display
-- **Output naming preview** — Shows filename before extraction
-- **Track reordering** — Up/down buttons (UI ready, logic wired)
+- **Enhanced track list** â€” Codec colors, language flags, duration display
+- **Output naming preview** â€” Shows filename before extraction
+- **Track reordering** â€” Up/down buttons (UI ready, logic wired)
 
 ### Burn Module (HIGH) - done dev45
-- **Windows burn** — `isoburn.exe` (built-in) with eject via `IOCTL_STORAGE_EJECT_MEDIA`
-- **Linux burn** — `growisofs` with progress parsing + SHA-256 verify
-- **Drive detection** — Windows (GetLogicalDrives) + Linux (/dev/sr*, /dev/disk/by-path)
-- **Drive info** — Capacity labels (BD-50/25, DVD-9/5)
-- **Logging** — `CatBurn` category, error handling improved
+- **Windows burn** â€” `isoburn.exe` (built-in) with eject via `IOCTL_STORAGE_EJECT_MEDIA`
+- **Linux burn** â€” `growisofs` with progress parsing + SHA-256 verify
+- **Drive detection** â€” Windows (GetLogicalDrives) + Linux (/dev/sr*, /dev/disk/by-path)
+- **Drive info** â€” Capacity labels (BD-50/25, DVD-9/5)
+- **Logging** â€” `CatBurn` category, error handling improved
 
 ### Audio Module Phase 1 (HIGH)
-- **Consistent box styling** — Added `buildAudioBox()` helper, Convert-style boxes
-- **Proper header bar** — `TintedBar` with module title + stats integration wired
+- **Consistent box styling** â€” Added `buildAudioBox()` helper, Convert-style boxes
+- **Proper header bar** â€” `TintedBar` with module title + stats integration wired
 
 ### Logging Audit (dev45)
-- **Remove unused categories** — `CatEnhance`, `CatRip` removed from `internal/logging/logging.go`
-- **Add CatQueue** — New category for queue operations, wired in `queue.go` and `main.go`
-- **Fix enhancement module** — `CatEnhance` → `CatModule` in `enhancement_module.go` and `onnx_model.go`
-- **Fix rip module** — `CatRip` → `CatDisc` in `rip_module.go`
-- **Fix recentfiles.go** — `CatSystem` misuse → `CatUI` via `cat()` helper
+- **Remove unused categories** â€” `CatEnhance`, `CatRip` removed from `internal/logging/logging.go`
+- **Add CatQueue** â€” New category for queue operations, wired in `queue.go` and `main.go`
+- **Fix enhancement module** â€” `CatEnhance` â†’ `CatModule` in `enhancement_module.go` and `onnx_model.go`
+- **Fix rip module** â€” `CatRip` â†’ `CatDisc` in `rip_module.go`
+- **Fix recentfiles.go** â€” `CatSystem` misuse â†’ `CatUI` via `cat()` helper
 
 ### FFmpeg DLL Bootstrap Fix (dev45)
-- **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
-- **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
-- **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
-- **CI update** — `ci-build.ps1` bundles DLLs in `DLL/` subfolder (not root) within release ZIP
-- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
+- **Bundle DLLs in release** â€” FFmpeg shared DLLs built from source with all deps statically linked
+- **Remove BtbN download** â€” `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- **Build script** â€” `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
+- **CI update** â€” `ci-build.ps1` bundles DLLs in `DLL/` subfolder (not root) within release ZIP
+- **Legacy fallback** â€” `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
 
 ### Queue Module UI Polish (dev44)
-- **TintedBar header** — Replaced custom header with `TintedBar` matching other modules
-- **Status badge** — Shows active/completed/failed counts in header
-- **48px bottom bar** — Restored VT green `TintedBar` (matches other modules)
-- **Live output panel** — 4px VT green outline border
-- **Thumbnail preview** — 90px tall with 3px module-color outline, auto-generated midpoint frame
-- **Module colors** — `ModuleColor()` exactly matches main menu (all 13 modules)
-- **Layout fixes** — Thumbnail left, text right; proper spacing
+- **TintedBar header** â€” Replaced custom header with `TintedBar` matching other modules
+- **Status badge** â€” Shows active/completed/failed counts in header
+- **48px bottom bar** â€” Restored VT green `TintedBar` (matches other modules)
+- **Live output panel** â€” 4px VT green outline border
+- **Thumbnail preview** â€” 90px tall with 3px module-color outline, auto-generated midpoint frame
+- **Module colors** â€” `ModuleColor()` exactly matches main menu (all 13 modules)
+- **Layout fixes** â€” Thumbnail left, text right; proper spacing
 
 ### Flags & i18n (dev44)
-- **Language dropdown** — Fixed flag loading (removed incorrect `fs.Sub`); SVG flags now visible
-- **Main menu** — "QUEUE" button uppercase in all 4 locales
+- **Language dropdown** â€” Fixed flag loading (removed incorrect `fs.Sub`); SVG flags now visible
+- **Main menu** â€” "QUEUE" button uppercase in all 4 locales
 
 ### Thumbnail Quality (dev44)
-- **Deinterlace filter** — `yadif=1` added to avoid interlaced frames
-- **Interlace detection** — `findCleanFrameOffset()` skips to clean frames
-- **Job log file** — Each thumbnail job writes FFmpeg output to timestamped log
+- **Deinterlace filter** â€” `yadif=1` added to avoid interlaced frames
+- **Interlace detection** â€” `findCleanFrameOffset()` skips to clean frames
+- **Job log file** â€” Each thumbnail job writes FFmpeg output to timestamped log
 
 ### Module Pipeline (`&&` feature - dev44)
-- **Pipeline state machine** — `pipelineActive` on `appState` (off / waiting-step1 / waiting-step2)
-- **`&&` button** — Main menu header reflects state (off / glowing / showing "A → ?")
-- **Module tile dimming** — Invalid Step 2 targets dimmed when in "pick Step 2" state
-- **Queue integration** — `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
-- **Intermediate files** — "Keep intermediate files" toggle in Settings → Preferences
+- **Pipeline state machine** â€” `pipelineActive` on `appState` (off / waiting-step1 / waiting-step2)
+- **`&&` button** â€” Main menu header reflects state (off / glowing / showing "A â†’ ?")
+- **Module tile dimming** â€” Invalid Step 2 targets dimmed when in "pick Step 2" state
+- **Queue integration** â€” `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
+- **Intermediate files** â€” "Keep intermediate files" toggle in Settings â†’ Preferences
 
 ---
 
 ## v0.1.1-dev44 (April 2026)
 
-### Native Media Player — Playback & Sync Fixes
-- **Start/Resume state fix** — `Start()` was setting `e.paused=false` before starting the decode goroutine, but `Resume()` checked `!e.paused` and returned early. Decode loop never started on Play. Fixed: `Start()` now sets `e.paused=false` after launching goroutines.
-- **Audio/video sync on load** — Audio clock drifted during `Load()` because `audioDecodeLoop` ran during `GrabFrame`, causing ~5 second offset before playback. Fixed by resetting clock to 0 in `ResetAfterGrab`.
-- **Test pattern font** — Test pattern always renders with VCR OSD Mono font regardless of user preference.
-- **FFmpeg bootstrap simplification** — Always downloads BtbN pre-built package to guarantee complete DLL set (avoids local installs with missing dependencies like liblzma).
+### Native Media Player â€” Playback & Sync Fixes
+- **Start/Resume state fix** â€” `Start()` was setting `e.paused=false` before starting the decode goroutine, but `Resume()` checked `!e.paused` and returned early. Decode loop never started on Play. Fixed: `Start()` now sets `e.paused=false` after launching goroutines.
+- **Audio/video sync on load** â€” Audio clock drifted during `Load()` because `audioDecodeLoop` ran during `GrabFrame`, causing ~5 second offset before playback. Fixed by resetting clock to 0 in `ResetAfterGrab`.
+- **Test pattern font** â€” Test pattern always renders with VCR OSD Mono font regardless of user preference.
+- **FFmpeg bootstrap simplification** â€” Always downloads BtbN pre-built package to guarantee complete DLL set (avoids local installs with missing dependencies like liblzma).
 
 ### Settings
-- **Player font preference** — Users can choose between IBM Plex Mono and VCR OSD Mono for the OSD. VCR OSD Mono has no Bold/Italic variants; UI gracefully falls back to Regular weight.
+- **Player font preference** â€” Users can choose between IBM Plex Mono and VCR OSD Mono for the OSD. VCR OSD Mono has no Bold/Italic variants; UI gracefully falls back to Regular weight.
 
 ### Known Issues (documented for tracker)
 - See `docs/PLAYER_DEBUG.md` for full list of known player issues including: `predecodeFrom` sharing `formatCtx` with `demuxerLoop`, audio queue not flushed before seek, speed changes not affecting audio tempo, D3D11VA crashes when enabled.
 
 ## v0.1.1-dev43 (April 2026)
 
-### Native Media Player — Thread-Safety & Crash Fixes
-- **Pixel format crash fix** — `GrabFrame` and `NextFrame` now derive the `sws` pixel format from `frame.format` (the actual decoded format) rather than `videoCodecCtx.pix_fmt`, which is `AV_PIX_FMT_NONE` until the codec parses its first SPS. A nil `swsCtx` produced by `sws_getContext` caused an unrecoverable C SIGSEGV inside `sws_scale`. `NextFrame`'s SW decode path was also missing the `ensureSwsCtx` call entirely.
-- **Close/demuxer race** — Added `sync.WaitGroup demuxerWg` to `Engine`. `demuxerLoop` signals Done on exit. `Engine.Close()` now waits for the demuxer to fully exit before freeing `formatCtx`, `videoCodecCtx`, or any other FFmpeg resource, eliminating the use-after-free crash window.
-- **NextFrame/Close codec race** — `Close()` acquires `videoCodecMu` before freeing `videoCodecCtx`, ensuring any in-flight `NextFrame` decode cycle has completed first.
-- **seekLoop goroutine leak** — `InlineVideoPlayer.seekCh` was never closed, leaking the `seekLoop` goroutine on every `Close()`. Ownership moved to `Load()`: channel is closed and reallocated per file. `Close()` closes the channel to drain the goroutine. The `OnSeek` widget callback guards against a nil channel under the player mutex.
+### Native Media Player â€” Thread-Safety & Crash Fixes
+- **Pixel format crash fix** â€” `GrabFrame` and `NextFrame` now derive the `sws` pixel format from `frame.format` (the actual decoded format) rather than `videoCodecCtx.pix_fmt`, which is `AV_PIX_FMT_NONE` until the codec parses its first SPS. A nil `swsCtx` produced by `sws_getContext` caused an unrecoverable C SIGSEGV inside `sws_scale`. `NextFrame`'s SW decode path was also missing the `ensureSwsCtx` call entirely.
+- **Close/demuxer race** â€” Added `sync.WaitGroup demuxerWg` to `Engine`. `demuxerLoop` signals Done on exit. `Engine.Close()` now waits for the demuxer to fully exit before freeing `formatCtx`, `videoCodecCtx`, or any other FFmpeg resource, eliminating the use-after-free crash window.
+- **NextFrame/Close codec race** â€” `Close()` acquires `videoCodecMu` before freeing `videoCodecCtx`, ensuring any in-flight `NextFrame` decode cycle has completed first.
+- **seekLoop goroutine leak** â€” `InlineVideoPlayer.seekCh` was never closed, leaking the `seekLoop` goroutine on every `Close()`. Ownership moved to `Load()`: channel is closed and reallocated per file. `Close()` closes the channel to drain the goroutine. The `OnSeek` widget callback guards against a nil channel under the player mutex.
 
 ## v0.1.1-dev42 (April 2026)
 
-### Native Media Player — GStreamer Removal
-- **GStreamer fully removed** — All `internal/player/gstreamer*` deleted; `native_media` build tag is the only player path. No more GStreamer dependency at runtime or build time.
-- **Player lifecycle fix** — `closeNativePlayer()` prevents audio hanging on module switch; `Widget().Refresh()` deferred after canvas swap.
+### Native Media Player â€” GStreamer Removal
+- **GStreamer fully removed** â€” All `internal/player/gstreamer*` deleted; `native_media` build tag is the only player path. No more GStreamer dependency at runtime or build time.
+- **Player lifecycle fix** â€” `closeNativePlayer()` prevents audio hanging on module switch; `Widget().Refresh()` deferred after canvas swap.
 
-### Native Media Player — D3D11VA / HW Decode Stabilisation
-- **D3D11VA get_format callback** — Accepts `AV_PIX_FMT_D3D11VA_VLD` so D3D11VA decode starts on first packet.
-- **H.264 + D3D11VA crash fix** — Pre-warm D3D11VA before first decode call.
-- **Dedicated HW frame buffers** — Separate `hwFramesCtx` prevents races between HW download and SW display paths.
-- **Lazy swsCtx creation** — Created on first `toRGBA()` call; avoids crash from invalid pixel format before first HW decode.
-- **HW frame transfer mutex** — `videoCodecMu` held during HW→SW transfer; eliminates concurrent AVCodecContext access.
-- **HW decode codec filtering** — Only codecs that work without `get_format` callback get HW decode enabled.
-- **AV_NOPTS_VALUE guard** — Skip frames with invalid PTS instead of passing them downstream.
-- **D3D11VA flush guard** — `avcodec_flush_buffers` skipped before first decoded frame.
-- **Safe HW frame download** — `av_hwframe_transfer_data` wrapped in recover/retry; falls back to SW decode on failure.
+### Native Media Player â€” D3D11VA / HW Decode Stabilisation
+- **D3D11VA get_format callback** â€” Accepts `AV_PIX_FMT_D3D11VA_VLD` so D3D11VA decode starts on first packet.
+- **H.264 + D3D11VA crash fix** â€” Pre-warm D3D11VA before first decode call.
+- **Dedicated HW frame buffers** â€” Separate `hwFramesCtx` prevents races between HW download and SW display paths.
+- **Lazy swsCtx creation** â€” Created on first `toRGBA()` call; avoids crash from invalid pixel format before first HW decode.
+- **HW frame transfer mutex** â€” `videoCodecMu` held during HWâ†’SW transfer; eliminates concurrent AVCodecContext access.
+- **HW decode codec filtering** â€” Only codecs that work without `get_format` callback get HW decode enabled.
+- **AV_NOPTS_VALUE guard** â€” Skip frames with invalid PTS instead of passing them downstream.
+- **D3D11VA flush guard** â€” `avcodec_flush_buffers` skipped before first decoded frame.
+- **Safe HW frame download** â€” `av_hwframe_transfer_data` wrapped in recover/retry; falls back to SW decode on failure.
 
-### Native Media Player — Audio / A-V Sync
-- **A/V clock fix** — Master clock `SetSpeed()` wired after speed changes; no more 2× playback after resume.
-- **AudioPlayer.Read() non-blocking** — Returns immediately on empty buffer; prevents playback hang.
-- **Audio seek serialisation** — Codec operations serialized against `Seek()`; prevents hard crash from concurrent access.
-- **Pause spin-loop fix** — Sleep instead of busy-wait; `Close()` no longer races with pause state.
-- **Audio context pre-warm** — Created at startup to avoid WASAPI initialization hang.
-- **SetSpeed deadlock fix** — Speed changes no longer block the audio callback thread.
+### Native Media Player â€” Audio / A-V Sync
+- **A/V clock fix** â€” Master clock `SetSpeed()` wired after speed changes; no more 2Ã— playback after resume.
+- **AudioPlayer.Read() non-blocking** â€” Returns immediately on empty buffer; prevents playback hang.
+- **Audio seek serialisation** â€” Codec operations serialized against `Seek()`; prevents hard crash from concurrent access.
+- **Pause spin-loop fix** â€” Sleep instead of busy-wait; `Close()` no longer races with pause state.
+- **Audio context pre-warm** â€” Created at startup to avoid WASAPI initialization hang.
+- **SetSpeed deadlock fix** â€” Speed changes no longer block the audio callback thread.
 
-### Native Media Player — SMPTE Bars & Idle State
-- **SMPTE colour bars** — Click-to-load dialog when no video is loaded; consistent across all module players.
-- **4:3 ratio with letterboxing** — Proper aspect ratio regardless of player size.
-- **Dynamic sizing** — Bars scale to player widget dimensions instead of fixed 1920×1080.
-- **Proportional idle text** — "Click to load video" text scales with bar width.
+### Native Media Player â€” SMPTE Bars & Idle State
+- **SMPTE colour bars** â€” Click-to-load dialog when no video is loaded; consistent across all module players.
+- **4:3 ratio with letterboxing** â€” Proper aspect ratio regardless of player size.
+- **Dynamic sizing** â€” Bars scale to player widget dimensions instead of fixed 1920Ã—1080.
+- **Proportional idle text** â€” "Click to load video" text scales with bar width.
 
-### Native Media Player — Misc
-- **Native Fyne icons** — Replaced emoji transport controls with `theme.IconName` equivalents.
-- **SmoothScrubbing crash fix** — Fixed crash on HW-decoded frames in thumbnail scrubber.
-- **GrabFrame deadlock fix** — Invalid PTS frames no longer block the decode loop.
-- **Letterbox fill** — Removed per-frame debug log; fixed fill colour on dark backgrounds.
+### Native Media Player â€” Misc
+- **Native Fyne icons** â€” Replaced emoji transport controls with `theme.IconName` equivalents.
+- **SmoothScrubbing crash fix** â€” Fixed crash on HW-decoded frames in thumbnail scrubber.
+- **GrabFrame deadlock fix** â€” Invalid PTS frames no longer block the decode loop.
+- **Letterbox fill** â€” Removed per-frame debug log; fixed fill colour on dark backgrounds.
 
 ### Convert Module
-- **Clear button for output folder** — One-click reset of the output directory field.
-- **Output directory creation** — Directories created before running convert/thumbnail/filter jobs.
-- **Drag-drop first frame** — First frame appears immediately after file drop.
+- **Clear button for output folder** â€” One-click reset of the output directory field.
+- **Output directory creation** â€” Directories created before running convert/thumbnail/filter jobs.
+- **Drag-drop first frame** â€” First frame appears immediately after file drop.
 
 ### Audio Module
-- **VSplit layout** — Replaced custom HSplit with `container.NewVSplit`.
-- **Stats bar footer** — Added to Audio module.
-- **i18n** — All user-facing strings use i18n keys.
-- **Drop label wrapping** — Cleaner layout on narrow windows.
+- **VSplit layout** â€” Replaced custom HSplit with `container.NewVSplit`.
+- **Stats bar footer** â€” Added to Audio module.
+- **i18n** â€” All user-facing strings use i18n keys.
+- **Drop label wrapping** â€” Cleaner layout on narrow windows.
 
 ### Thumbnail Module
-- **3-way output mode** — Individual / Contact Sheet / Both selector replaces boolean toggle.
-- **Image inspector** — Click any thumbnail or contact sheet tile to inspect at full window size.
-- **Contact sheet pad crash fix** — `trim` filter removed; time window via `-ss`/`-t` input options.
-- **CRLF line-break fix** — `\r` trimmed from ffprobe output on Windows.
-- **Per-file "Add All to Queue"** — Creates individual jobs per file instead of a single batch.
+- **3-way output mode** â€” Individual / Contact Sheet / Both selector replaces boolean toggle.
+- **Image inspector** â€” Click any thumbnail or contact sheet tile to inspect at full window size.
+- **Contact sheet pad crash fix** â€” `trim` filter removed; time window via `-ss`/`-t` input options.
+- **CRLF line-break fix** â€” `\r` trimmed from ffprobe output on Windows.
+- **Per-file "Add All to Queue"** â€” Creates individual jobs per file instead of a single batch.
 
 ### Subtitles Module
-- **Video preview player** — Added video preview with synced subtitle overlay.
+- **Video preview player** â€” Added video preview with synced subtitle overlay.
 
 ### CI & Build
-- **libdrm-dev** — Added to Linux CI for FFmpeg build.
-- **FFmpeg hwaccel disabled in CI** — Avoids libdrm runtime dependency.
-- **Update status icon** — Replaced ⬤ with ● for cross-platform rendering.
+- **libdrm-dev** â€” Added to Linux CI for FFmpeg build.
+- **FFmpeg hwaccel disabled in CI** â€” Avoids libdrm runtime dependency.
+- **Update status icon** â€” Replaced â¬¤ with â— for cross-platform rendering.
 
 ### Misc
-- **Temp file cleanup** — Preview-frame and cover-art temp files cleaned on video unload.
-- **FFmpeg install button removed** — FFmpeg bundled in binary; redundant button removed.
+- **Temp file cleanup** â€” Preview-frame and cover-art temp files cleaned on video unload.
+- **FFmpeg install button removed** â€” FFmpeg bundled in binary; redundant button removed.
 
 ## v0.1.1-dev41 (April 2026)
 
 ### Convert Module
-- **Device presets** — Separated from format selector into a dedicated section; 11 presets (iPhone, Android, PS4, Xbox, Apple TV, etc.) each set ALL encoding variables (codec, bitrate, resolution, audio, pixel format).
-- **User-defined presets** — Named presets that capture the full encoding configuration (codec, CRF, bitrate mode, frame rate, hardware accel, aspect, audio, etc.); save / apply / delete from the convert view; persisted to JSON via `appcfg`.
-- **Batch output directory** — Batch convert jobs now respect the configured output directory instead of always writing beside the source file.
-- **Source frame rate pinning** — `sourceFrameRate` stored in job config; `-r <fps>` explicitly passed to FFmpeg when "Source" is selected, preventing AVI→MP4 re-timestamping (e.g. 25 fps becoming 30 fps).
-- **Device preset expansion** — HEVC and AV1 codec options added to device preset definitions.
+- **Device presets** â€” Separated from format selector into a dedicated section; 11 presets (iPhone, Android, PS4, Xbox, Apple TV, etc.) each set ALL encoding variables (codec, bitrate, resolution, audio, pixel format).
+- **User-defined presets** â€” Named presets that capture the full encoding configuration (codec, CRF, bitrate mode, frame rate, hardware accel, aspect, audio, etc.); save / apply / delete from the convert view; persisted to JSON via `appcfg`.
+- **Batch output directory** â€” Batch convert jobs now respect the configured output directory instead of always writing beside the source file.
+- **Source frame rate pinning** â€” `sourceFrameRate` stored in job config; `-r <fps>` explicitly passed to FFmpeg when "Source" is selected, preventing AVIâ†’MP4 re-timestamping (e.g. 25 fps becoming 30 fps).
+- **Device preset expansion** â€” HEVC and AV1 codec options added to device preset definitions.
 
 ### Upscale Module
-- **Batch queue** — Multiple files can be drag-dropped into the upscale module; all are queued with full config (`targetWidth`, `targetHeight`, `sourceFrameRate`, `preserveAR`, `GroupID`) and the first valid video is shown for review.
-- **Real-CUGAN support** — Model catalog abstraction added; Real-CUGAN available as an AI upscaling backend alongside Real-ESRGAN.
+- **Batch queue** â€” Multiple files can be drag-dropped into the upscale module; all are queued with full config (`targetWidth`, `targetHeight`, `sourceFrameRate`, `preserveAR`, `GroupID`) and the first valid video is shown for review.
+- **Real-CUGAN support** â€” Model catalog abstraction added; Real-CUGAN available as an AI upscaling backend alongside Real-ESRGAN.
 
 ### Thumbnail Module
-- **Contact sheet pad crash fixed** — `trim` filter removed from filtergraph; time window applied via `-ss`/`-t` input options instead. Eliminates "padded dimensions cannot be smaller than input dimensions" on Xvid/MPEG-4 ASP sources with MCU-padded coded dimensions.
-- **Individual thumbnail timestamps fixed** — Timestamps were always `00:00:00.000` because input seek resets the PTS counter. Drawtext now hardcodes the formatted timestamp string (`HH\:MM\:SS.mmm`) for individually-seeked frames; contact sheet continues to use `%{pts:hms}` via `setpts`.
-- **`setsar=1` added** — Normalises sample aspect ratio before scale so non-square-pixel sources render correctly.
-- **Live preview grid** — Thumbnails appear in the module UI as they are generated. A persistent `GridWrap` container is updated in real time via `OnThumbGenerated`; the grid resets at the start of each new job. Layout redesigned: settings panel (32%) left, live preview panel (68%) right.
+- **Contact sheet pad crash fixed** â€” `trim` filter removed from filtergraph; time window applied via `-ss`/`-t` input options instead. Eliminates "padded dimensions cannot be smaller than input dimensions" on Xvid/MPEG-4 ASP sources with MCU-padded coded dimensions.
+- **Individual thumbnail timestamps fixed** â€” Timestamps were always `00:00:00.000` because input seek resets the PTS counter. Drawtext now hardcodes the formatted timestamp string (`HH\:MM\:SS.mmm`) for individually-seeked frames; contact sheet continues to use `%{pts:hms}` via `setpts`.
+- **`setsar=1` added** â€” Normalises sample aspect ratio before scale so non-square-pixel sources render correctly.
+- **Live preview grid** â€” Thumbnails appear in the module UI as they are generated. A persistent `GridWrap` container is updated in real time via `OnThumbGenerated`; the grid resets at the start of each new job. Layout redesigned: settings panel (32%) left, live preview panel (68%) right.
 
 ### Player Module
-- **Routing bug fixed** — Loading a video while in the Player module no longer navigates to the Convert module. `loadVideo` now captures the active module and routes back to `showPlayerView()` when appropriate.
-- **File state persistence fixed** — `state.playerFile` was never updated via the file-dialog load path, causing the view to rebuild showing "No video loaded." `OnPlayerFileLoaded` callback added to persist the probed source before the view rebuilds.
-- **Layout** — When a video is loaded the player pane fills the full available space via `container.NewBorder` with the video as the expanding center; empty state shows centered instructions and load button.
+- **Routing bug fixed** â€” Loading a video while in the Player module no longer navigates to the Convert module. `loadVideo` now captures the active module and routes back to `showPlayerView()` when appropriate.
+- **File state persistence fixed** â€” `state.playerFile` was never updated via the file-dialog load path, causing the view to rebuild showing "No video loaded." `OnPlayerFileLoaded` callback added to persist the probed source before the view rebuilds.
+- **Layout** â€” When a video is loaded the player pane fills the full available space via `container.NewBorder` with the video as the expanding center; empty state shows centered instructions and load button.
 
 ### UI / Visual
-- **Module color alignment** — Subtitles (`#AD741F`), Inspect (`#629C1C`), Upscale (`#2B9C1C`), and Compare (`#91931A`) interior colors now match their main menu button colors.
+- **Module color alignment** â€” Subtitles (`#AD741F`), Inspect (`#629C1C`), Upscale (`#2B9C1C`), and Compare (`#91931A`) interior colors now match their main menu button colors.
 
 ### DVD Authoring
-- **UDF PartitionLength fix** — Calculated from actual file sizes instead of hardcoded 1000 sectors. VLC can now resolve UDF paths for full-size DVDs.
-- **Menu PTS timestamps** — Menu VOB PTS was 300x too large (27MHz instead of 90kHz ticks), causing continuous VLC timestamp errors. Fixed.
-- **Menu font embedding** — IBM Plex Mono TTF embedded in binary via `go:embed`; no more fallback to generic monospace on installed builds.
-- **Chapter navigation** — Chapter cell boundaries now use binary search on actual NAV_PCK PTMs instead of linear interpolation, fixing chapter skip errors on VBR content.
-- **Return-to-menu** — `JumpVMGM_PGCN(1)` post-command added to all title PGCs (feature + extras) in both folder and ISO builds.
+- **UDF PartitionLength fix** â€” Calculated from actual file sizes instead of hardcoded 1000 sectors. VLC can now resolve UDF paths for full-size DVDs.
+- **Menu PTS timestamps** â€” Menu VOB PTS was 300x too large (27MHz instead of 90kHz ticks), causing continuous VLC timestamp errors. Fixed.
+- **Menu font embedding** â€” IBM Plex Mono TTF embedded in binary via `go:embed`; no more fallback to generic monospace on installed builds.
+- **Chapter navigation** â€” Chapter cell boundaries now use binary search on actual NAV_PCK PTMs instead of linear interpolation, fixing chapter skip errors on VBR content.
+- **Return-to-menu** â€” `JumpVMGM_PGCN(1)` post-command added to all title PGCs (feature + extras) in both folder and ISO builds.
 
 ## v0.1.1-dev40 (April 2026)
 
 ### Native Media Player
-- **InlineVideoPlayer unified** — All modules (Convert, Trim, Inspect) now use `ui.InlineVideoPlayer` as the single API layer. No module manages its own engine or playback goroutine.
-- **Inspect module player** — `GetInspectPlayer()` singleton wired; player widget embedded in Inspect view; `StartThumbnailExtraction` fires on load.
-- **Inspect freeze fix** — `probeVideo` (ffprobe subprocess) moved off the main goroutine; UI renders immediately and refreshes when probe completes.
-- **EOF handling** — Playback loop distinguishes clean end-of-stream from errors; `SetOnEnd` fires on main goroutine; play button resets correctly.
-- **Dual-engine exceptions documented** — Compare and Upscale use two engines directly (required for simultaneous streams); documented in `AGENTS.md` and `docs/NATIVE_PLAYER.md`.
+- **InlineVideoPlayer unified** â€” All modules (Convert, Trim, Inspect) now use `ui.InlineVideoPlayer` as the single API layer. No module manages its own engine or playback goroutine.
+- **Inspect module player** â€” `GetInspectPlayer()` singleton wired; player widget embedded in Inspect view; `StartThumbnailExtraction` fires on load.
+- **Inspect freeze fix** â€” `probeVideo` (ffprobe subprocess) moved off the main goroutine; UI renders immediately and refreshes when probe completes.
+- **EOF handling** â€” Playback loop distinguishes clean end-of-stream from errors; `SetOnEnd` fires on main goroutine; play button resets correctly.
+- **Dual-engine exceptions documented** â€” Compare and Upscale use two engines directly (required for simultaneous streams); documented in `AGENTS.md` and `docs/NATIVE_PLAYER.md`.
 
 ### Logging Standardisation
-- **Module categories** — Added `CatConvert`, `CatTrim`, `CatMerge`, `CatFilters`, `CatAudio`, `CatAuthor` log categories.
-- **Error elevation** — Config load, probe, and encode failures promoted from `Debug` to `Error` with full path context across Convert, Trim, Merge, Filters, Audio, and Author modules.
+- **Module categories** â€” Added `CatConvert`, `CatTrim`, `CatMerge`, `CatFilters`, `CatAudio`, `CatAuthor` log categories.
+- **Error elevation** â€” Config load, probe, and encode failures promoted from `Debug` to `Error` with full path context across Convert, Trim, Merge, Filters, Audio, and Author modules.
 
 ### UI / UX
-- **Tooltip system** — Global enable/disable in Settings; tooltips on module tiles and Convert controls.
-- **Drop targets** — `.ts`, `.m2ts`, `.vob` added to valid video extensions; toast notifications for wrong-format drops; green border hover feedback on drop zones.
-- **Trim style** — Player and footer aligned to match other modules.
+- **Tooltip system** â€” Global enable/disable in Settings; tooltips on module tiles and Convert controls.
+- **Drop targets** â€” `.ts`, `.m2ts`, `.vob` added to valid video extensions; toast notifications for wrong-format drops; green border hover feedback on drop zones.
+- **Trim style** â€” Player and footer aligned to match other modules.
 
 ### Documentation
-- **`docs/NATIVE_PLAYER.md`** — Full reference for the three-layer player stack, API surface, module integration pattern, and approved exceptions.
-- **`AGENTS.md` Native Player section** — Architecture rule enforced; dual-engine exceptions documented.
+- **`docs/NATIVE_PLAYER.md`** â€” Full reference for the three-layer player stack, API surface, module integration pattern, and approved exceptions.
+- **`AGENTS.md` Native Player section** â€” Architecture rule enforced; dual-engine exceptions documented.
 - Deleted six stale player docs superseded by the above.
 
 ### Bug Fixes
-- **Queue right-click safety** — Nil checks prevent crashes on context menu.
-- **DnD dispatch** — `DropTarget` wired correctly for Convert and module tile drops.
-- **Trim type assertion** — Removed invalid `Widget().(*media.VideoPlayer)` assertion.
-- **CI** — Windows build green (runs 1184+); Linux green throughout.
+- **Queue right-click safety** â€” Nil checks prevent crashes on context menu.
+- **DnD dispatch** â€” `DropTarget` wired correctly for Convert and module tile drops.
+- **Trim type assertion** â€” Removed invalid `Widget().(*media.VideoPlayer)` assertion.
+- **CI** â€” Windows build green (runs 1184+); Linux green throughout.
 
 ## v0.1.1-dev39 (March 2026)
 
 ### Player Module Fixes
-- **Panic recovery** — Added defer/recover in player module to catch CGO crashes and show user-friendly error instead of hard crash.
-- **FFmpeg DLL consistency** — Now checks for local FFmpeg at `C:\ffmpeg\bin` first (matches compilation), falls back to download only if not found.
-- **Local build fix** — Build script now copies FFmpeg DLLs to output directory (matching CI behavior).
+- **Panic recovery** â€” Added defer/recover in player module to catch CGO crashes and show user-friendly error instead of hard crash.
+- **FFmpeg DLL consistency** â€” Now checks for local FFmpeg at `C:\ffmpeg\bin` first (matches compilation), falls back to download only if not found.
+- **Local build fix** â€” Build script now copies FFmpeg DLLs to output directory (matching CI behavior).
 
 ### Author Module
-- **Interactive Preview tab** — New Preview tab shows full interactive DVD menu preview with working video playback.
-- **Module extraction** — Extracted author module to `internal/app/modules/author/`.
-- **Tab visibility** — Preview tab only appears when Enable Menus is checked.
-- **IFO audio track table** — VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
-- **Drag crash fix (revised)** — Dragging a video file into the Author module no longer hard-crashes back to the login screen. Root cause was `handleDrop` triggering a full 7-tab `showAuthorView()` rebuild on the main thread during DnD completion, which rendered a 720×480 GPU texture concurrent with the XWayland/GLFW DnD handshake. Fixed by adding an `authorClipsRefresh` callback (same pattern as `authorChaptersRefresh`) so drops only update the clip list widget — no view rebuild, no GPU upload during DnD. `addAuthorFiles` also runs off the main thread.
-- **VTS_MAT byte layout** — Corrected all field byte offsets in `mat_serialize.go`/`vtsi.go` to match the packed `vtsi_mat_t` struct in libdvdread `ifo_types.h`. Previous code wrote table offsets at 0x1A2–0x1BE (inside `zero_17`) and audio attributes at 0x08D (inside `zero_12`). Now: table offsets at 0x0C8–0x0E4, video attrs at 0x200, audio count/attrs at 0x203/0x204, subpicture count/attrs at 0x255/0x256; `vtsi_last_byte` at 0x080; `vtstt_vobs` (title VOB start sector) at 0x0C4. Fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
-- **DVD menu VOB (M1/M2)** — `runNativeSpumux` now encodes the background PNG as an MPEG-2 still-video via ffmpeg and muxes it with SPU subpicture data into a proper DVD Program Stream VOB (`VIDEO_TS.VOB`). Falls back to video-only output if ffmpeg SPU mux fails.
-- **PCI button table (M3)** — `PCIButton` struct added to `internal/dvd/vob/nav.go`. `WriteNAV_PCK` serializes up to 36 buttons with libdvdread-compatible bit-packed coordinate encoding (BTN_SL_NS at byte 94, BTN_NS at 95, entries at 98).
-- **VMGM_VOBS_Sector (M4)** — `vmgMat.VMGM_VOBS_Sector` now set from the ISO layout pass so dvdnav can locate `VIDEO_TS.VOB` on disc.
-- **Menu PGC sector patching (M5)** — `CellPlayback[0]` First/LastSector fields in each menu PGC updated with disc-absolute sector ranges derived from per-MPG file sizes and the `VIDEO_TS.VOB` disc start sector. Folder-mode equivalent added: sector offsets computed from individual MPG file sizes (cumulative), and `VMGM_VOBS_Sector` set to `VMG_Last_Sector+1` so libdvdread opens `VIDEO_TS.VOB` for the VMGM domain instead of treating it as absent.
-- **VOB sector counter fix** — `WriteVideo` in `vob.go` no longer double-increments `currentSector`. The unconditional post-padding `currentSector++` has been restored to an `else` branch so `WritePadding` (which already increments) and the direct increment are mutually exclusive. This corrects `nv_pck_lbn` values in all NAV_PCKs for the menu VOB, fixing a VLC/dvdnav crash when navigating a generated DVD folder.
-- **ExtrasMpg wiring (M6)** — `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and included in the VMGM PGC table.
-- **JumpVMGM_PGCN command (M7)** — `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` now translates `"jump menu N;"` / `"jump menu pgc N;"` to the correct inter-menu PGC jump opcode (0x30, 0x06).
+- **Interactive Preview tab** â€” New Preview tab shows full interactive DVD menu preview with working video playback.
+- **Module extraction** â€” Extracted author module to `internal/app/modules/author/`.
+- **Tab visibility** â€” Preview tab only appears when Enable Menus is checked.
+- **IFO audio track table** â€” VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
+- **Drag crash fix (revised)** â€” Dragging a video file into the Author module no longer hard-crashes back to the login screen. Root cause was `handleDrop` triggering a full 7-tab `showAuthorView()` rebuild on the main thread during DnD completion, which rendered a 720Ã—480 GPU texture concurrent with the XWayland/GLFW DnD handshake. Fixed by adding an `authorClipsRefresh` callback (same pattern as `authorChaptersRefresh`) so drops only update the clip list widget â€” no view rebuild, no GPU upload during DnD. `addAuthorFiles` also runs off the main thread.
+- **VTS_MAT byte layout** â€” Corrected all field byte offsets in `mat_serialize.go`/`vtsi.go` to match the packed `vtsi_mat_t` struct in libdvdread `ifo_types.h`. Previous code wrote table offsets at 0x1A2â€“0x1BE (inside `zero_17`) and audio attributes at 0x08D (inside `zero_12`). Now: table offsets at 0x0C8â€“0x0E4, video attrs at 0x200, audio count/attrs at 0x203/0x204, subpicture count/attrs at 0x255/0x256; `vtsi_last_byte` at 0x080; `vtstt_vobs` (title VOB start sector) at 0x0C4. Fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
+- **DVD menu VOB (M1/M2)** â€” `runNativeSpumux` now encodes the background PNG as an MPEG-2 still-video via ffmpeg and muxes it with SPU subpicture data into a proper DVD Program Stream VOB (`VIDEO_TS.VOB`). Falls back to video-only output if ffmpeg SPU mux fails.
+- **PCI button table (M3)** â€” `PCIButton` struct added to `internal/dvd/vob/nav.go`. `WriteNAV_PCK` serializes up to 36 buttons with libdvdread-compatible bit-packed coordinate encoding (BTN_SL_NS at byte 94, BTN_NS at 95, entries at 98).
+- **VMGM_VOBS_Sector (M4)** â€” `vmgMat.VMGM_VOBS_Sector` now set from the ISO layout pass so dvdnav can locate `VIDEO_TS.VOB` on disc.
+- **Menu PGC sector patching (M5)** â€” `CellPlayback[0]` First/LastSector fields in each menu PGC updated with disc-absolute sector ranges derived from per-MPG file sizes and the `VIDEO_TS.VOB` disc start sector. Folder-mode equivalent added: sector offsets computed from individual MPG file sizes (cumulative), and `VMGM_VOBS_Sector` set to `VMG_Last_Sector+1` so libdvdread opens `VIDEO_TS.VOB` for the VMGM domain instead of treating it as absent.
+- **VOB sector counter fix** â€” `WriteVideo` in `vob.go` no longer double-increments `currentSector`. The unconditional post-padding `currentSector++` has been restored to an `else` branch so `WritePadding` (which already increments) and the direct increment are mutually exclusive. This corrects `nv_pck_lbn` values in all NAV_PCKs for the menu VOB, fixing a VLC/dvdnav crash when navigating a generated DVD folder.
+- **ExtrasMpg wiring (M6)** â€” `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and included in the VMGM PGC table.
+- **JumpVMGM_PGCN command (M7)** â€” `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` now translates `"jump menu N;"` / `"jump menu pgc N;"` to the correct inter-menu PGC jump opcode (0x30, 0x06).
 
 ### Filter Integration (Complete)
-- **Standalone filter jobs** — Filters module can now queue filter-only jobs without upscaling. "Add to Queue" button added to Filters module UI.
-- **Filter job execution** — `executeFilterJob` supports color correction (brightness/contrast/saturation), enhancement (sharpness/denoise), transform (flip/rotate/grayscale), and stylistic filters (VHS/80s/Webcam effects) via FFmpeg.
+- **Standalone filter jobs** â€” Filters module can now queue filter-only jobs without upscaling. "Add to Queue" button added to Filters module UI.
+- **Filter job execution** â€” `executeFilterJob` supports color correction (brightness/contrast/saturation), enhancement (sharpness/denoise), transform (flip/rotate/grayscale), and stylistic filters (VHS/80s/Webcam effects) via FFmpeg.
 
 ### CI Fixes
-- **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
-- **filters_module.go** — Removed invalid `*videoSource` type assertion at line 110; `state.filtersFile` is `*videoSource` not `interface{}`, causing a Go 1.26 build failure in CI.
-- **FFmpeg from source (Windows/Linux)** — Switched from BtbN pre-built packages to building FFmpeg, x264, and x265 from source. BtbN packages provide executables only (no `.a` static libraries) and bundle x264/x265 headers with `__declspec(dllimport)`, making static CGO linking impossible.
-- **x265.pc C++ deps in Libs** — Moved `-lstdc++`/`-lsupc++`/`-lm` from `Libs.private` to `Libs` in the generated x265.pc. FFmpeg configure calls `pkg-config --libs` without `--static`, so `Libs.private` is never seen during the configure link test; the C++ runtime must be in the public `Libs` field.
-- **Windows multiple-definition fix** — Stripped `-lsupc++` from `CGO_LDFLAGS` after `pkg-config --libs --static`. `libsupc++.a` (real static archive) and `libstdc++.dll.a` (DLL import stub) both define `std::type_info::operator==`; removing `-lsupc++` from the final Go binary link eliminates the duplicate symbol. `-lsupc++` remains in x265.pc for FFmpeg configure.
-- **Windows disk space** — Added `-g0` to `CGO_CFLAGS` to suppress DWARF debug info in CGO intermediate `.s` files (FFmpeg headers otherwise generate multi-GB temp files in `C:\WINDOWS\TEMP`). Added MSYS2 package-cache/temp cleanup step before the Go build.
-- **Linux cache invalidation** — Bumped Linux cache key `v2→v3` to force a rebuild with the corrected x265.pc after the `Libs.private` → `Libs` change.
+- **Submodule sync** â€” Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
+- **filters_module.go** â€” Removed invalid `*videoSource` type assertion at line 110; `state.filtersFile` is `*videoSource` not `interface{}`, causing a Go 1.26 build failure in CI.
+- **FFmpeg from source (Windows/Linux)** â€” Switched from BtbN pre-built packages to building FFmpeg, x264, and x265 from source. BtbN packages provide executables only (no `.a` static libraries) and bundle x264/x265 headers with `__declspec(dllimport)`, making static CGO linking impossible.
+- **x265.pc C++ deps in Libs** â€” Moved `-lstdc++`/`-lsupc++`/`-lm` from `Libs.private` to `Libs` in the generated x265.pc. FFmpeg configure calls `pkg-config --libs` without `--static`, so `Libs.private` is never seen during the configure link test; the C++ runtime must be in the public `Libs` field.
+- **Windows multiple-definition fix** â€” Stripped `-lsupc++` from `CGO_LDFLAGS` after `pkg-config --libs --static`. `libsupc++.a` (real static archive) and `libstdc++.dll.a` (DLL import stub) both define `std::type_info::operator==`; removing `-lsupc++` from the final Go binary link eliminates the duplicate symbol. `-lsupc++` remains in x265.pc for FFmpeg configure.
+- **Windows disk space** â€” Added `-g0` to `CGO_CFLAGS` to suppress DWARF debug info in CGO intermediate `.s` files (FFmpeg headers otherwise generate multi-GB temp files in `C:\WINDOWS\TEMP`). Added MSYS2 package-cache/temp cleanup step before the Go build.
+- **Linux cache invalidation** â€” Bumped Linux cache key `v2â†’v3` to force a rebuild with the corrected x265.pc after the `Libs.private` â†’ `Libs` change.
 
 ## v0.1.1-dev38 (March 2026)
 
 ### Native DVD Engine
-- **Native Go SPU encoder** — Added `internal/dvd/spu` with RLE encoding, display sequences, and `vob.WriteSPU` to generate zero-dependency DVD menus without spumux.
-- **Menu VOB wiring** — Native SPU now wired into Author module menu generation pipeline.
+- **Native Go SPU encoder** â€” Added `internal/dvd/spu` with RLE encoding, display sequences, and `vob.WriteSPU` to generate zero-dependency DVD menus without spumux.
+- **Menu VOB wiring** â€” Native SPU now wired into Author module menu generation pipeline.
 
 ### CI Fixes (Fyne API Changes)
-- **Windows CI** — Fixed multiple compile errors from Fyne API changes: `desktop.KeyEvent`, `fyne.Color`, `VT_SUBTITLE_TYPE_TEXT`.
-- **FFmpeg pinning** — Pinned Windows CI to BtbN n7.1 build to match Linux CI.
-- **Build directives** — Replaced pkg-config CGO directives with explicit CFLAGS/LDFLAGS for cross-platform compatibility.
+- **Windows CI** â€” Fixed multiple compile errors from Fyne API changes: `desktop.KeyEvent`, `fyne.Color`, `VT_SUBTITLE_TYPE_TEXT`.
+- **FFmpeg pinning** â€” Pinned Windows CI to BtbN n7.1 build to match Linux CI.
+- **Build directives** â€” Replaced pkg-config CGO directives with explicit CFLAGS/LDFLAGS for cross-platform compatibility.
 
 ### Module Extraction
-- **Subtitles module** — Full extraction to `internal/app/modules/subtitles/` with types, adapter, and view.
-- **Inspect module** — Extracted to `internal/app/modules/inspect/view.go`.
-- **Queue module** — Extracted to `internal/app/modules/queue/view.go`.
-- **Upscale module** — Full extraction to `internal/app/modules/upscale/` with helpers, types, and view.
-- **Settings module** — Created `internal/app/modules/settings/` with view and types.
+- **Subtitles module** â€” Full extraction to `internal/app/modules/subtitles/` with types, adapter, and view.
+- **Inspect module** â€” Extracted to `internal/app/modules/inspect/view.go`.
+- **Queue module** â€” Extracted to `internal/app/modules/queue/view.go`.
+- **Upscale module** â€” Full extraction to `internal/app/modules/upscale/` with helpers, types, and view.
+- **Settings module** â€” Created `internal/app/modules/settings/` with view and types.
 
 ### i18n Compliance
-- **Author module** — Replaced hardcoded strings with i18n calls.
+- **Author module** â€” Replaced hardcoded strings with i18n calls.
 
 ## v0.1.1-dev36 (March 2026)
 
 ### Module Extraction
-- **Settings module structure** — Created `internal/app/modules/settings/` with view.go and types.go
-- **Settings types moved** — PrefsConfig, Dependency, DependencyCommand types extracted to module package
-- **Constructor functions** — Added NewDependencyCommand, NewDependencyCommandPair for type safety
-- **Inspect module** — Extracted `showInspectView` and `buildInspectView` to `internal/app/modules/inspect/view.go`
-- **Queue module** — Extracted queue view builders and refresh helpers to `internal/app/modules/queue/view.go`
-- **Subtitles module** — Extracted package structure, types, adapter, and view code to `internal/app/modules/subtitles/`
-- **Upscale module** — Full module extracted to `internal/app/modules/upscale/` with helpers.go, types.go, and view.go
+- **Settings module structure** â€” Created `internal/app/modules/settings/` with view.go and types.go
+- **Settings types moved** â€” PrefsConfig, Dependency, DependencyCommand types extracted to module package
+- **Constructor functions** â€” Added NewDependencyCommand, NewDependencyCommandPair for type safety
+- **Inspect module** â€” Extracted `showInspectView` and `buildInspectView` to `internal/app/modules/inspect/view.go`
+- **Queue module** â€” Extracted queue view builders and refresh helpers to `internal/app/modules/queue/view.go`
+- **Subtitles module** â€” Extracted package structure, types, adapter, and view code to `internal/app/modules/subtitles/`
+- **Upscale module** â€” Full module extracted to `internal/app/modules/upscale/` with helpers.go, types.go, and view.go
 
 ### GPU Rendering Pipeline
-- **Fyne fork** — GPU texture optimization fork at `lt_mirror/fyne`
-- **TexSubImage2D** — Efficient texture upload in GL painter
-- **UpdatePixels wiring** — VideoPlayer SetFrame uses UpdatePixels for texture reuse
-- **Debug logging** — Added TexSubImage2D vs TexImage2D logging in newGlRasterTexture
+- **Fyne fork** â€” GPU texture optimization fork at `lt_mirror/fyne`
+- **TexSubImage2D** â€” Efficient texture upload in GL painter
+- **UpdatePixels wiring** â€” VideoPlayer SetFrame uses UpdatePixels for texture reuse
+- **Debug logging** â€” Added TexSubImage2D vs TexImage2D logging in newGlRasterTexture
 
 ### Media Engine
-- **Adaptive buffering** — GetBufferHealth, GetDecodeTimeTrend, AdjustBufferForPerformance
-- **Error recovery** — DegradeToSoftware, ShouldDegrade for HW failure handling
-- **Speed via keyboard** — `<` / `>` keys change playback speed (0.25x-2.0x)
-- **Actual FPS seeking** — Frame seeking uses real video FPS instead of hardcoded 30
+- **Adaptive buffering** â€” GetBufferHealth, GetDecodeTimeTrend, AdjustBufferForPerformance
+- **Error recovery** â€” DegradeToSoftware, ShouldDegrade for HW failure handling
+- **Speed via keyboard** â€” `<` / `>` keys change playback speed (0.25x-2.0x)
+- **Actual FPS seeking** â€” Frame seeking uses real video FPS instead of hardcoded 30
 
 ### Playback Enhancements
-- **Phase 4 complete** — Buffering indicators, error recovery, performance tuning
+- **Phase 4 complete** â€” Buffering indicators, error recovery, performance tuning
 
 ## v0.1.1-dev35 (March 2026)
 
 ### Localization Updates (dev34 continuation)
-- **Subtitles i18n** — 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
-- **Audio/Filters/Inspect i18n wired** — All module views now use t.* i18n keys.
-- **Status bar localization** — Added StatusNoActiveJobs to status bar.
-- **Trim module compatibility** — Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
-- **Dialog title i18n** — 15+ new translation keys wired into main.go for Convert/Merge/Trim/Snippet modules (DialogInterlacingResults, DialogAutoCropDetection, DialogNoBlackBars, DialogQueueNotInit, DialogNoRunningJob, LabelSnippet, MergeStarted, TrimJobAdded).
+- **Subtitles i18n** â€” 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
+- **Audio/Filters/Inspect i18n wired** â€” All module views now use t.* i18n keys.
+- **Status bar localization** â€” Added StatusNoActiveJobs to status bar.
+- **Trim module compatibility** â€” Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
+- **Dialog title i18n** â€” 15+ new translation keys wired into main.go for Convert/Merge/Trim/Snippet modules (DialogInterlacingResults, DialogAutoCropDetection, DialogNoBlackBars, DialogQueueNotInit, DialogNoRunningJob, LabelSnippet, MergeStarted, TrimJobAdded).
 
 ### UI Fixes
-- **Back button consistency** — Module name uppercase on all modules.
-- **Auto-check dropdown fix** — Fixed language switching issue in Settings Updates section.
-- **Thumbnail contact sheet** — Increased header height (130→150px) and added filename truncation.
-- **Inspect preview placeholder** — Replaced stuck "Loading preview" with proper idle player state and icons.
-- **Preview frame capture** — Captured before interlace analysis to avoid UI stuck states.
+- **Back button consistency** â€” Module name uppercase on all modules.
+- **Auto-check dropdown fix** â€” Fixed language switching issue in Settings Updates section.
+- **Thumbnail contact sheet** â€” Increased header height (130â†’150px) and added filename truncation.
+- **Inspect preview placeholder** â€” Replaced stuck "Loading preview" with proper idle player state and icons.
+- **Preview frame capture** â€” Captured before interlace analysis to avoid UI stuck states.
 
 ### Trim Module
-- **Trim job submission** — `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config fields.
+- **Trim job submission** â€” `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config fields.
 
 ### Media Engine Overhaul
-- **SplitView fixes** — Fixed divider color using exact VT Green #4CE870; implemented draggable divider with MouseMoved/Dragged handlers.
-- **AudioPlayer improvements** — Added volume control (SetVolume/GetVolume), mute functionality, pause/resume control, proper error handling with logging.
-- **Engine enhancements** — Added VideoInfo struct for metadata (Width, Height, FrameRate, Codec, Bitrate), Pause/Resume/TogglePause controls, volume/mute/speed controls, seeking with configurable accuracy (Frame/Keyframe/Accurate).
-- **Queue improvements** — Added configurable max size limits to prevent unbounded memory growth.
-- **Subtitle extraction** — New SubtitleExtractor for parsing subtitle streams from video files; supports SRT and ASS export formats.
-- **Tests** — Added comprehensive test suite for media package (queue, clock, subtitle time formatting).
-- **Player deprecation** — BackendMPV and BackendVLC marked as deprecated; factory now only supports FFplay and Native engines.
+- **SplitView fixes** â€” Fixed divider color using exact VT Green #4CE870; implemented draggable divider with MouseMoved/Dragged handlers.
+- **AudioPlayer improvements** â€” Added volume control (SetVolume/GetVolume), mute functionality, pause/resume control, proper error handling with logging.
+- **Engine enhancements** â€” Added VideoInfo struct for metadata (Width, Height, FrameRate, Codec, Bitrate), Pause/Resume/TogglePause controls, volume/mute/speed controls, seeking with configurable accuracy (Frame/Keyframe/Accurate).
+- **Queue improvements** â€” Added configurable max size limits to prevent unbounded memory growth.
+- **Subtitle extraction** â€” New SubtitleExtractor for parsing subtitle streams from video files; supports SRT and ASS export formats.
+- **Tests** â€” Added comprehensive test suite for media package (queue, clock, subtitle time formatting).
+- **Player deprecation** â€” BackendMPV and BackendVLC marked as deprecated; factory now only supports FFplay and Native engines.
 
 ---
 
 ## v0.1.1-dev34 (March 2026)
 
 ### Localization Engine
-- **Full i18n framework** — New `internal/i18n` package with a typed `Strings` struct as the single source of truth for every user-visible string. `T()` returns the active locale; listener callbacks let the entire UI refresh instantly on language change without a restart.
-- **English (Canada) — en-CA** — 100% coverage; serves as fallback for all other locales.
-- **French (Canada) — fr-CA** — Initial translation pass covering all core UI strings.
-- **Inuktitut — iu** — Initial translation pass in Traditional Syllabics (ᐃᓄᒃᑎᑐᑦ) with a Latin toggle in Settings.
-- **Aboriginal Sans embedded** — Aboriginal Sans Regular/Bold embedded in the binary for correct UCAS/syllabics rendering with no external font install required.
-- **Language selector in Settings** — Dropdown in General tab; change takes effect immediately across all visible UI including the active module.
-- **Locale-aware module refresh** — Switching language now rebuilds whichever module is currently open, not just the main menu.
+- **Full i18n framework** â€” New `internal/i18n` package with a typed `Strings` struct as the single source of truth for every user-visible string. `T()` returns the active locale; listener callbacks let the entire UI refresh instantly on language change without a restart.
+- **English (Canada) â€” en-CA** â€” 100% coverage; serves as fallback for all other locales.
+- **French (Canada) â€” fr-CA** â€” Initial translation pass covering all core UI strings.
+- **Inuktitut â€” iu** â€” Initial translation pass in Traditional Syllabics (áƒá“„á’ƒá‘Žá‘á‘¦) with a Latin toggle in Settings.
+- **Aboriginal Sans embedded** â€” Aboriginal Sans Regular/Bold embedded in the binary for correct UCAS/syllabics rendering with no external font install required.
+- **Language selector in Settings** â€” Dropdown in General tab; change takes effect immediately across all visible UI including the active module.
+- **Locale-aware module refresh** â€” Switching language now rebuilds whichever module is currently open, not just the main menu.
 
-### Native Media Engine (Phase 1 — `native_media` build tag)
-- **Core engine scaffolding** — CGO/FFmpeg engine in `internal/media/` providing a proper decode pipeline, gated behind `//go:build native_media` so standard builds are unaffected.
-- **Demuxer + PacketQueue** — Thread-safe packet queue feeding a demuxer loop with audio stream discovery.
-- **AudioPlayer** — Full audio decoding and resampling via libswresample + oto; integrated into the engine with playback state management.
-- **MasterClock + A/V sync** — High-precision master clock drives frame timing; AudioPlayer syncs to it, eliminating the separate-process A/V drift described in issues #14–#16.
-- **Frame stepping & Seek** — Frame-accurate step forward/back; Seek implementation with queue flushing for clean repositioning (issue #17 foundation).
-- **SplitView widget** — Side-by-side video comparison widget; wired into Compare module under the `native_media` tag.
+### Native Media Engine (Phase 1 â€” `native_media` build tag)
+- **Core engine scaffolding** â€” CGO/FFmpeg engine in `internal/media/` providing a proper decode pipeline, gated behind `//go:build native_media` so standard builds are unaffected.
+- **Demuxer + PacketQueue** â€” Thread-safe packet queue feeding a demuxer loop with audio stream discovery.
+- **AudioPlayer** â€” Full audio decoding and resampling via libswresample + oto; integrated into the engine with playback state management.
+- **MasterClock + A/V sync** â€” High-precision master clock drives frame timing; AudioPlayer syncs to it, eliminating the separate-process A/V drift described in issues #14â€“#16.
+- **Frame stepping & Seek** â€” Frame-accurate step forward/back; Seek implementation with queue flushing for clean repositioning (issue #17 foundation).
+- **SplitView widget** â€” Side-by-side video comparison widget; wired into Compare module under the `native_media` tag.
 
 ### Disc Authoring (continued)
-- **Multitrack audio & subtitle support** — Author module now exposes per-track audio/subtitle stream selection from the source file with a mapping table in the authoring pipeline.
-- **ScriptableTheme engine** — JSON-driven theme format allows defining DVD menu layouts, button positions, and colour palettes without recompiling. Default asset bundled.
-- **Native Go menu renderer** — `internal/dvd/theme` renders menu backgrounds and overlays entirely in Go using `golang.org/x/image/font` — no ImageMagick dependency.
-- **Archivist round-trip** — Rip → load → re-author pipeline validated; source disc metadata and track layout preserved through the cycle.
-- **IFO reading (VTSI + VMGI)** — `internal/dvd/ifo` can now parse existing IFO files from real discs, enabling accurate re-authoring from ripped sources.
-- **VOBU_ADMAP + VTS Attribute Table** — Sector-accurate seeking map and multi-VTS attribute table implemented for standards-compliant output.
-- **Automated disc scan on drop** — Rip module detects and enumerates titles/tracks automatically when a folder, ISO, or VIDEO_TS path is dropped onto it.
-- **Native UDF extraction** — `internal/dvd/udf` can extract files from existing UDF images.
+- **Multitrack audio & subtitle support** â€” Author module now exposes per-track audio/subtitle stream selection from the source file with a mapping table in the authoring pipeline.
+- **ScriptableTheme engine** â€” JSON-driven theme format allows defining DVD menu layouts, button positions, and colour palettes without recompiling. Default asset bundled.
+- **Native Go menu renderer** â€” `internal/dvd/theme` renders menu backgrounds and overlays entirely in Go using `golang.org/x/image/font` â€” no ImageMagick dependency.
+- **Archivist round-trip** â€” Rip â†’ load â†’ re-author pipeline validated; source disc metadata and track layout preserved through the cycle.
+- **IFO reading (VTSI + VMGI)** â€” `internal/dvd/ifo` can now parse existing IFO files from real discs, enabling accurate re-authoring from ripped sources.
+- **VOBU_ADMAP + VTS Attribute Table** â€” Sector-accurate seeking map and multi-VTS attribute table implemented for standards-compliant output.
+- **Automated disc scan on drop** â€” Rip module detects and enumerates titles/tracks automatically when a folder, ISO, or VIDEO_TS path is dropped onto it.
+- **Native UDF extraction** â€” `internal/dvd/udf` can extract files from existing UDF images.
 
 ### RIFE Frame Interpolation (Upscale module)
-- **RIFE integration** (issue #23) — `rife-ncnn-vulkan` wired into the Upscale module with configurable frame multiplier and model selection. Estimated output FPS shown in real time. Falls back gracefully when the binary is not installed.
+- **RIFE integration** (issue #23) â€” `rife-ncnn-vulkan` wired into the Upscale module with configurable frame multiplier and model selection. Estimated output FPS shown in real time. Falls back gracefully when the binary is not installed.
 
 ### Module Architecture Refactor
-- **Seven modules extracted** — audio, filters, inspect, thumbnail, player, enhancement, and compare moved to `internal/app/modules/` with clean Options/callback boundaries, reducing root package size.
-- **Module colour via Options** — All extracted modules receive their accent colour through `Options.ModuleColor` from the root; nav bar always matches the main menu tile colour.
-- **Back button i18n + casing** — All modules now use `strings.ToUpper(t.ModuleXxx)` for back buttons — uppercase, locale-aware, and consistent across every module.
+- **Seven modules extracted** â€” audio, filters, inspect, thumbnail, player, enhancement, and compare moved to `internal/app/modules/` with clean Options/callback boundaries, reducing root package size.
+- **Module colour via Options** â€” All extracted modules receive their accent colour through `Options.ModuleColor` from the root; nav bar always matches the main menu tile colour.
+- **Back button i18n + casing** â€” All modules now use `strings.ToUpper(t.ModuleXxx)` for back buttons â€” uppercase, locale-aware, and consistent across every module.
 
 ### UI & Bug Fixes
-- **Inspect crash on no file** — Clicking Inspect with no video loaded caused an immediate nil-pointer crash; all 20 `OnGetXxx` callbacks now guard against nil source.
-- **Hardware accel dropdown** — Only acceleration backends confirmed available by `ffmpeg -hwaccels` are shown. A saved value that is no longer available resets to auto.
-- **Convert output prefill** — Output filename field no longer pre-populates with a stale name from a previous session when no file is loaded on startup.
-- **Disc category consolidation** — Replaced three separate Author/Rip/Blu-ray show/hide toggles in Settings with a single "Show Disc category" toggle. Blu-ray tile retired from the main menu (functionality fully merged into Author and Rip).
+- **Inspect crash on no file** â€” Clicking Inspect with no video loaded caused an immediate nil-pointer crash; all 20 `OnGetXxx` callbacks now guard against nil source.
+- **Hardware accel dropdown** â€” Only acceleration backends confirmed available by `ffmpeg -hwaccels` are shown. A saved value that is no longer available resets to auto.
+- **Convert output prefill** â€” Output filename field no longer pre-populates with a stale name from a previous session when no file is loaded on startup.
+- **Disc category consolidation** â€” Replaced three separate Author/Rip/Blu-ray show/hide toggles in Settings with a single "Show Disc category" toggle. Blu-ray tile retired from the main menu (functionality fully merged into Author and Rip).
 
 ### Branding
-- **VT_LOGO-2** — New app icon and logo replacing the original placeholder design.
+- **VT_LOGO-2** â€” New app icon and logo replacing the original placeholder design.
 
 ### Localization Updates (dev34 continuation)
-- **Subtitles i18n** — 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
-- **Audio/Filters/Inspect i18n wired** — All module views now use t.* i18n keys.
-- **Status bar localization** — Added StatusNoActiveJobs to status bar.
-- **Trim module compatibility** — Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
+- **Subtitles i18n** â€” 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
+- **Audio/Filters/Inspect i18n wired** â€” All module views now use t.* i18n keys.
+- **Status bar localization** â€” Added StatusNoActiveJobs to status bar.
+- **Trim module compatibility** â€” Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
 
 ### UI Fixes
-- **Back button consistency** — Module name uppercase on all modules.
-- **Auto-check dropdown fix** — Fixed language switching issue in Settings Updates section.
-- **Thumbnail contact sheet** — Increased header height (130→150px) and added filename truncation.
+- **Back button consistency** â€” Module name uppercase on all modules.
+- **Auto-check dropdown fix** â€” Fixed language switching issue in Settings Updates section.
+- **Thumbnail contact sheet** â€” Increased header height (130â†’150px) and added filename truncation.
 
 ---
 
@@ -1434,7 +1434,7 @@ pending):
 
 ## v0.1.0-dev24 (January 2026)
 
-### 🎨 Main Menu Palette
+### ðŸŽ¨ Main Menu Palette
 - **Rainbow+ palette refresh** - restored diverse, eye-friendly module colors with improved readability
 - **Convert color preserved** - Convert remains the visual anchor across the UI
 - **Larger tile labels** - main menu button text is larger for accessibility
@@ -1447,21 +1447,21 @@ pending):
 
 ## v0.1.0-dev23 (January 2026)
 
-### 🎉 UI Cleanup
+### ðŸŽ‰ UI Cleanup
 - **Colored select refinement** - one-click open, left accent bar, rounded corners, larger labels
 - **Unified input styling** - settings panel backgrounds match dropdown tone
 - **Convert panel polish** - Auto-crop and Interlacing actions match panel styling
 
-### 🧩 About / Support
+### ðŸ§© About / Support
 - **Mockup-aligned layout** - title row, VT + LT logos on the right, Logs Folder action
-- **Support placeholder** - “Support coming soon” until donation details are available
+- **Support placeholder** - â€œSupport coming soonâ€ until donation details are available
 
-### 🐛 Fixes
+### ðŸ› Fixes
 - **Audio module crash** - guarded initial quality selection to avoid nil entry panic
 
 ## v0.1.0-dev22 (January 2026)
 
-### 🎉 Major Features
+### ðŸŽ‰ Major Features
 
 #### Automatic GPU Detection for Hardware Encoding
 - **Auto-detect GPU vendor** (NVIDIA/AMD/Intel) via system info detection
@@ -1474,7 +1474,7 @@ pending):
 - **Proper AV1 codec support** with hardware (av1_nvenc, av1_qsv, av1_amf) and software (libsvtav1) encoders
 - **SVT-AV1 speed preset mapping** (0-13 scale) for encoder performance tuning
 - **Prevents 80+ hour encodes** by applying appropriate speed presets
-- **ultrafast preset** → ~10-15 hours instead of 80+ hours for typical 1080p encodes
+- **ultrafast preset** â†’ ~10-15 hours instead of 80+ hours for typical 1080p encodes
 - **CRF quality control** for AV1 encoding
 
 #### UI/UX Improvements
@@ -1484,7 +1484,7 @@ pending):
 - **Format colors**: MKV=teal, MP4=blue, MOV=indigo
 - **Codec colors**: AV1=emerald, H.265=lime, H.264=sky, AAC=purple, Opus=violet
 
-### 🔧 Technical Improvements
+### ðŸ”§ Technical Improvements
 
 #### Hardware Encoding
 - **GPUVendor() method** in sysinfo package for GPU vendor identification
@@ -1502,7 +1502,7 @@ pending):
 - **Removed incomplete formatBackground** section with TODO for future implementation
 - **Git remote correction** - restored git.leaktechnologies.dev repository URL
 
-### 🐛 Bug Fixes
+### ðŸ› Bug Fixes
 
 #### Encoding
 - **Fixed AV1 forced H.264 conversion** - restored proper AV1 encoding support
@@ -1524,7 +1524,7 @@ pending):
 - **Upscale module accessibility** - changed from requiring realesrgan to optional
 - **FFmpeg-only scaling** now works without AI upscaler dependencies
 
-### 📝 Coordination & Planning
+### ðŸ“ Coordination & Planning
 
 #### Agent Coordination
 - **Updated WORKING_ON.md** with coordination request for agent handoff
@@ -1532,7 +1532,7 @@ pending):
 - **Documented integration gaps** and presented 3 options for dev23
 - **Removed Gemini from active agent rotation**
 
-### 🚧 Work in Progress (Deferred to Dev23)
+### ðŸš§ Work in Progress (Deferred to Dev23)
 
 #### Job Editing Feature
 - **Core logic complete** - edit.go (363 lines), command_editor.go (352 lines)
@@ -1540,16 +1540,16 @@ pending):
 - **Needs**: main.go hookups, UI buttons, end-to-end testing
 - **Status**: Held for proper integration in dev23
 
-### 🔄 Breaking Changes
+### ðŸ”„ Breaking Changes
 
 None - this is a bug-fix and enhancement release.
 
-### ⚠️ Known Issues
+### âš ï¸ Known Issues
 
 - **Windows dropdown UI differences** - investigating appearance differences on Windows vs Linux (deferred to dev23)
 - **Benchmark system** needs improvements (deferred to dev23)
 
-### 📊 Development Stats
+### ðŸ“Š Development Stats
 
 **Commits This Release**: 3 main commits
 - feat: add automatic GPU detection for hardware encoding
@@ -1570,7 +1570,7 @@ None - this is a bug-fix and enhancement release.
 
 ## v0.1.0-dev14 (December 2025)
 
-### 🎉 Major Features
+### ðŸŽ‰ Major Features
 
 #### Windows Compatibility Implementation
 - **Cross-platform build system** with MinGW-w64 support
@@ -1589,7 +1589,7 @@ None - this is a bug-fix and enhancement release.
 
 #### DVD Auto-Resolution Enhancement
 - **Automatic resolution setting** when selecting DVD formats
-- **NTSC/PAL auto-configuration** (720×480 @ 29.97fps, 720×576 @ 25fps)
+- **NTSC/PAL auto-configuration** (720Ã—480 @ 29.97fps, 720Ã—576 @ 25fps)
 - **Simplified user workflow** - one click instead of three
 - **Standards compliance** ensured automatically
 
@@ -1600,7 +1600,7 @@ None - this is a bug-fix and enhancement release.
 - **Improved status tracking** for running/paused/completed jobs
 - **Batch operations** for queue management
 
-### 🔧 Technical Improvements
+### ðŸ”§ Technical Improvements
 
 #### Code Organization
 - **Platform abstraction layer** for cross-platform compatibility
@@ -1620,7 +1620,7 @@ None - this is a bug-fix and enhancement release.
 - **Updated installation instructions** with platform-specific notes
 - **Enhanced troubleshooting guides** for Windows users
 
-### 🐛 Bug Fixes
+### ðŸ› Bug Fixes
 
 #### Queue System
 - **Fixed thread-safety issues** in queue operations
@@ -1634,7 +1634,7 @@ None - this is a bug-fix and enhancement release.
 - **Improved UNC path support** for network locations
 - **Better temp directory handling** across platforms
 
-### 📚 Documentation Updates
+### ðŸ“š Documentation Updates
 
 #### New Documentation
 - `INSTALLATION.md` - Comprehensive installation guide (360 lines)
@@ -1647,7 +1647,7 @@ None - this is a bug-fix and enhancement release.
 - `docs/README.md` - Updated module implementation status
 - `TODO.md` - Reorganized for dev15 planning
 
-### 🔄 Breaking Changes
+### ðŸ”„ Breaking Changes
 
 #### Build Process
 - **New build requirement**: MinGW-w64 for Windows cross-compilation
@@ -1659,7 +1659,7 @@ None - this is a bug-fix and enhancement release.
 - **New environment variables** for FFmpeg paths
 - **Updated hardware encoder detection** system
 
-### 🚀 Performance Improvements
+### ðŸš€ Performance Improvements
 
 #### Build Performance
 - **Faster incremental builds** with better dependency management
@@ -1671,26 +1671,26 @@ None - this is a bug-fix and enhancement release.
 - **Improved queue performance** with optimized locking
 - **Enhanced memory usage** for large file operations
 
-### 🎯 Platform Support
+### ðŸŽ¯ Platform Support
 
 #### Windows (New)
-- ✅ Windows 10 support
-- ✅ Windows 11 support  
-- ✅ Cross-compilation from Linux
-- ✅ Hardware acceleration (NVENC, QSV, AMF)
-- ✅ Windows-specific file handling
+- âœ… Windows 10 support
+- âœ… Windows 11 support  
+- âœ… Cross-compilation from Linux
+- âœ… Hardware acceleration (NVENC, QSV, AMF)
+- âœ… Windows-specific file handling
 
 #### Linux (Enhanced)
-- ✅ Improved hardware encoder detection
-- ✅ Better Wayland support
-- ✅ Enhanced process management
+- âœ… Improved hardware encoder detection
+- âœ… Better Wayland support
+- âœ… Enhanced process management
 
 #### Linux (Enhanced)
-- ✅ Continued support with native builds
-- ✅ Hardware acceleration (VAAPI, NVENC, QSV)
-- ✅ Cross-platform compatibility
+- âœ… Continued support with native builds
+- âœ… Hardware acceleration (VAAPI, NVENC, QSV)
+- âœ… Cross-platform compatibility
 
-### 📊 Statistics
+### ðŸ“Š Statistics
 
 #### Code Changes
 - **New files**: 3 (platform.go, build-windows.sh, install.sh)
@@ -1703,7 +1703,7 @@ None - this is a bug-fix and enhancement release.
 - **Enhanced features**: 6 (build system, documentation, queue, DVD encoding)
 - **Bug fixes**: 8+ across queue, platform, and build systems
 
-### 🔮 Next Steps (dev15 Planning)
+### ðŸ”® Next Steps (dev15 Planning)
 
 #### Immediate Priorities
 - Windows environment testing and validation
@@ -1727,7 +1727,7 @@ None - this is a bug-fix and enhancement release.
 
 ## v0.1.0-dev13 (November 2025)
 
-### 🎉 Major Features
+### ðŸŽ‰ Major Features
 
 #### DVD Encoding System
 - **Complete DVD-NTSC implementation** with professional specifications
@@ -1750,7 +1750,7 @@ None - this is a bug-fix and enhancement release.
 - **Real-time progress tracking** and status management
 - **Batch processing capabilities** with priority handling
 
-### 📚 Documentation
+### ðŸ“š Documentation
 
 #### New Comprehensive Guides
 - `DVD_IMPLEMENTATION_SUMMARY.md` (432 lines) - Complete DVD system reference
@@ -1763,7 +1763,7 @@ None - this is a bug-fix and enhancement release.
 - `MODULES.md` - Enhanced module descriptions and coverage
 - `TODO.md` - Reorganized for dev14 planning
 
-### 📚 Documentation Updates
+### ðŸ“š Documentation Updates
 
 #### New Documentation Added
 - Enhanced `TODO.md` with Lossless-Cut inspired trim module specifications

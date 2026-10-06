@@ -3,9 +3,9 @@
 > The `vlc`-tagged partial port described below landed on 2026-07-24 but never compiled (five
 > unresolved libVLC C symbols) and was never built by any CI workflow, so it never reached a
 > binary. It surfaced to users as a Settings checkbox that did nothing. All of it was removed in
-> dev84 (`f7ce4d3d`), along with `internal/player/vlc_controller.go`. See `DONE.md` for the entry.
+> dev84 (`3b054dd8`), along with `internal/player/vlc_controller.go`. See `DONE.md` for the entry.
 >
-> The `PlaybackEngine` interface described in *Phase 1* **did** ship and is retained — it is the
+> The `PlaybackEngine` interface described in *Phase 1* **did** ship and is retained â€” it is the
 > seam a real backend plugs into, and `InlineVideoPlayer` uses it today.
 >
 > If you revive this: provision the libVLC SDK in CI, **and add a CI job that actually builds the
@@ -24,13 +24,13 @@ The FFmpeg engine stays as a long-term plan; libVLC is battle-tested for seek/re
 ## Why
 
 The custom FFmpeg engine (`internal/media/engine.go` + `playback.go`) has had 10+ crash-fix
-cycles across dev43–dev55. The architecture — 6 goroutines, 4 mutexes, 3 packet queues,
-a frame queue, and a CGo SEH bridge — is fundamentally too complex to stabilise for
+cycles across dev43â€“dev55. The architecture â€” 6 goroutines, 4 mutexes, 3 packet queues,
+a frame queue, and a CGo SEH bridge â€” is fundamentally too complex to stabilise for
 user-facing playback. Every seek can land on a keyframe that stalls the decode pipeline,
 and every resume must flush stale state across multiple subsystems without a race.
 
 libVLC has solved these problems for 20+ years. Its internal player handles demux, decode,
-A-V sync, seek, resume, subtitle rendering, and track selection — all in a single
+A-V sync, seek, resume, subtitle rendering, and track selection â€” all in a single
 well-tested library. Wrapping it gives us a stable player at ~300 lines of CGo instead of
 ~1500.
 
@@ -41,9 +41,9 @@ well-tested library. Wrapping it gives us a stable player at ~300 lines of CGo i
 ### Layer separation (unchanged)
 
 ```
-internal/media   Engine (FFmpeg) OR VLCEngine (libVLC) — playback backend
-internal/media   VideoPlayer — Fyne widget: renders RGBA frames, seek bar, controls overlay
-internal/ui      InlineVideoPlayer — THE API LAYER every module talks to
+internal/media   Engine (FFmpeg) OR VLCEngine (libVLC) â€” playback backend
+internal/media   VideoPlayer â€” Fyne widget: renders RGBA frames, seek bar, controls overlay
+internal/ui      InlineVideoPlayer â€” THE API LAYER every module talks to
 ```
 
 Modules never see the backend. `InlineVideoPlayer` delegates to whichever Engine is active.
@@ -68,7 +68,7 @@ type PlaybackEngine interface {
     SetOnFrame(fn func(*image.RGBA))     // frame callback (RGBA decoded frame)
     SetOnProgress(fn func(float64))       // progress callback (seconds)
     SetOnEOF(func())                      // end-of-stream callback
-    SetVolume(v int)                      // 0–100
+    SetVolume(v int)                      // 0â€“100
     SetMuted(bool)
     SetSpeed(rate float64)
 
@@ -93,12 +93,12 @@ type PlaybackEngine interface {
 - `VLCBackend` wraps new libVLC code (simpler, stable seek/resume)
 
 `InlineVideoPlayer` stores `engine PlaybackEngine` instead of `engine *Engine`.
-The `VideoPlayer` widget is shared — both backends feed RGBA frames via `SetFrame()`.
+The `VideoPlayer` widget is shared â€” both backends feed RGBA frames via `SetFrame()`.
 
 ### Build-tag gating
 
-- `//go:build native_media && vlc` — VLC backend files
-- `//go:build native_media && !vlc` — FFmpeg engine files (current)
+- `//go:build native_media && vlc` â€” VLC backend files
+- `//go:build native_media && !vlc` â€” FFmpeg engine files (current)
 - Default: `!vlc` = FFmpeg engine (no change for CI/release until VLC is validated)
 - When VLC is validated: flip default or remove FFmpeg player entirely
 
@@ -119,7 +119,7 @@ as opt-in while keeping FFmpeg as fallback during validation.
 
 ## CGo Wrapper
 
-`adrg/libvlc-go/v3` does NOT expose `libvlc_video_set_callbacks` — it only renders to
+`adrg/libvlc-go/v3` does NOT expose `libvlc_video_set_callbacks` â€” it only renders to
 native windows (HWND/X11/NSView). We need our own thin CGo wrapper for frame callbacks.
 
 ### Files
@@ -151,17 +151,17 @@ static void vlcSetCallbacks(libvlc_media_player_t* mp, void* userdata) {
 
 ### Frame delivery
 
-1. `VLCEngine.Load(path)` — creates `libvlc_media_new_path` → `libvlc_media_player_new_from_media`
+1. `VLCEngine.Load(path)` â€” creates `libvlc_media_new_path` â†’ `libvlc_media_player_new_from_media`
 2. Calls `libvlc_video_set_format(mp, "RGBA", width, height, width*4)` with initial dimensions
 3. Calls `vlcSetCallbacks(mp, ctx)` via CGo static bridge
 4. On `libvlc_media_player_play`, libVLC decodes frames and calls our callbacks
 
 Per-frame flow:
 ```
-lock_cb(opaque, planes)     — set planes[0] to our RGBA buffer; return picture handle
+lock_cb(opaque, planes)     â€” set planes[0] to our RGBA buffer; return picture handle
   [libVLC decodes into buffer]
-unlock_cb(opaque, picture)  — frame decoded; copy to *image.RGBA
-display_cb(opaque, picture) — trigger SetFrame() on VideoPlayer widget
+unlock_cb(opaque, picture)  â€” frame decoded; copy to *image.RGBA
+display_cb(opaque, picture) â€” trigger SetFrame() on VideoPlayer widget
 ```
 
 ### Buffer management
@@ -213,12 +213,12 @@ markers, no scrubbing, no thumbnails.
 - CI builds both variants
 
 **Files changed:**
-- `internal/media/engine_interface.go` (new — interface)
-- `internal/media/ffmpeg_backend.go` (new — wraps Engine)
+- `internal/media/engine_interface.go` (new â€” interface)
+- `internal/media/ffmpeg_backend.go` (new â€” wraps Engine)
 - `internal/media/vlc_glue.h` (new)
 - `internal/media/vlc_engine.go` (new)
 - `internal/media/vlc_video.go` (new)
-- `internal/ui/inline_player.go` (modified — uses interface)
+- `internal/ui/inline_player.go` (modified â€” uses interface)
 
 ### Phase 2: Full feature parity
 
@@ -246,9 +246,9 @@ markers, no scrubbing, no thumbnails.
 
 ### Windows
 
-- **libVLC SDK:** Download from https://get.videolan.org/vlc/ — extract headers + DLLs
-- **Headers:** `C:/vlc/include/vlc/` — `vlc.h`, `vlc_media.h`, `vlc_media_player.h`
-- **Libs:** `C:/vlc/lib/` — `libvlc.dll.a` (import lib) + `libvlc.dll` (runtime)
+- **libVLC SDK:** Download from https://get.videolan.org/vlc/ â€” extract headers + DLLs
+- **Headers:** `C:/vlc/include/vlc/` â€” `vlc.h`, `vlc_media.h`, `vlc_media_player.h`
+- **Libs:** `C:/vlc/lib/` â€” `libvlc.dll.a` (import lib) + `libvlc.dll` (runtime)
 - **Runtime:** `libvlc.dll` + `libvlccore.dll` must be in PATH or next to the EXE
 - **CGo flags:**
   ```
@@ -276,7 +276,7 @@ markers, no scrubbing, no thumbnails.
 |------|-----------|
 | libVLC DLLs large (~50 MB) | Ship as separate sidecar ZIP (like FFmpeg) |
 | HW accel disabled in callback mode | Acceptable for short clip preview; CPU decode is fast enough |
-| Subtitle rendering requires CPU blending | Acceptable — subtitles are rendered into the RGBA buffer by libVLC |
+| Subtitle rendering requires CPU blending | Acceptable â€” subtitles are rendered into the RGBA buffer by libVLC |
 | CGo callback complexity | ~300 lines vs FFmpeg's ~1500; well-documented C API |
 | libVLC version differences | Pin to VLC 3.0.x (stable) via SDK download |
 | `libvlc_media_player_set_time` may not be frame-accurate | For GrabFrame, use `libvlc_media_player_set_time` + wait for frame callback |
@@ -292,7 +292,7 @@ Once VLC is validated and default, the FFmpeg files are:
 2. Kept in `docs/NATIVE_PLAYER.md` as architecture reference
 3. Eventually retired when VLC proves stable in production
 
-The FFmpeg engine's design is documented in `NATIVE_PLAYER.md` — this is valuable
+The FFmpeg engine's design is documented in `NATIVE_PLAYER.md` â€” this is valuable
 architecture knowledge that informs the VLC wrapper's interface design.
 
 ---
@@ -312,7 +312,7 @@ architecture knowledge that informs the VLC wrapper's interface design.
 - [ ] Stop and load different file
 - [ ] Volume control (0%, 50%, 100%)
 - [ ] Mute/unmute
-- [ ] Playback speed (0.5×, 1×, 2×)
+- [ ] Playback speed (0.5Ã—, 1Ã—, 2Ã—)
 - [ ] Audio track selection (multi-track file)
 - [ ] Subtitle track selection (MKV with subs)
 - [ ] Chapter navigation (MKV with chapters)
