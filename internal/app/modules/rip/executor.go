@@ -1084,6 +1084,14 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		return err
 	}
 
+	// ── Output verification ─────────────────────────────────────────────────
+	// ffmpeg exited 0 — now prove the output is real. A rip that "succeeds"
+	// while writing a trivial file (or none) is the dev79 corruption class:
+	// the job reported success while the content was the wrong title.
+	if err := verifyRipOutput(opts, outputPath, appendLog); err != nil {
+		return err
+	}
+
 	// ── Menu export ───────────────────────────────────────────────────────────
 	// After the main content rip succeeds, export menu VOBs as separate files
 	// if the user opted to preserve menus. The same menus are re-collected on
@@ -1405,6 +1413,52 @@ func decryptVideoTSPath(videoTSPath string, appendLog func(string)) (string, fun
 		return "", nil, err
 	}
 	return scratch, cleanup, nil
+}
+
+// verifyRipOutput confirms the completed rip actually produced video content.
+// ffmpeg exiting 0 is not proof on its own: a failed demux retry could have
+// written an empty or header-only container. The check is deliberately cheap —
+// file presence/non-trivial size, then a single ffprobe stream query. Not
+// called for archivist output (that path returns before the rip's output
+// verification point and check its own stream files).
+func verifyRipOutput(opts ExecuteOptions, outputPath string, appendLog func(string)) error {
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		appendLog(fmt.Sprintf("Output verification failed: %v", err))
+		return fmt.Errorf("rip output missing: %w", err)
+	}
+	if info.Size() < 1024 {
+		appendLog(fmt.Sprintf("Output verification failed: output is only %d bytes", info.Size()))
+		return fmt.Errorf("rip output is trivial (%d bytes) — the rip cannot be trusted", info.Size())
+	}
+
+	// ffprobe the output for a video stream. Querying stream=codec_name forces
+	// a demux read; on a media file built from a failed demux this surfaces as
+	// "no video stream found" rather than a clean duration.
+	args := []string{
+		"-v", "error",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=codec_name",
+		"-of", "csv=p=0",
+		outputPath,
+	}
+	var detected string
+	logFn := func(line string) {
+		if detected == "" {
+			detected = strings.TrimSpace(line)
+		}
+	}
+	if err := opts.OnRunCommand(utils.GetFFprobePath(), args, logFn); err != nil {
+		// ffprobe error on the output is itself a verification failure.
+		appendLog(fmt.Sprintf("Output verification failed: ffprobe could not read the output: %v", err))
+		return fmt.Errorf("rip output verification: %w", err)
+	}
+	if detected == "" {
+		appendLog("Output verification failed: no video stream in the output")
+		return fmt.Errorf("rip output contains no video stream — the rip cannot be trusted")
+	}
+	appendLog(fmt.Sprintf("Output verified: %s (%s video stream)", outputPath, detected))
+	return nil
 }
 
 // executeFullDiscRip runs full-disc extraction with region conversion and IFO regeneration.
