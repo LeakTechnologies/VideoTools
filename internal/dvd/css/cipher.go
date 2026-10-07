@@ -18,7 +18,7 @@ func unscrambleSector(key [5]byte, sec []byte) {
 
 	// LFSR1: 9-bit (t1 carries the 9th bit as 0x100).
 	t1 := uint32(key[0]^sec[0x54]) | 0x100
-	t2 := uint32(key[1]^sec[0x55]) & 0x7F
+	t2 := uint32(key[1] ^ sec[0x55])
 
 	// LFSR2: 32-bit, left-shifting.
 	t3 := (uint32(key[2]) ^ uint32(sec[0x56])) |
