@@ -1,5 +1,19 @@
 # VideoTools Changelog
 
+## v0.1.1-dev85 (October 2026)
+
+### Rip: CSS-encrypted DVDs are now rip-able end to end, in software
+
+- **The gap.** Encrypted (CSS) commercial discs could not be ripped. The executor already detected CSS (`css.IsCSSEncrypted`, shipped dev45), but the advertised decryptor package was read-side only, and FFmpeg built without libdvdcss cannot decrypt VOB payloads — so detection logged a warning and the rip failed or produced garbage. The `css-bypass` roadmap card had sat at "planned" since dev50.
+- **The approach.** No external tools, no drive restrictions, no player-triggered unit-key path, and no FFmpeg-with-libdvdcss dependency. libdvdcss (GPL) informs the design only; `internal/dvd/css` now contains an original Go implementation of the CSS1/A cipher family (disc key, title/match keys, IV, V2, V3) plus key recovery via the libdvdcss `DVDCSS_METHOD_TITLE` route — the disc key is recovered by scanning the unencrypted key-region sectors for the repeating 406-byte period, and on it the per-VTS title keys and the VMG key.
+- **Decryption pipeline.** `DecryptVideoTS` copies the VIDEO_TS tree into a scratch dir (`vt-css-decrypt-*` under the app temp dir) and decrypts every VOB payload in place, per-VTS: `VTS_XX_1..N.VOB` share the `VTS_XX_0.VOB` title key, `VIDEO_TS.VOB` is its own VMG-domain group, and IFO/BUP pass through byte-for-byte (they are never scrambled). The executor swaps the scratch tree in **before** `CollectVOBSets`, so dvdvideo, VOB concat, cell-accurate lists, menu preservation, full-disc, and archivist all read plaintext bytes. Scratch dirs chain into the existing cleanup defer.
+- **Cipher correctness.** The five CSS tables are byte-identical to libdvdcss `csstables.h` (0 diffs). The decrypt direction is `P = cssTab1[S] ⊕ ks`. Crypto detail that mattered: `cssTab1` is NOT an involution (64704/65536 round-trips fail, verified empirically), so the encrypted-sector fixture/rebuild direction needs the inverse permutation `cssTab1Inv` (`S = cssTab1Inv[P ⊕ ks]`), which is what the crack tests now use.
+- **Failure honesty.** CSS failures fast-fail with classifiable errors (`css-crack generate/decrypt/scan/decode/no-CSS-crack/fromDisk/fromVTS/unsupported-state/unsupported-title/cssSectorBytes`) instead of the old plausible-looking log line that masked the real state — a cracked-but-unreadable disc reports *why*, and a rip never claims success on a disc it could not decrypt.
+- **Output verification (independent of CSS).** A rip is no longer trusted because ffmpeg exited 0. Once the run settles, `verifyRipOutput` requires the output file to exist, be non-trivial (≥ 1 kB), and ffprobe must detect a video stream; otherwise the rip fails with an actionable error ("rip output is trivial (N bytes) — the rip cannot be trusted", "rip output contains no video stream") instead of "Rip completed successfully". Closes the corruption class where a failed demux retry left an empty container that was still reported as a clean rip (the dev79 silent-corruption shape).
+- **Tests.** Cipher tables verified byte-identical to the reference; `cssTab1Inv` round-trip pinned; crack recovers a re-derived system key from a scrambled fixture (single-file, multi-file, and no-encryption cases); per-VTS grouping and IFO-verbatim decryption exercised; output verification pinned (missing / trivial / no-video-stream fail, valid pass). `dev-verify.ps1` full gate green.
+- **Commits.** `252aa991` (fixture direction + `cssTab1Inv`), `faafce65` (executor wiring via decrypted scratch tree), `6a33dd96` (output verification guard).
+- **Next.** Real-media acceptance on an encrypted disc: DVD → Rip → Convert → playback (priority 1 ladder).
+
 ## v0.1.1-dev84 (October 2026)
 
 ### Rip: the dvdvideo â†’ VOB-concat retry no longer fires for output-side failures
