@@ -619,11 +619,22 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		appendLog(fmt.Sprintf("Error resolving source path: %v", err))
 		return fmt.Errorf("resolve source: %w", err)
 	}
-	if cleanup != nil {
-		defer cleanup()
-	}
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
 
-	// Check for CSS encryption
+	// CSS encryption. Our FFmpeg is not linked with libdvdcss, so the app must
+	// decrypt CSS-scrambled VOB payloads itself before ffmpeg ever reads them.
+	// When the disc is encrypted, the whole VIDEO_TS tree is copied into a
+	// scratch directory sector-by-sector (each VTS's title key recovered by the
+	// known-plaintext attack; IFO/BUP passthrough verbatim because CSS
+	// scrambles only VOB data), and videoTSPath is swapped to that copy. Every
+	// subsequent consumer — dvdvideo demuxer, VOB concat, cell-accurate lists,
+	// menu export, full-disc rip — then reads clear bytes and needs no extra
+	// plumbing. If a title key cannot be recovered the rip fails loudly rather
+	// than feeding scrambled data to ffmpeg.
 	ifoPath := filepath.Join(videoTSPath, "VIDEO_TS.IFO")
 	isEncrypted, err := css.IsCSSEncrypted(ifoPath)
 	if err != nil {
@@ -632,12 +643,26 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 
 	if isEncrypted {
-		appendLog("CSS encryption detected - will decrypt during processing")
+		appendLog("CSS encryption detected — decrypting VIDEO_TS to a scratch tree before processing")
+		decrypted, dclean, derr := decryptVideoTSPath(videoTSPath, appendLog)
+		if derr != nil {
+			appendLog(fmt.Sprintf("Error: CSS decryption failed: %v", derr))
+			return fmt.Errorf("CSS decryption failed: %w", derr)
+		}
+		prevCleanup := cleanup
+		cleanup = func() {
+			if prevCleanup != nil {
+				prevCleanup()
+			}
+			dclean()
+		}
+		videoTSPath = decrypted
+		appendLog("CSS decryption complete — processing the decrypted copy")
 	}
 
 	// Full-disc extraction mode — processes all VTS sets + menu, regenerates IFOs.
 	if opts.ExtractMode == "full" {
-		return executeFullDiscRip(ctx, opts, videoTSPath, isEncrypted, appendLog, updateProgress)
+		return executeFullDiscRip(ctx, opts, videoTSPath, appendLog, updateProgress)
 	}
 
 	sets, err := CollectVOBSets(videoTSPath)
@@ -1094,6 +1119,9 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	return nil
 }
 
+// executeArchivist extracts raw streams for authoring projects.
+// All source VOB paths are decrypted copies when the disc is CSS-encrypted
+// (see Execute's decryptVideoTSPath step).
 func executeArchivist(ctx context.Context, opts ExecuteOptions, set VobSet, listFile, outputDir string, appendLog func(string), updateProgress func(float64)) error {
 	appendLog("Archivist Mode: Extracting individual streams for reconstruction...")
 
@@ -1362,10 +1390,27 @@ func FullDiscOutputTitlePath(sourcePath, title string) string {
 	return UniqueFilePath(filepath.Join(defaultOutputDir(sourcePath), name))
 }
 
+// decryptVideoTSPath copies a CSS-encrypted VIDEO_TS directory into a
+// scratch dir with VOB payloads decrypted, returning the decrypted path and a
+// cleanup that removes it. On failure the scratch dir is removed before the
+// error returns.
+func decryptVideoTSPath(videoTSPath string, appendLog func(string)) (string, func(), error) {
+	scratch, err := os.MkdirTemp(utils.TempDir(), "vt-css-decrypt-")
+	if err != nil {
+		return "", nil, fmt.Errorf("create decryption scratch dir: %w", err)
+	}
+	cleanup := func() { os.RemoveAll(scratch) }
+	if err := css.DecryptVideoTS(videoTSPath, scratch, appendLog); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	return scratch, cleanup, nil
+}
+
 // executeFullDiscRip runs full-disc extraction with region conversion and IFO regeneration.
 // Stages 1-3 combined: extracts all VTS sets + menu VOB, applies region conversion,
 // and regenerates IFO/BUP files with correct NTSC/PAL timing.
-func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath string, isEncrypted bool, appendLog func(string), updateProgress func(float64)) error {
+func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath string, appendLog func(string), updateProgress func(float64)) error {
 	outputDir := opts.OutputPath
 
 	// Collect all VTS sets
@@ -1452,7 +1497,7 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 			updateProgress(startPct + pct/100*(endPct-startPct))
 		}
 
-		if err := convertVOBWithRegion(ctx, opts, listFile, vtsOut, set.Name, vfFilter, afFilter, isEncrypted, inputDuration, appendLog, subProgress); err != nil {
+		if err := convertVOBWithRegion(ctx, opts, listFile, vtsOut, set.Name, vfFilter, afFilter, inputDuration, appendLog, subProgress); err != nil {
 			os.Remove(listFile)
 			return err
 		}
@@ -1508,7 +1553,7 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 			updateProgress(startPct + pct/100*(endPct-startPct))
 		}
 
-		if err := convertVOBWithRegion(ctx, opts, listFile, menuOut, "VIDEO_TS", vfFilter, afFilter, isEncrypted, menuInputDuration, appendLog, menuSubProgress); err != nil {
+		if err := convertVOBWithRegion(ctx, opts, listFile, menuOut, "VIDEO_TS", vfFilter, afFilter, menuInputDuration, appendLog, menuSubProgress); err != nil {
 			os.Remove(listFile)
 			return err
 		}
@@ -1540,7 +1585,7 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 
 // convertVOBWithRegion runs ffmpeg to convert a VOB concat list with optional region conversion.
 // duration is the input duration in seconds (used for progress tracking; 0 = no progress).
-func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, outputPath, setName, vfFilter, afFilter string, isEncrypted bool, duration float64, appendLog func(string), updateProgress func(float64)) error {
+func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, outputPath, setName, vfFilter, afFilter string, duration float64, appendLog func(string), updateProgress func(float64)) error {
 	args := []string{
 		"-y",
 		"-hide_banner",
