@@ -2,12 +2,21 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev87 Scope (Player UI audit and agent toolchain — in progress)
+
+- [ ] **Forensic audit of media player seek logic** — confirm seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disprove historical seekGen-lastSeekGen bug (fixed at playback.go:607). Identify root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder.
+- [ ] **Agent toolchain documentation** — verify docs/AGENT_TOOLS.md completeness and accuracy.
+
+- [ ] **Tester verify: dev87 release** — (1) validate the seek audit findings: seek on a playing source holds position without timeline jump or timestamp drift; scrubbing returns to real-time playback; (2) confirm player controls show consistent state after seek; (3) agent toolchain docs are accurate — every agent is either real-and-working or explicitly marked absent/exhausted; (4) `roadmap.html` current-cycle indicator reads dev87.
+
+- [ ] **Real-media acceptance (priority 1)** — now specifically also on an **encrypted** disc: DVD (CSS) → Rip → Convert → playback. The decryptor is the new proof point.
+
 ## Dev86 Scope (Rip polish — released)
 
-- [x] **Rip: prompt before stream-copying an interlaced title** (commit `3a6c8cd1`) — the lossless MKV rip stream-copied interlaced NTSC fields as-is with no warning. The IFO scan already derives `Interlaced` from `FilmMode==0`; it is now surfaced on `DiscTitle` and the queue buttons check it: a lossless rip of a selected interlaced title prompts "Rip as H.264 (deinterlaced)" vs "Keep lossless copy". Per-job choice; the persisted format selection is untouched. H.264 formats, region conversion, and progressive titles never prompt. `interlaceRipClash` is mutation-verified as a regression constraint.
+- [x] **Rip: prompt before stream-copying an interlaced title** (commit `3a6c8cd1`) — the lossless MKV rip stream-copied interlaced NTSC fields as-is with no warning. The IFO scan's `FilmMode==0` is surfaced on `DiscTitle` and the queue buttons check it: a lossless rip of a selected interlaced title prompts "Rip as H.264 (deinterlaced)" vs "Keep lossless copy". Per-job choice; the persisted format selection is untouched. H.264 formats, region conversion, and progressive titles never prompt. `interlaceRipClash` is mutation-verified as a regression constraint.
 - [x] **Thumbnail console popups silenced** (commit `da78d96c`) — the drawtext `-filters` probe and the interlace-detection frame probe spawned ffmpeg without `CREATE_NO_WINDOW`; both now route through `hideCmd`.
 - [x] **CSS log lines neutralised** (commit `0038560d`) — the triumphant "decryption complete" gloss is now factual.
-- [ ] **Tester verify: dev86 release** — (1) a lossless rip of an interlaced title (e.g. an NTSC disc) now prompts and offers H.264; choosing H.264 yields a deinterlaced output; (2) ripping the same title on an H.264 format never prompts; (3) thumbnail generation on Windows shows no console flash; (4) the CSS decryption log lines read as neutral facts.
+- [ ] **Tester verify: dev86 release** — (1) a lossless rip of an interlaced title (an NTSC disc) now prompts and offers H.264; choosing it produces a deinterlaced output; (2) ripping the same title on an H.264 format never prompts; (3) thumbnail generation on Windows shows no console flash; (4) the CSS decryption log lines read as neutral facts.
 - [ ] **Real-media acceptance (priority 1)** — now specifically also on an **encrypted** disc: DVD (CSS) → Rip → Convert → playback. The decryptor is the new proof point.
 
 ## Dev85 Scope (CSS decryption wiring — released)

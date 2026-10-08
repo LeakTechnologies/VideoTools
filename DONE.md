@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev87 — Player UI audit and agent toolchain
+
+- **Forensic audit of media player seek logic.** Confirmed seeking ignored, erratic timeline jumps, timestamp drift, and UI-thread stall (WaitForPTS unbounded). Disproved historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder; seekGen never increments. Text clipping/padding overflow unverified without rendered screenshot.
+
+- **Agent toolchain documentation.** Created docs/AGENT_TOOLS.md with complete registry: vt-auditor (Gemini 2.5 Flash, quota-exhausted), vt-reviewer (deprecated), vt-verifier (Gemini 2.5 Flash, quota-exhausted), vt-verifier-local (Ollama, model tag mismatch), and missing vt-auditor-local (planned). Documents fallback chain and known issues.
+
+- **Next.** Real-media acceptance on an encrypted disc — DVD → Rip → Convert → playback (priority 1 ladder).
+
 ## v0.1.1-dev86 — Rip polish
 
 - **Interlaced-lossless prompt.** A rip that would stream-copy an interlaced (video-originated) DVD title in the lossless MKV format now asks first whether to rip as H.264 (deinterlaced) or keep the lossless copy — the per-job choice does not touch the persisted format selection. The IFO scan's `FilmMode==0` signal is surfaced on `DiscTitle`; `interlaceRipClash` is mutation-verified. Commit `3a6c8cd1`.

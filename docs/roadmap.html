@@ -639,7 +639,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev64';
+const currentVersion = 'dev87';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -864,6 +864,14 @@ const changelogData = [
       'Deliberately kept: media.PlaybackEngine, because it is tagged only native_media, is genuinely used by InlineVideoPlayer, and is the seam a future backend would slot into - only its stale comments described the removed backend, and those were corrected. docs/VLC_PLAYER.md is retained as the design document. Prefs decode leniently through json.Unmarshal with no DisallowUnknownFields, so an existing config carrying UsePlayerVLC is ignored rather than rejected; no migration was needed.',
       'Honest status: this removes a lie, it does not add a feature. No playback behaviour changed, because the tag never reached a binary. Reviving libVLC remains a reasonable option, but it must first provision the SDK and add a CI job that builds its tag - otherwise this exact defect returns. engine_factory_default.go drops its now-meaningless && !vlc condition, so the vlc tag now compiles to exactly the same binary as native_media, which is the proof it was always inert.',
       'Guards: TestNoDeadVLCBackendControl asserts no user-facing string in any locale may advertise a backend that does not exist, and TestNoVLCBackendCode asserts no production file may reintroduce the plumbing. Both were mutation-verified.'
+    ]}
+  ] },
+  { version: 'v0.1.1-dev87', date: 'October 2026', tag: 'active', sections: [
+    { title: 'Player UI audit and agent toolchain', items: [
+      'Forensic audit of media player seek logic: confirmed seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disproved historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder; seekGen never increments, clock never resets, engine fmtCtx never repositions. Two lossy mailboxes (seekCh cap 1, seekQueue cap 1) and three concurrent SetFrame writers without an isScrubbing gate.',
+      'Agent toolchain documented: created docs/AGENT_TOOLS.md with complete registry of 5 agents (vt-auditor: Gemini 2.5 Flash, quota-exhausted; vt-reviewer: deprecated; vt-verifier: Gemini 2.5 Flash, quota-exhausted; vt-verifier-local: Ollama, model tag mismatch; vt-auditor-local: not implemented). Fallback chain exposed.',
+      'Text clipping/padding overflow candidates: UNVERIFIED — requires rendered screenshot to promote/dismiss.',
+      'Next: real-media acceptance on encrypted disc — DVD (CSS) → Rip → Convert → playback (priority 1 ladder).'
     ]}
   ] },
   { version: 'v0.1.1-dev86', date: 'October 2026', tag: 'done', sections: [

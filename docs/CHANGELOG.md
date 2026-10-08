@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev87 (October 2026)
+
+### Player: forensic audit of seek logic and agent toolchain
+
+- **Seek/timeline audit.** Confirmed: seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disproved: historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause identified: Trim module bypasses Engine.Seek via SmoothScrubbing decoder; seekGen never increments, clock never resets, engine fmtCtx never repositions. Two lossy mailboxes (seekCh cap 1, seekQueue cap 1) and three concurrent SetFrame writers without an isScrubbing gate. Text clipping/padding overflow candidates marked UNVERIFIED — requires rendered screenshot.
+
+- **Agent toolchain documented.** Created docs/AGENT_TOOLS.md with complete registry of 5 agents (vt-auditor, vt-reviewer, vt-verifier, vt-verifier-local, vt-auditor-local), exposing quota-exhausted cloud models and missing local fallback (vt-auditor-local not implemented).
+
+- **Next.** Real-media acceptance on an encrypted disc: DVD → Rip → Convert → playback (priority 1 ladder).
+
 ## v0.1.1-dev86 (October 2026)
 
 ### Rip: prompt before stream-copying an interlaced title
