@@ -13,10 +13,10 @@ func mkTitles(durations ...float64) []DiscTitle {
 func TestCanonicalSelection(t *testing.T) {
 	titles := mkTitles(5926.48, 5932.48, 866.04, 615.40, 1977.60, 1331.08, 1141.16)
 	ss := SceneSetInfo{
-		Present:       true,
+		Present:        true,
 		Representative: 2,
-		WholeTitles:   map[int]bool{1: true, 2: true},
-		SceneTitles:   map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true},
+		WholeTitles:    map[int]bool{1: true, 2: true},
+		SceneTitles:    map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true},
 	}
 
 	t.Run("main selects only the longest title", func(t *testing.T) {
@@ -142,6 +142,52 @@ func TestCanonicalLock(t *testing.T) {
 		cfg := CanonicalLock(titles, "segments", SceneSetInfo{})
 		if len(cfg.Locked) != 0 || len(cfg.Anchored) != 0 {
 			t.Fatalf("segments(no set) lock = %v/%v, want empty", cfg.Locked, cfg.Anchored)
+		}
+	})
+}
+
+func TestInterlaceRipClash(t *testing.T) {
+	titles := []DiscTitle{
+		{Number: 1, Interlaced: true},
+		{Number: 2, Interlaced: false},
+	}
+	sel := map[int]bool{1: true, 2: true}
+
+	t.Run("lossless rip of interlaced title clashes", func(t *testing.T) {
+		if !interlaceRipClash(FormatLosslessMKV, "", titles, map[int]bool{1: true}) {
+			t.Fatalf("lossless MKV + interlaced title must prompt")
+		}
+	})
+
+	t.Run("lossless rip of progressive title is clean", func(t *testing.T) {
+		if interlaceRipClash(FormatLosslessMKV, "", titles, map[int]bool{2: true}) {
+			t.Fatalf("progressive title must not prompt")
+		}
+	})
+
+	t.Run("H.264 formats never prompt", func(t *testing.T) {
+		for _, f := range []string{FormatH264MKV, FormatH264MP4} {
+			if interlaceRipClash(f, "", titles, sel) {
+				t.Fatalf("%s already deinterlaces; must not prompt", f)
+			}
+		}
+	})
+
+	t.Run("unselected interlaced title is harmless", func(t *testing.T) {
+		if interlaceRipClash(FormatLosslessMKV, "", titles, map[int]bool{2: true}) {
+			t.Fatalf("an interlaced title that is not selected must not prompt")
+		}
+	})
+
+	t.Run("region conversion cancels the clash (it deinterlaces anyway)", func(t *testing.T) {
+		if interlaceRipClash(FormatLosslessMKV, "pal2ntsc", titles, sel) {
+			t.Fatalf("region conversion re-encodes and deinterlaces; must not prompt")
+		}
+	})
+
+	t.Run("empty selection is harmless", func(t *testing.T) {
+		if interlaceRipClash(FormatLosslessMKV, "", titles, map[int]bool{}) {
+			t.Fatalf("no selection must not prompt")
 		}
 	})
 }

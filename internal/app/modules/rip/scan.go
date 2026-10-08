@@ -158,6 +158,7 @@ func ScanDisc(videoTSPath string, onNote func(string)) (*DiscScanResult, error) 
 		if ti != nil {
 			dt.Duration = ti.Duration
 			dt.HasAngles = ti.HasAngles
+			dt.Interlaced = ti.Interlaced
 			if len(ti.Chapters) > 1 {
 				dt.NumChapters = len(ti.Chapters)
 				dt.Chapters = append([]float64{}, ti.Chapters...)

@@ -365,7 +365,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		outputEntry.SetText(vs.outputPath)
 	}
 
-	addToQueue := func(runNow bool) error {
+	addToQueue := func(runNow bool, formatOverride string) error {
+		ripFormat := vs.format
+		if formatOverride != "" {
+			ripFormat = formatOverride
+		}
 		jq := opts.JobQueue()
 		if jq == nil {
 			return fmt.Errorf("queue not initialized")
@@ -388,7 +392,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				Config: map[string]interface{}{
 					"sourcePath":    vs.sourcePath,
 					"outputPath":    vs.outputPath,
-					"format":        vs.format,
+					"format":        ripFormat,
 					"regionConvert": vs.regionConvert,
 					"extractMode":   vs.extractMode,
 					"discTitle":     vs.discTitle,
@@ -407,7 +411,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		// clamps it to each title's own chapter count at run time. Inert for
 		// full-disc and archivist jobs (extractMode "full" / archivist format).
 		chStart, chEnd := 0, 0
-		if vs.chapterOnly && vs.extractMode != "full" && vs.format != FormatArchivist {
+		if vs.chapterOnly && vs.extractMode != "full" && ripFormat != FormatArchivist {
 			chStart = vs.chapterFrom
 			if chStart < 1 {
 				chStart = 1
@@ -441,7 +445,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				Config: map[string]interface{}{
 					"sourcePath":            vs.sourcePath,
 					"outputPath":            vs.outputPath,
-					"format":                vs.format,
+					"format":                ripFormat,
 					"embedChapters":         vs.embedChapters,
 					"allAudioTracks":        vs.allAudioTracks,
 					"includeSubtitles":      vs.includeSubtitles,
@@ -548,7 +552,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				Config: map[string]interface{}{
 					"sourcePath":            vs.sourcePath,
 					"outputPath":            j.outputPath,
-					"format":                vs.format,
+					"format":                ripFormat,
 					"embedChapters":         vs.embedChapters,
 					"allAudioTracks":        vs.allAudioTracks,
 					"includeSubtitles":      vs.includeSubtitles,
@@ -573,28 +577,76 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return nil
 	}
 
-	addQueueBtn := ui.MakePillButton(t.RipAddToQueue, opts.ModuleColor, func() {
-		if err := addToQueue(false); err != nil {
+	// interlacePromptNeeded reports whether a rip of the current selection
+	// would stream-copy interlaced DVD video unchanged. H.264 output formats
+	// already deinterlace in the executor (yadif); the lossless copy format
+	// preserves the fields as-is, which is usually not what a human wants to
+	// watch. When true, the queue buttons offer deinterlacing as a one-click
+	// choice before enqueuing.
+	interlacePromptNeeded := func() bool {
+		var titles []DiscTitle
+		if vs.scanResult != nil {
+			titles = vs.scanResult.Titles
+		}
+		return interlaceRipClash(vs.format, vs.regionConvert, titles, vs.selectedTitles)
+	}
+
+	// enqueueRip runs addToQueue with the chosen format. The H.264 override is
+	// per-job only; the persisted format selection is left untouched.
+	enqueueRip := func(runNow bool, formatOverride string) {
+		if err := addToQueue(runNow, formatOverride); err != nil {
 			dialog.ShowError(err, opts.Window)
 			return
 		}
-		dialog.ShowInformation(t.RipJobQueuedTitle, t.RipJobQueuedMsg, opts.Window)
 		jq := opts.JobQueue()
 		if jq != nil && !jq.IsRunning() {
 			jq.Start()
 		}
+	}
+
+	// confirmRip shows the post-queue confirmation dialog for the shared
+	// entry point (Add to Queue vs. Rip Now wording).
+	confirmRip := func(runNow bool) {
+		if runNow {
+			dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
+		} else {
+			dialog.ShowInformation(t.RipJobQueuedTitle, t.RipJobQueuedMsg, opts.Window)
+		}
+	}
+
+	// startRip is the shared entry point for both queue buttons. It prompts
+	// once when an interlaced lossless rip is about to be enqueued; the
+	// dialog's confirm re-routes the rip to H.264 (deinterlaced) and its
+	// dismiss keeps the lossless copy.
+	startRip := func(runNow bool) {
+		if interlacePromptNeeded() {
+			dialog.ShowCustomConfirm(
+				t.RipInterlaceTitle,
+				t.RipInterlaceH264,
+				t.RipInterlaceKeep,
+				widget.NewLabel(t.RipInterlaceMsg),
+				func(deinterlace bool) {
+					formatOverride := ""
+					if deinterlace {
+						formatOverride = FormatH264MKV
+					}
+					enqueueRip(runNow, formatOverride)
+					confirmRip(runNow)
+				},
+				opts.Window,
+			)
+			return
+		}
+		enqueueRip(runNow, "")
+		confirmRip(runNow)
+	}
+
+	addQueueBtn := ui.MakePillButton(t.RipAddToQueue, opts.ModuleColor, func() {
+		startRip(false)
 	})
 
 	runNowBtn := ui.MakePillButton(t.RipNow, opts.ModuleColor, func() {
-		if err := addToQueue(true); err != nil {
-			dialog.ShowError(err, opts.Window)
-			return
-		}
-		jq := opts.JobQueue()
-		if jq != nil && !jq.IsRunning() {
-			jq.Start()
-		}
-		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
+		startRip(true)
 	})
 
 	// countSelected returns the number of titles currently ticked for rip.

@@ -55,8 +55,8 @@ type Options struct {
 	OnShowQueue              func()
 	OnClearCompleted         func()
 	OnUpdateQueueButtonLabel func()
-	OnOpenInPlayer           func(path string)               // open the loaded disc in the VT DVD player
-	OnLoadDisc               func() (string, error)          // detect optical drive, resolve VIDEO_TS; "" = user cancelled
+	OnOpenInPlayer           func(path string)      // open the loaded disc in the VT DVD player
+	OnLoadDisc               func() (string, error) // detect optical drive, resolve VIDEO_TS; "" = user cancelled
 
 	// State setters.
 	SetRipSourcePath func(string)
@@ -95,10 +95,11 @@ type DiscTitle struct {
 	// Chapters holds the per-chapter start times in seconds (from the title's
 	// own PGC), used to bound the "rip chapters only" From/To selects. Empty
 	// when the IFO has no PGC chapter data.
-	Chapters    []float64
-	Audio       []DiscTitleTrack
-	Subtitles   []DiscTitleTrack
-	HasAngles   bool
+	Chapters   []float64
+	Audio      []DiscTitleTrack
+	Subtitles  []DiscTitleTrack
+	HasAngles  bool
+	Interlaced bool // true when the VTS video attributes report video-originated (interlaced) content
 }
 
 // DiscScanResult holds the outcome of scanning a disc source directory.
@@ -159,13 +160,13 @@ type ExecuteOptions struct {
 	// menus get the same treatment instead of failing the same way.
 	AudioEncoder string
 
-	GetLogsDir   func() string
-	LogSuffix    string
-	OnProbeVideo func(path string) (*ProbeResult, error)
-	OnRunCommand func(name string, args []string, logFn func(string)) error
-	OnAppendLog  func(line string)
-	OnSetProgress func(percent float64)
-	OnSetStatus  func(string)
+	GetLogsDir       func() string
+	LogSuffix        string
+	OnProbeVideo     func(path string) (*ProbeResult, error)
+	OnRunCommand     func(name string, args []string, logFn func(string)) error
+	OnAppendLog      func(line string)
+	OnSetProgress    func(percent float64)
+	OnSetStatus      func(string)
 	ProgressCallback func(float64)
 	OnLogFileCreated func(logPath string)
 }

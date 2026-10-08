@@ -647,6 +647,10 @@ var iuLatn = Strings{
 	RipReadyOne:         "1 atasuiqattut isumagijauq qanuilirqtuq",                                                           // machine-generated, needs human review: Ready to rip 1 title
 	RipReadyManyFmt:     "%d atasuiqattuit isumagijauq qanuilirqtuq",                                                         // machine-generated, needs human review: Ready to rip %d titles
 	RipReadyMainFeatureFmt: "Munaluagijaq tungilirqtuq: %s",                                                                  // machine-generated, needs human review: Ready to rip main feature: %s
+	RipInterlaceTitle:      "Interlaced video detected",                                                                     // machine-generated, needs human review: Interlaced video detected
+	RipInterlaceMsg:        "The rip would stream-copy interlaced DVD video.",                                              // machine-generated, needs human review: Interlaced DVD content detected
+	RipInterlaceH264:       "Rip as H.264 (deinterlaced)",                                                                  // machine-generated, needs human review: Rip as H.264 (deinterlaced)
+	RipInterlaceKeep:       "Keep lossless copy",                                                                            // machine-generated, needs human review: Keep lossless copy
 	RipModeSection:         "Rip Mode: ",                                                                                     // machine-generated, needs human review: Rip Mode
 	RipModeScenes:          "Ajjigiattuaq + nungummat isumagijauqattut",                                                          // machine-generated, needs human review: Movie + extras (choose titles)
 	RipModeMainFeature:     "Atausiq titiraq kisumi",                                                                           // machine-generated, needs human review: Main feature only

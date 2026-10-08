@@ -8,7 +8,6 @@ type ripTargetTitle struct {
 
 // ripTargetTitles returns the titles a rip should extract, and whether that set
 // is non-empty.
-//
 // The selection is the ONLY authority for whether a title rips, at every title
 // count. addToQueue previously branched on the COUNT of scanned titles: more
 // than one iterated the selection and refused an empty one, while exactly one
@@ -143,4 +142,22 @@ func CanonicalLock(titles []DiscTitle, mode string, ss SceneSetInfo) LockConfig 
 		cfg.Anchored = map[int]bool{}
 	}
 	return cfg
+}
+
+// interlaceRipClash reports whether a rip of the current selection would
+// stream-copy interlaced DVD video unchanged. The executor deinterlaces only
+// on the H.264 re-encode formats (yadif=mode=1 when the source IFO reports
+// video-originated content); the lossless stream-copy format preserves the
+// fields as-is. Region conversion always deinterlaces (PAL↔NTSC change needs
+// it), so a scheduled region conversion cancels the clash.
+func interlaceRipClash(format, regionConvert string, titles []DiscTitle, selected map[int]bool) bool {
+	if format != FormatLosslessMKV || regionConvert != "" {
+		return false
+	}
+	for _, dt := range titles {
+		if dt.Interlaced && selected[dt.Number] {
+			return true
+		}
+	}
+	return false
 }
