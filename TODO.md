@@ -986,7 +986,8 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
 
 ## Maintenance
 
-
+- [ ] **Global UI: top-of-window clipping (user report)**
+  - Certain aspects at the top of the UI are pushed off the screen. Ongoing; to be resolved as part of the overall UI update in progress, not as an isolated patch.
 - [X] **About dialog cleanup**
   - Remove the Bitcoin address from the About/Support page.
 - [X] **Snippet AV1 fallback**

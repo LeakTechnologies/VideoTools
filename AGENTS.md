@@ -300,6 +300,15 @@ The human is the scheduler. Loops are human-triggered, not timer-triggered.
 - If a loop would take >3 turns, break it into smaller human-triggered steps.
 - Verifier sub-agent only for high-risk changes (engine, CI, release).
 
+## Self-Healing UI Diagnostics (opt-in, not a gate)
+
+A self-healing UI harness (capture a layout-clipping / broken-canvas / thread-hang state, feed the snapshot + `FYNE_DEBUG` trace to a free-tier vision model, apply the suggested layout fix, verify, commit) is **planned, not shipped**. Rules if/when it is built:
+
+- **Do NOT gate edits on it.** It is an opt-in diagnostic, never a required pre-merge check. No `scripts/windows/autonomous-ui-heal.py` exists yet; do not assume it does.
+- **Go paths, not cargo.** Any harness must drive `VideoTools.exe` + `scripts/windows/dev-verify.ps1` (this is a Go/Fyne repo, not Rust); vision calls read `GOOGLE_API_KEY` from the environment at runtime and never commit a key.
+- **Mock-first:** the harness must be proven end-to-end on a synthetic UI-failure fixture (through a real git commit) before it is pointed at a live view.
+- **Always human-reviewed:** model-suggested patches are candidates only; the agent applies them, passes the standard build/vet/test gate, and commits with no AI attribution.
+
 ## Coordination
 
 - Ask before changing workflow entrypoints or automation behavior.
