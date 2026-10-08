@@ -48,3 +48,6 @@ scripts/git_converter/git_converter.sh
 
 # Test DVD output directory
 test_dvd/
+
+# Rust FFI boundary build output (internal/ffi staticlib)
+internal/ffi/target/

@@ -1,0 +1,19 @@
+[package]
+name = "vt_ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "vt_ffi"
+crate-type = ["staticlib"]
+path = "src/lib.rs"
+
+# Footprint discipline (RTX 3060 / 16GB host): lean archive, no unwinding
+# across the FFI boundary, stripped debug data in the linked-in binary.
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
