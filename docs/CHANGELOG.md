@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev86 (October 2026)
+
+### Rip: prompt before stream-copying an interlaced title
+
+- **The gap.** NTSC DVD sources are interlaced; the lossless MKV rip stream-copies the fields as-is, so the output carries the combing. The executor already deinterlaces (`yadif=mode=1`) on the H.264 re-encode formats, but a lossless rip had no warning and produced interlaced video by default.
+- **The fix (`3a6c8cd1`).** The IFO scan already derives `Interlaced` from the VTS video attributes (`FilmMode==0`); it is now surfaced on `DiscTitle`, and the queue buttons check it: when a lossless rip of a selected interlaced title is about to be enqueued, the app asks whether to rip as H.264 (deinterlaced) or keep the lossless copy. The choice is per-job — the persisted format selection is untouched. H.264 formats, region conversion, and progressive titles never prompt.
+- **Tests.** `interlaceRipClash` is mutation-verified as a regression constraint: lossless+interlaced prompts, progressive/H.264/region-convert/unselected never do.
+- **Commits.** `0038560d` (neutral CSS log tone), `da78d96c` (thumbnail console popups silenced — two ffmpeg probes spawned without `CREATE_NO_WINDOW`), `3a6c8cd1` (interlace prompt).
+- **Next.** Real-media acceptance on an encrypted disc: DVD → Rip → Convert → playback (priority 1 ladder).
+
 ## v0.1.1-dev85 (October 2026)
 
 ### Rip: CSS-encrypted DVDs are now rip-able end to end, in software

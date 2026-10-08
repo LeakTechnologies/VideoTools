@@ -2,6 +2,14 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev86 Scope (Rip polish — released)
+
+- [x] **Rip: prompt before stream-copying an interlaced title** (commit `3a6c8cd1`) — the lossless MKV rip stream-copied interlaced NTSC fields as-is with no warning. The IFO scan already derives `Interlaced` from `FilmMode==0`; it is now surfaced on `DiscTitle` and the queue buttons check it: a lossless rip of a selected interlaced title prompts "Rip as H.264 (deinterlaced)" vs "Keep lossless copy". Per-job choice; the persisted format selection is untouched. H.264 formats, region conversion, and progressive titles never prompt. `interlaceRipClash` is mutation-verified as a regression constraint.
+- [x] **Thumbnail console popups silenced** (commit `da78d96c`) — the drawtext `-filters` probe and the interlace-detection frame probe spawned ffmpeg without `CREATE_NO_WINDOW`; both now route through `hideCmd`.
+- [x] **CSS log lines neutralised** (commit `0038560d`) — the triumphant "decryption complete" gloss is now factual.
+- [ ] **Tester verify: dev86 release** — (1) a lossless rip of an interlaced title (e.g. an NTSC disc) now prompts and offers H.264; choosing H.264 yields a deinterlaced output; (2) ripping the same title on an H.264 format never prompts; (3) thumbnail generation on Windows shows no console flash; (4) the CSS decryption log lines read as neutral facts.
+- [ ] **Real-media acceptance (priority 1)** — now specifically also on an **encrypted** disc: DVD (CSS) → Rip → Convert → playback. The decryptor is the new proof point.
+
 ## Dev85 Scope (CSS decryption wiring — released)
 
 - [x] **Rip: CSS-encrypted DVDs rip end to end in software** (commits `252aa991`, `faafce65`, `6a33dd96`) — the executor detected CSS (dev45) but had nothing that could decrypt VOB payloads (FFmpeg built without libdvdcss cannot). Now: `internal/dvd/css` implements the CSS1/A cipher family and the libdvdcss `DVDCSS_METHOD_TITLE` key-recovery route in Go — disc key from the key-region period, per-VTS title/match keys + VMG key. `DecryptVideoTS` copies the VIDEO_TS tree into a `vt-css-decrypt-*` scratch dir, decrypts VOB payloads in place per-VTS (VTS_XX_1..N share the VTS_XX_0 menu key; VIDEO_TS.VOB is its own VMG-domain group; IFO/BUP pass through verbatim), and the executor swaps the scratch tree in BEFORE `CollectVOBSets`, so every downstream path (dvdvideo, concat, cells, menus, full-disc, archivist) reads plaintext. Tables byte-identical to csstables.h (0 diffs); decrypt is `P = cssTab1[S] ⊕ ks`, and since `cssTab1` is NOT an involution the fixture direction uses `cssTab1Inv`. CSS failures fast-fail with classifiable messages instead of the old misleading log.

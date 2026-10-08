@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev86 — Rip polish
+
+- **Interlaced-lossless prompt.** A rip that would stream-copy an interlaced (video-originated) DVD title in the lossless MKV format now asks first whether to rip as H.264 (deinterlaced) or keep the lossless copy — the per-job choice does not touch the persisted format selection. The IFO scan's `FilmMode==0` signal is surfaced on `DiscTitle`; `interlaceRipClash` is mutation-verified. Commit `3a6c8cd1`.
+- **Thumbnail console popups silenced.** Two ffmpeg probes in `internal/thumbnail/generator.go` (the drawtext `-filters` check and the interlace-detection frame probe) spawned without `CREATE_NO_WINDOW`, so every thumbnail run flashed a console window. Both now route through `hideCmd`. Commit `da78d96c`.
+- **CSS log lines neutralised.** The rip log's triumphant "decryption complete" gloss became a factual statement of what is happening. Commit `0038560d`.
+- **Next.** Real-media acceptance on an encrypted disc — DVD → Rip → Convert → playback (priority 1 ladder). Once the ladder closes, the milestone gate for `v0.1.2-dev*`: author a DVD in VideoTools and rip it back in VideoTools — the ecosystem is usable within itself for the full author → rip cycle.
+
 ## v0.1.1-dev85 â€” CSS Decryption Wiring (encrypted DVDs rip-able in software)
 
 - **Encrypted (CSS) commercial DVDs can now be ripped end to end, entirely in software.** No external libdvdcss build, no special drive model, no player-triggered unit-key path, and no FFmpeg-with-libdvdcss dependency. `internal/dvd/css` gains the CSS1/A cipher family (disc key, title/match keys, IV, V2, V3) and the libdvdcss `DVDCSS_METHOD_TITLE` key-recovery route as an original Go implementation.
