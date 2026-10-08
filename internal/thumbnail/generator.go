@@ -97,6 +97,7 @@ func (g *Generator) drawtextAvailable() bool {
 	}
 	g.drawtextProbed = true
 	cmd := exec.Command(g.FFmpegPath, "-hide_banner", "-filters")
+	hideCmd(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return false
@@ -1007,6 +1008,7 @@ func (g *Generator) findCleanFrameOffset(ctx context.Context, videoPath string, 
 		"-",
 	}
 	cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+	hideCmd(cmd)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	_ = cmd.Run() // Ignore error - we just want the stderr output
