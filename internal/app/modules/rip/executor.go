@@ -643,7 +643,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 
 	if isEncrypted {
-		appendLog("CSS encryption detected — decrypting VIDEO_TS to a scratch tree before processing")
+		appendLog("CSS-encrypted source: copying and decrypting VIDEO_TS to a scratch tree before processing")
 		decrypted, dclean, derr := decryptVideoTSPath(videoTSPath, appendLog)
 		if derr != nil {
 			appendLog(fmt.Sprintf("Error: CSS decryption failed: %v", derr))
@@ -657,7 +657,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			dclean()
 		}
 		videoTSPath = decrypted
-		appendLog("CSS decryption complete — processing the decrypted copy")
+		appendLog("CSS: processing the decrypted scratch copy")
 	}
 
 	// Full-disc extraction mode — processes all VTS sets + menu, regenerates IFOs.
