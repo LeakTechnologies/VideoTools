@@ -51,3 +51,6 @@ test_dvd/
 
 # Rust FFI boundary build output (internal/ffi staticlib)
 internal/ffi/target/
+
+# Ignore Python cache
+**/__pycache__/

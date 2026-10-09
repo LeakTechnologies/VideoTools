@@ -9,6 +9,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [ ] **Tester verify: dev87 release** — (1) validate the seek audit findings: seek on a playing source holds position without timeline jump or timestamp drift; scrubbing returns to real-time playback; (2) confirm player controls show consistent state after seek; (3) agent toolchain docs are accurate — every agent is either real-and-working or explicitly marked absent/exhausted; (4) `roadmap.html` current-cycle indicator reads dev87.
 
+- [ ] **Seek audit findings index** — Confirmed: seeking ignored (cap-1 mailbox drop), erratic timeline jumps (two decoder mailboxes), timestamp drift (optimistic readout), WaitForPTS unbounded stall. Disproved: historical seekGen-lastSeekGen bug (fixed at playback.go:607). UNVERIFIED without rendered screenshot: text clipping/padding overflow candidates D1–D15 (static-analysis candidates only; promote/dismiss requires screenshot).
+
 - [ ] **Real-media acceptance (priority 1)** — now specifically also on an **encrypted** disc: DVD (CSS) → Rip → Convert → playback. The decryptor is the new proof point.
 
 ## Dev86 Scope (Rip polish — released)
