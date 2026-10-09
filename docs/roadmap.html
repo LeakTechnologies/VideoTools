@@ -639,7 +639,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev87';
+const currentVersion = 'dev88';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -866,7 +866,16 @@ const changelogData = [
       'Guards: TestNoDeadVLCBackendControl asserts no user-facing string in any locale may advertise a backend that does not exist, and TestNoVLCBackendCode asserts no production file may reintroduce the plumbing. Both were mutation-verified.'
     ]}
   ] },
-  { version: 'v0.1.1-dev87', date: 'October 2026', tag: 'active', sections: [
+  { version: 'v0.1.1-dev88', date: 'October 2026', tag: 'done', sections: [
+    { title: 'Repo baseline reconciliation: hygiene, provenance audit, loop discipline', items: [
+      'The gap: dev87 landed as a documentation-only cycle, but its release commit (445a0023) had swept in unexpected files under a version-bump message — a committed __pycache__/*.pyc, a Rust FFI crate, a bridge module, and scripts with no visible CI integration — leaving no trustworthy baseline to implement the seek fix on top of.',
+      'The reconciliation (db51c395, RECONCILIATION.md): file-by-file provenance audit of everything 445a0023 added. internal/ffi/ (Rust vt_ffi staticlib) and internal/app/modules/bridge/ (the CGo consumer, InterceptMediaPayload) are intentional and interdependent — retained, no deletion. The committed .pyc was a generated artifact; the hygiene violation is closed with a **/__pycache__/ gitignore entry.',
+      'Seek audit findings preserved in version control: the TODO.md dev87 index carries confirmed defects (cap-1 mailbox drops, concurrent SetFrame/SetCurrentTime writers, missing isScrubbing gate, unbounded WaitForPTS), the disproved historical seekGen-lastSeekGen bug (already fixed at playback.go:607), and UNVERIFIED layout claims D1-D15 (need a rendered screenshot; static analysis cannot settle them).',
+      'Loop discipline (14a189c7): AGENTS.md gains the no-confirmation-loop Human Director directive — an agent with a single unambiguous track completes it end-to-end before returning to the human. Mirrored in the global opencode AGENTS.md.',
+      'Next: real-media acceptance on an encrypted disc remains priority 1; the seek concurrency fix is deliberately deferred to a later dev version (small dev versions, not crammed releases).'
+    ]}
+  ] },
+  { version: 'v0.1.1-dev87', date: 'October 2026', tag: 'done', sections: [
     { title: 'Player UI audit and agent toolchain', items: [
       'Forensic audit of media player seek logic: confirmed seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disproved historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder; seekGen never increments, clock never resets, engine fmtCtx never repositions. Two lossy mailboxes (seekCh cap 1, seekQueue cap 1) and three concurrent SetFrame writers without an isScrubbing gate.',
       'Agent toolchain documented: created docs/AGENT_TOOLS.md with complete registry of 5 agents (vt-auditor: Gemini 2.5 Flash, quota-exhausted; vt-reviewer: deprecated; vt-verifier: Gemini 2.5 Flash, quota-exhausted; vt-verifier-local: Ollama, model tag mismatch; vt-auditor-local: not implemented). Fallback chain exposed.',

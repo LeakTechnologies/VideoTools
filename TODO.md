@@ -2,14 +2,24 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev87 Scope (Player UI audit and agent toolchain — in progress)
+## Dev88 Scope (Repo baseline reconciliation — in progress)
 
-- [ ] **Forensic audit of media player seek logic** — confirm seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disprove historical seekGen-lastSeekGen bug (fixed at playback.go:607). Identify root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder.
-- [ ] **Agent toolchain documentation** — verify docs/AGENT_TOOLS.md completeness and accuracy.
+- [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `RECONCILIATION.md` records the file-by-file evidence.
+- [x] **Seek audit findings index in TODO/CHANGELOG** — confirmed defects, the disproved seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
+- [x] **No-confirmation-loop directive** (`14a189c7`) — AGENTS.md repo + global: complete single-track tasks end-to-end before returning to the human.
+- [ ] **Tester verify: dev88 release** — (1) the release publishes with assets on both platforms (tag `v0.1.1-dev88`); (2) the in-app update button on a dev87 binary offers dev88 and installs it; (3) no `__pycache__` artifacts appear in future commits.
+- [ ] **Real-media acceptance (priority 1)** — DVD (CSS) → Rip → Convert → playback on an **encrypted** disc. The decryptor is the proof point. Higher priority than the player seek fix.
+- [ ] **Seek concurrency fix (deliberately deferred here, next dev version)** — one lifecycle problem, not six independent patches: cap-1 mailbox drops (`seekCh`/`seekQueue`), concurrent SetFrame/SetCurrentTime writers, missing `isScrubbing` gate, unbounded WaitForPTS. The historical seekGen-lastSeekGen bug is already fixed (`playback.go:607`) — do not resurrect it.
+- [ ] **Layout claims D1–D15** — UNVERIFIED until a rendered screenshot promotes or dismisses them.
 
-- [ ] **Tester verify: dev87 release** — (1) validate the seek audit findings: seek on a playing source holds position without timeline jump or timestamp drift; scrubbing returns to real-time playback; (2) confirm player controls show consistent state after seek; (3) agent toolchain docs are accurate — every agent is either real-and-working or explicitly marked absent/exhausted; (4) `roadmap.html` current-cycle indicator reads dev87.
+## Dev87 Scope (Player UI audit and agent toolchain — released)
 
-- [ ] **Seek audit findings index** — Confirmed: seeking ignored (cap-1 mailbox drop), erratic timeline jumps (two decoder mailboxes), timestamp drift (optimistic readout), WaitForPTS unbounded stall. Disproved: historical seekGen-lastSeekGen bug (fixed at playback.go:607). UNVERIFIED without rendered screenshot: text clipping/padding overflow candidates D1–D15 (static-analysis candidates only; promote/dismiss requires screenshot).
+- [x] **Forensic audit of media player seek logic** — confirmed seeking ignored, erratic timeline jumps, timestamp drift, UI-thread stall (WaitForPTS unbounded). Disproved historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder.
+- [x] **Agent toolchain documentation** — docs/AGENT_TOOLS.md created: complete registry of 5 agents with models, usage, known issues (quota-exhausted cloud models, deprecated vt-reviewer, model-tag mismatch in vt-verifier-local, missing vt-auditor-local).
+
+- [ ] **Tester verify: dev87 release** — (1) validate the seek audit findings: seek on a playing source holds position without timeline jump or timestamp drift; scrubbing returns to real-time playback; (2) confirm player controls show consistent state after seek; (3) agent toolchain docs are accurate — every agent is either real-and-working or explicitly marked absent/exhausted; (4) `roadmap.html` current-cycle indicator reads the current cycle.
+
+- [x] **Seek audit findings index** — Confirmed: seeking ignored (cap-1 mailbox drop), erratic timeline jumps (two decoder mailboxes), timestamp drift (optimistic readout), WaitForPTS unbounded stall. Disproved: historical seekGen-lastSeekGen bug (fixed at playback.go:607). UNVERIFIED without rendered screenshot: text clipping/padding overflow candidates D1–D15 (static-analysis candidates only; promote/dismiss requires screenshot).
 
 - [ ] **Real-media acceptance (priority 1)** — now specifically also on an **encrypted** disc: DVD (CSS) → Rip → Convert → playback. The decryptor is the new proof point.
 

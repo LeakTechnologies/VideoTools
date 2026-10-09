@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev88 (October 2026)
+
+### Repo baseline reconciliation: hygiene, audit index, loop discipline
+
+- **The gap.** dev87 landed as a documentation-only cycle, but its release commit (`445a0023`) had swept in unexpected files under a version-bump message — a committed `__pycache__/*.pyc`, an unreferenced-looking Rust FFI crate, a bridge module, and scripts with no CI integration — leaving no trustworthy baseline to implement the seek fix on top of.
+- **The reconciliation (`db51c395`, `RECONCILIATION.md`).** File-by-file provenance audit of everything `445a0023` added: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (the CGo consumer, `InterceptMediaPayload`) are **intentional and interdependent — retained**; the committed `.pyc` was a generated artifact — the hygiene violation is closed with a `**/__pycache__/` gitignore entry.
+- **Audit findings preserved in version control.** TODO.md dev87 now carries the seek-audit findings index: confirmed defects (cap-1 mailbox drops, concurrent SetFrame/SetCurrentTime writers, missing isScrubbing gate, unbounded WaitForPTS), the disproved historical seekGen-lastSeekGen bug (already fixed at playback.go:607), and UNVERIFIED layout claims D1–D15 (need a rendered screenshot; static analysis cannot settle them).
+- **Loop discipline (`14a189c7`).** AGENTS.md gains the no-confirmation-loop Human Director directive: an agent with a single unambiguous track completes it end-to-end before returning to the human. Also mirrored in the global opencode AGENTS.md.
+- **Next.** Real-media acceptance on an encrypted disc remains priority 1; the seek concurrency fix is deliberately deferred to a later dev version (small dev versions, not crammed releases).
+
 ## v0.1.1-dev87 (October 2026)
 
 ### Player: forensic audit of seek logic and agent toolchain

@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev88 — Repo baseline reconciliation
+
+- **Pre-dev88 reconciliation (`RECONCILIATION.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.
+- **Seek audit findings preserved in version control.** TODO.md dev87 carries the findings index — confirmed defects, the disproved historical seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
+- **No-confirmation-loop directive (`14a189c7`).** AGENTS.md (repo + global opencode config): an agent with a single unambiguous track completes the task end-to-end before returning to the human.
+- **Next.** Real-media acceptance on an encrypted disc (priority 1); seek concurrency fix deferred to a later dev version by deliberate scoping — small dev versions, not crammed releases.
+
 ## v0.1.1-dev87 — Player UI audit and agent toolchain
 
 - **Forensic audit of media player seek logic.** Confirmed seeking ignored, erratic timeline jumps, timestamp drift, and UI-thread stall (WaitForPTS unbounded). Disproved historical seekGen-lastSeekGen bug (fixed at playback.go:607). Root cause: Trim module bypasses Engine.Seek via SmoothScrubbing decoder; seekGen never increments. Text clipping/padding overflow unverified without rendered screenshot.
