@@ -278,6 +278,8 @@ Configure in `.claude/settings.json` (`/update-config`). Commit-gating hooks `ex
 
 The human is the scheduler. Loops are human-triggered, not timer-triggered.
 
+**No confirmation loops (Human Director directive).** If the agent has a single, unambiguous track to follow to complete an assigned task, COMPLETE the task before returning to the human. Do not stop mid-track to ask permission for a step whose answer is already determined by the standing instructions or by the Human Director's last message — asking "should I continue with X?" when X is the only possible next move wastes development time and frustrates the Human Director. Asking again after the answer was already given is worse (see the dev87 version-bump exchange for the canonical example). Ask only when: (1) a genuine decision exists with materially different options, (2) standing rules require approval (workflow entrypoints, release operations, CI changes), or (3) the next step is truly ambiguous and no repo evidence resolves it.
+
 **Daily rhythm:**
 1. Run `/triage` → reads CI, issues, TODOs, writes TRIAGE.md
 2. Read TRIAGE.md → decide what to work on
