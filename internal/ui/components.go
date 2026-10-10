@@ -48,13 +48,15 @@ type monoFonts struct {
 }
 
 var monoFontData monoFonts
+var sansFontData monoFonts
 var aboriginalFontData monoFonts
 var fontMode = "mono"
 var vcrFontData []byte
 
-// MonoFontPreference controls which monospace font is used ("ibm" or "vcr").
-// Set via SetMonoFontPreference() and checked by MonoTheme.Font().
-// When changed, call fyne.CurrentApp().Settings().SetTheme(theme) to refresh.
+// MonoFontPreference controls which font family is used ("ibm", "vcr", or "sans").
+// "ibm" = IBM Plex Mono (default), "vcr" = VCR OSD Mono, "sans" = Plus Jakarta Sans
+// (the neutral sans-serif option). Set via SetMonoFontPreference() and checked
+// by MonoTheme.Font(). When changed, call fyne.CurrentApp().Settings().SetTheme(theme) to refresh.
 var MonoFontPreference = "ibm"
 
 // FontSizePreference controls UI text size ("large" or "small").
@@ -87,6 +89,17 @@ func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
 
 func SetVCRFontData(data []byte) {
 	vcrFontData = data
+}
+
+// SetSansFontData provides the neutral sans-serif family (Plus Jakarta Sans),
+// used when MonoFontPreference is "sans".
+func SetSansFontData(regular, italic, bold, boldItalic []byte) {
+	sansFontData = monoFonts{
+		regular:    regular,
+		italic:     italic,
+		bold:       bold,
+		boldItalic: boldItalic,
+	}
 }
 
 func SetAboriginalFontData(regular, italic, bold, boldItalic []byte) {
@@ -246,8 +259,32 @@ func min(a, b int) int {
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 	// VCR OSD Mono is used when MonoFontPreference is "vcr". It has no Bold/Italic variants.
 	// IBM Plex Mono is used when preference is "ibm" and has variants.
+	// IBM Plex Sans (the neutral sans-serif option) is used when preference is "sans".
 	if MonoFontPreference == "vcr" && vcrFontData != nil {
 		return fyne.NewStaticResource("VCR-OSD-mono.ttf", vcrFontData)
+	}
+
+	// Plus Jakarta Sans is the neutral sans-serif option. Aboriginal Sans stays available as
+	// an auxiliary via SetFontMode so UCAS syllabics fall through when Sans lacks the glyph.
+	if MonoFontPreference == "sans" && sansFontData.regular != nil {
+		var fontData []byte
+		fontName := "PlusJakartaSans-Regular.ttf"
+		switch {
+		case style.Bold && style.Italic:
+			fontData = sansFontData.boldItalic
+			fontName = "PlusJakartaSans-BoldItalic.ttf"
+		case style.Bold:
+			fontData = sansFontData.bold
+			fontName = "PlusJakartaSans-Bold.ttf"
+		case style.Italic:
+			fontData = sansFontData.italic
+			fontName = "PlusJakartaSans-Italic.ttf"
+		default:
+			fontData = sansFontData.regular
+		}
+		if fontData != nil {
+			return fyne.NewStaticResource(fontName, fontData)
+		}
 	}
 
 	// IBM Plex Mono is the primary font. Aboriginal Sans is injected as an auxiliary

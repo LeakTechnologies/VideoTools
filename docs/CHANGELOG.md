@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+## v0.1.1-dev89 (October 2026)
+
+### Settings: Plus Jakarta Sans font option (neutral sans-serif)
+
+- **The gap.** The font preference offered only two choices — IBM Plex Mono (default) and VCR OSD Mono — both monospaced and engineering-flavoured. Tester report: the font options read as "slightly too fancy or engineering focused".
+- **The fix.** A third option: **Plus Jakarta Sans**, a neutral sans-serif family, alongside the existing two (both kept untouched; default remains IBM Plex Mono). Settings → Appearance → font select now offers IBM Plex Mono / VCR OSD Mono / Plus Jakarta Sans. Four static TTFs bundled from the upstream Tokotype repo (Regular, Italic, Bold, BoldItalic — static instances, not the variable font, which Fyne's renderer does not select named instances from); OFL, same license family as the already-bundled Plex fonts.
+- **Wiring.** The preference value flows through the existing `PlayerFont` config key (new value `"sans"` — no schema change; stale configs are unaffected), `applyVCRFontPreference` passes it to `ui.SetMonoFontPreference`, and `MonoTheme.Font` dispatches to the `sansFontData` family with full Bold/Italic style resolution. The Aboriginal Sans auxiliary (UCAS syllabics fallback for Inuktitut) stays registered independently of the primary preference, so Inuktitut rendering is unaffected under the sans option. The SMPTE test pattern keeps its own VCR font by design. New i18n key `SettingsFontSans` (en/fr; Inuktitut falls back to en-CA, matching the existing font-name keys, which are brand names and untranslated).
+- **Also.** gofmt pass over the touched files fixed pre-existing misalignment (map literals in the i18n locale files, `main.go` var block).
+- **Gates.** `dev-verify.ps1` full gate green (native_media build + vet + tests).
+- **Next.** Real-media acceptance on an encrypted disc remains priority 1; seek concurrency fix deliberately deferred (one lifecycle problem, not six independent patches).
+
 ## v0.1.1-dev88 (October 2026)
 
 ### Repo baseline reconciliation: hygiene, audit index, loop discipline

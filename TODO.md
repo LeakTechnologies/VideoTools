@@ -2,7 +2,15 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev88 Scope (Repo baseline reconciliation — in progress)
+## Dev89 Scope (Plus Jakarta Sans font option — in progress)
+
+- [x] **Settings: Plus Jakarta Sans font option** — a third font choice (neutral sans-serif, OFL, four static styles bundled) alongside IBM Plex Mono (default, kept) and VCR OSD Mono (kept). Preference value `"sans"` flows through the existing `PlayerFont` config key; Aboriginal Sans syllabics fallback unaffected; SMPTE test-pattern font unaffected. New i18n key `SettingsFontSans` (en/fr; iu falls back). `dev-verify.ps1` full gate green.
+- [ ] **Tester verify: dev89 release** — (1) Settings → Appearance → font select offers all three fonts and the selection persists across restart; (2) choosing Plus Jakarta Sans restyles the whole UI to the sans family (bold and italic render as true bold/italic, not faux); (3) switching back to IBM Plex Mono / VCR restores each exactly; (4) with the language set to Inuktitut (syllabics), UCAS text still renders under the sans option; (5) the SMPTE test pattern still uses its VCR font regardless of the preference.
+- [ ] **Real-media acceptance (priority 1)** — DVD (CSS) → Rip → Convert → playback on an **encrypted** disc. The decryptor is the proof point. Higher priority than the player seek fix.
+- [ ] **Seek concurrency fix (deliberately deferred, next dev version)** — one lifecycle problem, not six independent patches: cap-1 mailbox drops (`seekCh`/`seekQueue`), concurrent SetFrame/SetCurrentTime writers, missing `isScrubbing` gate, unbounded WaitForPTS. The historical seekGen-lastSeekGen bug is already fixed (`playback.go:607`) — do not resurrect it.
+- [ ] **Layout claims D1–D15** — UNVERIFIED until a rendered screenshot promotes or dismisses them.
+
+## Dev88 Scope (Repo baseline reconciliation — released)
 
 - [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `RECONCILIATION.md` records the file-by-file evidence.
 - [x] **Seek audit findings index in TODO/CHANGELOG** — confirmed defects, the disproved seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.

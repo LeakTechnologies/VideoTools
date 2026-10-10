@@ -639,7 +639,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev88';
+const currentVersion = 'dev89';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -864,6 +864,15 @@ const changelogData = [
       'Deliberately kept: media.PlaybackEngine, because it is tagged only native_media, is genuinely used by InlineVideoPlayer, and is the seam a future backend would slot into - only its stale comments described the removed backend, and those were corrected. docs/VLC_PLAYER.md is retained as the design document. Prefs decode leniently through json.Unmarshal with no DisallowUnknownFields, so an existing config carrying UsePlayerVLC is ignored rather than rejected; no migration was needed.',
       'Honest status: this removes a lie, it does not add a feature. No playback behaviour changed, because the tag never reached a binary. Reviving libVLC remains a reasonable option, but it must first provision the SDK and add a CI job that builds its tag - otherwise this exact defect returns. engine_factory_default.go drops its now-meaningless && !vlc condition, so the vlc tag now compiles to exactly the same binary as native_media, which is the proof it was always inert.',
       'Guards: TestNoDeadVLCBackendControl asserts no user-facing string in any locale may advertise a backend that does not exist, and TestNoVLCBackendCode asserts no production file may reintroduce the plumbing. Both were mutation-verified.'
+    ]}
+  ] },
+  { version: 'v0.1.1-dev89', date: 'October 2026', tag: 'done', sections: [
+    { title: 'Settings: Plus Jakarta Sans font option (neutral sans-serif)', items: [
+      'The gap: the font preference offered only two choices — IBM Plex Mono (default) and VCR OSD Mono — both monospaced and engineering-flavoured. Tester feedback: the options read as "slightly too fancy or engineering focused".',
+      'The fix: a third option — Plus Jakarta Sans, a neutral sans-serif family (OFL, four static TTF styles from the upstream Tokotype repo: Regular, Italic, Bold, BoldItalic). Settings → Appearance → font select now offers IBM Plex Mono / VCR OSD Mono / Plus Jakarta Sans. Default remains IBM Plex Mono. Preference persists through the existing PlayerFont config key (new value "sans", no schema change).',
+      'Wiring: the preference value flows through PlayerFont → applyVCRFontPreference → ui.SetMonoFontPreference; MonoTheme.Font dispatches to the sansFontData family with full Bold/Italic resolution. The Aboriginal Sans auxiliary (UCAS syllabics fallback) stays registered independently, so Inuktitut rendering is unaffected. The SMPTE test pattern keeps its own VCR font by design.',
+      'I18n: new key SettingsFontSans (en/fr; Inuktitut falls back to en-CA, matching the existing font-name keys, which are brand names and untranslated). gofmt pass over touched files fixed pre-existing misalignment.',
+      'Gates: dev-verify.ps1 full gate green (native_media build + vet + tests).'
     ]}
   ] },
   { version: 'v0.1.1-dev88', date: 'October 2026', tag: 'done', sections: [

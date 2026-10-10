@@ -55,38 +55,39 @@ type Strings struct {
 	TooltipConvertStart              string // "Start conversion"
 
 	// Settings
-	SettingsShowTooltips    string // "Show tooltips"
-	SettingsAutoDeinterlace    string // "Auto deinterlace"
-	SettingsAutoDeinterlaceHint string // "Automatically deinterlace interlaced video using the bwdif filter"
-	SettingsHWDecode           string // "Hardware Video Decode"
-	SettingsHWDecodeAuto   string // "Auto-detect"
-	SettingsHWDecodeAvailable   string // "Available"
-	SettingsHWDecodeUnavailable string // "Not Compatible"
+	SettingsShowTooltips          string // "Show tooltips"
+	SettingsAutoDeinterlace       string // "Auto deinterlace"
+	SettingsAutoDeinterlaceHint   string // "Automatically deinterlace interlaced video using the bwdif filter"
+	SettingsHWDecode              string // "Hardware Video Decode"
+	SettingsHWDecodeAuto          string // "Auto-detect"
+	SettingsHWDecodeAvailable     string // "Available"
+	SettingsHWDecodeUnavailable   string // "Not Compatible"
 	SettingsHWDecodeNotCompatible string // "Not Compatible"
-	SettingsHWDecodeDetecting  string // "Detecting..."
-	SettingsHWDecodeAutoHint string // "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails."
-	SettingsHWDenyList     string // "HW Decode Deny-List"
-	SettingsHWDenyListHint string // "Comma-separated FFmpeg codec names forced to SW decode (e.g. vc1,wmv3). Leave blank to use all HW-capable codecs."
-	SettingsFont           string // "Player Font"
-	SettingsFontHint       string // "Font used in the player OSD and test pattern"
-	SettingsFontIBM        string // "IBM Plex Mono"
-	SettingsFontVCR        string // "VCR OSD Mono"
-	SettingsTestPattern     string // "Test Pattern"
-	SettingsTestPatternHint string // "Show SMPTE color bars for display calibration"
-	SettingsPlayerAspect         string // "Idle Aspect Ratio"
-	SettingsPlayerAspectHint     string // "Aspect ratio shown by SMPTE bars when no video is loaded"
-	SettingsPlayerAspect4x3      string // "4:3 (Standard)"
-	SettingsPlayerAspect16x9     string // "16:9 (Widescreen)"
-	SettingsPlayerAspect5x3      string // "5:3"
-	SettingsPlayerAspect21x9     string // "21:9 (Ultrawide)"
-	SettingsPlayerAspect9x16     string // "9:16 (Portrait)"
-	SettingsSeekAccuracy         string // "Seek Accuracy"
-	SettingsSeekAccuracyHint     string // description of seek accuracy modes
-	SettingsSeekKeyframe         string // "Fast (Keyframe)"
-	SettingsSeekFrame            string // "Fastest (Frame)"
-	SettingsSeekAccurate         string // "Precise (Slow)"
-	SettingsAVOffset             string // "A/V Offset (ms)"
-	SettingsAVOffsetHint         string // description of A/V offset
+	SettingsHWDecodeDetecting     string // "Detecting..."
+	SettingsHWDecodeAutoHint      string // "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails."
+	SettingsHWDenyList            string // "HW Decode Deny-List"
+	SettingsHWDenyListHint        string // "Comma-separated FFmpeg codec names forced to SW decode (e.g. vc1,wmv3). Leave blank to use all HW-capable codecs."
+	SettingsFont                  string // "Player Font"
+	SettingsFontHint              string // "Font used in the player OSD and test pattern"
+	SettingsFontIBM               string // "IBM Plex Mono"
+	SettingsFontVCR               string // "VCR OSD Mono"
+	SettingsFontSans              string // "Plus Jakarta Sans"
+	SettingsTestPattern           string // "Test Pattern"
+	SettingsTestPatternHint       string // "Show SMPTE color bars for display calibration"
+	SettingsPlayerAspect          string // "Idle Aspect Ratio"
+	SettingsPlayerAspectHint      string // "Aspect ratio shown by SMPTE bars when no video is loaded"
+	SettingsPlayerAspect4x3       string // "4:3 (Standard)"
+	SettingsPlayerAspect16x9      string // "16:9 (Widescreen)"
+	SettingsPlayerAspect5x3       string // "5:3"
+	SettingsPlayerAspect21x9      string // "21:9 (Ultrawide)"
+	SettingsPlayerAspect9x16      string // "9:16 (Portrait)"
+	SettingsSeekAccuracy          string // "Seek Accuracy"
+	SettingsSeekAccuracyHint      string // description of seek accuracy modes
+	SettingsSeekKeyframe          string // "Fast (Keyframe)"
+	SettingsSeekFrame             string // "Fastest (Frame)"
+	SettingsSeekAccurate          string // "Precise (Slow)"
+	SettingsAVOffset              string // "A/V Offset (ms)"
+	SettingsAVOffsetHint          string // description of A/V offset
 
 	// Dialog Titles
 	DialogCompare            string
@@ -179,30 +180,30 @@ type Strings struct {
 	ActionSaveConfig   string // "Save Config"
 
 	// ── Common Labels ─────────────────────────────────────────────────────
-	LabelInput         string
-	LabelOutput        string
-	LabelSource        string
-	LabelDestination   string
-	LabelFormat        string
-	LabelQuality       string
-	LabelResolution    string
-	LabelBitrate       string
-	LabelFrameRate     string
-	LabelCodec         string
-	LabelAudio         string
-	LabelVideo         string
-	LabelSubtitles     string
-	LabelDuration      string
-	LabelSize          string
-	LabelProgress      string
-	LabelStatus        string
-	LabelLanguage      string
-	LabelVersion       string
-	LabelLicense       string
-	LabelNoFile           string // "No file loaded"
-	LabelNoVideoLoaded    string // "No video loaded"
+	LabelInput           string
+	LabelOutput          string
+	LabelSource          string
+	LabelDestination     string
+	LabelFormat          string
+	LabelQuality         string
+	LabelResolution      string
+	LabelBitrate         string
+	LabelFrameRate       string
+	LabelCodec           string
+	LabelAudio           string
+	LabelVideo           string
+	LabelSubtitles       string
+	LabelDuration        string
+	LabelSize            string
+	LabelProgress        string
+	LabelStatus          string
+	LabelLanguage        string
+	LabelVersion         string
+	LabelLicense         string
+	LabelNoFile          string // "No file loaded"
+	LabelNoVideoLoaded   string // "No video loaded"
 	LabelDropVideoToLoad string // "DROP VIDEO TO LOAD"
-	LabelFileFmt          string // "File: %s"
+	LabelFileFmt         string // "File: %s"
 
 	// ── Burn Module ────────────────────────────────────────────────────────────
 	BurnSelectISO     string // "Select ISO file to burn"
@@ -401,11 +402,11 @@ type Strings struct {
 	SettingsShowUpscale          string // "Show Upscale module"
 	SettingsShowDisc             string // "Show Disc category (Author & Rip)"
 	// Queue behaviour
-	SettingsQueueSection     string // "Queue Behaviour"
-	SettingsQueuePlayLabel   string // "Play Video opens:"
-	SettingsQueuePlayInspect string // "Inspect Module"
-	SettingsQueuePlaySystem  string // "Player Module"
-	SettingsQueuePlayHint    string // hint label
+	SettingsQueueSection                 string // "Queue Behaviour"
+	SettingsQueuePlayLabel               string // "Play Video opens:"
+	SettingsQueuePlayInspect             string // "Inspect Module"
+	SettingsQueuePlaySystem              string // "Player Module"
+	SettingsQueuePlayHint                string // hint label
 	SettingsPipelineSection              string // "Module Chaining (&&)"
 	SettingsPipelineKeepIntermediate     string // "Keep temporary files from chained jobs"
 	SettingsPipelineKeepIntermediateHint string // hint label
@@ -597,14 +598,14 @@ type Strings struct {
 	ConvertSectionAudioCodec       string // "Audio Codec"
 	ConvertSectionAudioBitrate     string // "Audio Bitrate"
 	ConvertSectionAudioChannels    string // "Audio Channels"
-	ConvertSectionAudioSampleRate string // "Audio Sample Rate"
-	ConvertSectionAudioNormalize  string // "Normalize Audio"
-	ConvertLabelLUFS         string // "LUFS"
-	ConvertLabelTruePeak     string // "TruePeak"
-	ConvertDeinterlaceMode        string // "Deinterlace Mode"
-	ConvertDeinterlaceMethod     string // "Deinterlace Method"
-	ConvertH264Profile           string // "H.264 Profile"
-	ConvertH264Level             string // "H.264 Level"
+	ConvertSectionAudioSampleRate  string // "Audio Sample Rate"
+	ConvertSectionAudioNormalize   string // "Normalize Audio"
+	ConvertLabelLUFS               string // "LUFS"
+	ConvertLabelTruePeak           string // "TruePeak"
+	ConvertDeinterlaceMode         string // "Deinterlace Mode"
+	ConvertDeinterlaceMethod       string // "Deinterlace Method"
+	ConvertH264Profile             string // "H.264 Profile"
+	ConvertH264Level               string // "H.264 Level"
 	ConvertSectionPixelFormat      string // "Pixel Format"
 	ConvertSectionHardwareAccel    string // "Hardware Acceleration"
 	ConvertSectionBitrateMode      string // "Bitrate Mode"
@@ -638,13 +639,13 @@ type Strings struct {
 	ConvertSnippetAllQueuedFmt   string // "Added %d snippet jobs to queue.\nEach %ds long."
 
 	// ── Convert Bitrate Mode Hints ───────────────────────────────────────────
-	ConvertBitrateModeHintCRF           string // CRF mode explanation
-	ConvertBitrateModeHintCBR           string // CBR mode explanation
-	ConvertBitrateModeHintVBR           string // VBR mode explanation
-	ConvertBitrateModeHintTargetSize    string // Target Size mode explanation
-	ConvertBitrateModeHintLosslessCRF   string // Lossless quality + CRF
-	ConvertBitrateModeHintLosslessCBR   string // Lossless quality + CBR
-	ConvertBitrateModeHintLosslessVBR   string // Lossless quality + VBR
+	ConvertBitrateModeHintCRF            string // CRF mode explanation
+	ConvertBitrateModeHintCBR            string // CBR mode explanation
+	ConvertBitrateModeHintVBR            string // VBR mode explanation
+	ConvertBitrateModeHintTargetSize     string // Target Size mode explanation
+	ConvertBitrateModeHintLosslessCRF    string // Lossless quality + CRF
+	ConvertBitrateModeHintLosslessCBR    string // Lossless quality + CBR
+	ConvertBitrateModeHintLosslessVBR    string // Lossless quality + VBR
 	ConvertBitrateModeHintLosslessTarget string // Lossless quality + target size
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
@@ -684,95 +685,95 @@ type Strings struct {
 	PlayerInstructions string
 
 	// ── Rip ──────────────────────────────────────────────────────────────────────
-	RipDropPrompt       string
-	RipOutputPath       string
-	RipSource           string
-	RipFormatLabel      string
-	RipAddToQueue       string
-	RipNow              string
-	RipClearISO         string
-	RipLoadDisc         string // "Load Disc"
-	RipErrNoDrive       string // "No optical drive detected"
-	RipErrNoDVD         string // "No DVD-Video structure found on the disc"
-	RipDriveNotMounted  string // "No disc in the drive"
-	RipSelectDriveTitle string // "Select a disc drive"
-	RipJobQueuedTitle   string
-	RipJobQueuedMsg     string
-	RipStartTitle       string
-	RipStartMsg         string
-	RipNoConfigTitle    string
-	RipNoConfigMsg      string
-	RipConfigSavedTitle string
-	RipConfigSavedFmt   string // "Saved to %s"
-	RipErrNoSource      string
-	RipErrNotDisc        string // "Rip module requires a DVD/ISO/VIDEO_TS source"
-	RipCSSEncrypted     string // "CSS Encrypted"
-	RipCSSDecrypting    string // "Decrypting CSS..."
-	RipCSSNotEncrypted  string // "Not Encrypted"
-	RipCSSStatusFmt     string // "Encryption: %s"
-	RipContentBrowser   string // "Content Browser"
-	RipSelectAll        string // "Select All"
-	RipDeselectAll      string // "Deselect All"
-	RipMainFeature      string // "★ Main Feature"
-	RipTitleCardFmt     string // "%d chapters"
-	RipTitleAudioOne    string // "1 audio"
-	RipTitleAudioMany   string // "%d audio"
-	RipTitleSubsOne     string // "1 sub"
-	RipTitleSubsMany    string // "%d subs"
-	RipClickToPreview   string // "Click to preview"
-	RipNoMenuFound      string // "No menu VOB found"
-	RipDiscSection      string // "Disc"
-	RipDiscNone         string // "No disc loaded"
-	RipDiscNoneHint     string // "Load an ISO or VIDEO_TS folder to begin."
-	RipDiscScanning     string // "Scanning disc..."
-	RipDiscScanningHint string // "Reading disc information"
-	RipDiscScanFailed   string // "Unable to scan disc"
-	RipDiscScanned      string // "SCANNED ✓"
-	RipTitleCount       string // "titles"
-	RipTitleShort       string // "Title"
-	RipReadyNoTitles    string // "Load a disc to begin."
-	RipReadyNoSelection string // "No titles selected for rip."
-	RipReadyOne         string // "Ready to rip 1 title"
-	RipReadyManyFmt     string // "Ready to rip %d titles"
-	RipReadyMainFeatureFmt string // "Ready to rip main feature: %s"
-	RipInterlaceTitle      string // "Interlaced video detected"
-	RipInterlaceMsg        string // "The rip would stream-copy interlaced DVD video. The scan reports video-originated (interlaced) content. Rip as H.264 to deinterlace now, or keep the lossless copy and deinterlace later in Convert."
-	RipInterlaceH264       string // "Rip as H.264 (deinterlaced)"
-	RipInterlaceKeep       string // "Keep lossless copy"
-	RipModeSection         string // "Rip Mode"
-	RipModeScenes          string // "Movie + extras (choose titles)"
-	RipModeMainFeature     string // "Main feature only"
-	RipModeScenesOnly      string // "Scene segments only (skip full movie)"
-	RipReadyScenesOne      string // "Ready to rip 1 scene segment"
-	RipReadyScenesManyFmt  string // "Ready to rip %d scene segments"
-	RipOpenInPlayer     string // "Open in Player"
-	RipErrNoDiscLoaded  string // "no disc loaded — drop an ISO or VIDEO_TS folder"
-	RipTitlePlaceholder string // "Disc / movie title (embedded as metadata)"
-	RipTitleLabel       string // "Title" (output-title field header)
-	RipEmbedChapters    string // "Embed chapters"
-	RipEmbedChaptersCountFmt string // "Embed chapters (%d)"
-	RipEmbedChaptersNone     string // "Embed chapters (none on disc)"
-	RipChapterOnly           string // "Rip chapters only"
-	RipChapterFrom           string // "From chapter"
-	RipChapterTo             string // "To chapter"
-	RipAllAudioTracks        string // "All audio tracks"
-	RipAllAudioTracksLangsFmt string // "All audio tracks (%d: %s)"
-	RipAllAudioTracksCountFmt string // "All audio tracks (%d)"
-	RipIncludeSubtitles       string // "Include subtitles (DVD bitmap)"
-	RipIncludeSubtitlesMP4    string // "Include subtitles (not supported in MP4)"
-	RipIncludeSubtitlesNone   string // "Include subtitles (none on disc)"
+	RipDropPrompt               string
+	RipOutputPath               string
+	RipSource                   string
+	RipFormatLabel              string
+	RipAddToQueue               string
+	RipNow                      string
+	RipClearISO                 string
+	RipLoadDisc                 string // "Load Disc"
+	RipErrNoDrive               string // "No optical drive detected"
+	RipErrNoDVD                 string // "No DVD-Video structure found on the disc"
+	RipDriveNotMounted          string // "No disc in the drive"
+	RipSelectDriveTitle         string // "Select a disc drive"
+	RipJobQueuedTitle           string
+	RipJobQueuedMsg             string
+	RipStartTitle               string
+	RipStartMsg                 string
+	RipNoConfigTitle            string
+	RipNoConfigMsg              string
+	RipConfigSavedTitle         string
+	RipConfigSavedFmt           string // "Saved to %s"
+	RipErrNoSource              string
+	RipErrNotDisc               string // "Rip module requires a DVD/ISO/VIDEO_TS source"
+	RipCSSEncrypted             string // "CSS Encrypted"
+	RipCSSDecrypting            string // "Decrypting CSS..."
+	RipCSSNotEncrypted          string // "Not Encrypted"
+	RipCSSStatusFmt             string // "Encryption: %s"
+	RipContentBrowser           string // "Content Browser"
+	RipSelectAll                string // "Select All"
+	RipDeselectAll              string // "Deselect All"
+	RipMainFeature              string // "★ Main Feature"
+	RipTitleCardFmt             string // "%d chapters"
+	RipTitleAudioOne            string // "1 audio"
+	RipTitleAudioMany           string // "%d audio"
+	RipTitleSubsOne             string // "1 sub"
+	RipTitleSubsMany            string // "%d subs"
+	RipClickToPreview           string // "Click to preview"
+	RipNoMenuFound              string // "No menu VOB found"
+	RipDiscSection              string // "Disc"
+	RipDiscNone                 string // "No disc loaded"
+	RipDiscNoneHint             string // "Load an ISO or VIDEO_TS folder to begin."
+	RipDiscScanning             string // "Scanning disc..."
+	RipDiscScanningHint         string // "Reading disc information"
+	RipDiscScanFailed           string // "Unable to scan disc"
+	RipDiscScanned              string // "SCANNED ✓"
+	RipTitleCount               string // "titles"
+	RipTitleShort               string // "Title"
+	RipReadyNoTitles            string // "Load a disc to begin."
+	RipReadyNoSelection         string // "No titles selected for rip."
+	RipReadyOne                 string // "Ready to rip 1 title"
+	RipReadyManyFmt             string // "Ready to rip %d titles"
+	RipReadyMainFeatureFmt      string // "Ready to rip main feature: %s"
+	RipInterlaceTitle           string // "Interlaced video detected"
+	RipInterlaceMsg             string // "The rip would stream-copy interlaced DVD video. The scan reports video-originated (interlaced) content. Rip as H.264 to deinterlace now, or keep the lossless copy and deinterlace later in Convert."
+	RipInterlaceH264            string // "Rip as H.264 (deinterlaced)"
+	RipInterlaceKeep            string // "Keep lossless copy"
+	RipModeSection              string // "Rip Mode"
+	RipModeScenes               string // "Movie + extras (choose titles)"
+	RipModeMainFeature          string // "Main feature only"
+	RipModeScenesOnly           string // "Scene segments only (skip full movie)"
+	RipReadyScenesOne           string // "Ready to rip 1 scene segment"
+	RipReadyScenesManyFmt       string // "Ready to rip %d scene segments"
+	RipOpenInPlayer             string // "Open in Player"
+	RipErrNoDiscLoaded          string // "no disc loaded — drop an ISO or VIDEO_TS folder"
+	RipTitlePlaceholder         string // "Disc / movie title (embedded as metadata)"
+	RipTitleLabel               string // "Title" (output-title field header)
+	RipEmbedChapters            string // "Embed chapters"
+	RipEmbedChaptersCountFmt    string // "Embed chapters (%d)"
+	RipEmbedChaptersNone        string // "Embed chapters (none on disc)"
+	RipChapterOnly              string // "Rip chapters only"
+	RipChapterFrom              string // "From chapter"
+	RipChapterTo                string // "To chapter"
+	RipAllAudioTracks           string // "All audio tracks"
+	RipAllAudioTracksLangsFmt   string // "All audio tracks (%d: %s)"
+	RipAllAudioTracksCountFmt   string // "All audio tracks (%d)"
+	RipIncludeSubtitles         string // "Include subtitles (DVD bitmap)"
+	RipIncludeSubtitlesMP4      string // "Include subtitles (not supported in MP4)"
+	RipIncludeSubtitlesNone     string // "Include subtitles (none on disc)"
 	RipIncludeSubtitlesCountFmt string // "Include subtitles (%d streams)"
-	RipPreserveMenusFull      string // "Preserve menus (separate files)"
-	RipFullDiscExtraction     string // "Full disc extraction (DVD-Video with IFO regeneration)"
-	RipRegionConversion       string // "Region Conversion"
-	RipRegionNone             string // "None" (no region conversion)
-	RipRegionPALtoNTSC        string // "PAL → NTSC"
-	RipRegionNTSCtoPAL        string // "NTSC → PAL"
-	RipAdvancedOptions        string // "Advanced"
-	RipTitlesOnDiscFmt        string // "Titles on disc (%d) — select in Content Browser"
-	RipRegionFree             string // "Region Free"
-	RipRegionFmt              string // "Region %d"
-	RipRegionsFmt             string // "Regions %s"
+	RipPreserveMenusFull        string // "Preserve menus (separate files)"
+	RipFullDiscExtraction       string // "Full disc extraction (DVD-Video with IFO regeneration)"
+	RipRegionConversion         string // "Region Conversion"
+	RipRegionNone               string // "None" (no region conversion)
+	RipRegionPALtoNTSC          string // "PAL → NTSC"
+	RipRegionNTSCtoPAL          string // "NTSC → PAL"
+	RipAdvancedOptions          string // "Advanced"
+	RipTitlesOnDiscFmt          string // "Titles on disc (%d) — select in Content Browser"
+	RipRegionFree               string // "Region Free"
+	RipRegionFmt                string // "Region %d"
+	RipRegionsFmt               string // "Regions %s"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string
@@ -858,44 +859,44 @@ type Strings struct {
 	RIFEInstallHint     string // "Install from Settings → Dependencies"
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
-	ThumbnailGenerateNow        string
-	ThumbnailContactSheet       string
-	ThumbnailColumns            string
-	ThumbnailRows               string
-	ThumbnailOutputFolder       string
-	ThumbnailIndividual         string // "Individual Thumbnails"
-	ThumbnailLoadVideo          string // "Load Video"
-	ThumbnailNoFile             string // "No file loaded"
-	ThumbnailFileLoaded         string // "File: video loaded"
-	ThumbnailInstructions       string // instruction text below header
-	ThumbnailContactSheetToggle string // "Generate Contact Sheet (single image)"
-	ThumbnailShowTimestamps     string // "Show timestamps on thumbnails"
-	ThumbnailContactSheetGrid   string // "Contact Sheet Grid" (box title)
-	ThumbnailOutputMode         string // "Output Mode"
-	ThumbnailModeIndividual     string // "Individual"
-	ThumbnailModeContactSheet   string // "Contact Sheet"
-	ThumbnailModeBoth           string // "Both"
-	ThumbnailSize               string // "Thumbnail Size:"
-	ThumbnailCountFmt           string // "Thumbnail Count: %d"
-	ThumbnailWidthFmt           string // "Thumbnail Width: %d px"
-	ThumbnailNativeFmt          string // "Native (%dx%d)"
-	ThumbnailColumnsFmt         string // "Columns: %d"
-	ThumbnailRowsFmt            string // "Rows: %d"
-	ThumbnailTotalFmt           string // "Total thumbnails: %d"
+	ThumbnailGenerateNow          string
+	ThumbnailContactSheet         string
+	ThumbnailColumns              string
+	ThumbnailRows                 string
+	ThumbnailOutputFolder         string
+	ThumbnailIndividual           string // "Individual Thumbnails"
+	ThumbnailLoadVideo            string // "Load Video"
+	ThumbnailNoFile               string // "No file loaded"
+	ThumbnailFileLoaded           string // "File: video loaded"
+	ThumbnailInstructions         string // instruction text below header
+	ThumbnailContactSheetToggle   string // "Generate Contact Sheet (single image)"
+	ThumbnailShowTimestamps       string // "Show timestamps on thumbnails"
+	ThumbnailContactSheetGrid     string // "Contact Sheet Grid" (box title)
+	ThumbnailOutputMode           string // "Output Mode"
+	ThumbnailModeIndividual       string // "Individual"
+	ThumbnailModeContactSheet     string // "Contact Sheet"
+	ThumbnailModeBoth             string // "Both"
+	ThumbnailSize                 string // "Thumbnail Size:"
+	ThumbnailCountFmt             string // "Thumbnail Count: %d"
+	ThumbnailWidthFmt             string // "Thumbnail Width: %d px"
+	ThumbnailNativeFmt            string // "Native (%dx%d)"
+	ThumbnailColumnsFmt           string // "Columns: %d"
+	ThumbnailRowsFmt              string // "Rows: %d"
+	ThumbnailTotalFmt             string // "Total thumbnails: %d"
 	ThumbnailCountMatchesSheetFmt string // "Count: %d (matches contact sheet)"
-	ThumbnailAddToQueue         string // "Add to Queue"
-	ThumbnailAddAllToQueue      string // "Add All to Queue"
-	ThumbnailLoadedVideos       string // "Loaded Videos:"
-	ThumbnailVideoFmt           string // "Video %d"
-	ThumbnailNoVideoTitle       string // dialog: "No Video"
-	ThumbnailNoVideoMsg         string // dialog: "Please load a video file first."
-	ThumbnailStartedTitle       string // dialog: "Thumbnails"
-	ThumbnailStartedMsg         string // dialog: generation started message
-	ThumbnailJobQueuedTitle     string // dialog: "Queue"
-	ThumbnailJobQueuedMsg       string // dialog: "Thumbnail job added to queue!"
-	ThumbnailNoVideosTitle      string // dialog: "No Videos"
-	ThumbnailNoVideosMsg        string // dialog: "Load videos first to add to queue."
-	ThumbnailJobsQueuedFmt      string // dialog: "Queued %d thumbnail jobs."
+	ThumbnailAddToQueue           string // "Add to Queue"
+	ThumbnailAddAllToQueue        string // "Add All to Queue"
+	ThumbnailLoadedVideos         string // "Loaded Videos:"
+	ThumbnailVideoFmt             string // "Video %d"
+	ThumbnailNoVideoTitle         string // dialog: "No Video"
+	ThumbnailNoVideoMsg           string // dialog: "Please load a video file first."
+	ThumbnailStartedTitle         string // dialog: "Thumbnails"
+	ThumbnailStartedMsg           string // dialog: generation started message
+	ThumbnailJobQueuedTitle       string // dialog: "Queue"
+	ThumbnailJobQueuedMsg         string // dialog: "Thumbnail job added to queue!"
+	ThumbnailNoVideosTitle        string // dialog: "No Videos"
+	ThumbnailNoVideosMsg          string // dialog: "Load videos first to add to queue."
+	ThumbnailJobsQueuedFmt        string // dialog: "Queued %d thumbnail jobs."
 
 	// ── About ─────────────────────────────────────────────────────────────
 	AboutTitle       string

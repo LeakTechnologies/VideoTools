@@ -259,21 +259,27 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	})
 	fontSizeSelect.SetSelected(cb.FontSize())
 
-	fontOptions := []string{t.SettingsFontIBM, t.SettingsFontVCR}
+	fontOptions := []string{t.SettingsFontIBM, t.SettingsFontVCR, t.SettingsFontSans}
 	currentFont := prefs.PlayerFont
 	if currentFont == "" {
 		currentFont = "ibm"
 	}
 	fontSelect := widget.NewSelect(fontOptions, func(selected string) {
-		if selected == t.SettingsFontVCR {
+		switch selected {
+		case t.SettingsFontVCR:
 			cb.SetPlayerFont("vcr")
-		} else {
+		case t.SettingsFontSans:
+			cb.SetPlayerFont("sans")
+		default:
 			cb.SetPlayerFont("ibm")
 		}
 	})
-	if currentFont == "vcr" {
+	switch currentFont {
+	case "vcr":
 		fontSelect.SetSelected(t.SettingsFontVCR)
-	} else {
+	case "sans":
+		fontSelect.SetSelected(t.SettingsFontSans)
+	default:
 		fontSelect.SetSelected(t.SettingsFontIBM)
 	}
 

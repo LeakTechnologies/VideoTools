@@ -28,3 +28,15 @@ var aboriginalSansBoldItalic []byte
 
 //go:embed assets/fonts/VCR-OSD-mono.ttf
 var vcrOSDMono []byte
+
+//go:embed assets/fonts/PlusJakartaSans-Regular.ttf
+var plusJakartaSansRegular []byte
+
+//go:embed assets/fonts/PlusJakartaSans-Italic.ttf
+var plusJakartaSansItalic []byte
+
+//go:embed assets/fonts/PlusJakartaSans-Bold.ttf
+var plusJakartaSansBold []byte
+
+//go:embed assets/fonts/PlusJakartaSans-BoldItalic.ttf
+var plusJakartaSansBoldItalic []byte

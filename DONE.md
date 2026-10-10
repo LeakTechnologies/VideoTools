@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev89 — Plus Jakarta Sans font option
+
+- **Neutral sans-serif font option.** Settings → Appearance → font select gains a third choice: **Plus Jakarta Sans** (OFL, four static styles bundled from the upstream Tokotype repo), for users who find the monospace options too engineering-flavoured. Existing options (IBM Plex Mono default, VCR OSD Mono) untouched; preference persists through the existing `PlayerFont` config key (new value `"sans"`, no schema change); Aboriginal Sans syllabics fallback and the SMPTE test-pattern font are unaffected. New i18n key `SettingsFontSans`. `dev-verify.ps1` full gate green.
+- **Next.** Real-media acceptance on an encrypted disc (priority 1); seek concurrency fix deferred to a later dev version by deliberate scoping.
+
 ## v0.1.1-dev88 — Repo baseline reconciliation
 
 - **Pre-dev88 reconciliation (`RECONCILIATION.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.

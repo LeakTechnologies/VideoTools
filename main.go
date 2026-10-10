@@ -104,7 +104,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion = "v0.1.1-dev88"
+	appVersion         = "v0.1.1-dev89"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1487,8 +1487,8 @@ type appState struct {
 	// previous canvas key handlers (chained so other modules keep theirs).
 	// PageUp/PageDown/Home/End scroll the active tab.
 	settingsActiveScroll *func() *ui.FastVScroll
-	settingsPrevKeyDown   func(*fyne.KeyEvent)
-	settingsPrevKeyUp     func(*fyne.KeyEvent)
+	settingsPrevKeyDown  func(*fyne.KeyEvent)
+	settingsPrevKeyUp    func(*fyne.KeyEvent)
 
 	// Subtitles module state
 	subtitleVideoPath   string
@@ -8443,6 +8443,7 @@ func runGUI() {
 		ui.SetFlagsFS(subFlagsFS)
 	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
+	ui.SetSansFontData(plusJakartaSansRegular, plusJakartaSansItalic, plusJakartaSansBold, plusJakartaSansBoldItalic)
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 	smpte.SetVCRFont(vcrOSDMono)
 
