@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev91 (October 2026)
+
+### Rip: Content Browser scroll-selection corruption + mode-radio re-click fixed
+
+- **The gap.** Two tester-facing glitches in title selection. (1) While scrolling a multi-title rip list, rows randomly ticked/un-ticked themselves and the "ready to rip N titles" count drifted from what was actually selected. (2) Re-clicking the already-active rip-mode radio option jumped the radio to another mode.
+- **Scroll-selection root cause.** `updateCard` re-wired each card's `OnChanged` handler **after** `SetChecked`. The Fyne List recycles card widgets across rows while scrolling, and `SetChecked` fires `OnChanged` synchronously — so a recycled card bound to row J ran row I's stale handler and wrote J's display state into I's selection. This also cleared the mode lock and fired the locked-click escape for stale locked rows on every recycle. Fix: the handler is now wired **once** per template card (`buildCardTemplate` → `toggleCard`) and resolves the current row through a per-card owner (`cardBox.owner`) bound to the state **before** `SetChecked`; `setAllSelected` only drives a control whose card actually belongs to the row it is about to update. The dev79/dev84 structural guard (`TestInvariantBulkSelectBypassesTheModeLock`) is preserved.
+- **Radio re-click root cause.** A Fyne `RadioGroup` deselects an already-selected option when it is tapped again and fires `OnChanged("")`; the handler's `value == ""` branch hardcoded `SetSelected(t.RipModeMainFeature)`, so re-clicking any mode (including a scene-segmented one) jumped the radio to Main feature. It now re-arms the *actually active* mode (`labelForMode(vs.extractMode)`), keeping the folder-source `regionConvert` guard that intentionally clears the mode.
+- **Gates.** Two new source-reading regression guards, both mutation-verified (reverting each fix turns its test red naming the defect): `TestInvariantCardSelectionHandlerIsStableAcrossListRecycling` and `TestInvariantRadioReclickKeepsTheActiveMode`. `dev-verify.ps1` full gate green (native_media build + vet + tests).
+- **Next.** Real-media acceptance on an encrypted disc remains priority 1 — DVD → Rip → Convert → playback — on a build whose sidecar can actually encode (dev90). Seek concurrency fix still deliberately deferred; the Rust audit harness and `vt-player`/`vt-iso` debugging tools follow.
+
 ## v0.1.1-dev90 (October 2026)
 
 ### CI/Release: restore libx264/libx265 to the shipped Windows FFmpeg

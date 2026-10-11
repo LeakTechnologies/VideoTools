@@ -2,6 +2,13 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev91 Scope (Rip Content Browser scroll-selection corruption + mode-radio re-click — in progress)
+
+- [x] **Rip: Content Browser scroll-selection corruption fixed** — `updateCard` re-wired each card check's `OnChanged` *after* `SetChecked`, and the Fyne List recycles card widgets across rows while scrolling (`SetChecked` fires `OnChanged` synchronously), so a recycled card bound to row J ran row I's stale handler and wrote J's display state into I's selection. Handler now wired **once** per template card (`buildCardTemplate` → `toggleCard`); each card binds `box.owner` to its row **before** `SetChecked`; `setAllSelected` only drives a check its own card owns.
+- [x] **Rip: mode-radio re-click fixed** — a Fyne `RadioGroup` deselects an already-selected option on re-click (`OnChanged("")`) and the `value == ""` branch hardcoded Main feature; it now re-arms the actually-active mode (`labelForMode(vs.extractMode)`), regionConvert guard untouched.
+- [x] **Regression guards** — `TestInvariantCardSelectionHandlerIsStableAcrossListRecycling`, `TestInvariantRadioReclickKeepsTheActiveMode`, both mutation-verified. `dev-verify.ps1` full gate green.
+- [ ] **Tester verify: dev91 release** — (1) scroll a multi-title rip list and confirm no title randomly ticks/un-ticks itself and the readiness line matches the selection; (2) click the active rip-mode option again and confirm it stays on that mode; (3) mode switches still reshape the selection; (4) a greyed/locked title click still exits the mode and selects it; (5) Select All / Deselect All still work without deadlock.
+
 ## Dev90 Scope (Restore H.264/H.265 encoding in the shipped Windows FFmpeg — in progress)
 
 - [x] **CI/release: build x264/x265 into the Windows FFmpeg** — `dev.yml` + `release.yml` Windows jobs build x264 + x265 static-only from source before configure (ported from `windows-msix.yml`), add `--enable-libx264 --enable-libx265`, add `git` to the MSYS2 install set, bump the FFmpeg cache key `v12` → `v13`. Root cause of `Unrecognized option 'crf'`: the shipped sidecar lacked the encoders; the UI offered H.264/H.265 regardless (the probe only labels, never gates). Linux ships no FFmpeg → unaffected.

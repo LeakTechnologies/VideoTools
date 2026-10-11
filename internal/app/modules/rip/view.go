@@ -1045,7 +1045,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}
 			default:
 				if value == "" {
-					nr.SetSelected(t.RipModeMainFeature)
+					// The Fyne radio deselects the tapped option when it is
+					// already selected (itemTapped fires OnChanged("")), so a
+					// re-click arrives as an empty value. Re-arm the mode that
+					// is actually active instead of jumping to Main feature.
+					nr.SetSelected(labelForMode(vs.extractMode))
 					return
 				}
 				vs.extractMode = ""

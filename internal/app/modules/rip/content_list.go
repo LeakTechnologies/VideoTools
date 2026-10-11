@@ -64,12 +64,22 @@ type ContentBrowser struct {
 	outerBox  fyne.CanvasObject
 }
 
+// cardBox wraps a recycled list card and records which title row currently owns
+// it. updateCard binds owner before calling SetChecked, so the card's stable
+// OnChanged handler (wired once in buildCardTemplate) always resolves the row
+// the user is looking at.
+type cardBox struct {
+	*fyne.Container
+	owner *titleCardState
+}
+
 type titleCardState struct {
 	title    DiscTitle
 	isMain   bool
 	frames   []fyne.Resource
 	thumbImg *canvas.Image
 	checked  *widget.Check
+	box      *cardBox
 	updating bool
 }
 
@@ -296,7 +306,11 @@ func (cb *ContentBrowser) setAllSelected(v bool) {
 	cb.anchored = nil
 	for _, tc := range cb.titleCards {
 		cb.selected[tc.title.Number] = v
-		if tc.checked != nil {
+		// Only drive the check while this card is actually bound to this title.
+		// A scrolled-out row keeps a stale *widget.Check pointing at a template
+		// card now owned by another row; the handler resolves the owner, so a
+		// SetChecked here would mutate the row that OWNS the card, not this one.
+		if tc.checked != nil && tc.box != nil && tc.box.owner == tc {
 			// SetChecked fires the card's OnChanged synchronously; raise the
 			// updating guard so that handler early-returns instead of trying
 			// to re-acquire cb.mu (held here) and deadlocking the UI thread.
@@ -394,7 +408,17 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 		layout.NewSpacer(),
 		check,
 	)
-	return card
+
+	// The selection handler is wired ONCE per template card instead of being
+	// re-assigned on every render. The List recycles a card across rows while
+	// scrolling; a handler rewired at the end of a render stays active during
+	// the NEXT row's SetChecked, which fires it synchronously and overwrites
+	// the previous row's selection with the new row's display state.
+	box := &cardBox{Container: card}
+	check.OnChanged = func(v bool) {
+		cb.toggleCard(box, check, v)
+	}
+	return box
 }
 
 func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -407,10 +431,10 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	tc := cb.titleCards[id]
 	isSelected := cb.selected[dt.Number]
 	isLockedOut := cb.locked[dt.Number]
-	isAnchored := cb.anchored[dt.Number]
 	cb.mu.Unlock()
 
-	hbox := obj.(*fyne.Container)
+	box := obj.(*cardBox)
+	hbox := box.Container
 	accentBar := hbox.Objects[0].(*canvas.Rectangle)
 	thumbContainer := hbox.Objects[1].(*fyne.Container)
 	vbox := hbox.Objects[2].(*fyne.Container)
@@ -489,42 +513,66 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	// one exits the restrictive rip mode and selects that title. Anchored
 	// titles are forced selected; clicking them is a no-op.
 	displayChecked := isSelected && !isLockedOut
+	box.owner = tc
+	tc.box = box
 	tc.checked = check
+	// The card's OnChanged handler was wired once in buildCardTemplate and
+	// resolves which row owns this card through box.owner. Setting the guard
+	// and owner BEFORE SetChecked matters: SetChecked fires that handler
+	// synchronously, and when the List recycles this card for a different row
+	// the previous handler must early-return rather than write the stale row.
 	tc.updating = true
 	check.SetChecked(displayChecked)
 	tc.updating = false
-	check.OnChanged = func(v bool) {
-		if tc.updating {
-			return
-		}
-		if isLockedOut {
-			cb.mu.Lock()
-			cb.locked = nil
-			cb.anchored = nil
-			cb.selected[dt.Number] = true
-			fn := cb.onLockedSelect
-			cb.mu.Unlock()
-			cb.list.Refresh()
-			if fn != nil {
-				fn(dt.Number)
-			}
-			return
-		}
-		if isAnchored {
-			tc.updating = true
-			check.SetChecked(true)
-			tc.updating = false
-			return
-		}
-		cb.mu.Lock()
-		cb.selected[dt.Number] = v
-		fn := cb.onSelect
+}
+
+// toggleCard is the stable selection handler wired once per template card. The
+// List recycles cards across rows while scrolling, so instead of capturing a
+// row's state in a per-render closure the handler resolves the CURRENT owner of
+// this card through box.owner: a click always acts on the title the user is
+// looking at, and the re-bind SetChecked that updateCard performs can never
+// reach a stale row's selection.
+func (cb *ContentBrowser) toggleCard(box *cardBox, check *widget.Check, v bool) {
+	cb.mu.Lock()
+	tc := box.owner
+	if tc == nil || tc.updating {
 		cb.mu.Unlock()
-		if fn != nil {
-			fn(dt.Number, v)
-		}
-		cb.list.Refresh()
+		return
 	}
+	dt := tc.title
+	isLockedOut := cb.locked[dt.Number]
+	isAnchored := cb.anchored[dt.Number]
+	if isLockedOut {
+		// Clicking a greyed-out title exits the restrictive mode and selects it.
+		cb.locked = nil
+		cb.anchored = nil
+		cb.selected[dt.Number] = true
+		fn := cb.onLockedSelect
+		cb.mu.Unlock()
+		cb.list.Refresh()
+		if fn != nil {
+			fn(dt.Number)
+		}
+		return
+	}
+	cb.mu.Unlock()
+
+	if isAnchored {
+		// Anchored titles are forced selected; a click re-arms the check.
+		tc.updating = true
+		check.SetChecked(true)
+		tc.updating = false
+		return
+	}
+
+	cb.mu.Lock()
+	cb.selected[dt.Number] = v
+	fn := cb.onSelect
+	cb.mu.Unlock()
+	if fn != nil {
+		fn(dt.Number, v)
+	}
+	cb.list.Refresh()
 }
 
 // CreateRenderer implements fyne.Widget.

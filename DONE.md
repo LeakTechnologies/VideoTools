@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev91 — Rip: Content Browser scroll-selection corruption + mode-radio re-click fixed
+
+- **Glitch 1 — scroll-selection corruption.** While scrolling a multi-title rip list, rows randomly ticked/un-ticked themselves and the "ready to rip N titles" count drifted from the selection. Root cause: `updateCard` re-wired each card check's `OnChanged` **after** `SetChecked`; the Fyne List recycles card widgets across rows while scrolling and `SetChecked` fires `OnChanged` synchronously, so a recycled card bound to row J ran row I's still-wired handler and wrote J's display state into I's selection (also clearing mode locks and firing the locked-click escape on stale locked rows). Fix: the handler is wired **once** per template card (`buildCardTemplate` → `toggleCard`) and resolves the current row through a per-card owner (`cardBox.owner`) bound by `updateCard` **before** `SetChecked`; `setAllSelected` only drives a check whose card is actually owned by that row.
+- **Glitch 2 — mode-radio re-click.** A Fyne `RadioGroup` deselects an already-selected option when it is tapped again and fires `OnChanged("")`; the handler's `value == ""` branch hardcoded `SetSelected(t.RipModeMainFeature)`, so re-clicking any mode jumped the radio to Main feature. It now re-arms the *actually active* mode (`labelForMode(vs.extractMode)`), leaving the folder-source `regionConvert` guard intact.
+- **Guards.** Two source-reading regression constraints, each mutation-verified: `TestInvariantCardSelectionHandlerIsStableAcrossListRecycling`, `TestInvariantRadioReclickKeepsTheActiveMode`. `dev-verify.ps1` full gate green.
+- **Next.** Real-media acceptance on an encrypted disc (priority 1): DVD → Rip → Convert → playback; then the Rust audit harness (Phase 1) and `vt-player`/`vt-iso` debugging tools.
+
 ## v0.1.1-dev90 — Restore libx264/libx265 to the shipped Windows FFmpeg
 
 - **The defect.** The Windows FFmpeg sidecar built by `dev.yml`/`release.yml` was configured without `--enable-libx264`/`--enable-libx265` (only `windows-msix.yml` built them), so every H.264/H.265 output — rip, convert, upscale, subtitle burn-in, thumbnails, benchmark — failed at encode time with `Unrecognized option 'crf'`. The UI offered the codecs regardless: the startup probe only labels the format list, it never gates it. Confirmed on the published dev89 zip's bundled `ffmpeg.exe` (`-encoders` shows neither encoder). Linux ships no FFmpeg and is unaffected.

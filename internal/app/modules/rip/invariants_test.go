@@ -167,6 +167,96 @@ func TestInvariantBulkSelectBypassesTheModeLock(t *testing.T) {
 	}
 }
 
+// TestInvariantCardSelectionHandlerIsStableAcrossListRecycling pins the dev91
+// scroll-corruption fix.
+//
+// The Fyne List recycles its card widgets across rows while scrolling
+// (setupListItem calls UpdateItem(id, li.child) on a pooled template object).
+// Check.SetChecked fires the card's OnChanged synchronously, so a handler that
+// is re-assigned at the END of updateCard stays active when the recycled card is
+// next bound to a different row: that row's SetChecked then runs the PREVIOUS
+// row's handler and overwrites the previous row's selection with the new row's
+// display state. The content browser visually ticked and unticked titles the
+// user was not even looking at, corrupting the "ready to rip" count.
+func TestInvariantCardSelectionHandlerIsStableAcrossListRecycling(t *testing.T) {
+	src := readContentListSource(t)
+
+	fn := funcBody(t, src, "func (cb *ContentBrowser) updateCard")
+	if fn == "" {
+		t.Fatal("updateCard is gone; the recycled-card selection guard cannot be pinned")
+	}
+
+	// The handler must be wired once per template card and resolve the row it is
+	// attached to at click time. Re-wiring OnChanged per render re-introduces
+	// the cross-row corruption.
+	if strings.Contains(fn, "check.OnChanged =") {
+		t.Error("updateCard re-wires check.OnChanged per render. The List recycles cards " +
+			"across rows while scrolling, so a card SetChecked by the next row fires THIS " +
+			"row's handler and overwrites the previous row's selection with the new row's " +
+			"display state (the dev91 scroll corruption). Wire the handler once in " +
+			"buildCardTemplate and resolve the current row through box.owner")
+	}
+
+	// The owner binding must land before SetChecked: SetChecked fires the card's
+	// OnChanged synchronously, so the stable handler must already see which row
+	// the card is being bound to.
+	ownerAt := strings.Index(fn, "box.owner = tc")
+	setAt := strings.Index(fn, "SetChecked(")
+	if ownerAt < 0 {
+		t.Error("updateCard no longer binds box.owner; the stable handler cannot resolve " +
+			"the row it renders")
+	} else if setAt < 0 || ownerAt > setAt {
+		t.Error("updateCard must bind box.owner BEFORE SetChecked: SetChecked fires the " +
+			"card's OnChanged synchronously, so the handler must already see the row being " +
+			"rendered")
+	}
+
+	// The per-render bind SetChecked must stay guarded so it cannot act on itself.
+	if !strings.Contains(fn, "tc.updating = true") || !strings.Contains(fn, "tc.updating = false") {
+		t.Error("updateCard no longer raises the per-card updating guard around SetChecked; " +
+			"the re-bind would hit the live handler and re-enter")
+	}
+
+	// The stable handler and the owner-carrying wrapper must exist.
+	tmpl := funcBody(t, src, "func (cb *ContentBrowser) buildCardTemplate")
+	if tmpl == "" {
+		t.Fatal("buildCardTemplate is gone")
+	}
+	if !strings.Contains(tmpl, "toggleCard") {
+		t.Error("buildCardTemplate no longer wires the stable toggleCard handler; per-row " +
+			"OnChanged closures recreate the cross-row corruption")
+	}
+	if !strings.Contains(tmpl, "&cardBox{") {
+		t.Error("buildCardTemplate no longer returns a cardBox; the owner binding that " +
+			"prevents stale-row mutation is gone")
+	}
+}
+
+// TestInvariantRadioReclickKeepsTheActiveMode pins the dev91 radio fix.
+//
+// A Fyne RadioGroup deselects the tapped option when it is already selected
+// (itemTapped fires OnChanged("")). The old handler treated that empty value as
+// an instruction to jump to Main feature, so re-clicking the selected option
+// visibly switched modes with no input change. The empty value must instead
+// re-arm the mode that is actually active.
+func TestInvariantRadioReclickKeepsTheActiveMode(t *testing.T) {
+	src := readViewSource(t)
+	hand := between(t, src, "nr.OnChanged = func(value string)", "applyRipMode()")
+	if hand == "" {
+		t.Fatal("radio OnChanged handler is gone; the re-click guard cannot be pinned")
+	}
+	if strings.Contains(hand, "SetSelected(t.RipModeMainFeature)") {
+		t.Error("radio empty-tap re-arms Main feature. Fyne radios deselect the tapped " +
+			"option when it is already selected (itemTapped fires OnChanged(\"\")), and " +
+			"re-arming Main makes the radio jump to a different mode than the one running")
+	}
+	if !strings.Contains(hand, "labelForMode(vs.extractMode)") {
+		t.Error("radio empty-tap no longer re-arms the active mode's label; the deselect " +
+			"signal must keep the current mode armed instead of blanking the group or " +
+			"jumping to another mode")
+	}
+}
+
 // TestInvariantSelectAllIgnoresGreyedTitles pins the observable consequence:
 // with titles present, a bulk Select All must reach every one of them, and
 // Deselect All must clear every one of them.
@@ -410,9 +500,9 @@ func TestRipTargetTitlesHonoursSingleTitleSelection(t *testing.T) {
 	// With a scene set present, the same mode pre-selects main + extras and is
 	// rippable.
 	ss := SceneSetInfo{
-		Present:       true,
-		SceneTitles:   map[int]bool{3: true},
-		WholeTitles:   map[int]bool{1: true},
+		Present:        true,
+		SceneTitles:    map[int]bool{3: true},
+		WholeTitles:    map[int]bool{1: true},
 		Representative: 1,
 	}
 	sel = CanonicalSelection(multi, "", ss)
@@ -431,9 +521,9 @@ func TestInvariantSelectAllIgnoresGreyedTitles(t *testing.T) {
 		{Number: 3, Duration: 600},
 	}
 	ss := SceneSetInfo{
-		Present:       true,
-		SceneTitles:   map[int]bool{2: true, 3: true},
-		WholeTitles:   map[int]bool{1: true},
+		Present:        true,
+		SceneTitles:    map[int]bool{2: true, 3: true},
+		WholeTitles:    map[int]bool{1: true},
 		Representative: 1,
 	}
 
@@ -484,6 +574,11 @@ func readContentListSource(t *testing.T) string {
 	return readRipSource(t, "content_list.go")
 }
 
+func readViewSource(t *testing.T) string {
+	t.Helper()
+	return readRipSource(t, "view.go")
+}
+
 // readRipSource reads a file from the rip package directory. Tests run with the
 // package directory as the working directory, so a plain relative read is
 // correct and keeps these guards free of absolute paths.
@@ -505,6 +600,23 @@ func lineContaining(t *testing.T, src, needle string) string {
 		}
 	}
 	return ""
+}
+
+// between extracts the source between the first occurrence of start and the
+// first occurrence of end after it. Used to isolate a closure that funcBody
+// cannot isolate (its closing brace is indented, not at column zero).
+func between(t *testing.T, src, start, end string) string {
+	t.Helper()
+	s := strings.Index(src, start)
+	if s < 0 {
+		return ""
+	}
+	s += len(start)
+	rel := strings.Index(src[s:], end)
+	if rel < 0 {
+		return ""
+	}
+	return src[s : s+rel]
 }
 
 // funcBody extracts the source of the function whose signature contains sig,
