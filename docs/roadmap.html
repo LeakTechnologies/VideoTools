@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev84 &mdash; October 2026 (Player: the dormant libVLC backend and its inert Settings toggle removed) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev90 &mdash; October 2026 (Windows FFmpeg: libx264/libx265 restored in the shipped sidecar) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -639,7 +639,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev89';
+const currentVersion = 'dev90';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -835,7 +835,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev84', date: 'October 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev90', date: 'October 2026', tag: 'current', sections: [
+    { title: 'CI/Release: restore libx264/libx265 to the shipped Windows FFmpeg', items: [
+      'The gap: the Windows sidecar ffmpeg.exe built by dev.yml and release.yml was configured without --enable-libx264 --enable-libx265 — only windows-msix.yml ever built the encoders. Every H.264/H.265 path (rip, convert, upscale, subtitle burn-in, thumbnails, benchmark) handed the sidecar a -crf argument and FFmpeg exited with "Unrecognized option crf (Error splitting the argument list)", while the UI still offered the codecs because the startup probe only labels the format list, it never gates it. Confirmed against the published dev89 zip: its bundled ffmpeg.exe -encoders lists neither libx264 nor libx265.',
+      'The fix: dev.yml and release.yml now build x264 and x265 from source, static-only, into the FFmpeg prefix before configure — the exact recipe already proven in windows-msix.yml. git is added to the MSYS2 install set; configure gains --enable-libx264 --enable-libx265; the FFmpeg cache key is bumped v12 to v13 so the encoder-less prefix cannot be restored from cache. Linux is unaffected — its jobs build libraries only (--disable-programs) and the tarball ships no FFmpeg.',
+      'The gate: the build step now hard-fails if the built ffmpeg.exe does not expose libx264/libx265, and a new "Verify encoders (libx264 / libx265)" step runs on every job including cache hits. This was the missing counterpart to the existing dvdvideo/drawtext gates; the defect shipped because no gate asserted the encoders the app actually invokes.'
+    ]}
+  ] },
+  { version: 'v0.1.1-dev84', date: 'October 2026', tag: 'done', sections: [
     { title: 'Rip: the dvdvideo to VOB-concat retry no longer fires for output-side failures', items: [
       'The defect: the retry swaps the INPUT, so it may only ever fire when the input is what failed. Its gate was a deny-list (err != nil && useDVDVideo && ctx.Err() == nil && !isMuxerCodecError(err)), which admitted output-side failures. Confirmed by running ffmpeg directly and reading the stderr it produced: a blocked output path gives "Error opening output file ... No such file or directory", a full disk gives "No space left on device", and an unreadable source gives "libdvdread: Could not open ... Unable to open the DVD-Video structure". The old gate could not tell those apart.',
       'The consequence: an unwritable destination or a full disk launched a SECOND FULL RIP and then surfaced the fallback error, so the user was told "dvdvideo demuxer failed (...)" for what was really a write failure, after paying for the duplicate rip. Same defect class dev83 fixed one layer up, where a doomed retry masked a muxer rejection.',

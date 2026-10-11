@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev90 (October 2026)
+
+### CI/Release: restore libx264/libx265 to the shipped Windows FFmpeg
+
+- **The gap.** The Windows sidecar `ffmpeg.exe` built by `dev.yml` and `release.yml` was configured without `--enable-libx264 --enable-libx265` — only `windows-msix.yml` ever built the encoders. The app still offered H.264/H.265 in every module (the startup probe only *labels* the format list; it never gated the options), so every H.264/H.265 path — rip, convert, upscale, subtitle burn-in, thumbnails, benchmark — handed the sidecar `-c:v libx264 … -crf …` and FFmpeg exited with `Unrecognized option 'crf'. Error splitting the argument list: Option not found`. Confirmed against the published dev89 zip: its bundled `ffmpeg.exe -encoders` lists neither libx264 nor libx265. Linux is unaffected — its jobs build libraries only (`--disable-programs`) and the Linux tarball ships no FFmpeg, so it uses the system binary.
+- **The fix.** `dev.yml` and `release.yml` now build x264 and x265 from source, static-only, into the FFmpeg prefix before FFmpeg configure — the exact recipe already proven in `windows-msix.yml`. `git` is added to the MSYS2 install set; configure gains `--enable-libx264 --enable-libx265`; the FFmpeg cache key is bumped (`v12` → `v13`) so the encoder-less prefix cannot be restored from cache.
+- **The gate.** The build step now hard-fails if the built `ffmpeg.exe` does not expose libx264/libx265, and a new **Verify encoders (libx264 / libx265)** step runs on every job — including cache hits — so a cached prefix that lacks the encoders can never carry a dev or release run past it. This was the missing counterpart to the existing dvdvideo/drawtext gates; the defect shipped because no gate asserted the encoders the app actually invokes.
+- **Next.** Real-media acceptance on an encrypted disc (priority 1) — DVD → Rip → Convert → playback — now on a build whose sidecar can actually encode. Seek concurrency fix still deliberately deferred; the Rust audit harness and `vt-player`/`vt-iso` debugging tools follow.
+
 ## v0.1.1-dev89 (October 2026)
 
 ### Settings: Plus Jakarta Sans font option (neutral sans-serif)

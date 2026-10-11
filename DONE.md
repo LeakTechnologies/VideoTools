@@ -1,5 +1,11 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev90 — Restore libx264/libx265 to the shipped Windows FFmpeg
+
+- **The defect.** The Windows FFmpeg sidecar built by `dev.yml`/`release.yml` was configured without `--enable-libx264`/`--enable-libx265` (only `windows-msix.yml` built them), so every H.264/H.265 output — rip, convert, upscale, subtitle burn-in, thumbnails, benchmark — failed at encode time with `Unrecognized option 'crf'`. The UI offered the codecs regardless: the startup probe only labels the format list, it never gates it. Confirmed on the published dev89 zip's bundled `ffmpeg.exe` (`-encoders` shows neither encoder). Linux ships no FFmpeg and is unaffected.
+- **The repair.** Both Windows FFmpeg recipes now build x264 + x265 static-only from source before configure (ported from the proven `windows-msix.yml`), add `--enable-libx264 --enable-libx265`, add `git` to the MSYS2 install set, and bump the FFmpeg cache key `v12` → `v13`. The build hard-fails if the encoders are absent, and a new **Verify encoders (libx264 / libx265)** step runs every job (cache hits included).
+- **Next.** Real-media acceptance on an encrypted disc (priority 1): DVD → Rip → Convert → playback on the released build; then the Rust audit harness (Phase 1) and `vt-player`/`vt-iso` debugging tools.
+
 ## v0.1.1-dev89 — Plus Jakarta Sans font option
 
 - **Neutral sans-serif font option.** Settings → Appearance → font select gains a third choice: **Plus Jakarta Sans** (OFL, four static styles bundled from the upstream Tokotype repo), for users who find the monospace options too engineering-flavoured. Existing options (IBM Plex Mono default, VCR OSD Mono) untouched; preference persists through the existing `PlayerFont` config key (new value `"sans"`, no schema change); Aboriginal Sans syllabics fallback and the SMPTE test-pattern font are unaffected. New i18n key `SettingsFontSans`. `dev-verify.ps1` full gate green.

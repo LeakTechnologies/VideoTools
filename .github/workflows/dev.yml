@@ -99,6 +99,7 @@ jobs:
             mingw-w64-ucrt-x86_64-make
             mingw-w64-ucrt-x86_64-diffutils
             mingw-w64-ucrt-x86_64-libwinpthread-git
+            git
             tar unzip curl
 
       - name: Cache FFmpeg
@@ -106,7 +107,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: C:\ffmpeg-static
-          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v12' }}
+          key: ffmpeg-${{ runner.os }}-${{ vars.FFMPEG_CACHE_VERSION || 'v13' }}
           restore-keys: ffmpeg-${{ runner.os }}-
 
       - name: Build FFmpeg (static libs + static ffmpeg.exe/ffprobe.exe)
@@ -115,6 +116,57 @@ jobs:
         run: |
           export PATH="/ucrt64/bin:/usr/bin:$PATH"
           export PKG_CONFIG_PATH=/c/ffmpeg-static/lib/pkgconfig
+          # x264 + x265 from source (static-only) — VideoTools invokes the
+          # bundled sidecar ffmpeg.exe with -c:v libx264 / -c:v libx265 for
+          # every H.264/H.265 output (rip, convert, upscale, subtitle burn-in,
+          # benchmark). dev89 shipped without them and every H.264 rip failed
+          # with "Unrecognized option 'crf'" because the encoder was absent.
+          # MSYS2's prebuilt x264/x265 ship __declspec(dllimport) headers that
+          # poison the fully-static link (same rule as freetype/harfbuzz below),
+          # so both are built from source here.
+          WS="$PWD"
+          mkdir -p /c/ffmpeg-static/lib/pkgconfig /c/ffmpeg-static/include
+          echo "[INFO] Building x264 from source (static only)..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
+          cd /tmp && rm -rf /tmp/x264-src
+          echo "[INFO] Building x265 from source (static only)..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G 'MSYS Makefiles' \
+                -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../x265-src/source
+          make -j$(nproc) && make install
+          # x265's cmake install writes a .pc whose C++ runtime sits behind
+          # Libs.private; FFmpeg's Windows configure calls pkg-config WITHOUT
+          # --static, so it is never expanded. Rewrite x265.pc so
+          # -lx265 -lstdc++ -lsupc++ -lm sit in Libs directly (same precedent
+          # as the dvdnav.pc / harfbuzz.pc overwrites below).
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder'  >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'          >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
+          cd /tmp
+          pkg-config --exists x264 && echo "OK: x264.pc" \
+            || { echo "FATAL: x264.pc not found in FFmpeg prefix"; exit 1; }
+          pkg-config --exists x265 && echo "OK: x265.pc" \
+            || { echo "FATAL: x265.pc not found in FFmpeg prefix"; exit 1; }
+          cd "$WS"
           # libdvdread + libdvdnav from source (static-only) — required by
           # FFmpeg's dvdvideo demuxer (cell-accurate DVD title playback).
           curl -L --retry 3 --retry-delay 5 --retry-all-errors "https://downloads.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2" | tar xj
@@ -253,6 +305,7 @@ jobs:
           echo "=== PHASE 2: FFmpeg configure ==="
           ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared \
             --disable-doc --enable-gpl --enable-version3 \
+            --enable-libx264 --enable-libx265 \
             --enable-libdvdnav --enable-libdvdread --enable-libfreetype --enable-libharfbuzz \
             --extra-ldflags="-static" 2>&1 | tee /tmp/ffmpeg-configure.log
           RC=${PIPESTATUS[0]}
@@ -297,6 +350,14 @@ jobs:
             || { echo "FATAL: dvdvideo demuxer not enabled after FFmpeg build"; exit 1; }
           /c/ffmpeg-static/bin/ffmpeg.exe -filters 2>&1 | grep -q "drawtext" \
             || { echo "FATAL: drawtext filter not enabled after FFmpeg build"; exit 1; }
+          # Encoder gate: the sidecar ffmpeg.exe must expose libx264/libx265 or
+          # every H.264/H.265 output (rip/convert/upscale) fails at encode time.
+          # dev89 shipped without them; fail the build (so the bad prefix is
+          # never cached or released) rather than discover it on a user's disc.
+          /c/ffmpeg-static/bin/ffmpeg.exe -hide_banner -encoders 2>&1 | grep -q "libx264" \
+            || { echo "FATAL: libx264 encoder not enabled after FFmpeg build"; exit 1; }
+          /c/ffmpeg-static/bin/ffmpeg.exe -hide_banner -encoders 2>&1 | grep -q "libx265" \
+            || { echo "FATAL: libx265 encoder not enabled after FFmpeg build"; exit 1; }
 
       - name: Verify dvdvideo demuxer
         shell: msys2 {0}
@@ -307,6 +368,22 @@ jobs:
             echo "ERROR: dvdvideo demuxer missing"
             exit 1
           fi
+
+      - name: Verify encoders (libx264 / libx265)
+        shell: msys2 {0}
+        run: |
+          # Runs on every build, including cache hits, so a cached FFmpeg prefix
+          # that lacks the encoders can never carry a release past this point.
+          FAIL=0
+          for enc in libx264 libx265; do
+            if /c/ffmpeg-static/bin/ffmpeg.exe -hide_banner -encoders 2>&1 | grep -q "$enc"; then
+              echo "OK: $enc encoder present"
+            else
+              echo "ERROR: $enc encoder missing from sidecar ffmpeg.exe"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
 
       - name: Build VideoTools (Windows)
         shell: msys2 {0}

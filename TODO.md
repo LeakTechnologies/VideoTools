@@ -2,6 +2,17 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev90 Scope (Restore H.264/H.265 encoding in the shipped Windows FFmpeg — in progress)
+
+- [x] **CI/release: build x264/x265 into the Windows FFmpeg** — `dev.yml` + `release.yml` Windows jobs build x264 + x265 static-only from source before configure (ported from `windows-msix.yml`), add `--enable-libx264 --enable-libx265`, add `git` to the MSYS2 install set, bump the FFmpeg cache key `v12` → `v13`. Root cause of `Unrecognized option 'crf'`: the shipped sidecar lacked the encoders; the UI offered H.264/H.265 regardless (the probe only labels, never gates). Linux ships no FFmpeg → unaffected.
+- [x] **Encoder gate** — the build step hard-fails if `ffmpeg.exe` lacks libx264/libx265; new **Verify encoders (libx264 / libx265)** step runs every job including cache hits.
+- [ ] **Tester verify: dev90 release** — (1) rip a title with an H.264 format (or Convert to a known H.264 preset) and confirm it completes instead of failing with `Unrecognized option 'crf'`; (2) the shipped `ffmpeg.exe` (next to `VideoTools.exe`) lists libx264 + libx265 via `-encoders`; (3) H.265/HEVC output also encodes.
+- [ ] **Real-media acceptance (priority 1)** — DVD (CSS) → Rip → Convert → playback on an **encrypted** disc, on the dev90 build. The decryptor + a working encoder are the proof points.
+- [ ] **Seek concurrency fix (deliberately deferred)** — cap-1 mailbox drops (`seekCh`/`seekQueue`), concurrent SetFrame/SetCurrentTime writers, missing `isScrubbing` gate, unbounded WaitForPTS. Historical seekGen-lastSeekGen bug already fixed (`playback.go:607`) — do not resurrect.
+- [ ] **Audit harness (Rust devtool, Phase 1)** — pending after dev90; Phase 0 inventory complete (CI never runs tests; encoder/i18n/parity/hygiene rules missing).
+- [ ] **Player/ISO debugging tools** — tooling that surfaces holes specifically in `vt-player` and `vt-iso`.
+- [ ] **Layout claims D1–D15** — UNVERIFIED until a rendered screenshot promotes or dismisses them.
+
 ## Dev89 Scope (Plus Jakarta Sans font option — in progress)
 
 - [x] **Settings: Plus Jakarta Sans font option** — a third font choice (neutral sans-serif, OFL, four static styles bundled) alongside IBM Plex Mono (default, kept) and VCR OSD Mono (kept). Preference value `"sans"` flows through the existing `PlayerFont` config key; Aboriginal Sans syllabics fallback unaffected; SMPTE test-pattern font unaffected. New i18n key `SettingsFontSans` (en/fr; iu falls back). `dev-verify.ps1` full gate green.
