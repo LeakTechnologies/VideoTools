@@ -71,8 +71,9 @@ type AudioPlayer struct {
 	// Decode bridge: audioDecodeLoop → Read()
 	pcmCh      chan audioChunk // decoded, resampled, volume-applied PCM chunks
 	leftover   []byte          // partial chunk carried across Read() calls
-	decodeStop chan struct{}    // closed by Close() to stop audioDecodeLoop
+	decodeStop chan struct{}   // closed by Close() to stop audioDecodeLoop
 	decodeWg   sync.WaitGroup
+	closeOnce  sync.Once // concurrent Close calls wait for complete disposal
 
 	// lastPTSBits holds math.Float64bits of the most recent audio PTS fed to
 	// the master clock via Read().  Atomic so GetLastPTS() is lock-free.
@@ -646,51 +647,53 @@ func (p *AudioPlayer) SetSpeed(speed float64) {
 }
 
 func (p *AudioPlayer) Close() {
-	// Mark closed immediately so any in-flight Read() call returns io.EOF
-	// rather than accessing fields we are about to tear down.
-	p.closed.Store(true)
+	p.closeOnce.Do(func() {
+		// Mark closed immediately so any in-flight Read() call returns io.EOF
+		// rather than accessing fields we are about to tear down.
+		p.closed.Store(true)
 
-	// Stop the decode goroutine. When it exits its deferred close(p.pcmCh)
-	// fires, which causes any pending Read() select to unblock with ok=false.
-	if p.decodeStop != nil {
-		close(p.decodeStop)
-		p.decodeStop = nil
-	}
-	p.decodeWg.Wait()
+		// Stop the decode goroutine. When it exits its deferred close(p.pcmCh)
+		// fires, which causes any pending Read() select to unblock with ok=false.
+		if p.decodeStop != nil {
+			close(p.decodeStop)
+		}
+		p.decodeWg.Wait()
 
-	// Pause then close the oto player. Pause() stops audio output immediately;
-	// Close() blocks until the current Read() invocation (if any) completes,
-	// ensuring no concurrent access to p's fields from the oto callback thread
-	// after this point.
-	if p.otoPlayer != nil {
-		p.otoPlayer.Pause()
-		p.otoPlayer.Close()
-		p.otoPlayer = nil
-	}
-	p.otoCtx = nil
+		// Pause then close the oto player. Pause() stops audio output immediately;
+		// Close() blocks until the current Read() invocation (if any) completes,
+		// ensuring no concurrent access to p's fields from the oto callback thread
+		// after this point.
+		if p.otoPlayer != nil {
+			p.otoPlayer.Pause()
+			p.otoPlayer.Close()
+			p.otoPlayer = nil
+		}
+		p.otoCtx = nil
 
-	// Drain any remaining PCM now that both the decode goroutine and oto are
-	// fully stopped — no concurrent receiver on pcmCh any more.
-	for len(p.pcmCh) > 0 {
-		<-p.pcmCh
-	}
+		// Drain any remaining PCM now that both the decode goroutine and oto are
+		// fully stopped — no concurrent receiver on pcmCh any more.
+		for len(p.pcmCh) > 0 {
+			<-p.pcmCh
+		}
 
-	p.mu.Lock()
-	fg := p.filterGraph
-	p.filterGraph = nil
-	p.mu.Unlock()
-	if fg != nil {
-		fg.Release()
-	}
+		p.mu.Lock()
+		fg := p.filterGraph
+		p.filterGraph = nil
+		p.mu.Unlock()
+		if fg != nil {
+			fg.Release()
+		}
 
-	if p.swrCtx != nil {
-		C.swr_free(&p.swrCtx)
-		p.swrCtx = nil
-	}
-	if p.frame != nil {
-		C.av_frame_free(&p.frame)
-		p.frame = nil
-	}
+		if p.swrCtx != nil {
+			C.swr_free(&p.swrCtx)
+			p.swrCtx = nil
+		}
+		if p.frame != nil {
+			C.av_frame_free(&p.frame)
+			p.frame = nil
+		}
+
+	})
 }
 
 // flushCodecTail sends a drain (NULL) packet to the audio codec and pushes any

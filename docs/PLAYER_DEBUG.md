@@ -1,5 +1,18 @@
 # Player Debug Status
 
+## Source/presentation ownership candidate — 2026-10-12 (not landed)
+
+Implemented source-owned load and presentation lifetimes, cancellation/join before replacement transport, serialized native operations, guarded callbacks/EOF reload, partial-open cleanup and consistent failure state. Paused seek and step reads use cancellation. Runtime media was a user-supplied local MP4; full filenames and titles are kept outside the repository.
+
+Automated real-window checks exposed two failures missed by headless tests:
+1. Worker held player mu across SetFrame/Refresh; Fyne synchronously waited for its main thread, whose queued run-current check needed the same mutex. Goroutine stacks confirmed the cycle. Repaired by placing frame refresh in the guarded main-thread callback outside player mu.
+2. Close during loading stalled in AudioPlayer.Close waiting for the paused decoder. Close had closed decodeStop then replaced it with nil, allowing the decoder to miss retirement. Timeout stacks confirmed the paused loop and waiting cleanup. The channel is now immutable; sync.Once gates complete cleanup. Scrubber start/stop are also idempotent because construction and the wrapper both requested startup.
+
+Final automated software-decode sequence: play, six rapid pause/play pairs, paused forward step, seek to 8 seconds, play, close, start another load, close it after 25 ms, wait for cancellation, reopen, play at 1x/2x, close. Completed with 398 progress frames, pathCleared=true and playing=false. All three source sessions retired. Close-during-load returned cancellation. Logs and diagnostic dumps remained in temporary directories outside the repository.
+
+This run is automated evidence only. User reported being away and missed both visible checks; there is no visual/audio sign-off for this candidate. Do not land/publish it yet. One known seek accurate-fallback warning remains: requested 8 seconds displayed 7.875. After rapid resumes, the paused-step readout reached 23.891 despite a much shorter playback segment; resume queue/clock continuity needs a dedicated repair and measurement. These findings remain open rather than being called successful navigation. Hardware decode, native I/O interruption, encrypted-disc playback and synchronized comparison are not accepted by this run.
+
+
 ## Dev94 candidate playback session — 2026-10-12
 
 A temporary visible Fyne verification window used the actual InlineVideoPlayer/FFmpeg/oto path with user-supplied local MP4 media, software decode and the cancellation candidate. Sequence: play 5 seconds, pause 1 second, resume 4 seconds, 2x for 3 seconds, close, allow teardown 2 seconds. Delivered 243 progress frames. Engine close was logged approximately 3 ms after the close request; the session completed normally. Logs remained outside the repo in the temporary candidate-session directory; media titles and full paths are not committed.
@@ -213,3 +226,5 @@ Always acquire in ascending order. `lockdep` build tag enables runtime verificat
 | `internal/media/lock.go` | Lock level constants and named helpers |
 | `internal/ui/inline_player.go` | InlineVideoPlayer API — Load/Play/Pause/Seek/Close, playbackLoop |
 | `native_media.go` | Singleton getters, initNativeMediaAssets |
+
+Final verification: scripts/windows/dev-verify.ps1 passed native build, vet and full tests. Race-enabled internal/ui and internal/media tests passed, including the late-EOF and paused-audio shutdown regressions.

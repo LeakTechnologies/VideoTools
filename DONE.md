@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## VT_Player source-ownership candidate implementation
+
+Completed candidate implementation and automated media diagnostics for source/presentation ownership. The runtime gate exposed and led to repairs for a Fyne refresh/player-lock cycle and a paused-audio shutdown race. Final automated session completed with 398 frames and three source retirements. This records implementation work only; visual review and release acceptance remain pending. See docs/PLAYER_DEBUG.md.
+
+
 ## v0.1.1-dev94 — VT_Player cancellation foundation
 
 Frame reads and clock waits now return on engine retirement/caller cancellation. Clock waits respect speed and remain interruptible. Playback ignores retired reads and rejects results from detached engines. Behavioral regressions and full native verification pass. Visible media session and runtime log reviewed; minor jitter at the end of the 2x segment remains open. The overall reliability/comparison stages are not complete.

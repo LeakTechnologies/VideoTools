@@ -106,3 +106,52 @@ func TestClockWaitTracksSpeed(t *testing.T) {
 		t.Fatal("wait returned before target presentation time")
 	}
 }
+
+func TestCloseBeforeStartRetiresEngine(t *testing.T) {
+	e := NewEngine()
+	e.Close()
+	e.Close()
+	e.Start()
+	if e.IsRunning() {
+		t.Fatal("retired engine restarted")
+	}
+	_, err := e.NextFrame()
+	if !errors.Is(err, ErrEngineClosed) {
+		t.Fatalf("closed engine returned %v", err)
+	}
+}
+
+func TestPausedAudioCloseKeepsStopSignal(t *testing.T) {
+	p := &AudioPlayer{paused: true, decodeStop: make(chan struct{}), pcmCh: make(chan audioChunk), queue: NewPacketQueue()}
+	p.decodeWg.Add(1)
+	go p.audioDecodeLoop()
+	time.Sleep(20 * time.Millisecond)
+	done := make(chan struct{})
+	go func() { p.Close(); p.Close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("paused audio decoder did not finish Close")
+	}
+	select {
+	case <-p.decodeStop:
+	default:
+		t.Fatal("Close lost the decoder stop signal")
+	}
+}
+
+func TestScrubberRepeatedStartStop(t *testing.T) {
+	s := NewSmoothScrubbing(NewEngine())
+	s.Start()
+	s.Start()
+	for i := 0; i < 20; i++ {
+		s.RequestSeek(float64(i))
+	}
+	done := make(chan struct{})
+	go func() { s.Stop(); s.Stop(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("scrubber repeated start/stop did not retire")
+	}
+}

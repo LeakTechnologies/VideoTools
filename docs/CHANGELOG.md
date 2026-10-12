@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev95 candidate — not landed
+
+- Source-owned loading, cancellable/joined presentation runs and serialized native operations; retired callbacks and EOF reloads cannot take over newer content.
+- Partial-open disposal, immutable audio stop signal and idempotent scrubber start/stop.
+- Frame refresh dispatched on the Fyne main thread outside the player mutex after runtime diagnosis of a lock cycle.
+- Automated real-media stress completed; visual review is pending while the user is away. Known seeking/resume continuity findings remain open. No master merge/tag/release claimed.
+
+
 ## v0.1.1-dev94 (October 2026) — VT_Player cancellation foundation
 
 - Added caller/retirement cancellation to native frame reads and PTS waits; preserved natural EOF as a separate outcome.

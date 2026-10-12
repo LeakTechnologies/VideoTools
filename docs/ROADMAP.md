@@ -1,5 +1,10 @@
 # VideoTools Roadmap
 
+## Active VT_Player source-ownership candidate
+
+Second reliability slice implemented in an isolated worktree. Controlled concurrency tests and automated real-media diagnostics cover replacement, retirement and presentation ownership; the final run completed with 398 frames and three retired sources. Now: finish verification and obtain visual review before landing. Next: correct seek flags, scrub commit, frame stepping and resume continuity. Comparison remains downstream; encrypted-disc acceptance remains outstanding.
+
+
 ## v0.1.1-dev94 — VT_Player cancellation foundation
 
 First reliability slice implemented and locally verified: cancellable Engine frame/clock waits, speed-aware pacing waits and retired-read suppression. Visible software playback/log reviewed; slight end-of-session jitter remains open. Now: complete source/presentation ownership and native I/O interruption. Next: trustworthy navigation, synchronized comparison and then short upscale previews. Encrypted-disc acceptance remains outstanding. Remote CI/release publication pending.

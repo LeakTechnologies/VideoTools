@@ -38,3 +38,15 @@ A shared comparison timestamp maps to original source time and processed preview
 ## Current status
 
 Plan recorded before implementation. First retirement-aware-read slice implemented as the dev94 candidate; native gate and visible software playback/log review complete. Broader Stage 1 remains active; no later stage is accepted or shipped. User-supplied local media exercised play/pause/resume/2x/close; 243 progress frames and clean engine teardown were logged. User reported slight jitter at the end; this remains open. Dev94 is reserved for this implementation slice; remote CI/tag publication remains pending.
+
+## Active second lifecycle slice
+
+Implement a source session that owns cancellation, native-operation serialization, load completion and the current presentation run. Source replacement and Close invalidate its callbacks immediately; retirement waits for load and presentation completion before disposal. Transport requests cancel the old read and wait for its consumer to exit before another consumer enters. Seek and step use the same ownership boundary. Playback errors publish paused/error state; natural EOF cannot reload a newer source. Load milestones, scrub frames, delayed thumbnails and growing-file reload are scoped to the originating source. Partial-open disposal must work before Engine.Start.
+
+Regression gates: older load finishing last, Close during load, rapid pause/play with maximum one frame consumer, paused seek/step retirement, late frame/error/EOF callback suppression, and repeated close of a partially opened engine. Native blocking I/O interruption remains explicitly outside this slice; retirement rejects eventual results and defers freeing resources until the native call returns. This is implementation within Stage 1, not comparison/Upscale work.
+## Second-slice verification record
+
+The candidate is implemented with source-owned cancellation/load completion, presentation-run joins, serialized native commands and scoped callbacks. Runtime diagnosis repaired a Fyne refresh/player-mutex cycle and paused-audio cleanup losing its stop channel. Scrubber start/stop are idempotent. Automated local-media stress completed with 398 frames, three source retirements, close-during-load cancellation and reopening.
+
+Visual review is required before landing because the user was away. Stage 1 is not declared fully accepted: native I/O interruption remains outstanding, and resume timeline continuity was observed to be incorrect under repeated resumes. Stage 2 still owns exact seek flags, final scrub commit and backward-step correctness. Candidate dev95 is not a published release; revalidate release numbering and concurrent UI changes at landing.
+Final verification: scripts/windows/dev-verify.ps1 passed native build, vet and full tests. Race-enabled internal/ui and internal/media tests passed, including the late-EOF and paused-audio shutdown regressions.

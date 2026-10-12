@@ -186,6 +186,7 @@ type Engine struct {
 	subtitleCodecMu sync.Mutex // serialises subtitleCodecCtx access (level 3.5)
 	demuxerWg      sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
+	closed       bool // protected by mu; includes partial-open disposal
 	paused       bool
 	stop         chan struct{}
 	loading      bool

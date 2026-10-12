@@ -37,6 +37,7 @@ type PlaybackEngine interface {
 	NextFrame() (*image.RGBA, error)
 	NextFrameContext(context.Context) (*image.RGBA, error)
 	Step(frames int) (*image.RGBA, error)
+	StepContext(context.Context, int) (*image.RGBA, error)
 	GrabFrame(timeout time.Duration) (*image.RGBA, error)
 	ResetAfterGrab()
 	WaitForFrame(timeout time.Duration) bool

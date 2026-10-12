@@ -1,5 +1,19 @@
 # VideoTools TODO
 
+## VT_Player second lifecycle slice — candidate
+
+- [x] Source-owned load/presentation cancellation, joins and serialized native access.
+- [x] Suppress retired callback/frame/EOF reloads; scope track/speed reset notifications.
+- [x] Dispose partial opens; fix paused audio losing its stop signal; guard repeated scrubber start/stop.
+- [x] Add controlled load-order, close-during-load, single-consumer, seek/step cancellation, error restart and late-EOF regressions.
+- [x] Automated real-media stress/log review: 398 frames, three sources retired, Close during load cancelled, reopen completed.
+- [x] Final native build/vet/full tests and race-enabled player/media tests.
+- [ ] Visual playback review before landing; user was away for this session.
+- [ ] Resolve existing seek fallback warning and resume timeline discontinuity in the coordinated navigation stage.
+- [ ] Merge/version/tag only after acceptance and current remote-version check. No candidate release published.
+- Plan: [VT_PLAYER_UPGRADE_PLAN.md](docs/VT_PLAYER_UPGRADE_PLAN.md).
+
+
 ## Dev94 VT_Player follow-up
 
 - [x] Retirement-aware frame/clock reads, speed-aware waits and retired-read suppression, with behavioral tests.

@@ -1,5 +1,7 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Player lifecycle candidate (dev95, unlanded): source-owned cancellation and worker cleanup add no runtime dependencies. Automated Windows software-playback stress completed, but visual review is pending; Linux runtime review is also pending. No candidate installation/release is published.
+
 Dev94 player note: native frame and timestamp waits now respond to cancellation/engine retirement. No new runtime dependencies. Basic software playback and close were checked on Windows; minor 2x-segment jitter remains under investigation. Linux runtime acceptance remains outstanding.
 
 Dev93 restores Rip Content Browser title labels and selection controls. No new runtime dependencies. After updating, load a disc and check card visibility and selection while scrolling.

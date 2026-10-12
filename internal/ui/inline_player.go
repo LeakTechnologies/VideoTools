@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -19,23 +20,26 @@ import (
 )
 
 type InlineVideoPlayer struct {
-	mu          sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
-	player      *media.VideoPlayer
-	engine      media.PlaybackEngine
-	scrubber    media.Scrubber
-	playing     bool
-	speed       float64            // authoritative speed; mirrors the engine, survives engine swaps
-	audioIdx    int                // active audio track index, -1 when unknown/none
-	subtitleIdx int                // active subtitle track index, -1 when subtitles are off
-	currentPath string             // path of the most recently loaded file; used for EOF→reload
-	onProgress  func(float64)      // called from playbackLoop with current time in seconds
-	onEnd       func()             // called on clean end-of-stream; NOT called on error
-	onFrame     func(*image.RGBA)  // called on every rendered frame (playback + scrub)
-	onLoad      func(LoadEvent)    // fired on main goroutine at each load milestone
-	seekCh      chan float64       // capacity-1 channel; seekLoop drains it serially
-	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
-	resumeState *state.ResumeState // persisted playback position (optional)
-	lastSave    time.Time          // throttle for resume auto-save
+	sourceGeneration uint64
+	session          *playerSession
+	newEngine        func() media.PlaybackEngine
+	dispatch         func(func())
+	mu               sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
+	player           *media.VideoPlayer
+	engine           media.PlaybackEngine
+	scrubber         media.Scrubber
+	playing          bool
+	speed            float64            // authoritative speed; mirrors the engine, survives engine swaps
+	audioIdx         int                // active audio track index, -1 when unknown/none
+	subtitleIdx      int                // active subtitle track index, -1 when subtitles are off
+	currentPath      string             // path of the most recently loaded file; used for EOF→reload
+	onProgress       func(float64)      // called from playbackLoop with current time in seconds
+	onEnd            func()             // called on clean end-of-stream; NOT called on error
+	onFrame          func(*image.RGBA)  // called on every rendered frame (playback + scrub)
+	onLoad           func(LoadEvent)    // fired on main goroutine at each load milestone
+	peer             *InlineVideoPlayer // optional follower driven by play/pause/seek
+	resumeState      *state.ResumeState // persisted playback position (optional)
+	lastSave         time.Time          // throttle for resume auto-save
 
 	// Authoritative playback-state change notifications. Modules derive their
 	// displayed transport/speed/track state from these instead of keeping an
@@ -244,9 +248,17 @@ func (v *InlineVideoPlayer) notifyPlayState() {
 	}
 	v.notifiedPlaying = playing
 	cb := v.onPlayState
+	source := v.session
 	v.mu.Unlock()
 	if cb != nil {
-		fireOnMain(func() { cb(playing) })
+		fireOnMain(func() {
+			v.mu.Lock()
+			current := v.session == source && v.playing == playing && v.notifiedPlaying == playing
+			v.mu.Unlock()
+			if current {
+				cb(playing)
+			}
+		})
 	}
 }
 
@@ -300,9 +312,6 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 		speed:       1.0,
 		audioIdx:    -1,
 		subtitleIdx: -1,
-		// seekCh starts nil; Load() allocates it and starts seekLoop each time
-		// a file is opened. This avoids a leaked goroutine when a player is
-		// constructed but never loaded, and makes Load() the single owner.
 	}
 	v.player.SetIdleText("DRAG TO LOAD VIDEO")
 	// Wire the widget's built-in controls to this player by default.
@@ -310,20 +319,9 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 	p := v.player
 	p.OnPlay(func() { v.Play() })
 	p.OnPause(func() { v.Pause() })
-	// OnSeek sends to the debounce channel — rapid slider drags drop intermediate
-	// positions and the seekLoop runs each accepted seek off the event goroutine.
-	p.OnSeek(func(target float64) {
-		v.mu.Lock()
-		ch := v.seekCh
-		v.mu.Unlock()
-		if ch == nil {
-			return
-		}
-		select {
-		case ch <- target:
-		default: // a seek is already queued; drop this one
-		}
-	})
+	// Seek submits a source-owned transport run off the event goroutine.
+	p.OnSeek(func(target float64) { v.Seek(target) })
+
 	p.OnSpeedChange(func(speed float64) { v.SetSpeed(speed) })
 	p.OnVolumeChange(func(vol float64) { v.SetVolume(vol * 100) })
 	p.OnSubtitles(func(enabled bool) {
@@ -337,14 +335,6 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 		}
 	})
 	return v
-}
-
-// seekLoop drains seekCh and executes seeks serially on a dedicated goroutine,
-// keeping engine.Seek + NextFrame off the main event goroutine.
-func (v *InlineVideoPlayer) seekLoop() {
-	for target := range v.seekCh {
-		v.Seek(target)
-	}
 }
 
 func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
@@ -364,59 +354,29 @@ func (v *InlineVideoPlayer) SetIdleAspectRatio(ratio float64) {
 }
 
 func (v *InlineVideoPlayer) SetDeinterlaceEnabled(enabled bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetDeinterlaceEnabled(enabled)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetDeinterlaceEnabled(enabled) })
 }
 
 func (v *InlineVideoPlayer) SetSeekAccuracy(acc media.SeekAccuracy) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetSeekAccuracy(acc)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetSeekAccuracy(acc) })
 }
 
 func (v *InlineVideoPlayer) SetGrowingFile(growing bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetGrowingFile(growing)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetGrowingFile(growing) })
 }
 
 func (v *InlineVideoPlayer) SetABLoopEnabled(enabled bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetABLoopEnabled(enabled)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetABLoopEnabled(enabled) })
 }
 
 func (v *InlineVideoPlayer) SetLoopPoints(a, b float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetLoopPoints(a, b)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetLoopPoints(a, b) })
 }
 
-// SetAudioDelay sets the A/V offset in seconds on the live engine.
-// Positive = delay video (compensates for early-arriving audio).
-// Negative = advance video (compensates for late-arriving audio).
 func (v *InlineVideoPlayer) SetAudioDelay(d float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.engine != nil {
-		v.engine.SetAudioDelay(d)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetAudioDelay(d) })
 }
 
-// SetResumeState attaches a persisted playback-position store. When set, the
-// player automatically saves position during playback and restores on load.
-// Pass nil to disable.
 func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
 	v.mu.Lock()
 	v.resumeState = s
@@ -445,374 +405,98 @@ func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) (err err
 // loadViaOpen is the shared implementation of Load, LoadDVD and LoadURL.
 // resetPlaylist clears the pending playlist queue (set true on all user-facing
 // load calls; false when the playlist auto-advance reuses this path internally).
-func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, openFn func(eng media.PlaybackEngine) error) (err error) {
-	logging.Info(logging.CatPlayer, "Load: called for %s", displayPath)
-	defer func() {
-		if r := recover(); r != nil {
-			logging.Error(logging.CatPlayer, "Load panic: %v", r)
-			err = fmt.Errorf("Load panic: %v", r)
-		}
-	}()
-
-	v.fireLoad(LoadEvent{Phase: LoadPhaseStarted, At: time.Now()})
-
-	// Widget mutations (ClearError, SetLoading) touch Fyne widget state and must
-	// run on the main goroutine. Dispatching async lets Load() continue
-	// immediately without waiting for a round-trip through the event loop.
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		v.player.ClearError()
-		v.player.SetLoading(true)
-	}, false)
-
-	v.mu.Lock()
-
-	if resetPlaylist {
-		v.playlist = v.playlist[:0]
-		v.playlistIdx = 0
-	}
-
-	// Snapshot and clear the previous engine/scrubber before swapping in new
-	// ones. Clearing under the lock prevents concurrent callers (seekLoop,
-	// Seek, playbackLoop) from using the old engine after we've released it.
-	v.playing = false
-	v.currentPath = displayPath
-	oldScrubber := v.scrubber
-	oldEngine := v.engine
-	oldSeekCh := v.seekCh
-	v.scrubber = nil
-	v.engine = nil
-	v.seekCh = nil
-
-	// A new source resets every piece of authoritative state: the fresh engine
-	// starts paused at 1.0 with no track selected. Publish the reset so a
-	// module's transport, speed selector and track selectors re-seed from the
-	// authority instead of continuing to display the previous file's values.
-	//
-	// The "did it actually change" flags are captured BEFORE the assignment,
-	// not after: v.playing was already cleared above, so reading it here would
-	// always report "unchanged" and a load while playing would never repaint.
-	resetSpeed := v.speed != 1.0
-	resetAudio, resetSub := v.audioIdx != -1, v.subtitleIdx != -1
-	v.speed = 1.0
-	v.audioIdx = -1
-	v.subtitleIdx = -1
-	speedCB := v.onSpeedChange
-	audioCB, subCB := v.onAudioTrack, v.onSubtitleTrk
-
-	// Fresh seek channel and loop for the new file.
-	v.seekCh = make(chan float64, 1)
-	go v.seekLoop()
-
-	v.mu.Unlock()
-
-	// Playing → paused across a source swap is handled by the shared notifier,
-	// which compares against what subscribers were last told.
-	v.notifyPlayState()
-	if resetSpeed && speedCB != nil {
-		fireOnMain(func() { speedCB(1.0) })
-	}
-	if resetAudio && audioCB != nil {
-		fireOnMain(func() { audioCB(-1) })
-	}
-	if resetSub && subCB != nil {
-		fireOnMain(func() { subCB(-1) })
-	}
-
-	// Close the old seekCh synchronously so seekLoop exits and can't forward
-	// stale seeks to the new engine we're about to create.
-	if oldSeekCh != nil {
-		close(oldSeekCh)
-	}
-
-	// Tear down old resources off the caller's goroutine (scrubber.Stop and
-	// engine.Close both block waiting for goroutines and FFmpeg calls).
-	go func() {
-		if oldScrubber != nil {
-			oldScrubber.Stop()
-		}
-		if oldEngine != nil {
-			oldEngine.Close()
-		}
-	}()
-
-	// All heavy work (engine open, GrabFrame) runs without v.mu so the main
-	// goroutine is never blocked acquiring v.mu while Load is inside FFmpeg.
-	// v.mu is held only briefly at the end to swap in the live engine/scrubber.
-	eng := newPlaybackEngine()
-	eng.SetSeekAccuracy(media.DefaultSeekAccuracy())
-	eng.SetAudioDelay(media.DefaultAudioDelay())
-	eng.SetDropFrames(true)
-	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
-		eng.SetHWDevice(hw)
-		logging.Info(logging.CatPlayer, "InlineVideoPlayer: HW decode active (%v)", hw)
-	} else {
-		logging.Info(logging.CatPlayer, "InlineVideoPlayer: using SW decode (HW decode %v)", func() string {
-			if media.HWDecodeEnabled() {
-				return "enabled but not available"
-			}
-			return "disabled in Settings"
-		}())
-	}
-
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", displayPath)
-	if err := openFn(eng); err != nil {
-		logging.Error(logging.CatPlayer, "InlineVideoPlayer: failed to open %s: %v", displayPath, err)
-		v.fireLoad(LoadEvent{Phase: LoadPhaseFailed, At: time.Now(), Err: err})
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetError(err.Error())
-			v.player.SetLoading(false)
-		}, false)
-		return err
-	}
-
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer: file opened successfully")
-	v.fireLoad(LoadEvent{Phase: LoadPhaseOpen, At: time.Now()})
-	eng.InitFrameCache(30)
-
-	chapters := eng.GetChapters()
-	duration := eng.Duration()
-
-	// Start demuxer and grab first frame for immediate display.
-	eng.Start()
-	logging.Info(logging.CatPlayer, "Load: calling GrabFrame")
-	var firstFrame *image.RGBA
-	if img, err := eng.GrabFrame(4 * time.Second); err == nil {
-		logging.Info(logging.CatPlayer, "Load: GrabFrame success %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
-		firstFrame = img
-		v.fireLoad(LoadEvent{Phase: LoadPhaseFirstFrame, At: time.Now()})
-	} else {
-		logging.Error(logging.CatPlayer, "Load: GrabFrame failed (player shows SMPTE bars): %v", err)
-	}
-	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, resetting to start")
-	// ResetAfterGrab repositions the format to 0, drains B-frame buffered
-	// codec frames, and resets the clock. Seek(0) was not used here because
-	// it self-deadlocked (Seek holds e.mu; seekFlushBefore then tried to
-	// re-acquire e.mu which is not re-entrant).
-	eng.ResetAfterGrab()
-	eng.Pause()
-
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
-
-	scrubber := eng.NewScrubber()
-	if scrubber != nil {
-		scrubber.SetOnFrame(func(img *image.RGBA) {
-			logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				v.player.SetFrame(img)
-				v.mu.Lock()
-				fn := v.onFrame
-				v.mu.Unlock()
-				if fn != nil {
-					fn(img)
-				}
-			}, false)
-		})
-	}
-
-	// Briefly lock to publish the live engine and scrubber.
-	v.mu.Lock()
-	v.engine = eng
-	v.scrubber = scrubber
-	v.mu.Unlock()
-
-	if scrubber != nil {
-		scrubber.Start()
-	}
-
-	// Auto-restore saved playback position (P1-2).
-	// Falls through to the SMPTE-bars placeholder if no saved position exists.
-	if v.resumeState != nil {
-		if saved, ok := v.resumeState.GetPosition(displayPath); ok && v.resumeState.ShouldResume(saved) {
-			logging.Info(logging.CatPlayer, "InlineVideoPlayer: resuming at %.2fs for %s", saved.Position, displayPath)
-			eng.Seek(saved.Position)
-			if img, err := eng.NextFrame(); err == nil {
-				firstFrame = img
-			}
-		}
-	}
-
-	// Defer thumbnail extraction to avoid I/O contention during initial
-	// playback buffer fill. Running 154 seeks immediately competes with
-	// the main demuxer's sequential reads, causing choppy first ~8 seconds.
-	go func() {
-		time.Sleep(3 * time.Second)
-		eng.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
-			v.player.AddThumbnailFrame(t, img)
-		})
-	}()
-
-	readyAt := time.Now()
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		if len(chapters) > 0 {
-			v.player.SetChapters(chapters)
-			v.player.OnPrevChapter(func() { v.prevChapter() })
-			v.player.OnNextChapter(func() { v.nextChapter() })
-		}
-		v.player.SetDuration(duration)
-		v.player.SetFrameRate(eng.GetFrameRate())
-		if firstFrame != nil {
-			v.player.SetFrame(firstFrame)
-		}
-		v.player.SetLoading(false)
-		v.player.Refresh()
-		v.mu.Lock()
-		fn := v.onLoad
-		v.mu.Unlock()
-		if fn != nil {
-			fn(LoadEvent{Phase: LoadPhaseReady, At: readyAt})
-		}
-	}, false)
-	return nil
+func (v *InlineVideoPlayer) loadViaOpen(path string, reset bool, open func(media.PlaybackEngine) error) error {
+	_, err := v.loadSession(path, reset, open, nil)
+	return err
 }
 
 func (v *InlineVideoPlayer) Play() {
-	// Covers every exit path from Play() below: the state change is published
-	// once, after the lock is released, and never resurrects a state that has
-	// since moved on (see notifyPlayState for why that matters at EOF).
 	defer v.notifyPlayState()
-
 	v.mu.Lock()
-	eng := v.engine
-	if eng == nil {
-		v.mu.Unlock()
-		return
-	}
-	peer := v.peer
-
-	// Guard: if a playbackLoop is already running, just ensure the engine is
-	// unpaused and sync the widget icon. Do NOT seek or spawn a new goroutine —
-	// stacking concurrent playbackLoops disrupts the audio/video pipeline.
-	if v.playing {
-		v.mu.Unlock()
-		if eng.IsPaused() {
-			eng.Resume()
-		}
-		fireOnMain(func() {
-			v.player.SetPlaying(true)
-		})
-		if peer != nil {
-			go peer.Play()
-		}
-		return
-	}
-
-	v.playing = true
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
-
-	if eng.IsRunning() {
-		// Resuming from pause: flush only the audio codec's internal buffers
-		// to discard stale pre-buffered packets. The full pipeline seek was
-		// causing 50-200ms stutter on every unpause — a lighter audio-only
-		// flush preserves sync without the expensive format-level seek.
-		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: resuming at %.3f, flushing audio codec", eng.CurrentTime())
-		eng.FlushAudioCodec()
-		v.mu.Unlock()
-
-		if peer != nil {
-			go func() {
-				peer.FlushAudioCodec()
-				peer.Play()
-			}()
-		}
-		// Gate Resume on the first decoded frame so audio and video always
-		// start together. videoDecodeLoop is already running; when it sees
-		// paused=true and an empty frameQueue it decodes one frame, so
-		// WaitForFrame normally returns within a single decode interval
-		// (~10-30 ms for SW H.264). Check v.playing before unpausing in
-		// case the user cancelled by pressing Pause during the wait.
-		go func() {
-			eng.WaitForFrame(500 * time.Millisecond)
-			v.mu.Lock()
-			stillPlaying := v.playing
-			v.mu.Unlock()
-			if !stillPlaying {
-				return
-			}
-			logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
-			eng.Resume()
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				v.player.SetPlaying(true)
-			}, false)
-			v.playbackLoop()
-		}()
-	} else {
-		// Initial play: drain audio pre-buffered during thumbnail extraction.
-		// audioDecodeLoop runs during Load() and pre-buffers audio while
-		// thumbnails are being generated. Without draining, the first audio
-		// chunk consumed by Read() has pts ~5 s, jumping the clock and
-		// dropping all initial video frames.
-		// Resume() is called immediately because it is what starts
-		// videoDecodeLoop (deferred from Start to avoid racing with GrabFrame).
-		eng.DrainAudio()
-		eng.Start()
-		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
-		eng.Resume()
-		t := eng.CurrentTime()
-		v.mu.Unlock()
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetPlaying(true)
-		}, false)
-		if peer != nil {
-			go func() {
-				peer.Seek(t)
-				peer.Play()
-			}()
-		}
-		go v.playbackLoop()
-	}
+	s := v.session
+	v.mu.Unlock()
+	v.playSession(s)
 }
 
 func (v *InlineVideoPlayer) Pause() {
 	v.mu.Lock()
-	if v.engine == nil {
-		v.mu.Unlock()
+	s, peer := v.session, v.peer
+	v.mu.Unlock()
+	r := v.beginRun(s, false)
+	if r == nil {
 		return
 	}
-	v.playing = false
-	v.engine.Pause()
-	peer := v.peer
-	v.mu.Unlock()
 	v.notifyPlayState()
-	fireOnMain(func() {
-		v.player.SetPlaying(false)
-	})
+	go func() {
+		defer close(r.done)
+		if !r.waitPrevious() {
+			return
+		}
+		s.ops.Lock()
+		if v.runCurrent(s, r) {
+			s.engine.Pause()
+		}
+		s.ops.Unlock()
+		v.dispatchRun(s, r, func() {
+			if v.player != nil {
+				v.player.SetPlaying(false)
+			}
+		})
+	}()
 	if peer != nil {
-		go peer.Pause()
+		peer.Pause()
 	}
 }
 
-// FlushAudioCodec flushes the audio codec's internal buffers and drains
-// pre-buffered PCM chunks. Used on unpause to discard stale packets.
 func (v *InlineVideoPlayer) FlushAudioCodec() {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng != nil {
-		eng.FlushAudioCodec()
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.FlushAudioCodec() })
 }
 
 func (v *InlineVideoPlayer) Seek(target float64) {
 	v.mu.Lock()
-	eng := v.engine
-	peer := v.peer
+	s, playing, peer := v.session, v.playing, v.peer
 	v.mu.Unlock()
-	if eng == nil {
+	r := v.beginRun(s, playing)
+	if r == nil {
 		return
 	}
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Seek: target=%.2f", target)
-	eng.Seek(target)
-	img, err := eng.NextFrame()
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Seek: first frame after seek err=%v img=%v", err, img != nil)
-	// SetFrame/SetCurrentTime write directly to raster state — dispatch to main thread.
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		if err == nil {
-			v.player.SetFrame(img)
+	go func() {
+		defer close(r.done)
+		if !r.waitPrevious() {
+			return
 		}
-		v.player.SetCurrentTime(target)
-	}, false)
+		s.ops.Lock()
+		if !v.runCurrent(s, r) {
+			s.ops.Unlock()
+			return
+		}
+		s.engine.Pause()
+		err := s.engine.Seek(target)
+		var img *image.RGBA
+		if err == nil {
+			img, err = s.engine.NextFrameContext(r.ctx)
+		}
+		pts := s.engine.GetLastVideoPTS()
+		s.ops.Unlock()
+		if !v.runCurrent(s, r) {
+			return
+		}
+		if err != nil {
+			v.stopRun(s, r, err)
+			return
+		}
+		v.dispatchRun(s, r, func() {
+			if v.player != nil {
+				v.player.SetFrame(img)
+				v.player.SetCurrentTime(pts)
+			}
+		})
+		if playing {
+			v.playFromRun(s, r)
+		}
+	}()
 	if peer != nil {
-		go peer.Seek(target)
+		peer.Seek(target)
 	}
 }
 
@@ -869,56 +553,75 @@ func (v *InlineVideoPlayer) nextChapter() {
 // SetSpeed sets the playback speed and publishes the new authoritative value.
 func (v *InlineVideoPlayer) SetSpeed(speed float64) {
 	v.mu.Lock()
-	eng := v.engine
+	source := v.session
+	ready := v.engine != nil
 	changed := v.speed != speed
 	v.speed = speed
 	cb := v.onSpeedChange
 	v.mu.Unlock()
-	if eng != nil {
-		eng.SetSpeed(speed)
+	if source != nil && ready {
+		source.ops.Lock()
+		if v.sessionCurrent(source) {
+			source.engine.SetSpeed(speed)
+		}
+		source.ops.Unlock()
 	}
 	if changed && cb != nil {
-		fireOnMain(func() { cb(speed) })
+		if source != nil {
+			v.dispatchSession(source, func() { cb(speed) })
+		} else {
+			v.dispatchIdle(func() { cb(speed) })
+		}
 	}
 }
 
 func (v *InlineVideoPlayer) StepFrame(dir int) {
 	v.mu.Lock()
-	eng := v.engine
-	if eng == nil {
-		v.mu.Unlock()
+	s := v.session
+	v.mu.Unlock()
+	r := v.beginRun(s, false)
+	if r == nil {
 		return
 	}
-	// Frame stepping always leaves the player paused; publish that transition so
-	// a module's play/pause icon follows the engine instead of lagging behind.
-	v.playing = false
-	eng.Pause()
-	v.mu.Unlock()
 	v.notifyPlayState()
-	if img, err := eng.Step(dir); err == nil {
-		v.player.SetFrame(img)
-		v.player.SetCurrentTime(eng.CurrentTime())
-	}
+	go func() {
+		defer close(r.done)
+		if !r.waitPrevious() {
+			return
+		}
+		s.ops.Lock()
+		if !v.runCurrent(s, r) {
+			s.ops.Unlock()
+			return
+		}
+		s.engine.Pause()
+		img, err := s.engine.StepContext(r.ctx, dir)
+		pts := s.engine.GetLastVideoPTS()
+		s.ops.Unlock()
+		if err != nil {
+			v.stopRun(s, r, err)
+			return
+		}
+		v.dispatchRun(s, r, func() {
+			if v.player != nil {
+				v.player.SetFrame(img)
+				v.player.SetCurrentTime(pts)
+				v.player.SetPlaying(false)
+			}
+		})
+	}()
 }
 
 func (v *InlineVideoPlayer) Duration() float64 {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng == nil {
-		return 0
-	}
-	return eng.Duration()
+	var result float64 = 0
+	v.withEngine(func(e media.PlaybackEngine) { result = e.Duration() })
+	return result
 }
 
 func (v *InlineVideoPlayer) FrameRate() float64 {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng == nil {
-		return 0
-	}
-	return eng.GetFrameRate()
+	var result float64 = 0
+	v.withEngine(func(e media.PlaybackEngine) { result = e.GetFrameRate() })
+	return result
 }
 
 func (v *InlineVideoPlayer) CurrentTime() float64 {
@@ -929,149 +632,142 @@ func (v *InlineVideoPlayer) CurrentTime() float64 {
 // The pipeline takes effect on the next decoded frame; call RefreshCurrentFrame
 // immediately after to force a re-decode at the current position.
 func (v *InlineVideoPlayer) SetFilterPipeline(pipeline *mediafilters.FilterPipeline) {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng != nil {
-		eng.SetFilterPipeline(pipeline)
-	}
+	v.withEngine(func(e media.PlaybackEngine) { e.SetFilterPipeline(pipeline) })
 }
 
-// RefreshCurrentFrame seeks to the current position, forcing the engine to
-// re-decode the frame — useful after changing the filter pipeline on a paused player.
 func (v *InlineVideoPlayer) RefreshCurrentFrame() {
 	v.Seek(v.CurrentTime())
 }
 
 func (v *InlineVideoPlayer) GetClockTime() float64 {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng == nil {
-		return -1
-	}
-	return eng.CurrentTime()
+	var result float64 = -1
+	v.withEngine(func(e media.PlaybackEngine) { result = e.CurrentTime() })
+	return result
 }
 
 func (v *InlineVideoPlayer) GetLastVideoPTS() float64 {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng == nil {
-		return -1
-	}
-	return eng.GetLastVideoPTS()
+	var result float64 = -1
+	v.withEngine(func(e media.PlaybackEngine) { result = e.GetLastVideoPTS() })
+	return result
 }
 
 func (v *InlineVideoPlayer) GetLastAudioPTS() float64 {
-	v.mu.Lock()
-	eng := v.engine
-	v.mu.Unlock()
-	if eng == nil {
-		return -1
-	}
-	return eng.GetLastAudioPTS()
+	var result float64 = -1
+	v.withEngine(func(e media.PlaybackEngine) { result = e.GetLastAudioPTS() })
+	return result
 }
 
 func (v *InlineVideoPlayer) ScrubTo(target float64) {
 	v.mu.Lock()
-	eng := v.engine
-	scrubber := v.scrubber
+	s := v.session
 	v.mu.Unlock()
-	if eng == nil || scrubber == nil {
+	if s == nil {
 		return
 	}
-	scrubber.RequestSeek(target)
-	v.player.SetCurrentTime(target)
+	go func() {
+		s.ops.Lock()
+		if v.sessionCurrent(s) && s.scrubber != nil {
+			s.scrubber.RequestSeek(target)
+		}
+		s.ops.Unlock()
+	}()
+	v.dispatchSession(s, func() {
+		if v.player != nil {
+			v.player.SetCurrentTime(target)
+		}
+	})
 }
 
 func (v *InlineVideoPlayer) GetAudioTracks() []media.StreamInfo {
-	if v.engine == nil {
-		return nil
-	}
-	return v.engine.GetAudioTracks()
+	var result []media.StreamInfo = nil
+	v.withEngine(func(e media.PlaybackEngine) { result = e.GetAudioTracks() })
+	return result
 }
 
-// SelectAudioTrack makes idx the active audio track and publishes the change.
 func (v *InlineVideoPlayer) SelectAudioTrack(idx int) error {
-	if v.engine == nil {
-		return fmt.Errorf("no media loaded")
-	}
-	if err := v.engine.SelectAudioTrack(idx); err != nil {
+	var cb func(int)
+	changed := false
+	err := fmt.Errorf("no media loaded")
+	source := v.withEngine(func(e media.PlaybackEngine) {
+		err = e.SelectAudioTrack(idx)
+		if err != nil {
+			return
+		}
+		v.mu.Lock()
+		if v.session != nil && v.session.engine == e && v.session.ctx.Err() == nil {
+			changed = v.audioIdx != idx
+			v.audioIdx = idx
+			cb = v.onAudioTrack
+		}
+		v.mu.Unlock()
+	})
+	if err != nil {
 		return err
 	}
-	v.mu.Lock()
-	changed := v.audioIdx != idx
-	v.audioIdx = idx
-	cb := v.onAudioTrack
-	v.mu.Unlock()
-	if changed && cb != nil {
-		fireOnMain(func() { cb(idx) })
+	if source != nil && changed && cb != nil {
+		v.dispatchSession(source, func() { cb(idx) })
 	}
 	return nil
 }
 
 func (v *InlineVideoPlayer) SetVolume(vol float64) {
-	if v.engine == nil {
-		return
-	}
-	v.engine.SetVolume(float32(vol / 100.0))
+	v.withEngine(func(e media.PlaybackEngine) { e.SetVolume(float32(vol / 100)) })
 }
 
 func (v *InlineVideoPlayer) SetMuted(muted bool) {
-	if v.engine == nil {
-		return
-	}
-	v.engine.SetMuted(muted)
+	v.withEngine(func(e media.PlaybackEngine) { e.SetMuted(muted) })
 }
 
 func (v *InlineVideoPlayer) GetSubtitleTracks() []media.StreamInfo {
-	if v.engine == nil {
-		return nil
-	}
-	return v.engine.GetSubtitleTracks()
+	var result []media.StreamInfo = nil
+	v.withEngine(func(e media.PlaybackEngine) { result = e.GetSubtitleTracks() })
+	return result
 }
 
-// SelectSubtitleTrack makes idx the active subtitle track and publishes the
-// change.
 func (v *InlineVideoPlayer) SelectSubtitleTrack(idx int) error {
-	if v.engine == nil {
-		return fmt.Errorf("no media loaded")
-	}
-	if err := v.engine.SelectSubtitleTrack(idx); err != nil {
+	var cb func(int)
+	changed := false
+	err := fmt.Errorf("no media loaded")
+	source := v.withEngine(func(e media.PlaybackEngine) {
+		err = e.SelectSubtitleTrack(idx)
+		if err != nil {
+			return
+		}
+		v.mu.Lock()
+		if v.session != nil && v.session.engine == e && v.session.ctx.Err() == nil {
+			changed = v.subtitleIdx != idx
+			v.subtitleIdx = idx
+			cb = v.onSubtitleTrk
+		}
+		v.mu.Unlock()
+	})
+	if err != nil {
 		return err
 	}
-	v.mu.Lock()
-	changed := v.subtitleIdx != idx
-	v.subtitleIdx = idx
-	cb := v.onSubtitleTrk
-	v.mu.Unlock()
-	if changed && cb != nil {
-		fireOnMain(func() { cb(idx) })
+	if source != nil && changed && cb != nil {
+		v.dispatchSession(source, func() { cb(idx) })
 	}
 	return nil
 }
 
-// DisableSubtitles turns the subtitle track off (index -1) and publishes it.
 func (v *InlineVideoPlayer) DisableSubtitles() {
-	if v.engine == nil {
-		return
-	}
-	v.engine.DisableSubtitles()
-	v.mu.Lock()
-	changed := v.subtitleIdx != -1
-	v.subtitleIdx = -1
-	cb := v.onSubtitleTrk
-	v.mu.Unlock()
-	if changed && cb != nil {
-		fireOnMain(func() { cb(-1) })
+	var cb func(int)
+	changed := false
+	source := v.withEngine(func(e media.PlaybackEngine) {
+		e.DisableSubtitles()
+		v.mu.Lock()
+		if v.session != nil && v.session.engine == e && v.session.ctx.Err() == nil {
+			changed = v.subtitleIdx != -1
+			v.subtitleIdx = -1
+			cb = v.onSubtitleTrk
+		}
+		v.mu.Unlock()
+	})
+	if source != nil && changed && cb != nil {
+		v.dispatchSession(source, func() { cb(-1) })
 	}
 }
 
-// CurrentPath returns the path most recently opened by Load/LoadDVD/LoadURL,
-// or "" once Close has been called. Modules use it to detect whether the
-// shared primaryInlinePlayer is still showing a stale frame from another
-// module before rebuilding an idle stage.
 func (v *InlineVideoPlayer) CurrentPath() string {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -1079,253 +775,198 @@ func (v *InlineVideoPlayer) CurrentPath() string {
 }
 
 func (v *InlineVideoPlayer) Close() {
-	// Snapshot resources and clear all fields atomically under the lock so that
-	// any concurrent caller (seekLoop, playbackLoop, Seek, Load) immediately
-	// sees a nil engine and stops. The actual teardown — which blocks while
-	// waiting for goroutines and FFmpeg calls to finish — runs on a background
-	// goroutine so the UI thread is never frozen when the user presses Back.
 	v.mu.Lock()
-	// Capture "was it actually non-default" before resetting, so a Close on an
-	// idle player doesn't fire four pointless widget refreshes.
-	wasSpeed, wasAudio, wasSub := v.speed != 1.0, v.audioIdx != -1, v.subtitleIdx != -1
+	s := v.session
+	if s != nil {
+		s.cancel()
+	}
+	v.session = nil
+	v.engine, v.scrubber = nil, nil
 	v.playing = false
 	v.currentPath = ""
-	v.speed = 1.0
-	v.audioIdx = -1
-	v.subtitleIdx = -1
-	scrubber := v.scrubber
-	engine := v.engine
-	seekCh := v.seekCh
-	v.scrubber = nil
-	v.engine = nil
-	v.seekCh = nil
-	speedCB := v.onSpeedChange
-	audioCB, subCB := v.onAudioTrack, v.onSubtitleTrk
+	wasSpeed, wasAudio, wasSub := v.speed != 1, v.audioIdx != -1, v.subtitleIdx != -1
+	v.speed, v.audioIdx, v.subtitleIdx = 1, -1, -1
+	speedCB, audioCB, subCB := v.onSpeedChange, v.onAudioTrack, v.onSubtitleTrk
 	v.mu.Unlock()
-
 	v.notifyPlayState()
 	if wasSpeed && speedCB != nil {
-		fireOnMain(func() { speedCB(1.0) })
+		v.dispatchIdle(func() { speedCB(1.0) })
 	}
 	if wasAudio && audioCB != nil {
-		fireOnMain(func() { audioCB(-1) })
+		v.dispatchIdle(func() { audioCB(-1) })
 	}
 	if wasSub && subCB != nil {
-		fireOnMain(func() { subCB(-1) })
+		v.dispatchIdle(func() { subCB(-1) })
 	}
-
-	// Close seekCh synchronously so seekLoop exits before Load() might create
-	// a new one. seekLoop ranges over the old channel; closing it unblocks it.
-	if seekCh != nil {
-		close(seekCh)
-	}
-
-	// Reset the widget to idle (SMPTE bars) so the last video frame isn't
-	// left on screen after the user clears the video.
-	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+	v.post(func() {
+		v.mu.Lock()
+		idle := v.session == nil
+		v.mu.Unlock()
+		if !idle || v.player == nil {
+			return
+		}
+		v.player.SetPlaying(false)
 		v.player.SetFrame(nil)
 		v.player.SetDuration(0)
 		v.player.SetCurrentTime(0)
 		v.player.SetChapters(nil)
 		v.player.ClearThumbnailCache()
+		v.player.ClearError()
+		v.player.SetLoading(false)
 		v.player.Refresh()
-	}, false)
-
-	// Heavy teardown (wg.Wait, demuxerWg.Wait, FFmpeg free) runs off-thread.
-	go func() {
-		if scrubber != nil {
-			scrubber.Stop() // waits for predecodeFrom goroutines to exit
-		}
-		if engine != nil {
-			engine.Close() // waits for demuxer, then frees FFmpeg contexts
-		}
-	}()
+	})
+	retireSession(s)
 }
 
-// growingFileWatcher polls path for size growth every 2s. When the file
-// grows, it re-opens, seeks to lastPos, and resumes playback. Called as
-// a goroutine from playbackLoop when growing-file mode is active on EOF.
-func (v *InlineVideoPlayer) growingFileWatcher(path string, lastPos float64) {
+func (v *InlineVideoPlayer) growingFileWatcher(s *playerSession, path string, position float64) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-
 	fi, err := os.Stat(path)
 	if err != nil {
-		logging.Warning(logging.CatPlayer, "growingFileWatcher: stat failed: %v", err)
 		return
 	}
-	lastSize := fi.Size()
-	logging.Info(logging.CatPlayer, "growingFileWatcher: polling %s (size=%d)", path, lastSize)
-
-	for range ticker.C {
-		fi, err := os.Stat(path)
+	size := fi.Size()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		fi, err = os.Stat(path)
 		if err != nil {
-			logging.Warning(logging.CatPlayer, "growingFileWatcher: stat failed: %v", err)
 			continue
 		}
-		if fi.Size() > lastSize && fi.Size() > 0 {
-			logging.Info(logging.CatPlayer, "growingFileWatcher: file grew %d→%d, reloading", lastSize, fi.Size())
-			if err := v.Load(path); err != nil {
-				logging.Error(logging.CatPlayer, "growingFileWatcher: Load failed: %v", err)
-				continue
+		if fi.Size() > size {
+			next, err := v.loadSession(path, true, func(e media.PlaybackEngine) error { return e.OpenAuto(path) }, s)
+			if err == nil {
+				next.ops.Lock()
+				if v.sessionCurrent(next) {
+					next.engine.SetGrowingFile(true)
+				}
+				next.ops.Unlock()
+				v.seekAndPlaySession(next, position)
 			}
-			if lastPos > 0 {
-				v.Seek(lastPos)
-			}
-			v.Play()
 			return
 		}
-		lastSize = fi.Size()
+		size = fi.Size()
 	}
 }
 
-func (v *InlineVideoPlayer) playbackLoop() {
+func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 	defer logging.RecoverPanic()
-
-	for {
-		// Snapshot engine pointer under lock; if Load replaced it, stop this loop.
+	for v.runCurrent(s, r) {
 		v.mu.Lock()
-		eng := v.engine
 		playing := v.playing
-		onProg := v.onProgress
-		onFrm := v.onFrame
+		onProg, onFrm, rs := v.onProgress, v.onFrame, v.resumeState
 		path := v.currentPath
-		rs := v.resumeState
 		v.mu.Unlock()
-
-		if !playing || eng == nil {
+		if !playing {
 			return
 		}
-
-		img, err := eng.NextFrame()
-		// Retirement is not EOF or a playback failure. A frame read may have
-		// been pending while Close/Load detached this engine.
-		if errors.Is(err, media.ErrEngineClosed) {
+		s.ops.Lock()
+		if !v.runCurrent(s, r) {
+			s.ops.Unlock()
 			return
 		}
-		v.mu.Lock()
-		current := v.engine == eng && v.playing
-		v.mu.Unlock()
-		if !current {
+		img, err := s.engine.NextFrameContext(r.ctx)
+		t := s.engine.CurrentTime()
+		growing := s.engine.IsGrowingFile()
+		s.ops.Unlock()
+		if !v.runCurrent(s, r) {
 			return
 		}
-		t := eng.CurrentTime()
-
 		if err != nil {
-			logging.Info(logging.CatPlayer, "playbackLoop: NextFrame returned err=%v", err)
-			if errors.Is(err, io.EOF) {
-				// Clean end of stream.
-				v.mu.Lock()
-				v.playing = false
-				endFn := v.onEnd
-				reloadPath := v.currentPath
-				isGrowing := eng.IsGrowingFile()
+			if errors.Is(err, context.Canceled) || errors.Is(err, media.ErrEngineClosed) {
+				return
+			}
+			if !errors.Is(err, io.EOF) {
+				v.stopRun(s, r, err)
+				return
+			}
+			v.mu.Lock()
+			if !v.runCurrentLocked(s, r) {
 				v.mu.Unlock()
-				v.notifyPlayState()
-
-				// Mark completed in resume state (unless growing file).
-				if !isGrowing && rs != nil && path != "" {
-					rs.MarkCompleted(path)
+				return
+			}
+			v.playing = false
+			end := v.onEnd
+			var nextPath string
+			if v.playlistIdx < len(v.playlist) {
+				nextPath = v.playlist[v.playlistIdx]
+				v.playlistIdx++
+			}
+			v.mu.Unlock()
+			v.notifyPlayState()
+			if !growing && rs != nil && path != "" {
+				rs.MarkCompleted(path)
+			}
+			if growing {
+				go v.growingFileWatcher(s, path, t)
+				return
+			}
+			v.dispatchRun(s, r, func() {
+				if v.player != nil {
+					v.player.SetPlaying(false)
 				}
-
-				// Growing file: don't fire end-of-stream yet — poll for growth.
-				if isGrowing && reloadPath != "" {
-					logging.Info(logging.CatPlayer, "playbackLoop: growing-file EOF, polling for growth")
-					go v.growingFileWatcher(reloadPath, t)
+				if end != nil {
+					end()
+				}
+			})
+			go func() {
+				reload := path
+				if nextPath != "" {
+					reload = nextPath
+				}
+				if reload == "" {
 					return
 				}
-
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					v.player.SetPlaying(false)
-					if endFn != nil {
-						endFn()
-					}
-				}, false)
-
-				// Advance to next playlist item if one is queued.
-				v.mu.Lock()
-				var nextPath string
-				if v.playlistIdx < len(v.playlist) {
-					nextPath = v.playlist[v.playlistIdx]
-					v.playlistIdx++
+				next, err := v.loadSession(reload, nextPath == "", func(e media.PlaybackEngine) error { return e.OpenAuto(reload) }, s)
+				if err == nil && nextPath != "" {
+					v.playSession(next)
 				}
-				v.mu.Unlock()
-
-				if nextPath != "" {
-					go func() {
-						if err := v.loadViaOpen(nextPath, false, func(eng media.PlaybackEngine) error { return eng.OpenAuto(nextPath) }); err != nil {
-							logging.Error(logging.CatPlayer, "playbackLoop: playlist advance Load failed: %v", err)
-							return
-						}
-						v.Play()
-					}()
-				} else if reloadPath != "" {
-					// No next item — reload current file so the user can play again.
-					go func() {
-						if err := v.Load(reloadPath); err != nil {
-							logging.Error(logging.CatPlayer, "playbackLoop: EOF reload failed: %v", err)
-						}
-					}()
-				}
-			} else {
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					v.player.SetError("Playback stopped: " + err.Error())
-					v.player.SetPlaying(false)
-				}, false)
-			}
+			}()
 			return
 		}
-
-		// Frame timing diagnostics (P1-8): collect per-frame stats.
+		v.mu.Lock()
+		if !v.runCurrentLocked(s, r) {
+			v.mu.Unlock()
+			return
+		}
+		timing := ""
 		if v.frameTimingVisible {
 			v.frameTimingCount++
 			now := time.Now()
-			var dt string
+			dt := "-"
 			if !v.frameTimingLastTime.IsZero() {
-				elapsed := now.Sub(v.frameTimingLastTime)
-				dt = fmt.Sprintf("%.1fms", float64(elapsed)/float64(time.Millisecond))
-			} else {
-				dt = "-"
+				dt = fmt.Sprintf("%.1fms", now.Sub(v.frameTimingLastTime).Seconds()*1000)
 			}
-			ptsDelta := t - v.frameTimingLastPTS
-			v.frameTimingLastPTS = t
-			v.frameTimingLastTime = now
-
-			label := fmt.Sprintf("frm %d  pts %.3f  Δ%s  ptsΔ%+.3f",
-				v.frameTimingCount, t, dt, ptsDelta)
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				v.player.SetFrameTimingText(label)
-			}, false)
+			timing = fmt.Sprintf("frm %d pts %.3f interval %s delta %+.3f", v.frameTimingCount, t, dt, t-v.frameTimingLastPTS)
+			v.frameTimingLastTime, v.frameTimingLastPTS = now, t
 		}
-
-		// Frame delivery: atomic store + goroutine-safe widget.Refresh().
-		// No DoFromGoroutine round-trip needed — SetFrame is now lock-free.
-		v.player.SetFrame(img)
-
-		// Time and callback dispatch: async (non-blocking).  SetCurrentTime
-		// must run on the main goroutine because it mutates Fyne widgets; false
-		// keeps the playback goroutine from stalling if the UI is briefly busy.
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetCurrentTime(t)
+		save := rs != nil && t > 0 && time.Since(v.lastSave) >= 5*time.Second
+		if save {
+			v.lastSave = time.Now()
+		}
+		v.mu.Unlock()
+		v.dispatchRun(s, r, func() {
+			if v.player != nil {
+				// Fyne Refresh can synchronously wait for its main thread.
+				// No player lock may be held across this widget call.
+				v.player.SetFrame(img)
+				v.player.SetCurrentTime(t)
+				if timing != "" {
+					v.player.SetFrameTimingText(timing)
+				}
+			}
 			if onFrm != nil {
 				onFrm(img)
 			}
-		}, false)
-		if onProg != nil {
+		})
+		if onProg != nil && v.runCurrent(s, r) {
 			onProg(t)
 		}
-
-		// Auto-save position for resume (throttled to every 5s).
-		if rs != nil && t > 0 {
-			v.mu.Lock()
-			if time.Since(v.lastSave) >= 5*time.Second {
-				v.lastSave = time.Now()
-				dur := eng.Duration()
-				v.mu.Unlock()
-				rs.SavePosition(path, t, dur)
-			} else {
-				v.mu.Unlock()
-			}
+		if save && v.runCurrent(s, r) {
+			rs.SavePosition(path, t, v.Duration())
 		}
 	}
 }

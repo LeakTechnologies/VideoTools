@@ -33,7 +33,7 @@ import (
 
 func (e *Engine) Start() {
 	e.lockMu()
-	if e.running {
+	if e.running || e.closed {
 		e.unlockMu()
 		return
 	}
@@ -337,6 +337,10 @@ func (e *Engine) ResetAfterGrab() {
 }
 
 func (e *Engine) Step(frames int) (*image.RGBA, error) {
+	return e.StepContext(context.Background(), frames)
+}
+
+func (e *Engine) StepContext(ctx context.Context, frames int) (*image.RGBA, error) {
 	if frames == 0 {
 		return nil, fmt.Errorf("invalid frame count: %d", frames)
 	}
@@ -360,7 +364,7 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 		var lastFrame *image.RGBA
 		for i := 0; i < n; i++ {
 			var err error
-			lastFrame, err = e.NextFrame()
+			lastFrame, err = e.NextFrameContext(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -371,7 +375,7 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 	var lastFrame *image.RGBA
 	var err error
 	for i := 0; i < frames; i++ {
-		lastFrame, err = e.NextFrame()
+		lastFrame, err = e.NextFrameContext(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1002,10 +1006,11 @@ func (e *Engine) GetLastAudioPTS() float64 {
 
 func (e *Engine) Close() {
 	e.lockMu()
-	if !e.running {
+	if e.closed {
 		e.unlockMu()
 		return
 	}
+	e.closed = true
 	e.running = false
 	e.paused = false
 	e.pausedAtomic.Store(false)

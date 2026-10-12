@@ -120,6 +120,8 @@ func (c *FrameCache) Size() int {
 //     cannot overlap with a still-exiting goroutine.
 //   - s.swsCtx / s.rgbaFrame / s.rgbaBuffer: protected by convertMu.
 type SmoothScrubbing struct {
+	startOnce   sync.Once
+	stopOnce    sync.Once
 	engine      *Engine
 	frameCache  *FrameCache
 	seekQueue   chan float64
@@ -229,38 +231,43 @@ func (s *SmoothScrubbing) openDecoder() error {
 }
 
 func (s *SmoothScrubbing) Start() {
-	s.wg.Add(1)
-	go func() { defer s.wg.Done(); s.seekHandler() }()
+	s.startOnce.Do(func() {
+		s.wg.Add(1)
+		go func() { defer s.wg.Done(); s.seekHandler() }()
+	})
 }
 
 func (s *SmoothScrubbing) Stop() {
-	close(s.stop)
-	s.wg.Wait()
+	s.stopOnce.Do(func() {
+		close(s.stop)
+		s.wg.Wait()
 
-	s.convertMu.Lock()
-	defer s.convertMu.Unlock()
+		s.convertMu.Lock()
+		defer s.convertMu.Unlock()
 
-	if s.frame != nil {
-		C.av_frame_free(&s.frame)
-		s.frame = nil
-	}
-	if s.rgbaFrame != nil {
-		C.av_frame_free(&s.rgbaFrame)
-		s.rgbaFrame = nil
-	}
-	if s.swsCtx != nil {
-		C.sws_freeContext(s.swsCtx)
-		s.swsCtx = nil
-	}
-	s.rgbaBuffer = nil
-	if s.codecCtx != nil {
-		C.avcodec_free_context(&s.codecCtx)
-		s.codecCtx = nil
-	}
-	if s.fmtCtx != nil {
-		C.avformat_close_input(&s.fmtCtx)
-		s.fmtCtx = nil
-	}
+		if s.frame != nil {
+			C.av_frame_free(&s.frame)
+			s.frame = nil
+		}
+		if s.rgbaFrame != nil {
+			C.av_frame_free(&s.rgbaFrame)
+			s.rgbaFrame = nil
+		}
+		if s.swsCtx != nil {
+			C.sws_freeContext(s.swsCtx)
+			s.swsCtx = nil
+		}
+		s.rgbaBuffer = nil
+		if s.codecCtx != nil {
+			C.avcodec_free_context(&s.codecCtx)
+			s.codecCtx = nil
+		}
+		if s.fmtCtx != nil {
+			C.avformat_close_input(&s.fmtCtx)
+			s.fmtCtx = nil
+		}
+
+	})
 }
 
 func (s *SmoothScrubbing) RequestSeek(target float64) {

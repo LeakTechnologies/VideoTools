@@ -828,16 +828,21 @@ func TestPlaybackStatePublishersAreWired(t *testing.T) {
 		t.Fatalf("reading internal/ui/inline_player.go: %v", err)
 	}
 	src := string(b)
+	sessionSource, err := os.ReadFile(filepath.Join("internal", "ui", "player_session.go"))
+	if err != nil {
+		t.Fatalf("reading player session implementation: %v", err)
+	}
+	src += "\n" + string(sessionSource)
 
 	// Mutator → the notification it must reach. Presence of the field write is
 	// not enough; the callback has to actually be fired on that path.
 	required := map[string][]string{
 		"play state":     {"v.notifyPlayState()"},
-		"speed":          {"fireOnMain(func() { cb(speed) })"},
-		"audio track":    {"fireOnMain(func() { cb(idx) })"},
-		"subtitle track": {"fireOnMain(func() { cb(-1) })"},
-		"reset on load":  {"fireOnMain(func() { speedCB(1.0) })"},
-		"reset on close": {"fireOnMain(func() { subCB(-1) })"},
+		"speed":          {"v.dispatchSession(source, func() { cb(speed) })"},
+		"audio track":    {"v.dispatchSession(source, func() { cb(idx) })"},
+		"subtitle track": {"v.dispatchSession(source, func() { cb(-1) })"},
+		"reset on load":  {"v.dispatchSession(s, func() { speedCB(1.0) })"},
+		"reset on close": {"v.dispatchIdle(func() { subCB(-1) })"},
 		"end of stream":  {"v.notifyPlayState()"},
 	}
 	for name, needles := range required {
@@ -874,7 +879,7 @@ func TestPlaybackStatePublishersAreWired(t *testing.T) {
 	}
 	// Checked against code only: the function's own doc comment names
 	// publishPlayState while explaining why it must not be used that way.
-	code := stripGoComments(src)
+	code := stripGoComments(string(b)) + stripGoComments(string(sessionSource))
 	if strings.Contains(code, "publishPlayState") {
 		t.Error("a deferred or assigning publishPlayState reintroduces the Play()/EOF race " +
 			"it was replaced to fix; use defer v.notifyPlayState() instead")

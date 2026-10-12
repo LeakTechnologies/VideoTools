@@ -1,5 +1,10 @@
 # VideoTools Agent Workflow Rules
 
+## VT_Player source-ownership candidate (unlanded)
+
+The second Stage 1 slice is implemented in the isolated player worktree: source sessions own load completion, native operations and presentation runs; cancellation/join gates replacements and transport; callbacks and automatic reload reject retired sources. Native Close disposes partial opens; paused audio Close retains its immutable stop channel; scrubber start/stop are idempotent. Runtime stress caught a candidate lock cycle (widget Refresh under player mu), repaired by queued UI frame refresh without that lock. Final automated media run delivered 398 frames and retired all three source sessions, but visual review is pending because the user was away. Keep this candidate off master/release until that acceptance. Known seek fallback warning and resume timeline movement remain open. Read docs/PLAYER_DEBUG.md and docs/VT_PLAYER_UPGRADE_PLAN.md. Candidate version dev95 must be rechecked against concurrent releases before landing.
+
+
 ## Dev94 player cancellation foundation
 
 Current candidate: v0.1.1-dev94. Retirement-aware frame/clock waits and retired-read suppression implemented; full native gate passed. A visible software-decode session delivered 243 frames, exercised pause/resume/2x and closed cleanly; runtime log reviewed with no ERROR/WARN/drop records. User reported slight jitter at the end; smoothness remains open. Source generations, one presentation consumer, native I/O interruption and seek correctness remain outstanding. See docs/VT_PLAYER_UPGRADE_PLAN.md and docs/PLAYER_DEBUG.md. Release CI/tag status must be confirmed before claiming publication.
