@@ -22,6 +22,7 @@ func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) error { 
 
 func (v *InlineVideoPlayer) Play()                                 {}
 func (v *InlineVideoPlayer) Pause()                                {}
+func (v *InlineVideoPlayer) IsPlaying() bool                       { return false }
 func (v *InlineVideoPlayer) Seek(target float64)                   {}
 func (v *InlineVideoPlayer) ScrubTo(target float64)                {}
 func (v *InlineVideoPlayer) SetSpeed(speed float64)                {}

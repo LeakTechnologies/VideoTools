@@ -6,6 +6,11 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var iu = Strings{
+	PlayerFrameTools:      "Player tools", // English placeholder, needs human review
+	PlayerUseFrameAsCover: "Use current frame as cover", // English placeholder, needs human review
+	PlayerSaveFrame:       "Save current frame as PNG", // English placeholder, needs human review
+	PlayerImportCover:     "Import cover image", // English placeholder, needs human review
+
 	// ── App ──────────────────────────────────────────────────────────────
 	AppTitle: "VideoTools",
 

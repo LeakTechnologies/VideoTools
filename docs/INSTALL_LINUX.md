@@ -1,6 +1,9 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Dev95: Convert keeps Load Video/source identity available when preview is closed, gives metadata the flexible space, and groups frame/cover and source-track actions under Player tools. No new runtime dependency. Verify layout with your selected font and display scaling.
+
 Dev94 player note: native frame and timestamp waits now respond to cancellation/engine retirement. No new runtime dependencies. Basic software playback and close were checked on Windows; minor 2x-segment jitter remains under investigation. Linux runtime acceptance remains outstanding.
+
 
 Dev93 restores Rip Content Browser title labels and selection controls. No new runtime dependencies. After updating, load a disc and check card visibility and selection while scrolling.
 

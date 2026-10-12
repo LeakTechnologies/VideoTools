@@ -3,6 +3,11 @@ package i18n
 // enCA is the English (Canada) source of truth.
 // Every field must be populated — this is the fallback for all other languages.
 var enCA = Strings{
+	PlayerFrameTools:      "Player tools",
+	PlayerUseFrameAsCover: "Use current frame as cover",
+	PlayerSaveFrame:       "Save current frame as PNG",
+	PlayerImportCover:     "Import cover image",
+
 	// ── App ──────────────────────────────────────────────────────────────
 	AppTitle: "VideoTools",
 

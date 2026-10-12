@@ -4,6 +4,11 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var frCA = Strings{
+	PlayerFrameTools:      "Outils de lecture",
+	PlayerUseFrameAsCover: "Utiliser cette image comme jaquette",
+	PlayerSaveFrame:       "Enregistrer cette image en PNG",
+	PlayerImportCover:     "Importer une jaquette",
+
 	// ── App ──────────────────────────────────────────────────────────────
 	AppTitle: "VideoTools",
 

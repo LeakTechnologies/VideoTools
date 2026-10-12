@@ -80,33 +80,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	outer.StrokeColor = ui.GridColor
 	outer.StrokeWidth = 1
 
-	defaultAspect := 16.0 / 9.0
-	if src != nil && src.Width > 0 && src.Height > 0 {
-		defaultAspect = float64(src.Width) / float64(src.Height)
-	}
-	if defaultAspect < 0.6 {
-		defaultAspect = 0.6
-	} else if defaultAspect > 2.4 {
-		defaultAspect = 2.4
-	}
-
-	targetWidth := float32(min.Width)
-	targetHeight := float32(min.Height)
-	if targetWidth <= 0 {
-		targetWidth = 480
-	}
-	if targetHeight <= 0 {
-		targetHeight = 360
-	}
-
-	aspect := float32(defaultAspect)
-	stageWidth := targetWidth
-	stageHeight := stageWidth / aspect
-	if stageHeight < targetHeight {
-		stageHeight = targetHeight
-		stageWidth = stageHeight * aspect
-	}
-
 	// Playback state is NOT seeded here. This pane is rebuilt on every
 	// showConvertView (source switch, Reset, panel toggle), and assigning a
 	// paused flag during construction made the UI claim a pause the engine
@@ -138,7 +111,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	dropAnimation.AutoReverse = true
 	dropAnimation.RepeatCount = 3
 
-	coverBtn := utils.MakeIconButton("", t.ActionSave+" Frame", func() {
+	coverBtn := widget.NewButton(t.PlayerUseFrameAsCover, func() {
 		img := playerWidget.CurrentFrame()
 		if img == nil {
 			return
@@ -160,7 +133,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		}
 	})
 
-	saveFrameBtn := utils.MakeIconButton("", "Save current frame as PNG", func() {
+	saveFrameBtn := widget.NewButton(t.PlayerSaveFrame, func() {
 		img := playerWidget.CurrentFrame()
 		if img == nil {
 			return
@@ -187,7 +160,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		saveDlg.Show()
 	})
 
-	importBtn := utils.MakeIconButton("", "Import cover art file", func() {
+	importBtn := widget.NewButton(t.PlayerImportCover, func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
@@ -210,14 +183,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		dlg.Show()
 	})
 
-	stageWithPlayer := ui.BuildPlayerContainer(playerWidget, fyne.NewSize(stageWidth, stageHeight))
+	stageWithPlayer := ui.BuildPlayerContainer(playerWidget, fyne.NewSize(0, 0))
 	videoStageWithIndicator := container.NewMax(dropIndicator, stageWithPlayer)
 
 	srcDuration := 0.0
-	srcFrameRate := 0.0
 	if src != nil {
 		srcDuration = src.Duration
-		srcFrameRate = src.FrameRate
 	}
 
 	currentTime := widget.NewLabel("0:00")
@@ -227,24 +198,15 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	slider := ui.MakeSlider(0, math.Max(1, srcDuration))
 	slider.Step = 0.5
 
-	// frameLabel declared here so updateProgress can reference it via closure.
-	var frameLabel *widget.Label
-
 	var updatingProgress bool
 	updateProgress := func(val float64) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			updatingProgress = true
 			currentTime.SetText(formatClock(val))
 			slider.SetValue(val)
-			if frameLabel != nil && srcFrameRate > 0 {
-				frameLabel.SetText(fmt.Sprintf("Frame: %d", int(val*srcFrameRate)))
-			}
 			updatingProgress = false
 		}, false)
 	}
-
-	frameLabel = widget.NewLabel("Frame: 0")
-	frameLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
 	slider.OnChanged = func(val float64) {
 		if updatingProgress {
@@ -375,18 +337,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	prevFrameBtn := widget.NewButtonWithIcon("", navy("skip_previous"), func() {
 		state.stepFrameNative(-1)
 		syncTransportUI()
-		if srcFrameRate > 0 {
-			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
-		}
 	})
 	prevFrameBtn.Importance = widget.LowImportance
 
 	nextFrameBtn := widget.NewButtonWithIcon("", navy("skip_next"), func() {
 		state.stepFrameNative(1)
 		syncTransportUI()
-		if srcFrameRate > 0 {
-			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
-		}
 	})
 	nextFrameBtn.Importance = widget.LowImportance
 
@@ -601,16 +557,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		leftBtns.Add(greenSquareBtn(chapterNextBtn))
 	}
 
-	rightBtns := container.NewHBox(speedSelect, volBox, fullBtn)
+	toolsBtn := widget.NewButton(t.PlayerFrameTools, nil)
+	rightBtns := container.NewHBox(speedSelect, volBox, toolsBtn, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
 	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 140})
 	primaryBar := container.NewMax(primaryBg, container.NewPadded(container.NewVBox(seekRow, mainCtrlRow)))
-
-	gridColor := ui.GridColor
-	advancedBg := canvas.NewRectangle(utils.MustHex("#0C111F"))
-	advancedBg.StrokeColor = gridColor
-	advancedBg.StrokeWidth = 1
 
 	audioTracks := player.GetAudioTracks()
 	audioTrackSelect := widget.NewSelect(nil, nil)
@@ -710,13 +662,17 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		subtitleTrackSelect.Show()
 	}
 
-	frameTools := container.NewBorder(nil, nil,
-		container.NewHBox(widget.NewSeparator(), frameLabel),
-		container.NewHBox(subtitleTrackSelect, audioTrackSelect, coverBtn, saveFrameBtn, importBtn),
-		nil,
-	)
-	advancedBar := container.NewMax(advancedBg, container.NewPadded(frameTools))
-
+	toolsBtn.OnTapped = func() {
+		items := []*widget.FormItem{}
+		if audioTrackSelect.Visible() {
+			items = append(items, widget.NewFormItem(t.ModuleAudio, audioTrackSelect))
+		}
+		if subtitleTrackSelect.Visible() {
+			items = append(items, widget.NewFormItem(t.ModuleSubtitles, subtitleTrackSelect))
+		}
+		dialog.ShowCustom(t.PlayerFrameTools, t.ActionClose,
+			container.NewVBox(widget.NewForm(items...), coverBtn, saveFrameBtn, importBtn), state.window)
+	}
 	// Wrap the video stage so files dropped directly onto the player are handled.
 	dropZone := ui.NewDroppable(videoStageWithIndicator, func(items []fyne.URI) {
 		state.handleDrop(fyne.NewPos(0, 0), items)
@@ -748,7 +704,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 
 	stack := container.NewBorder(
 		nil,
-		advancedBar,
+		nil,
 		nil, nil,
 		container.NewPadded(videoWithControls),
 	)

@@ -1,5 +1,18 @@
 # VideoTools TODO
 
+## Dev95 — Convert workspace and suite UI direction
+
+- [x] Document agreed task hierarchy, optional playback and SMPTE identity: [UI_SUITE_DESIGN.md](docs/UI_SUITE_DESIGN.md).
+- [x] Implement metadata-first layout, measured collapsed headers, labeled tools and persistent source loading.
+- [x] Correct saved-position loading that blocked metadata before the playback decoder started; test direct timed preview reads and failures.
+- [ ] Player follow-up: saved-preview/playback PTS mismatch, initial 0:00 display and transient resumed-frame distortion; see PLAYER_DEBUG.md.
+- [x] Native build/vet/full tests, non-native build and real Windows playback/log review: see docs/PLAYER_DEBUG.md.
+- [ ] Tester verify current/narrow/wide windows and fonts; Linux/scaling checks remain outstanding.
+- [ ] Continue module audits and encrypted DVD acceptance; player lifecycle/transport repairs remain separately coordinated.
+- Evidence inventory: [UI_SUITE_AUDIT.md](docs/UI_SUITE_AUDIT.md).
+
+
+
 ## Dev94 VT_Player follow-up
 
 - [x] Retirement-aware frame/clock reads, speed-aware waits and retired-read suppression, with behavioral tests.
@@ -19,6 +32,7 @@
 - [ ] Stage 3: synchronized comparison of existing files with one timeline.
 - [ ] Stage 4: short upscale preview variants using the full-render processing configuration, after media acceptance.
 - [ ] Stage 5: linked inspection controls and measured performance tuning.
+
 
 ## VT_Player audit follow-up — dev93 baseline
 

@@ -624,9 +624,10 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 	if v.resumeState != nil {
 		if saved, ok := v.resumeState.GetPosition(displayPath); ok && v.resumeState.ShouldResume(saved) {
 			logging.Info(logging.CatPlayer, "InlineVideoPlayer: resuming at %.2fs for %s", saved.Position, displayPath)
-			eng.Seek(saved.Position)
-			if img, err := eng.NextFrame(); err == nil {
+			if img, err := grabResumePreview(eng, saved.Position); err == nil {
 				firstFrame = img
+			} else {
+				logging.Warning(logging.CatPlayer, "InlineVideoPlayer: saved-position preview unavailable: %v", err)
 			}
 		}
 	}
@@ -663,6 +664,15 @@ func (v *InlineVideoPlayer) loadViaOpen(displayPath string, resetPlaylist bool, 
 		}
 	}, false)
 	return nil
+}
+
+// Loading precedes the first Resume, which starts the frame-queue decoder.
+// Decode directly here: NextFrame would wait for a producer that is not running.
+func grabResumePreview(eng media.PlaybackEngine, position float64) (*image.RGBA, error) {
+	if err := eng.Seek(position); err != nil {
+		return nil, err
+	}
+	return eng.GrabFrame(4 * time.Second)
 }
 
 func (v *InlineVideoPlayer) Play() {

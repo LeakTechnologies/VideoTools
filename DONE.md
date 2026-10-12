@@ -1,5 +1,17 @@
 # VideoTools - Completed Features
 
+Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
+
+## v0.1.1-dev95 — Convert workspace refinement
+
+Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained.
+
+Design: [UI_SUITE_DESIGN.md](docs/UI_SUITE_DESIGN.md). Validation and tester acceptance are tracked separately.
+
+Saved-position loading no longer waits for an unstarted frame-queue decoder; direct timed preview decoding is covered by behavioral regressions and a real resumed-load session. Accurate seek and transient resumed-frame distortion remain open.
+
+
+
 ## v0.1.1-dev94 — VT_Player cancellation foundation
 
 Frame reads and clock waits now return on engine retirement/caller cancellation. Clock waits respect speed and remain interruptible. Playback ignores retired reads and rejects results from detached engines. Behavioral regressions and full native verification pass. Visible media session and runtime log reviewed; minor jitter at the end of the 2x segment remains open. The overall reliability/comparison stages are not complete.
@@ -8,6 +20,7 @@ Frame reads and clock waits now return on engine retirement/caller cancellation.
 ## VT_Player upgrade planning
 
 Recorded the [ordered upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md) and first lifecycle slice. This completes planning only; no upgrade stage has playback acceptance or a release.
+
 
 ## VT_Player audit — dev93 baseline, 2026-10-12
 

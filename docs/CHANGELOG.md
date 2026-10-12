@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev95 — October 2026
+
+- Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained.
+- Added the suite design and initial task/visual audit; locked modules remain skipped. No backend or transport rewrite.
+- Corrected saved-position loading: decode the initial resumed preview directly with a timeout instead of waiting for the playback decoder before it starts. Seek/preview failures return to loading; precise seek and transient resumed-frame distortion remain open.
+- Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
+
+
+
 ## v0.1.1-dev94 (October 2026) — VT_Player cancellation foundation
 
 - Added caller/retirement cancellation to native frame reads and PTS waits; preserved natural EOF as a separate outcome.
@@ -12,6 +21,7 @@
 ## VT_Player upgrade preparation (candidate branch)
 
 - Recorded [upgrade sequence and acceptance gates](VT_PLAYER_UPGRADE_PLAN.md); lifecycle work starts with retirement-aware frame reads. No accepted player release yet.
+
 
 ## Audit update — 2026-10-12 (dev93 baseline)
 
