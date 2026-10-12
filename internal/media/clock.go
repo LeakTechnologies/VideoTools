@@ -3,6 +3,8 @@
 package media
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -34,7 +36,7 @@ func NewMasterClock() *MasterClock {
 		startTime: time.Now(),
 		ptsTime:   time.Now(),
 		speed:     RealtimeSpeed,
-		paused: true, // stays paused through Load/GrabFrame; unpaused by Engine.Resume() on first Play.
+		paused:    true, // stays paused through Load/GrabFrame; unpaused by Engine.Resume() on first Play.
 	}
 }
 
@@ -140,36 +142,58 @@ func (c *MasterClock) GetSpeed() float64 {
 }
 
 func (c *MasterClock) WaitForPTS(targetPTS float64) {
-	c.mu.Lock()
-	paused := c.paused
-	c.mu.Unlock()
+	_ = c.WaitForPTSContext(context.Background(), targetPTS)
+}
 
-	if paused {
-		return
-	}
+// ErrEngineClosed distinguishes retirement from a natural end of media.
+var ErrEngineClosed = errors.New("playback engine closed")
 
+// WaitForPTSContext waits for presentation time without trapping a retired
+// consumer. Short waits also observe pause and speed changes promptly.
+func (c *MasterClock) WaitForPTSContext(ctx context.Context, targetPTS float64) error {
+	return c.waitForPTS(ctx, targetPTS, nil)
+}
+
+func (c *MasterClock) waitForPTS(ctx context.Context, targetPTS float64, stop <-chan struct{}) error {
 	for {
+		select {
+		case <-stop:
+			return ErrEngineClosed
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		c.mu.Lock()
 		paused := c.paused
+		speed := c.speed
 		c.mu.Unlock()
 		if paused {
-			return
+			return nil
 		}
 
 		master := c.GetTime()
 		diff := targetPTS - master
 
 		if diff <= 0 {
-			return
+			return nil
 		}
-
-		if diff > MaxDriftThreshold {
-			time.Sleep(MaxWaitTime)
-			continue
+		wait := MaxWaitTime
+		if speed > 0 {
+			seconds := diff / speed
+			if seconds < MaxWaitTime.Seconds() {
+				wait = time.Duration(seconds * float64(time.Second))
+			}
 		}
-
-		time.Sleep(time.Duration(diff * float64(time.Second)))
-		return
+		timer := time.NewTimer(wait)
+		select {
+		case <-stop:
+			timer.Stop()
+			return ErrEngineClosed
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
 }
 

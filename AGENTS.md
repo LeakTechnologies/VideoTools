@@ -1,5 +1,14 @@
 # VideoTools Agent Workflow Rules
 
+## Dev94 player cancellation foundation
+
+Current candidate: v0.1.1-dev94. Retirement-aware frame/clock waits and retired-read suppression implemented; full native gate passed. A visible software-decode session delivered 243 frames, exercised pause/resume/2x and closed cleanly; runtime log reviewed with no ERROR/WARN/drop records. User reported slight jitter at the end; smoothness remains open. Source generations, one presentation consumer, native I/O interruption and seek correctness remain outstanding. See docs/VT_PLAYER_UPGRADE_PLAN.md and docs/PLAYER_DEBUG.md. Release CI/tag status must be confirmed before claiming publication.
+
+
+## Active VT_Player upgrade plan
+
+[VT_PLAYER_UPGRADE_PLAN.md](docs/VT_PLAYER_UPGRADE_PLAN.md) records the user-authorized sequence: reliable playback -> trustworthy navigation -> synchronized comparison -> short upscale previews -> inspection/performance. First slice: retirement-aware frame reads; candidate branch only until real playback and log review. Preserve the InlineVideoPlayer API and approved dual-stream exceptions. Encrypted-disc acceptance remains outstanding; no backend/workflow change is included.
+
 ## VT_Player audit follow-up (2026-10-12; dev93 baseline)
 
 [VT_PLAYER_AUDIT_DEV93.md](docs/VT_PLAYER_AUDIT_DEV93.md) records 15 open findings. Incorrect handwritten FFmpeg seek constants are confirmed against installed headers; precise seek passes byte/frame flags with timestamps. Repair source lifetime/presentation ownership and transport correctness before profiling. Audit build/vet/full tests passed; no current playback acceptance. Historical seekGen-lastSeekGen log spam remains fixed. PLAYER_DEBUG's old green table is historical. Backend/workflow changes remain subject to existing approval rules; encrypted-disc acceptance is outstanding.

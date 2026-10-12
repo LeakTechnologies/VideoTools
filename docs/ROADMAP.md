@@ -1,5 +1,14 @@
 # VideoTools Roadmap
 
+## v0.1.1-dev94 — VT_Player cancellation foundation
+
+First reliability slice implemented and locally verified: cancellable Engine frame/clock waits, speed-aware pacing waits and retired-read suppression. Visible software playback/log reviewed; slight end-of-session jitter remains open. Now: complete source/presentation ownership and native I/O interruption. Next: trustworthy navigation, synchronized comparison and then short upscale previews. Encrypted-disc acceptance remains outstanding. Remote CI/release publication pending.
+
+
+## Active VT_Player upgrades
+
+[Plan](VT_PLAYER_UPGRADE_PLAN.md): reliability, accurate navigation, synchronized comparison, short upscale previews, then inspection/performance. Start with cancellable Engine frame/clock waits and proceed to presentation/source ownership. Real playback/log review gates player landing; encrypted-disc acceptance remains outstanding. Candidate work does not consume a dev release number.
+
 ## VT_Player audit follow-up — 2026-10-12 (dev93 baseline)
 
 [Current-state audit](VT_PLAYER_AUDIT_DEV93.md): 15 open findings and staged repairs. Audit complete; native build/vet/full tests passed. Now: source lifetime, presentation ownership and correct seeking. Next: source UI, profiling and encrypted-disc acceptance. Current playback remains unverified. Documentation-only update; application version unchanged.

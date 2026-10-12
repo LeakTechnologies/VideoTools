@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev93 &mdash; October 2026 (Rip: Content Browser cards render again) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev94 &mdash; October 2026 (VT_Player cancellation foundation) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -375,6 +375,8 @@ status: 'done', cycle: 'dev74', files: ['internal/dvd/ifo/extract.go', 'internal
 
   Player: {
     items: [
+      { id: 'player-retirement-dev94', title: 'VT_Player Retirement-Aware Frame Reads', desc: 'Frame queue and PTS waits return on cancellation/engine retirement; speed-aware capped clock waits; stale frame generation rechecked after pacing. Player ignores retired reads instead of surfacing EOF/errors. Native build/vet/full tests pass. Visible software-decode session delivered 243 frames and closed cleanly; user reported minor jitter at the end of the 2x segment. Broader source/presentation ownership remains active.', status: 'done', cycle: 'dev94', files: ['internal/media/clock.go', 'internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['vt-player-upgrade-foundation'], docs: ['docs/VT_PLAYER_UPGRADE_PLAN.md', 'docs/PLAYER_DEBUG.md'] },
+      { id: 'vt-player-upgrade-foundation', title: 'VT_Player Reliability Foundation', desc: 'Active: retirement-aware frame reads first, then source generations and one presentation consumer. Candidate changes require real playback/log review before landing. Follow with accurate navigation, synchronized comparison, short upscale previews and measured inspection improvements.', status: 'active', cycle: 'next', files: ['internal/media/clock.go', 'internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['inline-player'], docs: ['docs/VT_PLAYER_UPGRADE_PLAN.md'] },
       { id: 'vt-player-audit-dev93', title: 'VT_Player Current-State Audit', desc: 'Audit complete; fixes remain open. Incorrect FFmpeg seek constants, uncommitted scrubbing, competing consumers, stale loads and uncancellable waits. Build/vet/full tests pass; current real playback unverified. Repair ownership and transport before profiling.', status: 'done', cycle: 'dev93', files: ['docs/VT_PLAYER_AUDIT_DEV93.md'], deps: ['inline-player'], docs: ['docs/VT_PLAYER_AUDIT_DEV93.md'] },
       { id: 'engine', title: 'CGo/FFmpeg Engine', desc: 'FFmpeg-based demux + decode + audio via oto v3; native_media build tag', status: 'shipped', cycle: 'dev42', files: ['internal/media/'], deps: [], docs: ['docs/NATIVE_PLAYER.md'] },
       { id: 'inline-player', title: 'InlineVideoPlayer API', desc: 'Single API layer wrapping VideoPlayer â€” all modules must use this, not the engine directly', status: 'shipped', cycle: 'dev44', files: ['internal/ui/inline_player.go'], deps: ['engine'], docs: ['docs/NATIVE_PLAYER.md'] },
@@ -643,7 +645,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev93';
+const currentVersion = 'dev94';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -839,7 +841,8 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev93', date: 'October 2026', tag: 'current', sections: [{ title: 'Rip Content Browser rendering', items: ['Rip Content Browser cards now render their labels, thumbnail area and selection checks. The dev91 owner wrapper embedded a container but was neither a concrete Fyne container nor a widget, so the canvas skipped its children. cardBox now extends BaseWidget and exposes the original container through a simple renderer; stable owner-based selection remains intact. The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.', 'Audit records source-state, audio selection, option-control and browser lifecycle defects separately. Real-media acceptance remains outstanding.'] }] },
+  { version: 'v0.1.1-dev94', date: 'October 2026', tag: 'current', sections: [{ title: 'VT_Player cancellation foundation', items: ['Retirement-aware frame reads and capped speed-aware clock waits; natural EOF stays distinct.', 'Retired frame reads cannot stop replacement playback.', 'Native build/vet/full tests passed; visible session and log reviewed. Minor end-of-session jitter remains open.', 'Ordered upgrade plan recorded; source/presentation ownership and comparison remain outstanding.'] }] },
+  { version: 'v0.1.1-dev93', date: 'October 2026', sections: [{ title: 'Rip Content Browser rendering', items: ['Rip Content Browser cards now render their labels, thumbnail area and selection checks. The dev91 owner wrapper embedded a container but was neither a concrete Fyne container nor a widget, so the canvas skipped its children. cardBox now extends BaseWidget and exposes the original container through a simple renderer; stable owner-based selection remains intact. The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.', 'Audit records source-state, audio selection, option-control and browser lifecycle defects separately. Real-media acceptance remains outstanding.'] }] },
   { version: 'v0.1.1-dev92', date: 'October 2026', tag: 'done', sections: [
     { title: 'Rip: the output path now follows the Title field live', items: [
       'The defect: editing the Title field in the Rip module did not update the output path box — the path and the Title only agreed at load time, so a user renaming a rip watched the output filename stay stale.',
@@ -1802,6 +1805,8 @@ backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 's
 
 // --- Testing Checklist ---
 const checklistData = [
+  { title: 'VT_Player dev94 acceptance', items: ['Cancellation/retirement exits paused and empty frame reads and future-PTS waits', 'Natural EOF remains distinct; stale reads cannot stop replacement playback', 'Visible software-decode play/pause/resume/2x/close session reviewed', 'Minor end-of-session jitter remains open for measurement', 'Source generations, one presentation consumer and native I/O cancellation still require follow-up'] },
+  { title: 'VT_Player upgrade foundation (candidate)', items: ['Retired engine and cancelled caller unblock empty/paused frame reads and PTS waits', 'Cancellation is distinct from natural EOF', 'Only one presentation consumer survives rapid transport/source changes', 'Native build, vet and full tests pass', 'Real playback session and runtime log reviewed before landing', 'Small dev release and synchronized docs after acceptance'] },
   { title: 'VT_Player audit follow-up (dev93; unverified)', items: ['Rapid pause/play and source replacement retain one presentation consumer', 'Close cancels load, seek, frame waits and growing-file watchers', 'Correct FFmpeg flags and final drag commit; verify actual returned PTS', 'Backward step returns preceding presented frame', 'Clear resets host source; source switch resets chapters, thumbnails and tracks', 'Profile neutral samples and review real playback logs', 'Complete encrypted DVD to Rip to Convert to playback acceptance'] },
   { title: 'Player (dev84)', items: [
     'Settings no longer offers a "Use libVLC backend" checkbox - it was removed because it did nothing in any shipped build',

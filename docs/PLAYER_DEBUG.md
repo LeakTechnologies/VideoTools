@@ -1,5 +1,14 @@
 # Player Debug Status
 
+## Dev94 candidate playback session — 2026-10-12
+
+A temporary visible Fyne verification window used the actual InlineVideoPlayer/FFmpeg/oto path with user-supplied local MP4 media, software decode and the cancellation candidate. Sequence: play 5 seconds, pause 1 second, resume 4 seconds, 2x for 3 seconds, close, allow teardown 2 seconds. Delivered 243 progress frames. Engine close was logged approximately 3 ms after the close request; the session completed normally. Logs remained outside the repo in the temporary candidate-session directory; media titles and full paths are not committed.
+
+Log review: zero ERROR, WARN and frame-DROP lines; normal milestones, resume and engine-close records observed. User confirmed playback/audio looked correct, then reported slight jitter at the end. The final segment was 2x; correlation is not a proven cause. Basic session completion supports this cancellation slice, not smoothness or full lifecycle acceptance. Hardware modes, accurate seeking, overlapping source loads, rapid transport stress and synchronized comparison remain unverified.
+
+Implemented: interruptible empty/paused frame reads and PTS waits; speed-aware capped waits; generation recheck after pacing; retired reads discarded by playback. Tests cover cancellation/retirement, future PTS, EOF separation, speed timing and detached-frame/EOF suppression. Full native build/vet/tests passed.
+
+
 ## Current audit — 2026-10-12 (dev93 baseline)
 
 The dev55 status below is historical implementation reporting, not current runtime sign-off. [VT_PLAYER_AUDIT_DEV93.md](VT_PLAYER_AUDIT_DEV93.md) records 15 open findings including incorrect seek flags, uncommitted scrubbing, competing consumers, stale loads and uncancellable waits. Native build/vet/full tests passed. No current playback session or profiling was performed; the one-line February log artifact is insufficient. Player fixes must add actual session evidence here before landing. The historical seekGen logging defect remains fixed.

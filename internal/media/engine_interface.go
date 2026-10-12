@@ -3,6 +3,7 @@
 package media
 
 import (
+	"context"
 	"image"
 	"time"
 
@@ -34,6 +35,7 @@ type PlaybackEngine interface {
 	IsRunning() bool
 	Seek(seconds float64) error
 	NextFrame() (*image.RGBA, error)
+	NextFrameContext(context.Context) (*image.RGBA, error)
 	Step(frames int) (*image.RGBA, error)
 	GrabFrame(timeout time.Duration) (*image.RGBA, error)
 	ResetAfterGrab()

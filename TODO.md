@@ -1,5 +1,25 @@
 # VideoTools TODO
 
+## Dev94 VT_Player follow-up
+
+- [x] Retirement-aware frame/clock reads, speed-aware waits and retired-read suppression, with behavioral tests.
+- [x] Native build/vet/full tests; visible software-decode session and log review.
+- [ ] Measure reported end-of-session jitter, including 1x versus 2x pacing.
+- [ ] Complete source generations, single presentation ownership and native I/O interruption as the next lifecycle slice.
+- [ ] Correct seeking/scrubbing/stepping before synchronized comparison.
+- [ ] Confirm development CI and publish the dev94 tag/release; release token is unavailable in this session.
+- Plan: [VT_PLAYER_UPGRADE_PLAN.md](docs/VT_PLAYER_UPGRADE_PLAN.md).
+
+
+## Active VT_Player upgrade plan
+
+- [x] Record [ordered upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md) before implementation.
+- [ ] Stage 1: cancellable frame/clock waits, source generations and one presentation consumer; review real playback log.
+- [ ] Stage 2: reliable seek/scrub/step and source UI state.
+- [ ] Stage 3: synchronized comparison of existing files with one timeline.
+- [ ] Stage 4: short upscale preview variants using the full-render processing configuration, after media acceptance.
+- [ ] Stage 5: linked inspection controls and measured performance tuning.
+
 ## VT_Player audit follow-up — dev93 baseline
 
 - [x] Audit present code and run native build/vet/full tests.

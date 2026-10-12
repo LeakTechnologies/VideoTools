@@ -1,5 +1,18 @@
 # VideoTools Changelog
 
+## v0.1.1-dev94 (October 2026) — VT_Player cancellation foundation
+
+- Added caller/retirement cancellation to native frame reads and PTS waits; preserved natural EOF as a separate outcome.
+- Clock waits use playback speed and capped interruptible waits; recheck frame generation after pacing.
+- Ignore retired reads and reject detached-engine results in playback.
+- Added behavioral regressions; native build/vet/full tests passed. Visible media/log verification passed for basic controls and clean close; slight end-of-session jitter remains open.
+- [Upgrade plan](VT_PLAYER_UPGRADE_PLAN.md): reliability -> navigation -> synchronized comparison -> short previews -> inspection/performance. No completed comparison feature is claimed.
+
+
+## VT_Player upgrade preparation (candidate branch)
+
+- Recorded [upgrade sequence and acceptance gates](VT_PLAYER_UPGRADE_PLAN.md); lifecycle work starts with retirement-aware frame reads. No accepted player release yet.
+
 ## Audit update — 2026-10-12 (dev93 baseline)
 
 - [VT_Player audit](VT_PLAYER_AUDIT_DEV93.md): incorrect seek flags, scrubbing/stepping defects, lifecycle races, stale source UI and repair sequence.

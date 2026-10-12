@@ -1198,6 +1198,17 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		}
 
 		img, err := eng.NextFrame()
+		// Retirement is not EOF or a playback failure. A frame read may have
+		// been pending while Close/Load detached this engine.
+		if errors.Is(err, media.ErrEngineClosed) {
+			return
+		}
+		v.mu.Lock()
+		current := v.engine == eng && v.playing
+		v.mu.Unlock()
+		if !current {
+			return
+		}
 		t := eng.CurrentTime()
 
 		if err != nil {

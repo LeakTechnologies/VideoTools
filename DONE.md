@@ -1,5 +1,14 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev94 — VT_Player cancellation foundation
+
+Frame reads and clock waits now return on engine retirement/caller cancellation. Clock waits respect speed and remain interruptible. Playback ignores retired reads and rejects results from detached engines. Behavioral regressions and full native verification pass. Visible media session and runtime log reviewed; minor jitter at the end of the 2x segment remains open. The overall reliability/comparison stages are not complete.
+
+
+## VT_Player upgrade planning
+
+Recorded the [ordered upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md) and first lifecycle slice. This completes planning only; no upgrade stage has playback acceptance or a release.
+
 ## VT_Player audit — dev93 baseline, 2026-10-12
 
 Completed the [current-state audit](docs/VT_PLAYER_AUDIT_DEV93.md): 15 open findings, performance candidates and staged acceptance. Native build/vet/full tests passed. This completes the audit only; player fixes and real playback acceptance remain outstanding.

@@ -19,6 +19,7 @@ static AVStream* avformat_get_stream(AVFormatContext *fmtCtx, unsigned int idx) 
 */
 import "C"
 import (
+	"context"
 	"fmt"
 	"image"
 	"io"
@@ -666,6 +667,12 @@ func (e *Engine) videoDecodeLoop() {
 }
 
 func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
+	return e.NextFrameContext(context.Background())
+}
+
+// NextFrameContext returns on consumer cancellation or engine retirement,
+// including when decoding has stopped without sending a terminal frame.
+func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "NextFrame panic: %v", r)
@@ -678,6 +685,13 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 	verbose := nf <= 20
 
 	for {
+		select {
+		case <-e.stop:
+			return nil, ErrEngineClosed
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		e.lockMu()
 		paused := e.paused
 		hasAudio := e.hasAudio
@@ -699,18 +713,43 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		case df = <-e.frameQueue:
 		default:
 			if paused {
-				time.Sleep(10 * time.Millisecond)
+				timer := time.NewTimer(10 * time.Millisecond)
+				select {
+				case <-e.stop:
+					timer.Stop()
+					return nil, ErrEngineClosed
+				case <-ctx.Done():
+					timer.Stop()
+					return nil, ctx.Err()
+				case <-timer.C:
+				}
 				continue
 			}
 			if hasAudio {
 				e.clock.SetPaused(true)
 			}
-			df = <-e.frameQueue
+			select {
+			case df = <-e.frameQueue:
+			case <-e.stop:
+				return nil, ErrEngineClosed
+			case <-ctx.Done():
+				if hasAudio {
+					e.clock.SetPaused(e.IsPaused())
+				}
+				return nil, ctx.Err()
+			}
 			if hasAudio {
 				e.clock.SetPaused(e.IsPaused())
 			}
 		}
 
+		select {
+		case <-e.stop:
+			return nil, ErrEngineClosed
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		if df.pts == decodeEOFPTS {
 			if e.IsLooping() {
 				if err := e.Seek(0); err != nil {
@@ -746,7 +785,9 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		if hasAudio {
 			avDelay := e.GetAudioDelay()
 			target := pts + avDelay
-			e.clock.WaitForPTS(target)
+			if err := e.clock.waitForPTS(ctx, target, e.stop); err != nil {
+				return nil, err
+			}
 			if e.clock.GetTime()-target >= MaxDriftThreshold {
 				e.clock.ResetTime(target)
 				traceAction = "snap"
@@ -757,7 +798,13 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			// After Seek(), clock.ResetTime(seconds) anchors to the seek
 			// target, so the first new frame returns immediately and
 			// subsequent frames wait their PTS interval naturally.
-			e.clock.WaitForPTS(pts)
+			if err := e.clock.waitForPTS(ctx, pts, e.stop); err != nil {
+				return nil, err
+			}
+		}
+		// A seek can retire this frame while it is waiting on the clock.
+		if df.gen != e.seekGen.Load() {
+			continue
 		}
 
 		clockNow := e.clock.GetTime()
