@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Windows
 
+Dev93 restores Rip Content Browser title labels and selection controls. No new runtime dependencies. After updating, load a disc and check card visibility and selection while scrolling.
+
+
 This guide provides step-by-step instructions for installing VideoTools on Windows 10 and 11.
 
 ---

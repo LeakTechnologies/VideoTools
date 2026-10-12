@@ -69,8 +69,15 @@ type ContentBrowser struct {
 // OnChanged handler (wired once in buildCardTemplate) always resolves the row
 // the user is looking at.
 type cardBox struct {
-	*fyne.Container
-	owner *titleCardState
+	widget.BaseWidget
+	Container *fyne.Container
+	owner     *titleCardState
+}
+
+// Fyne traverses widgets through their renderer. Embedding a Container alone
+// does not make a custom wrapper a container in the driver's type switch.
+func (box *cardBox) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(box.Container)
 }
 
 type titleCardState struct {
@@ -415,6 +422,7 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	// the NEXT row's SetChecked, which fires it synchronously and overwrites
 	// the previous row's selection with the new row's display state.
 	box := &cardBox{Container: card}
+	box.ExtendBaseWidget(box)
 	check.OnChanged = func(v bool) {
 		cb.toggleCard(box, check, v)
 	}
@@ -533,6 +541,11 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 // looking at, and the re-bind SetChecked that updateCard performs can never
 // reach a stale row's selection.
 func (cb *ContentBrowser) toggleCard(box *cardBox, check *widget.Check, v bool) {
+	// Programmatic SetChecked can run while setAllSelected holds cb.mu.
+	// Check the UI-owned guard before acquiring that same mutex.
+	if box.owner != nil && box.owner.updating {
+		return
+	}
 	cb.mu.Lock()
 	tc := box.owner
 	if tc == nil || tc.updating {

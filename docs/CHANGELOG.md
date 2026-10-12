@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+Dev93 validation: scripts/windows/dev-verify.ps1 passed build, vet and the full native_media test suite. Real-disc tester acceptance remains outstanding.
+
+Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
+
+## v0.1.1-dev93 (October 2026)
+
+- Rip Content Browser cards now render their labels, thumbnail area and selection checks. The dev91 owner wrapper embedded a container but was neither a concrete Fyne container nor a widget, so the canvas skipped its children. cardBox now extends BaseWidget and exposes the original container through a simple renderer; stable owner-based selection remains intact.
+- Added a canvas traversal/render regression test with recycled-card selection checks.
+- Rip audit: [current findings](RIP_AUDIT_DEV93.md). Real-disc acceptance remains outstanding.
+
+
 ## v0.1.1-dev92 (October 2026)
 
 ### Rip: output path follows the Title field live

@@ -1,5 +1,19 @@
 # VideoTools TODO
 
+Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
+
+## Dev93 Scope — Content Browser rendering and Rip audit
+
+- [x] Restore card canvas traversal with a proper Fyne widget renderer.
+- [x] Add rendering and recycled-selection regression coverage.
+- [ ] Tester verify visible title labels, checks, thumbnail area and scrolling selection.
+- [ ] Resolve source-path invalidation and stale scan callbacks before real-media acceptance.
+- [ ] Resolve AllAudioTracks mapping and active-title option controls.
+- [ ] Resolve browser ticker and thumbnail ownership lifecycle findings.
+- [ ] Review archivist/full-disc failure reporting and output verification separately.
+- Audit evidence and priorities: [RIP_AUDIT_DEV93.md](docs/RIP_AUDIT_DEV93.md).
+
+
 This file tracks upcoming features, improvements, and known issues.
 
 ## Dev92 Scope (Rip output path follows the Title field live — in progress)

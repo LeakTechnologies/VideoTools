@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Dev93 restores Rip Content Browser title labels and selection controls. No new runtime dependencies. After updating, load a disc and check card visibility and selection while scrolling.
+
+
 This guide provides detailed instructions for installing VideoTools on Linux and Windows Subsystem for Linux (WSL) using the automated script.
 
 ---

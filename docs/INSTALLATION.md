@@ -1,5 +1,8 @@
 # VideoTools Installation Guide
 
+Dev93 restores Rip Content Browser title labels and selection controls. No new runtime dependencies. After updating, load a disc and check card visibility and selection while scrolling.
+
+
 Select your operating system for detailed instructions.
 
 ---

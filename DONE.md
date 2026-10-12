@@ -1,5 +1,16 @@
 # VideoTools - Completed Features
 
+Dev93 validation: scripts/windows/dev-verify.ps1 passed build, vet and the full native_media test suite. Real-disc tester acceptance remains outstanding.
+
+Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
+
+## v0.1.1-dev93 — Rip Content Browser rendering
+
+Rip Content Browser cards now render their labels, thumbnail area and selection checks. The dev91 owner wrapper embedded a container but was neither a concrete Fyne container nor a widget, so the canvas skipped its children. cardBox now extends BaseWidget and exposes the original container through a simple renderer; stable owner-based selection remains intact.
+
+Rendering and recycled selection are covered by TestContentCardRendersAndRecyclesSelection. Open audit findings: [Rip audit](docs/RIP_AUDIT_DEV93.md).
+
+
 ## v0.1.1-dev92 — Rip: output path follows the Title field live
 
 - **The defect.** Editing the Title field did not update the output path box — the path and the Title only agreed at load time. Root cause: Fyne's `Entry.SetText` fires `OnChanged` **synchronously** when the text changes (`_fyne/widget/entry.go`), so every programmatic write to the output entry (`applyOutputPath` on source/format change or disc load, `applyControls` on config load/reset, and the Clear handler) ran the entry's own `OnChanged` and set `viewState.outputTouched = true`. The Title handler only re-derives the path while `!outputTouched`, so after the first programmatic write the flag was stuck true and later Title edits were ignored.
