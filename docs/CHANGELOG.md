@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev92 (October 2026)
+
+### Rip: output path follows the Title field live
+
+- **The gap.** Editing the Title field in the Rip module did not update the output path box — the path and the Title only agreed at load time, so renaming a rip left the output filename stale.
+- **Root cause.** Fyne's `Entry.SetText` fires `OnChanged` **synchronously** whenever the text actually changes (`_fyne/widget/entry.go`, `updateTextAndRefresh`). Every programmatic write to the output entry — `applyOutputPath` (source/format change, disc load), `applyControls` (config load / reset), and the Clear handler — therefore ran the output entry's own `OnChanged`, which set `viewState.outputTouched = true`. The Title handler only re-derives the path while `!outputTouched`, so after the first programmatic write (which happens on every load) the flag was stuck true and later Title keystrokes were ignored — the output box froze on the path derived from the first edit. Same defect class as the dev91 Content Browser fix: a synchronous `OnChanged` makes a programmatic write indistinguishable from a user write.
+- **The fix.** A `viewState.outputUpdating` guard is raised around every programmatic `outputEntry.SetText`, and the entry's `OnChanged` early-returns while it is raised — so `outputTouched` (and the `SetRipOutputPath` persistence callback) fire only for genuine hand-edits. The existing contract is unchanged: a manually edited path still stops auto-recompute, and load / reset / config still re-derive the path from Title + source + format.
+- **Gates.** `TestInvariantOutputEntrySetTextIsGuarded` — a source-reading invariant that fails if the handler stops no-opping or any programmatic write site stops raising the guard — mutation-verified against both the handler no-op and the `applyOutputPath` write site. `dev-verify.ps1` full gate green.
+- **Next.** Real-media acceptance on an encrypted disc remains priority 1 — DVD → Rip → Convert → playback. Seek concurrency fix still deliberately deferred; the Rust audit harness and `vt-player`/`vt-iso` debugging tools follow.
+
 ## v0.1.1-dev91 (October 2026)
 
 ### Rip: Content Browser scroll-selection corruption + mode-radio re-click fixed

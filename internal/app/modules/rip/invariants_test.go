@@ -257,6 +257,60 @@ func TestInvariantRadioReclickKeepsTheActiveMode(t *testing.T) {
 	}
 }
 
+// TestInvariantOutputEntrySetTextIsGuarded pins the dev92 fix: the output path
+// entry must follow Title edits live, which requires telling a programmatic
+// SetText apart from a genuine hand-edit.
+//
+// Entry.SetText fires OnChanged synchronously when the text actually changes
+// (_fyne/widget/entry.go). Every programmatic write to outputEntry therefore ran
+// the entry's own OnChanged and set vs.outputTouched = true; the Title handler
+// only recomputes the path while !outputTouched, so after the first programmatic
+// write (load / format change) the path froze and later Title edits were ignored.
+// The guard must wrap every programmatic write, and the handler must no-op while
+// it is raised while still recording real hand-edits.
+func TestInvariantOutputEntrySetTextIsGuarded(t *testing.T) {
+	src := readViewSource(t)
+
+	handler := between(t, src, "outputEntry.OnChanged = func(val string) {", "// defaultOutput returns")
+	if handler == "" {
+		t.Fatal("outputEntry OnChanged handler is gone; the output-follows-title guard cannot be pinned")
+	}
+	if !strings.Contains(handler, "if vs.outputUpdating {") || !strings.Contains(handler, "return") {
+		t.Error("outputEntry OnChanged no longer early-returns while vs.outputUpdating is raised. " +
+			"Entry.SetText fires OnChanged synchronously, so every programmatic write would look " +
+			"like a hand-edit, set outputTouched, and freeze the Title→path auto-derive (dev92)")
+	}
+	if !strings.Contains(handler, "vs.outputTouched = true") {
+		t.Error("outputEntry OnChanged no longer records a genuine hand-edit (vs.outputTouched = true); " +
+			"a manually edited path must still stop the auto-recompute")
+	}
+
+	// Every programmatic write must be wrapped in the guard.
+	for _, site := range []struct {
+		anchor string
+		end    string
+	}{
+		{"applyOutputPath = func() {", "\n\t}"},
+		{"applyControls := func() {", "\n\t}"},
+		{"clearISOBtn := ui.MakePillButton", "})"},
+	} {
+		fn := between(t, src, site.anchor, site.end)
+		if fn == "" {
+			t.Errorf("could not isolate %q; the guarded output write cannot be pinned", site.anchor)
+			continue
+		}
+		if !strings.Contains(fn, "outputEntry.SetText(") {
+			t.Errorf("%q no longer writes outputEntry; update the guard pin", site.anchor)
+			continue
+		}
+		if !strings.Contains(fn, "vs.outputUpdating = true") || !strings.Contains(fn, "vs.outputUpdating = false") {
+			t.Errorf("%q writes outputEntry.SetText without raising vs.outputUpdating; "+
+				"SetText fires OnChanged synchronously and would clobber outputTouched, freezing "+
+				"the Title→path auto-derive (dev92)", site.anchor)
+		}
+	}
+}
+
 // TestInvariantSelectAllIgnoresGreyedTitles pins the observable consequence:
 // with titles present, a bulk Select All must reach every one of them, and
 // Deselect All must clear every one of them.

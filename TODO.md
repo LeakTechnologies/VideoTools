@@ -2,6 +2,12 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev92 Scope (Rip output path follows the Title field live — in progress)
+
+- [x] **Rip: output path follows the Title field live** — a `viewState.outputUpdating` guard wraps every programmatic `outputEntry.SetText` (`applyOutputPath`, `applyControls`, Clear handler) and the entry's `OnChanged` early-returns while it is raised, so `outputTouched` (and `SetRipOutputPath`) fire only for genuine hand-edits. Root cause of the frozen path: `Entry.SetText` fires `OnChanged` synchronously, so programmatic writes were being mistaken for hand-edits and froze the Title→path auto-derive.
+- [x] **Regression guard** — `TestInvariantOutputEntrySetTextIsGuarded` (source-reading, mutation-verified). `dev-verify.ps1` full gate green.
+- [ ] **Tester verify: dev92 release** — (1) type in the Title field and confirm the output path box updates on every keystroke; (2) hand-edit the output path, then change the Title and confirm the path is left alone; (3) changing format / loading a disc / Reset re-derives the path; (4) Clear empties the output box and the next load re-derives it.
+
 ## Dev91 Scope (Rip Content Browser scroll-selection corruption + mode-radio re-click — in progress)
 
 - [x] **Rip: Content Browser scroll-selection corruption fixed** — `updateCard` re-wired each card check's `OnChanged` *after* `SetChecked`, and the Fyne List recycles card widgets across rows while scrolling (`SetChecked` fires `OnChanged` synchronously), so a recycled card bound to row J ran row I's stale handler and wrote J's display state into I's selection. Handler now wired **once** per template card (`buildCardTemplate` → `toggleCard`); each card binds `box.owner` to its row **before** `SetChecked`; `setAllSelected` only drives a check its own card owns.

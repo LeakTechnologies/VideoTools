@@ -56,6 +56,7 @@ type viewState struct {
 	lastShapeMode         string // rip mode whose canonical selection was last auto-applied
 	discTitle             string
 	outputTouched         bool // output path was hand-edited, so auto-recompute should not clobber it
+	outputUpdating        bool // raised around programmatic outputEntry.SetText so its OnChanged is ignored
 	chapterOnly           bool // "Rip chapters only" — trim each ripped title to a chapter range
 	chapterFrom           int  // 1-based inclusive start chapter (0 = unset / whole title)
 	chapterTo             int  // 1-based inclusive end chapter (0 = unset / last chapter)
@@ -188,6 +189,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	outputEntry.SetPlaceHolder(t.RipOutputPath)
 	outputEntry.SetText(vs.outputPath)
 	outputEntry.OnChanged = func(val string) {
+		// Entry.SetText fires OnChanged synchronously, so programmatic writes
+		// (applyOutputPath/applyControls/Clear) would otherwise be
+		// indistinguishable from a hand-edit and would wrongly mark the path
+		// as touched — freezing the Title→path auto-derive. The guard is
+		// raised around every programmatic write.
+		if vs.outputUpdating {
+			return
+		}
 		vs.outputTouched = true
 		vs.outputPath = strings.TrimSpace(val)
 		if opts.SetRipOutputPath != nil {
@@ -227,7 +236,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.SetRipOutputPath != nil {
 			opts.SetRipOutputPath(vs.outputPath)
 		}
+		vs.outputUpdating = true
 		outputEntry.SetText(vs.outputPath)
+		vs.outputUpdating = false
 	}
 
 	formatSelect := widget.NewSelect([]string{FormatLosslessMKV, FormatH264MKV, FormatH264MP4, FormatArchivist}, func(value string) {
@@ -362,7 +373,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	applyControls := func() {
 		formatSelect.SetSelected(vs.format)
+		vs.outputUpdating = true
 		outputEntry.SetText(vs.outputPath)
+		vs.outputUpdating = false
 	}
 
 	addToQueue := func(runNow bool, formatOverride string) error {
@@ -750,7 +763,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetRipOutputPath("")
 		}
 		sourceEntry.SetText("")
+		vs.outputUpdating = true
 		outputEntry.SetText("")
+		vs.outputUpdating = false
 	})
 	// ── Enrichment options ───────────────────────────────────────────────────
 	titleEntry := widget.NewEntry()

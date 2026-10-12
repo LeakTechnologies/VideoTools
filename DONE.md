@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev92 — Rip: output path follows the Title field live
+
+- **The defect.** Editing the Title field did not update the output path box — the path and the Title only agreed at load time. Root cause: Fyne's `Entry.SetText` fires `OnChanged` **synchronously** when the text changes (`_fyne/widget/entry.go`), so every programmatic write to the output entry (`applyOutputPath` on source/format change or disc load, `applyControls` on config load/reset, and the Clear handler) ran the entry's own `OnChanged` and set `viewState.outputTouched = true`. The Title handler only re-derives the path while `!outputTouched`, so after the first programmatic write the flag was stuck true and later Title edits were ignored.
+- **The repair.** A `viewState.outputUpdating` guard wraps every programmatic `outputEntry.SetText`, and the entry's `OnChanged` early-returns while it is raised — so `outputTouched` (and the `SetRipOutputPath` persistence callback) fire only for genuine hand-edits. Contract preserved: a manually edited path still stops auto-recompute; load / reset / config still re-derive from Title + source + format.
+- **Guard.** `TestInvariantOutputEntrySetTextIsGuarded` (source-reading, mutation-verified against both the handler no-op and the `applyOutputPath` write site). `dev-verify.ps1` full gate green.
+- **Next.** Real-media acceptance on an encrypted disc (priority 1): DVD → Rip → Convert → playback; then the Rust audit harness (Phase 1) and `vt-player`/`vt-iso` debugging tools.
+
 ## v0.1.1-dev91 — Rip: Content Browser scroll-selection corruption + mode-radio re-click fixed
 
 - **Glitch 1 — scroll-selection corruption.** While scrolling a multi-title rip list, rows randomly ticked/un-ticked themselves and the "ready to rip N titles" count drifted from the selection. Root cause: `updateCard` re-wired each card check's `OnChanged` **after** `SetChecked`; the Fyne List recycles card widgets across rows while scrolling and `SetChecked` fires `OnChanged` synchronously, so a recycled card bound to row J ran row I's still-wired handler and wrote J's display state into I's selection (also clearing mode locks and firing the locked-click escape on stale locked rows). Fix: the handler is wired **once** per template card (`buildCardTemplate` → `toggleCard`) and resolves the current row through a per-card owner (`cardBox.owner`) bound by `updateCard` **before** `SetChecked`; `setAllSelected` only drives a check whose card is actually owned by that row.
