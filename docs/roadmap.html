@@ -375,6 +375,7 @@ status: 'done', cycle: 'dev74', files: ['internal/dvd/ifo/extract.go', 'internal
 
   Player: {
     items: [
+      { id: 'vt-player-audit-dev93', title: 'VT_Player Current-State Audit', desc: 'Audit complete; fixes remain open. Incorrect FFmpeg seek constants, uncommitted scrubbing, competing consumers, stale loads and uncancellable waits. Build/vet/full tests pass; current real playback unverified. Repair ownership and transport before profiling.', status: 'done', cycle: 'dev93', files: ['docs/VT_PLAYER_AUDIT_DEV93.md'], deps: ['inline-player'], docs: ['docs/VT_PLAYER_AUDIT_DEV93.md'] },
       { id: 'engine', title: 'CGo/FFmpeg Engine', desc: 'FFmpeg-based demux + decode + audio via oto v3; native_media build tag', status: 'shipped', cycle: 'dev42', files: ['internal/media/'], deps: [], docs: ['docs/NATIVE_PLAYER.md'] },
       { id: 'inline-player', title: 'InlineVideoPlayer API', desc: 'Single API layer wrapping VideoPlayer â€” all modules must use this, not the engine directly', status: 'shipped', cycle: 'dev44', files: ['internal/ui/inline_player.go'], deps: ['engine'], docs: ['docs/NATIVE_PLAYER.md'] },
       { id: 'd3d11va', title: 'D3D11VA Hardware Decode', desc: 'Direct3D 11 hardware-accelerated video decoding on Windows', status: 'shipped', cycle: 'dev44', files: ['internal/media/'], deps: ['engine'], docs: [] },
@@ -1801,6 +1802,7 @@ backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 's
 
 // --- Testing Checklist ---
 const checklistData = [
+  { title: 'VT_Player audit follow-up (dev93; unverified)', items: ['Rapid pause/play and source replacement retain one presentation consumer', 'Close cancels load, seek, frame waits and growing-file watchers', 'Correct FFmpeg flags and final drag commit; verify actual returned PTS', 'Backward step returns preceding presented frame', 'Clear resets host source; source switch resets chapters, thumbnails and tracks', 'Profile neutral samples and review real playback logs', 'Complete encrypted DVD to Rip to Convert to playback acceptance'] },
   { title: 'Player (dev84)', items: [
     'Settings no longer offers a "Use libVLC backend" checkbox - it was removed because it did nothing in any shipped build',
     'Settings > Player still shows Auto-deinterlace and Seek accuracy, and both still work as before',

@@ -1,5 +1,14 @@
 # VideoTools TODO
 
+## VT_Player audit follow-up — dev93 baseline
+
+- [x] Audit present code and run native build/vet/full tests.
+- [ ] Repair source generations, presentation ownership and cancellable waits (P04-P07/P10).
+- [ ] Correct seek constants, committed scrubbing, newest-wins requests and backward stepping (P01-P03/P08).
+- [ ] Repair terminal state, source UI, source-specific reload, Clear and auxiliary lifetimes (P09/P11-P15).
+- [ ] Profile neutral samples and review real playback logs; complete encrypted DVD -> Rip -> Convert -> playback acceptance.
+- Evidence: [VT_PLAYER_AUDIT_DEV93.md](docs/VT_PLAYER_AUDIT_DEV93.md). Findings remain open; historical seekGen log spam is already fixed.
+
 Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
 
 ## Dev93 Scope — Content Browser rendering and Rip audit

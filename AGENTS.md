@@ -1,5 +1,9 @@
 # VideoTools Agent Workflow Rules
 
+## VT_Player audit follow-up (2026-10-12; dev93 baseline)
+
+[VT_PLAYER_AUDIT_DEV93.md](docs/VT_PLAYER_AUDIT_DEV93.md) records 15 open findings. Incorrect handwritten FFmpeg seek constants are confirmed against installed headers; precise seek passes byte/frame flags with timestamps. Repair source lifetime/presentation ownership and transport correctness before profiling. Audit build/vet/full tests passed; no current playback acceptance. Historical seekGen-lastSeekGen log spam remains fixed. PLAYER_DEBUG's old green table is historical. Backend/workflow changes remain subject to existing approval rules; encrypted-disc acceptance is outstanding.
+
 Dev93 validation: scripts/windows/dev-verify.ps1 passed build, vet and the full native_media test suite. Real-disc tester acceptance remains outstanding.
 
 Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.

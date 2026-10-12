@@ -1,5 +1,9 @@
 # Player Debug Status
 
+## Current audit — 2026-10-12 (dev93 baseline)
+
+The dev55 status below is historical implementation reporting, not current runtime sign-off. [VT_PLAYER_AUDIT_DEV93.md](VT_PLAYER_AUDIT_DEV93.md) records 15 open findings including incorrect seek flags, uncommitted scrubbing, competing consumers, stale loads and uncancellable waits. Native build/vet/full tests passed. No current playback session or profiling was performed; the one-line February log artifact is insufficient. Player fixes must add actual session evidence here before landing. The historical seekGen logging defect remains fixed.
+
 Rolling checklist of known issues, fixes applied, and remaining work for the native media player.
 Update this file whenever a player issue is found or fixed.
 

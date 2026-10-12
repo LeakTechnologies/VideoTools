@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## VT_Player audit — dev93 baseline, 2026-10-12
+
+Completed the [current-state audit](docs/VT_PLAYER_AUDIT_DEV93.md): 15 open findings, performance candidates and staged acceptance. Native build/vet/full tests passed. This completes the audit only; player fixes and real playback acceptance remain outstanding.
+
 Dev93 validation: scripts/windows/dev-verify.ps1 passed build, vet and the full native_media test suite. Real-disc tester acceptance remains outstanding.
 
 Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
