@@ -1,5 +1,10 @@
 # VideoTools Roadmap
 
+## Verified player continuity candidate — 2026-10-13
+
+Startup/resume correctness repairs are implemented and locally tested on the player candidate branch. User-witnessed 1x/2x and burst-resume checks confirm quicker continuous playback; first frame 82ms, normal resume 33.5ms, burst resumes 14-18ms. Now: reconcile the candidate with newer master and complete integration/CI acceptance. Next: exact navigation and measured remaining 2x/end jitter. Synchronized comparison and encrypted-disc acceptance remain downstream/open. Candidate dev97 is not a published release.
+
+
 ## Active VT_Player source-ownership candidate
 
 Second reliability slice implemented in an isolated worktree. Controlled concurrency tests and automated real-media diagnostics cover replacement, retirement and presentation ownership; the final run completed with 398 frames and three retired sources. Now: finish verification and obtain visual review before landing. Next: correct seek flags, scrub commit, frame stepping and resume continuity. Comparison remains downstream; encrypted-disc acceptance remains outstanding.

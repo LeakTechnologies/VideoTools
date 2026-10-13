@@ -50,3 +50,10 @@ The candidate is implemented with source-owned cancellation/load completion, pre
 
 Visual review is required before landing because the user was away. Stage 1 is not declared fully accepted: native I/O interruption remains outstanding, and resume timeline continuity was observed to be incorrect under repeated resumes. Stage 2 still owns exact seek flags, final scrub commit and backward-step correctness. Candidate dev95 is not a published release; revalidate release numbering and concurrent UI changes at landing.
 Final verification: scripts/windows/dev-verify.ps1 passed native build, vet and full tests. Race-enabled internal/ui and internal/media tests passed, including the late-EOF and paused-audio shutdown regressions.
+
+## Playback continuity repair (2026-10-13)
+
+User-visible checks confirmed a 503 ms first-Play wait and repeated resume packet/frame loss. Fix as one continuity boundary: start decoding without waiting before Resume; preserve packets, frames, PCM and codec references on pause/resume; suspend paused demux except bounded preview/frame demand; keep a consumed-but-unpresented frame when its read is cancelled. Initial preview must not flush the live source, and saved-position previews must use timed direct decoding as the newer master fix does. Add queue/PCM preservation, parked-frame and no-pre-start-wait regressions; run native/race gates and repeat visible 1x/2x and rapid-resume checks. Exact seeking remains open.
+## Continuity check results
+
+Native full and race gates passed. User-witnessed tests on 2026-10-13 confirm quicker continuous playback without the previous distortion. First presented frame: 82ms; normal resume: 33.5ms; burst resumes: 14-18ms. Close-during-load cancellation and reopening completed. Residual 2x/end jitter and speed/clock timing remain open; intentional burst pauses are not continuous-playback stutter. Candidate version is dev97 because master independently advanced through dev96. Reconcile current master and run integration/CI before publishing; exact navigation and encrypted-disc acceptance are still outstanding.

@@ -155,3 +155,90 @@ func TestScrubberRepeatedStartStop(t *testing.T) {
 		t.Fatal("scrubber repeated start/stop did not retire")
 	}
 }
+
+func TestResumePreservesQueuedFramesAndSeekState(t *testing.T) {
+	e := NewEngine()
+	e.running = true
+	e.paused = true
+	e.pausedAtomic.Store(true)
+	e.decodeLoopActive = true // no native decoder is needed for this transport test
+	e.decodeEOFSent = true
+	e.seekFlushBefore.Store(123)
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	e.frameQueue <- decodedFrame{img: img, pts: 1}
+	e.Resume()
+	if len(e.frameQueue) != 1 {
+		t.Fatal("Resume discarded queued frames")
+	}
+	if !e.decodeEOFSent || e.seekFlushBefore.Load() != 123 {
+		t.Fatal("Resume reset source/seek state")
+	}
+	e.Close()
+}
+func TestCancelledPresentationRetainsFrame(t *testing.T) {
+	e := NewEngine()
+	e.clock.SetPaused(false)
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	e.frameQueue <- decodedFrame{img: img, pts: 100}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := e.NextFrameContext(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("read returned %v", err)
+	}
+	e.clock.ResetTime(100)
+	e.clock.SetPaused(true)
+	actual, err := e.NextFrame()
+	if err != nil || actual != img {
+		t.Fatal("cancelled presentation skipped its frame")
+	}
+	e.Close()
+}
+func TestPausedAudioReadPreservesPCMAndLeftover(t *testing.T) {
+	p := &AudioPlayer{paused: true, speed: 1, volumeMul: 1, pcmCh: make(chan audioChunk, 1), leftover: []byte{9, 8}}
+	p.pcmCh <- audioChunk{data: []byte{1, 2, 3, 4}}
+	buf := make([]byte, 4)
+	if n, err := p.Read(buf); err != nil || n != 4 {
+		t.Fatal("paused read failed")
+	}
+	if len(p.leftover) != 2 || len(p.pcmCh) != 1 {
+		t.Fatal("paused callback discarded buffered audio")
+	}
+	for _, b := range buf {
+		if b != 0 {
+			t.Fatal("paused read was not silent")
+		}
+	}
+}
+func TestPausedFullFrameQueueDoesNotDiscardDecodedFrame(t *testing.T) {
+	e := NewEngine()
+	e.paused = true
+	for i := 0; i < cap(e.frameQueue); i++ {
+		e.frameQueue <- decodedFrame{pts: float64(i)}
+	}
+	sent := make(chan bool, 1)
+	go func() { sent <- e.sendToFrameQueue(decodedFrame{pts: 999}) }()
+	select {
+	case <-sent:
+		t.Fatal("decoder discarded a frame while paused queue was full")
+	case <-time.After(30 * time.Millisecond):
+	}
+	<-e.frameQueue
+	select {
+	case ok := <-sent:
+		if !ok {
+			t.Fatal("decoder did not enqueue retained frame")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("retained decoded frame did not enqueue")
+	}
+	found := false
+	for len(e.frameQueue) > 0 {
+		if (<-e.frameQueue).pts == 999 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("retained decoded frame is missing")
+	}
+	e.Close()
+}

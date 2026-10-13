@@ -187,6 +187,9 @@ type Engine struct {
 	demuxerWg      sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
 	closed       bool // protected by mu; includes partial-open disposal
+ previewRead atomic.Bool // initial/paused preview demand
+ frameRequests atomic.Int32 // active frame consumers allow paused demux
+ pendingFrame *decodedFrame // cancelled presentation, protected by mu
 	paused       bool
 	stop         chan struct{}
 	loading      bool

@@ -27,6 +27,7 @@ type sessionEngine struct {
 	ignoreCancel bool
 	fail         error
 	finishErr    error
+	waits        atomic.Int32
 }
 
 func fakeSessionEngine() *sessionEngine {
@@ -46,7 +47,7 @@ func (e *sessionEngine) Pause()                             {}
 func (e *sessionEngine) Resume()                            {}
 func (e *sessionEngine) IsRunning() bool                    { return true }
 func (e *sessionEngine) FlushAudioCodec()                   {}
-func (e *sessionEngine) WaitForFrame(time.Duration) bool    { return true }
+func (e *sessionEngine) WaitForFrame(time.Duration) bool    { e.waits.Add(1); return true }
 func (e *sessionEngine) GrabFrame(time.Duration) (*image.RGBA, error) {
 	return image.NewRGBA(image.Rect(0, 0, 2, 2)), nil
 }
@@ -287,4 +288,16 @@ func TestRetiredEOFDoesNotReloadOrStopReplacement(t *testing.T) {
 	}
 	p.Close()
 	waitSignal(t, next.closed)
+}
+
+func TestPlayDoesNotWaitBeforeStartingDecoder(t *testing.T) {
+	e := fakeSessionEngine()
+	p := attachedPlayer(e)
+	p.Play()
+	waitSignal(t, e.entered)
+	if e.waits.Load() != 0 {
+		t.Fatal("Play waited for a frame before starting the decoder")
+	}
+	p.Close()
+	waitSignal(t, e.closed)
 }

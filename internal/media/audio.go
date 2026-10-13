@@ -309,7 +309,13 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	p.mu.Lock()
 	speed := p.speed
 	fg := p.filterGraph
+	paused := p.paused
+	looping := p.looping
 	p.mu.Unlock()
+	if paused {
+		clear(buf)
+		return len(buf), nil
+	}
 
 	// Drain any leftover from the previous chunk first.
 	p.mu.Lock()
@@ -333,23 +339,6 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			n = copy(buf, adjusted)
 		}
 		return n, nil
-	}
-
-	p.mu.Lock()
-	paused := p.paused
-	looping := p.looping
-	p.mu.Unlock()
-
-	if paused {
-		// Drain one buffered chunk per call without advancing the clock.
-		select {
-		case <-p.pcmCh:
-		default:
-		}
-		for i := range buf {
-			buf[i] = 0
-		}
-		return len(buf), nil
 	}
 
 	// Non-blocking receive: if the decode goroutine hasn't produced a chunk

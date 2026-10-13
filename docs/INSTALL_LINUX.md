@@ -1,5 +1,7 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Dev97 player candidate: startup and pause/resume preserve buffered content and add no runtime dependencies. Windows software playback was witnessed and logged; residual faster-playback jitter and Linux runtime acceptance remain open. This candidate has not been merged or published.
+
 Player lifecycle candidate (dev95, unlanded): source-owned cancellation and worker cleanup add no runtime dependencies. Automated Windows software-playback stress completed, but visual review is pending; Linux runtime review is also pending. No candidate installation/release is published.
 
 Dev94 player note: native frame and timestamp waits now respond to cancellation/engine retirement. No new runtime dependencies. Basic software playback and close were checked on Windows; minor 2x-segment jitter remains under investigation. Linux runtime acceptance remains outstanding.

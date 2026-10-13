@@ -161,11 +161,10 @@ func (v *InlineVideoPlayer) playFromRun(s *playerSession, r *playbackRun) {
 		s.ops.Unlock()
 		return
 	}
-	if s.engine.IsRunning() {
-		s.engine.FlushAudioCodec()
-		s.engine.WaitForFrame(500 * time.Millisecond)
-	} else {
-		s.engine.DrainAudio()
+	// Start the decoder before consuming frames. Waiting before Resume
+	// cannot produce a frame on initial play, and flushing on resume
+	// discards valid source content and codec references.
+	if !s.engine.IsRunning() {
 		s.engine.Start()
 	}
 	if !v.runCurrent(s, r) {
@@ -334,12 +333,11 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	} else {
 		logging.Warning(logging.CatPlayer, "Load: first frame unavailable: %v", grabErr)
 	}
-	eng.ResetAfterGrab()
 	eng.Pause()
 	if rs != nil {
 		if saved, ok := rs.GetPosition(path); ok && rs.ShouldResume(saved) {
 			if err = eng.Seek(saved.Position); err == nil {
-				first, err = eng.NextFrameContext(s.ctx)
+				first, err = eng.GrabFrame(4 * time.Second)
 			}
 			if err != nil {
 				return s, err

@@ -83,6 +83,16 @@ func (e *Engine) demuxerLoop() {
 		default:
 		}
 
+		if e.pausedAtomic.Load() && ((!e.previewRead.Load() && e.frameRequests.Load() == 0) || e.videoQueue.Size() > 0) {
+			timer := time.NewTimer(5 * time.Millisecond)
+			select {
+			case <-e.stop:
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
+			continue
+		}
 		// Serialise av_read_frame against avformat_seek_file — AVFormatContext
 		// is not thread-safe; concurrent access from Seek() causes hard crashes.
 		e.lockFormatMu()
@@ -208,6 +218,7 @@ func (e *Engine) Seek(seconds float64) error {
 	}
 	logging.Info(logging.CatPlayer, "Seek to %.2f OK, flushing queues", seconds)
 
+	e.pendingFrame = nil
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
@@ -410,6 +421,9 @@ func (e *Engine) renderSWFrame() *image.RGBA {
 }
 
 func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr error) {
+	e.previewRead.Store(true)
+	defer e.previewRead.Store(false)
+
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "GrabFrame panic: %v", r)
@@ -499,26 +513,13 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 }
 
 func (e *Engine) sendToFrameQueue(df decodedFrame) bool {
-	pauseRetries := 0
-	for {
-		select {
-		case e.frameQueue <- df:
-			return true
-		case <-e.decodeLoopStop:
-			return false
-		case <-time.After(5 * time.Millisecond):
-			e.lockMu()
-			paused := e.paused
-			e.unlockMu()
-			if paused {
-				pauseRetries++
-				if pauseRetries >= 3 {
-					return true
-				}
-			} else {
-				pauseRetries = 0
-			}
-		}
+	// Pausing retains the decoded frame until there is presentation capacity.
+	// Retirement still unblocks a decoder parked behind a full queue.
+	select {
+	case e.frameQueue <- df:
+		return true
+	case <-e.decodeLoopStop:
+		return false
 	}
 }
 
@@ -677,6 +678,16 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 // NextFrameContext returns on consumer cancellation or engine retirement,
 // including when decoding has stopped without sending a terminal frame.
 func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retErr error) {
+	e.frameRequests.Add(1)
+	defer e.frameRequests.Add(-1)
+	e.lockMu()
+	if e.running && !e.closed && !e.decodeLoopActive && e.videoCodecCtx != nil {
+		e.decodeLoopActive = true
+		e.decodeLoopWg.Add(1)
+		go e.videoDecodeLoop()
+	}
+	e.unlockMu()
+
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "NextFrame panic: %v", r)
@@ -713,44 +724,53 @@ func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retE
 		e.unlockMu()
 
 		var df decodedFrame
-		select {
-		case df = <-e.frameQueue:
-		default:
-			if paused {
-				timer := time.NewTimer(10 * time.Millisecond)
-				select {
-				case <-e.stop:
-					timer.Stop()
-					return nil, ErrEngineClosed
-				case <-ctx.Done():
-					timer.Stop()
-					return nil, ctx.Err()
-				case <-timer.C:
-				}
-				continue
-			}
-			if hasAudio {
-				e.clock.SetPaused(true)
-			}
+		e.lockMu()
+		pending := e.pendingFrame
+		e.pendingFrame = nil
+		e.unlockMu()
+		if pending != nil {
+			df = *pending
+		} else {
 			select {
 			case df = <-e.frameQueue:
-			case <-e.stop:
-				return nil, ErrEngineClosed
-			case <-ctx.Done():
+			default:
+				if paused {
+					timer := time.NewTimer(10 * time.Millisecond)
+					select {
+					case <-e.stop:
+						timer.Stop()
+						return nil, ErrEngineClosed
+					case <-ctx.Done():
+						timer.Stop()
+						return nil, ctx.Err()
+					case <-timer.C:
+					}
+					continue
+				}
+				if hasAudio {
+					e.clock.SetPaused(true)
+				}
+				select {
+				case df = <-e.frameQueue:
+				case <-e.stop:
+					return nil, ErrEngineClosed
+				case <-ctx.Done():
+					if hasAudio {
+						e.clock.SetPaused(e.IsPaused())
+					}
+					return nil, ctx.Err()
+				}
 				if hasAudio {
 					e.clock.SetPaused(e.IsPaused())
 				}
-				return nil, ctx.Err()
 			}
-			if hasAudio {
-				e.clock.SetPaused(e.IsPaused())
-			}
-		}
 
+		}
 		select {
 		case <-e.stop:
 			return nil, ErrEngineClosed
 		case <-ctx.Done():
+			e.parkFrame(df)
 			return nil, ctx.Err()
 		default:
 		}
@@ -790,6 +810,9 @@ func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retE
 			avDelay := e.GetAudioDelay()
 			target := pts + avDelay
 			if err := e.clock.waitForPTS(ctx, target, e.stop); err != nil {
+				if ctx.Err() != nil {
+					e.parkFrame(df)
+				}
 				return nil, err
 			}
 			if e.clock.GetTime()-target >= MaxDriftThreshold {
@@ -803,6 +826,9 @@ func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retE
 			// target, so the first new frame returns immediately and
 			// subsequent frames wait their PTS interval naturally.
 			if err := e.clock.waitForPTS(ctx, pts, e.stop); err != nil {
+				if ctx.Err() != nil {
+					e.parkFrame(df)
+				}
 				return nil, err
 			}
 		}
@@ -903,69 +929,25 @@ func (e *Engine) WaitForFrame(timeout time.Duration) bool {
 
 func (e *Engine) Resume() {
 	e.lockMu()
-	if !e.running {
+	if !e.running || e.closed || !e.paused {
 		e.unlockMu()
-		logging.Info(logging.CatPlayer, "Engine.Resume: not running, returning")
-		return
-	}
-	if !e.paused {
-		e.unlockMu()
-		logging.Info(logging.CatPlayer, "Engine.Resume: not paused, returning")
 		return
 	}
 	e.paused = false
 	e.pausedAtomic.Store(false)
 	e.clock.SetPaused(false)
-
-	// Flush stale video packets that accumulated in the queues while paused.
-	// Without this, the decode loop would render frames from before the pause
-	// instead of catching up to the current clock position — causing a hard
-	// crash (SEH/panic) on resume after long pauses.
-	staleVideo := e.videoQueue.Size()
-	e.videoQueue.Flush()
-	staleAudio := e.audioQueue.Size()
-	e.audioQueue.Flush()
-	drained := 0
-drainLoop:
-	for {
-		select {
-		case <-e.frameQueue:
-			drained++
-		default:
-			break drainLoop
-		}
-	}
-	// Flush the video codec's internal buffers so it doesn't return stale
-	// B-frames from before the pause.
-	if e.videoCodecCtx != nil && e.videoDecoded {
-		e.lockVideoCodecMu()
-		SafeSendPacket(e.videoCodecCtx, nil) // flush signal
-		for {
-			ret, _ := SafeReceiveFrame(e.videoCodecCtx, e.frame)
-			if ret != 0 {
-				break
-			}
-		}
-		C.avcodec_flush_buffers(e.videoCodecCtx)
-		e.unlockVideoCodecMu()
-	}
-	e.decodeEOFSent = false
-	e.seekFlushBefore.Store(0)
-	if staleVideo > 0 || staleAudio > 0 || drained > 0 {
-		logging.Info(logging.CatPlayer, "Resume: flushed %d video + %d audio packets, %d stale frames", staleVideo, staleAudio, drained)
-	}
-
+	// Pause is a clock/transport transition, not a source discontinuity.
+	// Seek owns codec/queue flushing and generation changes.
 	if !e.decodeLoopActive {
 		e.decodeLoopActive = true
 		e.decodeLoopWg.Add(1)
 		go e.videoDecodeLoop()
 	}
 	e.unlockMu()
-
 	if e.audioPlayer != nil {
 		e.audioPlayer.Resume()
 	}
-	logging.Info(logging.CatPlayer, "Engine resumed")
+	logging.Info(logging.CatPlayer, "Engine resumed without discarding buffered content")
 }
 
 func (e *Engine) TogglePause() {
@@ -1011,6 +993,7 @@ func (e *Engine) Close() {
 		return
 	}
 	e.closed = true
+	e.pendingFrame = nil
 	e.running = false
 	e.paused = false
 	e.pausedAtomic.Store(false)
@@ -1121,4 +1104,12 @@ func (e *Engine) QueueStats() (videoSize, audioSize int) {
 		audioSize = e.audioQueue.Size()
 	}
 	return
+}
+
+func (e *Engine) parkFrame(df decodedFrame) {
+	e.lockMu()
+	defer e.unlockMu()
+	if !e.closed && df.gen == e.seekGen.Load() && e.pendingFrame == nil {
+		e.pendingFrame = &df
+	}
 }

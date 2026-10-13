@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## Player startup/resume continuity candidate — 2026-10-13
+
+Implemented the startup and pause/resume fixes within the source-ownership candidate. Native and race gates pass. User-witnessed checks support quicker continuous playback without the old jumps/distortion; measured first-frame presentation was 82ms and normal resume 33.5ms. Burst resumes were about 14-18ms. This is candidate implementation/verification, not a published release; exact seeking and residual faster-playback jitter remain open.
+
+
 ## VT_Player source-ownership candidate implementation
 
 Completed candidate implementation and automated media diagnostics for source/presentation ownership. The runtime gate exposed and led to repairs for a Fyne refresh/player-lock cycle and a paused-audio shutdown race. Final automated session completed with 398 frames and three source retirements. This records implementation work only; visual review and release acceptance remain pending. See docs/PLAYER_DEBUG.md.

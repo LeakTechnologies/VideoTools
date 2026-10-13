@@ -1,5 +1,21 @@
 # Player Debug Status
 
+## Startup/resume continuity visual check — 2026-10-13
+
+The user observed the original candidate as responsive but jumping/jittery/distorted, with a delay from pressing Play to motion. The original log showed 503ms before Engine.Resume, which followed a WaitForFrame(500ms) before the decoder was started. Resumes discarded 50 encoded video packets and up to eight decoded frames and reset codec references.
+
+Repair: start decoding without the pre-start wait; normal Pause/Resume retains queues, codecs and PCM. Paused demux freezes except bounded preview/frame demand. A consumed frame interrupted before presentation is parked for the next consumer. Paused audio Read returns silence without consuming PCM/leftovers. Initial GrabFrame retains its codec/packet state instead of calling ResetAfterGrab. Saved-position load uses timed GrabFrame, preserving the independently landed master correction.
+
+Visible software-decode checks on the same neutral local MP4:
+- Test 1: first presented frame 82.0ms after Play, media time 0.035; normal resume 33.5ms, media 5.973 after paused readout 5.906. Completed with 417 progress frames.
+- Test 2: fresh start 52.0ms; six rapid resumes 14.0-17.8ms. Paused readout 6.974 after an approximately 6.6-second active segment; this estimate is not frame-accuracy acceptance. Closing during a new load returned cancellation (completed-before-close=false), reopening presented a frame in 38.5ms, and final state was source cleared/playing=false. Combined progress count 771 at the first completed Test 2.
+- No ERROR or WARNING records in these completed checks. Media titles/full paths remain in temporary logs outside the repository.
+- User reports quicker continuous playback without distortion. A small hitch was noticed near the end of Test 1's 2x segment before pause; cause remains unconfirmed. User later suggested Test 2's six deliberate motion stops/restarts were perceived as jitter. Record intentional stops separately from residual pacing issues.
+- Test 1's final readout was 13.914, from a pause point 5.906 plus nominal 5 seconds at 1x and 3 seconds at 2x. Non-1x clock/rate behavior deserves measurement; this session does not establish exact 2x timing or A/V alignment.
+
+Native build/vet/full tests and race-enabled player/media tests passed. The startup regression was checked against reintroducing the old pre-decoder wait. Exact seeking, backward stepping, final scrub commit, native I/O cancellation, hardware modes and encrypted-disc acceptance remain open. These results support the targeted startup/resume repair; broad MPV/VLC parity is not claimed. Candidate integration with current master and CI/release remains outstanding.
+
+
 ## Source/presentation ownership candidate — 2026-10-12 (not landed)
 
 Implemented source-owned load and presentation lifetimes, cancellation/join before replacement transport, serialized native operations, guarded callbacks/EOF reload, partial-open cleanup and consistent failure state. Paused seek and step reads use cancellation. Runtime media was a user-supplied local MP4; full filenames and titles are kept outside the repository.

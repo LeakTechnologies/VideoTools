@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev97 candidate — startup and resume continuity
+
+- Removed the frame wait that timed out before initial decoder startup.
+- Normal resume retains codec references, encoded packets, decoded frames and PCM; explicit seeks still own discontinuity/flush.
+- Paused demux reads only for preview/frame demand; cancelled presentation parks its next frame. Initial preview retains the live source's decode state.
+- Saved-position preview uses timed direct decoding, matching the independently landed dev95 correction.
+- Native/race gates passed; user-witnessed checks found quicker continuous playback without distortion. Small 2x/end jitter remains open.
+- Candidate branch only: integration with newer master, CI and release are outstanding.
+
+
 ## v0.1.1-dev95 candidate — not landed
 
 - Source-owned loading, cancellable/joined presentation runs and serialized native operations; retired callbacks and EOF reloads cannot take over newer content.

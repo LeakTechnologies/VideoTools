@@ -1,5 +1,17 @@
 # VideoTools TODO
 
+## Player startup/resume continuity — verified candidate
+
+- [x] Remove pre-decoder frame wait and normal-resume queue/codec flushing.
+- [x] Preserve paused PCM/partial audio and interrupted presentation frames; make paused demux demand driven.
+- [x] Keep initial preview in the live decode sequence; use timed direct decode for saved-position preview.
+- [x] Native build/vet/full tests and race-enabled media/player tests.
+- [x] Visible 1x/2x, burst-resume and reopening checks/log review; user confirms quicker continuous playback without distortion.
+- [ ] Reconcile with current master and version numbering, then CI/release after candidate acceptance.
+- [ ] Measure residual 2x/end jitter and media-clock speed behavior; repair exact seek/scrub/step separately.
+- Evidence: [PLAYER_DEBUG.md](docs/PLAYER_DEBUG.md), [upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md).
+
+
 ## VT_Player second lifecycle slice — candidate
 
 - [x] Source-owned load/presentation cancellation, joins and serialized native access.
