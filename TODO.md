@@ -1,6 +1,10 @@
 # VideoTools TODO
 
-## Player startup/resume continuity — verified candidate
+## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
+
+Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.
+
+## Historical player startup/resume continuity candidate
 
 - [x] Remove pre-decoder frame wait and normal-resume queue/codec flushing.
 - [x] Preserve paused PCM/partial audio and interrupted presentation frames; make paused demux demand driven.
@@ -12,7 +16,7 @@
 - Evidence: [PLAYER_DEBUG.md](docs/PLAYER_DEBUG.md), [upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md).
 
 
-## VT_Player second lifecycle slice — candidate
+## Historical VT_Player second lifecycle candidate
 
 - [x] Source-owned load/presentation cancellation, joins and serialized native access.
 - [x] Suppress retired callback/frame/EOF reloads; scope track/speed reset notifications.
@@ -24,6 +28,27 @@
 - [ ] Resolve existing seek fallback warning and resume timeline discontinuity in the coordinated navigation stage.
 - [ ] Merge/version/tag only after acceptance and current remote-version check. No candidate release published.
 - Plan: [VT_PLAYER_UPGRADE_PLAN.md](docs/VT_PLAYER_UPGRADE_PLAN.md).
+
+
+## Dev96 — Root hygiene
+
+- [x] Audit root sources and references; remove unused author DVD-rip tab and
+  untrack generated test executable.
+- [x] Archive historical reports, relocate QR prototype and correct references.
+- [ ] Continue the separate appState/module extraction before moving active
+  root adapters; see [root audit](docs/ROOT_CLEANUP_DEV96.md).
+
+## Dev95 — Convert workspace and suite UI direction
+
+- [x] Document agreed task hierarchy, optional playback and SMPTE identity: [UI_SUITE_DESIGN.md](docs/UI_SUITE_DESIGN.md).
+- [x] Implement metadata-first layout, measured collapsed headers, labeled tools and persistent source loading.
+- [x] Correct saved-position loading that blocked metadata before the playback decoder started; test direct timed preview reads and failures.
+- [ ] Player follow-up: saved-preview/playback PTS mismatch, initial 0:00 display and transient resumed-frame distortion; see PLAYER_DEBUG.md.
+- [x] Native build/vet/full tests, non-native build and real Windows playback/log review: see docs/PLAYER_DEBUG.md.
+- [ ] Tester verify current/narrow/wide windows and fonts; Linux/scaling checks remain outstanding.
+- [ ] Continue module audits and encrypted DVD acceptance; player lifecycle/transport repairs remain separately coordinated.
+- Evidence inventory: [UI_SUITE_AUDIT.md](docs/UI_SUITE_AUDIT.md).
+
 
 
 ## Dev94 VT_Player follow-up
@@ -45,6 +70,7 @@
 - [ ] Stage 3: synchronized comparison of existing files with one timeline.
 - [ ] Stage 4: short upscale preview variants using the full-render processing configuration, after media acceptance.
 - [ ] Stage 5: linked inspection controls and measured performance tuning.
+
 
 ## VT_Player audit follow-up — dev93 baseline
 
@@ -105,7 +131,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev88 Scope (Repo baseline reconciliation — released)
 
-- [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `RECONCILIATION.md` records the file-by-file evidence.
+- [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `docs/history/RECONCILIATION_DEV88.md` records the file-by-file evidence.
 - [x] **Seek audit findings index in TODO/CHANGELOG** — confirmed defects, the disproved seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
 - [x] **No-confirmation-loop directive** (`14a189c7`) — AGENTS.md repo + global: complete single-track tasks end-to-end before returning to the human.
 - [ ] **Tester verify: dev88 release** — (1) the release publishes with assets on both platforms (tag `v0.1.1-dev88`); (2) the in-app update button on a dev87 binary offers dev88 and installs it; (3) no `__pycache__` artifacts appear in future commits.
@@ -1086,7 +1112,7 @@ Remaining root files to extract â€” largest first (each becomes a dev cycle
 
 | Priority | Root file(s) | Lines | Target |
 |----------|-------------|-------|--------|
-| 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` |
+| 1 | `author_module.go`, `author_menu.go` | ~5,800 | `internal/app/modules/author/` |
 | 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
 | 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` â€” in progress |
 | 4 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |

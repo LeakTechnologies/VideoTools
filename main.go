@@ -9417,29 +9417,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen.
-	// Video pane uses VSplit with metadata at 50% - use moderate minimum for scaling.
+	// Preview remains optional; the workspace below gives metadata priority.
 	videoPanel := buildVideoPane(state, fyne.NewSize(480, 270), src, updateCover)
 
-	// leftColumn declared here so both the player and metadata onToggle callbacks
-	// can capture it before the split container is created further down.
-	var leftColumn *container.Split
-
-	// resolveLeftOffset is the single source of truth for the left-column split:
-	// both the player and metadata onToggle callbacks call it, so their offset
-	// decisions never fight each other (Filters/Upscale use the same pattern).
-	resolveLeftOffset := func() {
-		switch {
-		case state.convert.PlayerOpen && state.convert.MetadataOpen:
-			leftColumn.SetOffset(0.5) // Both open: 50/50
-		case state.convert.PlayerOpen:
-			leftColumn.SetOffset(0.97) // Player only: metadata collapsed
-		case state.convert.MetadataOpen:
-			leftColumn.SetOffset(0.03) // Metadata only: player collapsed
-		default:
-			leftColumn.SetOffset(0.5) // Both collapsed (shouldn't happen, default to 50/50)
+	// Metadata owns the flexible space; preview is optional and compact.
+	var leftColumn *fyne.Container
+	var previewLayout *ui.PreviewDetailsLayout
+	refreshPreviewLayout := func() {
+		if leftColumn == nil || previewLayout == nil {
+			return
 		}
+		previewLayout.DetailsOpen = state.convert.MetadataOpen
+		leftColumn.Refresh()
 	}
-
 	playerHeader, playerHeaderUpdate := ui.BuildCollapsibleHeader(t.ConvertSectionPlayer, convertColor, func(open bool) {
 		state.convert.PlayerOpen = open
 		_ = savePersistedConvertConfig(state.convert)
@@ -9458,10 +9448,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 			}
 		}
-		resolveLeftOffset()
+		refreshPreviewLayout()
 	})
 	playerHeaderUpdate(state.convert.PlayerOpen)
-	videoPanelWithHeader := container.NewBorder(playerHeader, nil, nil, nil, videoPanel)
 	if !state.convert.PlayerOpen {
 		videoPanel.Hide()
 	}
@@ -9472,7 +9461,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	metaPanel, metaCoverUpdate, setMetaOpen := buildMetadataPanel(state, src, fyne.NewSize(0, 200), convertColor, state.convert.MetadataOpen, func(open bool) {
 		state.convert.MetadataOpen = open
 		_ = savePersistedConvertConfig(state.convert)
-		resolveLeftOffset()
+		refreshPreviewLayout()
 	})
 	updateMetaCover = metaCoverUpdate
 
@@ -12645,7 +12634,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			mainSplit.SetOffset(0.97)
 		}
 		settingsHeaderUpdate(state.convert.SettingsOpen)
-		resolveLeftOffset()
+		refreshPreviewLayout()
 		state.persistConvertConfig()
 	}
 
@@ -12993,16 +12982,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetPad.SetMinSize(fyne.NewSize(10, 0))
 	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
-	// Left column: use VSplit to give 50% vertical space to video and metadata each.
-	// videoPanelWithHeader wraps the player canvas in a collapsible header bar so
-	// the user can collapse the player to give the full column to the metadata panel.
-	// Do NOT wrap in VBox — VBox only gives children their minimum height, leaving
-	// the rest of the VSplit's allocated space as an empty dark gap.
 	metaPanelScroll := ui.NewFastVScroll(metaPanel)
-	leftColumn = container.NewVSplit(videoPanelWithHeader, metaPanelScroll)
-	// Restore vertical split from persisted layout state
-	resolveLeftOffset()
-
+	previewLayout = &ui.PreviewDetailsLayout{
+		DetailsOpen:            state.convert.MetadataOpen,
+		CollapsedDetailsHeight: func() float32 { return metaPanel.MinSize().Height },
+	}
+	leftColumn = container.New(previewLayout, playerHeader, videoPanel, metaPanelScroll)
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit = container.NewHSplit(
 		leftColumn,
@@ -13015,7 +13000,35 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Add horizontal padding around the split (10px on each side)
-	mainContent := container.NewPadded(mainSplit)
+	sourceLabel := widget.NewLabel(t.ConvertLoadVideoToConvert)
+	sourceLabel.Truncation = fyne.TextTruncateEllipsis
+	if src != nil {
+		sourceLabel.SetText(fmt.Sprintf(t.LabelFileFmt, src.DisplayName))
+	}
+	loadVideoBtn := widget.NewButton(t.ActionLoadVideo, func() {
+		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, state.window)
+				return
+			}
+			if r == nil {
+				return
+			}
+			path := r.URI().Path()
+			_ = r.Close()
+			go state.loadVideo(path)
+		}, state.window)
+		dlg.SetConfirmText(t.ActionOpen)
+		dlg.SetDismissText(t.ActionCancel)
+		dlg.SetFilter(storage.NewExtensionFileFilter([]string{
+			".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".m4v",
+			".mpg", ".mpeg", ".ts", ".m2ts", ".vob", ".flv", ".3gp", ".ogv",
+		}))
+		dlg.Resize(fyne.NewSize(900, 640))
+		dlg.Show()
+	})
+	sourceBar := container.NewPadded(container.NewBorder(nil, nil, loadVideoBtn, nil, sourceLabel))
+	mainContent := container.NewBorder(sourceBar, nil, nil, nil, container.NewPadded(mainSplit))
 
 	resetBtn := ui.MakePillButton(t.ConvertReset, ui.BorderDim, func() {
 		if resetConvertDefaults != nil {
@@ -13366,6 +13379,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accent
 	if src == nil {
 		var noSrcBody fyne.CanvasObject = container.NewPadded(container.NewVBox(widget.NewLabel(t.ConvertInspectHint)))
 		open := initiallyOpen
+		var updateNoSrcHeader func(bool)
 		setNoSrcOpen := func(o bool) {
 			open = o
 			if o {
@@ -13373,11 +13387,16 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accent
 			} else {
 				noSrcBody.Hide()
 			}
+			if updateNoSrcHeader != nil {
+				updateNoSrcHeader(o)
+			}
 			if onToggle != nil {
 				onToggle(o)
 			}
 		}
-		nilHeader, _ := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, setNoSrcOpen)
+		nilHeader, updateHeader := ui.BuildCollapsibleHeader(t.ConvertSectionMetadata, accentColor, setNoSrcOpen)
+		updateNoSrcHeader = updateHeader
+		updateHeader(open)
 		if !open {
 			noSrcBody.Hide()
 		}

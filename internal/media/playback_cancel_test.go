@@ -242,3 +242,58 @@ func TestPausedFullFrameQueueDoesNotDiscardDecodedFrame(t *testing.T) {
 	}
 	e.Close()
 }
+
+func TestAudioSeekPrerollDoesNotExpandIntoSilence(t *testing.T) {
+	p := &AudioPlayer{speed: 1, volumeMul: 1, clock: NewMasterClock(), pcmCh: make(chan audioChunk, 4)}
+	p.SetSeekTarget(10)
+	p.pcmCh <- audioChunk{pts: 8, data: []byte{9, 9, 9, 9}}
+	p.pcmCh <- audioChunk{pts: 9, data: []byte{9, 9, 9, 9}}
+	p.pcmCh <- audioChunk{pts: 10, data: []byte{1, 2, 3, 4}}
+	buf := make([]byte, 4)
+	n, err := p.Read(buf)
+	if err != nil || n != 4 {
+		t.Fatalf("read: n=%d err=%v", n, err)
+	}
+	for i, b := range []byte{1, 2, 3, 4} {
+		if buf[i] != b {
+			t.Fatalf("preroll returned silence/old audio: %v", buf)
+		}
+	}
+	if p.seekGuardActive.Load() {
+		t.Fatal("valid audio did not clear seek guard")
+	}
+	if p.GetLastPTS() != 10 {
+		t.Fatal("audio timestamp did not reach target")
+	}
+}
+
+func TestPlaybackPreparationUsesReadyBuffers(t *testing.T) {
+	e := NewEngine()
+	e.running = true
+	e.paused = true
+	e.pausedAtomic.Store(true)
+	e.frameQueue <- decodedFrame{pts: 0.1}
+	if err := e.PreparePlayback(context.Background(), time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if !e.IsPaused() {
+		t.Fatal("buffer preparation started output clock")
+	}
+	if e.prebuffering.Load() {
+		t.Fatal("buffer preparation left priming active")
+	}
+	e.Close()
+}
+func TestPlaybackPreparationIsCancelled(t *testing.T) {
+	e := NewEngine()
+	e.running = true
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := e.PreparePlayback(ctx, time.Second); !errors.Is(err, context.Canceled) {
+		t.Fatalf("preparation returned %v", err)
+	}
+	if e.prebuffering.Load() {
+		t.Fatal("cancelled preparation kept priming active")
+	}
+	e.Close()
+}

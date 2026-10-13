@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -20,26 +21,28 @@ import (
 )
 
 type InlineVideoPlayer struct {
-	sourceGeneration uint64
-	session          *playerSession
-	newEngine        func() media.PlaybackEngine
-	dispatch         func(func())
-	mu               sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
-	player           *media.VideoPlayer
-	engine           media.PlaybackEngine
-	scrubber         media.Scrubber
-	playing          bool
-	speed            float64            // authoritative speed; mirrors the engine, survives engine swaps
-	audioIdx         int                // active audio track index, -1 when unknown/none
-	subtitleIdx      int                // active subtitle track index, -1 when subtitles are off
-	currentPath      string             // path of the most recently loaded file; used for EOF→reload
-	onProgress       func(float64)      // called from playbackLoop with current time in seconds
-	onEnd            func()             // called on clean end-of-stream; NOT called on error
-	onFrame          func(*image.RGBA)  // called on every rendered frame (playback + scrub)
-	onLoad           func(LoadEvent)    // fired on main goroutine at each load milestone
-	peer             *InlineVideoPlayer // optional follower driven by play/pause/seek
-	resumeState      *state.ResumeState // persisted playback position (optional)
-	lastSave         time.Time          // throttle for resume auto-save
+	diagnosticsEnabled bool
+	diagnostics        atomic.Pointer[media.PlayerDebugStats]
+	sourceGeneration   uint64
+	session            *playerSession
+	newEngine          func() media.PlaybackEngine
+	dispatch           func(func())
+	mu                 sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
+	player             *media.VideoPlayer
+	engine             media.PlaybackEngine
+	scrubber           media.Scrubber
+	playing            bool
+	speed              float64            // authoritative speed; mirrors the engine, survives engine swaps
+	audioIdx           int                // active audio track index, -1 when unknown/none
+	subtitleIdx        int                // active subtitle track index, -1 when subtitles are off
+	currentPath        string             // path of the most recently loaded file; used for EOF→reload
+	onProgress         func(float64)      // called from playbackLoop with current time in seconds
+	onEnd              func()             // called on clean end-of-stream; NOT called on error
+	onFrame            func(*image.RGBA)  // called on every rendered frame (playback + scrub)
+	onLoad             func(LoadEvent)    // fired on main goroutine at each load milestone
+	peer               *InlineVideoPlayer // optional follower driven by play/pause/seek
+	resumeState        *state.ResumeState // persisted playback position (optional)
+	lastSave           time.Time          // throttle for resume auto-save
 
 	// Authoritative playback-state change notifications. Modules derive their
 	// displayed transport/speed/track state from these instead of keeping an
@@ -781,6 +784,7 @@ func (v *InlineVideoPlayer) Close() {
 		s.cancel()
 	}
 	v.session = nil
+	v.diagnostics.Store(nil)
 	v.engine, v.scrubber = nil, nil
 	v.playing = false
 	v.currentPath = ""
@@ -871,6 +875,19 @@ func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 		img, err := s.engine.NextFrameContext(r.ctx)
 		t := s.engine.CurrentTime()
 		growing := s.engine.IsGrowingFile()
+		v.mu.Lock()
+		debug := v.diagnosticsEnabled
+		v.mu.Unlock()
+		if debug {
+			stats := s.engine.Diagnostics()
+			stats.Session = s.id
+			v.mu.Lock()
+			if v.runCurrentLocked(s, r) {
+				stats.Playing = v.playing
+				v.diagnostics.Store(&stats)
+			}
+			v.mu.Unlock()
+		}
 		s.ops.Unlock()
 		if !v.runCurrent(s, r) {
 			return
@@ -974,4 +991,26 @@ func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	player := NewInlineVideoPlayer()
 	return BuildPlayerContainer(player.Widget(), size), player
+}
+
+func (v *InlineVideoPlayer) SetDiagnosticsEnabled(enabled bool) {
+	v.mu.Lock()
+	v.diagnosticsEnabled = enabled
+	v.mu.Unlock()
+	v.withEngine(func(e media.PlaybackEngine) { e.SetDiagnosticsEnabled(enabled) })
+	if !enabled {
+		v.diagnostics.Store(nil)
+	}
+}
+
+// Return the latest source-owned snapshot without blocking on native decode.
+func (v *InlineVideoPlayer) Diagnostics() media.PlayerDebugStats {
+	if d := v.diagnostics.Load(); d != nil {
+		result := *d
+		v.mu.Lock()
+		result.Playing = v.playing
+		v.mu.Unlock()
+		return result
+	}
+	return media.PlayerDebugStats{}
 }

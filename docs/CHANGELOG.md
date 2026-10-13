@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
+
+Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.
+
 ## v0.1.1-dev97 candidate — startup and resume continuity
 
 - Removed the frame wait that timed out before initial decoder startup.
@@ -18,6 +22,24 @@
 - Automated real-media stress completed; visual review is pending while the user is away. Known seeking/resume continuity findings remain open. No master merge/tag/release claimed.
 
 
+## v0.1.1-dev96 — October 2026
+
+- Removed the unused root author DVD-rip tab and stopped tracking the generated
+  test executable. Archived reconciliation/triage reports and relocated the QR
+  prototype to scripts/legacy; corrected references and ignores.
+- Active root module wiring remains required; no playback or workflow change.
+- Validation: Windows native build, vet and full tests passed; moved references
+  checked and Git diff hygiene passed.
+
+## v0.1.1-dev95 — October 2026
+
+- Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained.
+- Added the suite design and initial task/visual audit; locked modules remain skipped. No backend or transport rewrite.
+- Corrected saved-position loading: decode the initial resumed preview directly with a timeout instead of waiting for the playback decoder before it starts. Seek/preview failures return to loading; precise seek and transient resumed-frame distortion remain open.
+- Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
+
+
+
 ## v0.1.1-dev94 (October 2026) — VT_Player cancellation foundation
 
 - Added caller/retirement cancellation to native frame reads and PTS waits; preserved natural EOF as a separate outcome.
@@ -30,6 +52,7 @@
 ## VT_Player upgrade preparation (candidate branch)
 
 - Recorded [upgrade sequence and acceptance gates](VT_PLAYER_UPGRADE_PLAN.md); lifecycle work starts with retirement-aware frame reads. No accepted player release yet.
+
 
 ## Audit update — 2026-10-12 (dev93 baseline)
 
@@ -92,7 +115,7 @@ Dev93 verification finding: The runtime card test also exposed bulk-selection lo
 ### Repo baseline reconciliation: hygiene, audit index, loop discipline
 
 - **The gap.** dev87 landed as a documentation-only cycle, but its release commit (`445a0023`) had swept in unexpected files under a version-bump message — a committed `__pycache__/*.pyc`, an unreferenced-looking Rust FFI crate, a bridge module, and scripts with no CI integration — leaving no trustworthy baseline to implement the seek fix on top of.
-- **The reconciliation (`db51c395`, `RECONCILIATION.md`).** File-by-file provenance audit of everything `445a0023` added: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (the CGo consumer, `InterceptMediaPayload`) are **intentional and interdependent — retained**; the committed `.pyc` was a generated artifact — the hygiene violation is closed with a `**/__pycache__/` gitignore entry.
+- **The reconciliation (`db51c395`, `docs/history/RECONCILIATION_DEV88.md`).** File-by-file provenance audit of everything `445a0023` added: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (the CGo consumer, `InterceptMediaPayload`) are **intentional and interdependent — retained**; the committed `.pyc` was a generated artifact — the hygiene violation is closed with a `**/__pycache__/` gitignore entry.
 - **Audit findings preserved in version control.** TODO.md dev87 now carries the seek-audit findings index: confirmed defects (cap-1 mailbox drops, concurrent SetFrame/SetCurrentTime writers, missing isScrubbing gate, unbounded WaitForPTS), the disproved historical seekGen-lastSeekGen bug (already fixed at playback.go:607), and UNVERIFIED layout claims D1–D15 (need a rendered screenshot; static analysis cannot settle them).
 - **Loop discipline (`14a189c7`).** AGENTS.md gains the no-confirmation-loop Human Director directive: an agent with a single unambiguous track completes it end-to-end before returning to the human. Also mirrored in the global opencode AGENTS.md.
 - **Next.** Real-media acceptance on an encrypted disc remains priority 1; the seek concurrency fix is deliberately deferred to a later dev version (small dev versions, not crammed releases).

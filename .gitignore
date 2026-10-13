@@ -24,6 +24,7 @@ assets/icons/*.log
 
 # Windows build artifacts
 VideoTools.exe
+VideoTools_test.exe
 *.syso
 videotools_windows_amd64.syso
 ffmpeg.exe
@@ -32,7 +33,7 @@ ffmpeg-windows.zip
 ffmpeg-temp/
 dist/
 packaging/windows/msix/*.pfx
-# FFmpeg DLLs — built by CI and bundled in ffmpeg-dll/ at release time; never committed
+# Local FFmpeg development DLLs; Windows releases ship static binaries
 *.dll
 
 # Ignore sample media/output in git_converter helper

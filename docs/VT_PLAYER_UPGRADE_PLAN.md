@@ -1,5 +1,9 @@
 # VT_Player upgrade plan
 
+## Dev97 integration checkpoint
+
+Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately. Next order: instrument paused-output transitions; correct FFmpeg seek flags and validate returned PTS; exercise long-GOP/VFR frame navigation; then establish one comparison clock with one audible source.
+
 ## Purpose and boundaries
 
 VT_Player is an inspection and verification surface for VideoTools, with synchronized original/processed comparison as its next major use. Reliable playback and exact frame positioning take precedence over a general-purpose player feature catalogue. The 2026-10-12 user direction authorizes starting the player upgrade sequence; encrypted DVD -> Rip -> Convert -> playback remains an outstanding project acceptance requirement.
@@ -57,3 +61,6 @@ User-visible checks confirmed a 503 ms first-Play wait and repeated resume packe
 ## Continuity check results
 
 Native full and race gates passed. User-witnessed tests on 2026-10-13 confirm quicker continuous playback without the previous distortion. First presented frame: 82ms; normal resume: 33.5ms; burst resumes: 14-18ms. Close-during-load cancellation and reopening completed. Residual 2x/end jitter and speed/clock timing remain open; intentional burst pauses are not continuous-playback stutter. Candidate version is dev97 because master independently advanced through dev96. Reconcile current master and run integration/CI before publishing; exact navigation and encrypted-disc acceptance are still outstanding.
+## Integrated saved-position audio readiness
+
+Integration playback exposed silent then glitchy saved-position audio. The first accepted audio timestamp was 47.787 for target 45.610, so adding a fixed sleep cannot recover lost samples. Discard decoded preroll before resampling/PCM buffering, retain callback-side stale-data safety, preserve encoded audio under active playback/prebuffer backpressure, and prepare a bounded amount of valid decoded audio/video before enabling output. Ordinary pause/resume should reuse ready buffers. Keep the common clock paused during preparation; cancellation and a bounded deadline remain required. Validate target audio timestamps, audible output, startup responsiveness and paused readiness teardown before landing.

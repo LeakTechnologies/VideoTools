@@ -197,5 +197,5 @@ Examples:
    - `GenerateVMG_IFO()` signature updated to accept `[]*ProgramChain` (line 145)
    - PGCITI serialization updated (line 164)
 
-5. **`author_dvd_functions.go`** ✅
+5. **`author_dvd_functions.go`** — historical unused tab, removed in dev96; maintained Rip implementation is `internal/app/modules/rip/`.
    - Fixed non-constant format string (line 47)

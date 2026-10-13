@@ -21,6 +21,8 @@ import (
 type PlaybackEngine interface {
 	// Lifecycle
 	Close()
+	SetDiagnosticsEnabled(bool)
+	Diagnostics() PlayerDebugStats
 	Start()
 
 	// Open
@@ -41,6 +43,7 @@ type PlaybackEngine interface {
 	GrabFrame(timeout time.Duration) (*image.RGBA, error)
 	ResetAfterGrab()
 	WaitForFrame(timeout time.Duration) bool
+	PreparePlayback(context.Context, time.Duration) error
 
 	// Audio
 	SetVolume(vol float32)

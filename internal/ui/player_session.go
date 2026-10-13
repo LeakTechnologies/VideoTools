@@ -171,6 +171,15 @@ func (v *InlineVideoPlayer) playFromRun(s *playerSession, r *playbackRun) {
 		s.ops.Unlock()
 		return
 	}
+	if err := s.engine.PreparePlayback(r.ctx, 500*time.Millisecond); err != nil {
+		s.ops.Unlock()
+		v.stopRun(s, r, err)
+		return
+	}
+	if !v.runCurrent(s, r) {
+		s.ops.Unlock()
+		return
+	}
 	s.engine.Resume()
 	s.ops.Unlock()
 	v.dispatchRun(s, r, func() {
@@ -250,6 +259,8 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 		v.playlistIdx = 0
 	}
 	rs := v.resumeState
+	debug := v.diagnosticsEnabled
+	v.diagnostics.Store(nil)
 	v.mu.Unlock()
 	retireSession(old)
 	logging.Info(logging.CatPlayer, "player source session %d started", s.id)
@@ -301,6 +312,7 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	defer s.ops.Unlock()
 	s.engine = factory()
 	eng := s.engine
+	eng.SetDiagnosticsEnabled(debug)
 	eng.SetSeekAccuracy(media.DefaultSeekAccuracy())
 	eng.SetAudioDelay(media.DefaultAudioDelay())
 	eng.SetDropFrames(true)
@@ -336,11 +348,12 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	eng.Pause()
 	if rs != nil {
 		if saved, ok := rs.GetPosition(path); ok && rs.ShouldResume(saved) {
-			if err = eng.Seek(saved.Position); err == nil {
-				first, err = eng.GrabFrame(4 * time.Second)
-			}
-			if err != nil {
-				return s, err
+			if img, previewErr := grabResumePreview(eng, saved.Position); previewErr == nil {
+				first = img
+			} else if s.ctx.Err() != nil {
+				return s, s.ctx.Err()
+			} else {
+				logging.Warning(logging.CatPlayer, "saved-position preview unavailable: %v", previewErr)
 			}
 		}
 	}
@@ -366,6 +379,7 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 		v.mu.Unlock()
 		return s, context.Canceled
 	}
+	previewPTS := eng.GetLastVideoPTS()
 	v.engine, v.scrubber = eng, s.scrubber
 	v.mu.Unlock()
 	v.dispatchSession(s, func() {
@@ -379,6 +393,7 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 		v.player.SetFrameRate(fps)
 		if first != nil {
 			v.player.SetFrame(first)
+			v.player.SetCurrentTime(previewPTS)
 		}
 		v.player.SetLoading(false)
 		v.player.Refresh()
@@ -405,4 +420,28 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 		s.ops.Unlock()
 	}()
 	return s, nil
+}
+
+// grabResumePreview keeps the dev95 timed decoder contract: the playback
+// frame queue has no producer until a presentation run starts.
+func grabResumePreview(eng media.PlaybackEngine, position float64) (*image.RGBA, error) {
+	if err := eng.Seek(position); err != nil {
+		return nil, err
+	}
+	const budget = 4 * time.Second
+	deadline := time.Now().Add(budget)
+	remaining := budget
+	for {
+		img, err := eng.GrabFrame(remaining)
+		if err != nil {
+			return nil, err
+		}
+		if eng.GetLastVideoPTS() >= position {
+			return img, nil
+		}
+		remaining = time.Until(deadline)
+		if remaining <= 0 {
+			return nil, fmt.Errorf("saved-position preview did not reach requested timestamp")
+		}
+	}
 }

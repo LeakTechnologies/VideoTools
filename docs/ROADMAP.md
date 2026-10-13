@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
+
+Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.
+
 ## Verified player continuity candidate — 2026-10-13
 
 Startup/resume correctness repairs are implemented and locally tested on the player candidate branch. User-witnessed 1x/2x and burst-resume checks confirm quicker continuous playback; first frame 82ms, normal resume 33.5ms, burst resumes 14-18ms. Now: reconcile the candidate with newer master and complete integration/CI acceptance. Next: exact navigation and measured remaining 2x/end jitter. Synchronized comparison and encrypted-disc acceptance remain downstream/open. Candidate dev97 is not a published release.
@@ -9,6 +13,12 @@ Startup/resume correctness repairs are implemented and locally tested on the pla
 
 Second reliability slice implemented in an isolated worktree. Controlled concurrency tests and automated real-media diagnostics cover replacement, retirement and presentation ownership; the final run completed with 398 frames and three retired sources. Now: finish verification and obtain visual review before landing. Next: correct seek flags, scrub commit, frame stepping and resume continuity. Comparison remains downstream; encrypted-disc acceptance remains outstanding.
 
+
+## v0.1.1-dev96 — Root cleanup
+
+Removed confirmed dead root source and the tracked test executable; archived
+historical reports and relocated the QR prototype. Active module adapters remain
+pending the separate extraction plan. See [root audit](ROOT_CLEANUP_DEV96.md).
 
 ## v0.1.1-dev94 — VT_Player cancellation foundation
 
@@ -88,7 +98,9 @@ timeline
     v0.1.1-dev75 (Shipped) : **Dynamic rip-mode selection + bulk-selection deadlock fix** â€” the rip-mode radio now reshapes the title selection to the mode on transition (Movie+extras auto-selects all, Main-feature-only keeps the longest anchored, Scenes-only selects the segments; manual toggles inside a mode persist) : Select All / Deselect All no longer deadlock the UI thread (SetChecked-under-mutex root cause; lock layer is visual-only, selection owned by ReshapeSelection) : a freshly loaded disc resets the mode to Main-feature-only
     v0.1.1-dev76 (Shipped) : **ISO 9660 resolve fix + menu-export dedup + choose-titles starts empty** â€” the rip resolver demanded a nested `tempDir\VIDEO_TS` folder but the native UDF/ISO 9660 readers extract FLAT (files land in the destination root), so every ISO 9660-only grey-market image failed the rip path ("VIDEO_TS not found in ISO 9660 image") right after a successful scan (`ISO9660-sample-A.iso` + `ISO9660-sample-B.iso`); `extractedVideoTSPath` now accepts nested or flat. Repeated title rips of one disc no longer write a fresh identical `_Menu_<label>.mkv` per output base (`menuAlreadyExported` skips same-(label,size) menus). dev75's choose-titles reshape auto-selected every title on mode switch â†’ `CanonicalSelection` returns empty for "" mode â€” what is ticked is exactly what rips. Published 2026-09-14 (tag v0.1.1-dev76, ba864a8e)
     v0.1.1-dev80 (Shipped) : **Thumbnail "both"-mode output fix** (separate thumbnails actually generated at the sheet tile width, count = columnsÃ—rows, locked "matches contact sheet" label) : **Queue StartedAt/CompletedAt timestamp bug** (reused `now` variable â†’ every job showed equal times) : **Queue-history Progress copy fix** (finished jobs read Progress 0) : **Thumbnail job-log capture fix** (os.Create per thumbnail truncated the log to the last screenshot; one O_APPEND handle + per-frame headers). Published 2026-09-18 (tag v0.1.1-dev80, 13d6c474)
-    v0.1.1-dev93 (Current) : Rip Content Browser card rendering restored; open Rip audit findings recorded
+    v0.1.1-dev96 (Current) : Root hygiene and obsolete-source removal
+    v0.1.1-dev95 : Convert metadata-first workspace; optional preview and labeled tools
+    v0.1.1-dev93 : Rip Content Browser card rendering restored; open Rip audit findings recorded
     v0.1.1-dev92 : **Rip: output path follows the Title field live** — editing the Title did not update the output path box; Entry.SetText fires OnChanged synchronously, so every programmatic write (applyOutputPath/applyControls/Clear) set outputTouched=true, and the Title handler only re-derives while !outputTouched — after the first programmatic write the flag was stuck true and Title edits were ignored : a viewState.outputUpdating guard now wraps every programmatic outputEntry.SetText and the handler early-returns while raised, so outputTouched (and SetRipOutputPath) fire only for genuine hand-edits : hand-edited / load / reset / config contracts preserved : one mutation-verified source-reading guard
     v0.1.1-dev91 (Shipped) : **Rip: Content Browser scroll-selection corruption + mode-radio re-click fixed** — the title list randomly ticked/un-ticked titles while scrolling (corrupting the "ready to rip N titles" count) because updateCard re-wired each card's OnChanged AFTER SetChecked, and the Fyne List recycles cards across rows while scrolling (SetChecked fires OnChanged synchronously, so a card bound to row J ran row I's stale handler and wrote J's display state into I's selection) : the handler is now wired ONCE per template card and resolves the current row through a per-card owner (cardBox.owner) bound BEFORE SetChecked; setAllSelected only drives a check its card actually owns : a Fyne RadioGroup deselects the tapped option when it is already selected (OnChanged("")), and the handler's value=="" branch re-armed Main feature — it now re-arms the actually-active mode : two mutation-verified source-reading regression guards
     v0.1.1-dev90 (Shipped) : **Restore H.264/H.265 encoding in the shipped Windows FFmpeg** — the Windows sidecar built by dev.yml/release.yml was configured without --enable-libx264/--enable-libx265 (only msix built them) so every H.264/H.265 output failed at encode time ("Unrecognized option 'crf'") : both recipes now build x264+x265 static-only before configure + --enable-libx264/--enable-libx265 + git in the MSYS2 set : cache key v12→v13 : build hard-fails without the encoders + per-job "Verify encoders" step : Linux unaffected (no bundled FFmpeg)
@@ -122,7 +134,9 @@ timeline
 > `Shipped` â†’ `Done (Untested)` â†’ `In Progress` â†’ `Planned` â†’ `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (dev93)
+## Current State (dev96)
+
+- **Dev95**: Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained. Design and task audit recorded in [UI_SUITE_DESIGN.md](UI_SUITE_DESIGN.md) and [UI_SUITE_AUDIT.md](UI_SUITE_AUDIT.md). Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
 
 - **Dev93**: Rip Content Browser cards now render their labels, thumbnail area and selection checks. The dev91 owner wrapper embedded a container but was neither a concrete Fyne container nor a widget, so the canvas skipped its children. cardBox now extends BaseWidget and exposes the original container through a simple renderer; stable owner-based selection remains intact. [Rip audit](RIP_AUDIT_DEV93.md) records open defects; encrypted-disc acceptance remains outstanding.
 
@@ -170,7 +184,7 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers â€” all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev93 — Content Browser rendering restored; Rip audit findings open; real-media encrypted-DVD acceptance is priority 1, seek fix deliberately deferred)
+## Now (dev96 — Content Browser rendering restored; Rip audit findings open; real-media encrypted-DVD acceptance is priority 1, seek fix deliberately deferred)
 
 - **Dev-version cadence** — every run that lands a new fix or update is pushed as a new dev version (devN). `v0.1.2-dev*` is reserved for the moment the DVD suite works within its own ecosystem: author a DVD using VideoTools, then rip it back using VideoTools.
 - **Tester verification of dev92** — (1) load a disc and type in the Title field: the output path box updates on every keystroke; (2) hand-edit the output path, then change the Title — the path is left alone; (3) changing format, loading a disc, or Reset re-derives the path from Title + source + format; (4) Clear empties the output box and the next load re-derives it.

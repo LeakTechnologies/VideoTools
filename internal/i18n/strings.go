@@ -178,6 +178,11 @@ type Strings struct {
 	ActionCopyMetadata string // "Copy Metadata"
 	ActionLoadConfig   string // "Load Config"
 	ActionSaveConfig   string // "Save Config"
+	// Player tools (native preview).
+	PlayerFrameTools      string // "Player tools"
+	PlayerUseFrameAsCover string // "Use current frame as cover"
+	PlayerSaveFrame       string // "Save current frame as PNG"
+	PlayerImportCover     string // "Import cover image"
 
 	// ── Common Labels ─────────────────────────────────────────────────────
 	LabelInput           string

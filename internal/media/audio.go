@@ -89,8 +89,16 @@ type AudioPlayer struct {
 	// This prevents the "audio plays from keyframe start" bug when the keyframe is
 	// far behind the seek point.  Cleared automatically when the first in-range
 	// chunk is consumed.
-	seekGuardActive atomic.Bool
-	seekTargetBits  atomic.Uint64
+	debugEnabled     atomic.Bool
+	debugReads       atomic.Uint64
+	debugSilentReads atomic.Uint64
+	debugUnderruns   atomic.Uint64
+	debugRMS         atomic.Uint64
+	debugPeak        atomic.Uint64
+	primeDecode      atomic.Bool   // decode while outputs stay paused during preparation
+	seekDiscarded    atomic.Uint64 // preroll chunks skipped per seek, reported once
+	seekGuardActive  atomic.Bool
+	seekTargetBits   atomic.Uint64
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool        // set when codec raises a pre-flight error; stops decode loop
@@ -157,6 +165,7 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 	go p.audioDecodeLoop()
 
 	p.otoPlayer = otoCtx.NewPlayer(p)
+	p.otoPlayer.SetBufferSize(audioPlayerBufferBytes)
 	// Do NOT call Play() here - audio will start playing immediately.
 	// Instead, audio is started when user presses Play() via AudioPlayer.Resume().
 	// Set paused=true initially so Read() returns silence until Play is called.
@@ -195,7 +204,7 @@ func (p *AudioPlayer) audioDecodeLoop() {
 		paused := p.paused
 		p.mu.Unlock()
 
-		if paused {
+		if paused && !p.primeDecode.Load() {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
@@ -270,6 +279,11 @@ func (p *AudioPlayer) audioDecodeLoop() {
 
 			pts := float64(p.frame.pts) * p.timeBase
 			p.codecMu.Unlock()
+			if p.seekGuardActive.Load() && pts < math.Float64frombits(p.seekTargetBits.Load())-seekTolerance {
+				p.seekDiscarded.Add(1)
+				p.codecMu.Lock()
+				continue
+			}
 
 			// PCM is pushed to pcmCh; Read() will call clock.SetTime(pts-latency)
 			// when it consumes the chunk, driving the master clock from audio output.
@@ -301,7 +315,10 @@ func (p *AudioPlayer) audioDecodeLoop() {
 	}
 }
 
-func (p *AudioPlayer) Read(buf []byte) (int, error) {
+func (p *AudioPlayer) Read(buf []byte) (readN int, readErr error) {
+	if p.debugEnabled.Load() {
+		defer func() { p.recordOutput(buf, readN) }()
+	}
 	if p.closed.Load() {
 		return 0, io.EOF
 	}
@@ -341,83 +358,97 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		return n, nil
 	}
 
-	// Non-blocking receive: if the decode goroutine hasn't produced a chunk
-	// yet, return silence so oto's goroutine never stalls.
-	select {
-	case chunk, ok := <-p.pcmCh:
-		if !ok {
-			// Channel closed — decode goroutine exited (EOF or error).
-			if looping {
-				p.mu.Lock()
-				p.mu.Unlock()
-				for i := range buf {
-					buf[i] = 0
+	discarded := 0
+	for {
+		// Non-blocking receive: if the decode goroutine hasn't produced a chunk
+		// yet, return silence so oto's goroutine never stalls.
+		select {
+		case chunk, ok := <-p.pcmCh:
+			if !ok {
+				// Channel closed — decode goroutine exited (EOF or error).
+				if looping {
+					p.mu.Lock()
+					p.mu.Unlock()
+					for i := range buf {
+						buf[i] = 0
+					}
+					return len(buf), nil
 				}
-				return len(buf), nil
+				return 0, io.EOF
 			}
-			return 0, io.EOF
-		}
 
-		// Seek guard: discard audio chunks that predate the seek target.
-		// This prevents audible playback from the keyframe position when the
-		// keyframe is far behind the requested seek point.
-		if p.seekGuardActive.Load() {
-			seekTarget := math.Float64frombits(p.seekTargetBits.Load())
-			if chunk.pts < seekTarget-seekTolerance {
-				for i := range buf {
-					buf[i] = 0
+			// Seek guard: discard audio chunks that predate the seek target.
+			// This prevents audible playback from the keyframe position when the
+			// keyframe is far behind the requested seek point.
+			if p.seekGuardActive.Load() {
+				seekTarget := math.Float64frombits(p.seekTargetBits.Load())
+				if chunk.pts < seekTarget-seekTolerance {
+					p.seekDiscarded.Add(1)
+					discarded++
+					// Bound work on oto's callback thread while discarding preroll.
+					// A stale source chunk must not become a whole buffer of silence.
+					if discarded >= pcmChannelCap {
+						clear(buf)
+						return len(buf), nil
+					}
+					continue
 				}
-				return len(buf), nil
-			}
-			p.seekGuardActive.Store(false)
-		}
-
-		p.underrunCount.Store(0)
-		// Drive the master clock from audio output position.
-		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
-		p.lastPTSBits.Store(math.Float64bits(chunk.pts))
-
-		var processedData []byte
-		if fg != nil {
-			out, _ := fg.Process(chunk.data)
-			if len(out) == 0 {
-				// atempo filter is still buffering — return silence for this tick.
-				for i := range buf {
-					buf[i] = 0
+				p.seekGuardActive.Store(false)
+				if skipped := p.seekDiscarded.Swap(0); skipped > 0 {
+					logging.Info(logging.CatPlayer, "audio seek preroll discarded %d chunks; first accepted pts=%.3f target=%.3f", skipped, chunk.pts, seekTarget)
 				}
-				return len(buf), nil
 			}
-			processedData = out
-		} else {
-			processedData = p.adjustSamplesForSpeed(chunk.data, speed)
-		}
 
-		n := copy(buf, processedData)
+			p.underrunCount.Store(0)
+			// Drive the master clock from audio output position.
+			p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds()*speed)
+			p.lastPTSBits.Store(math.Float64bits(chunk.pts))
 
-		p.mu.Lock()
-		volumeMul = p.volumeMul
-		p.mu.Unlock()
-		if volumeMul != 1.0 {
-			applyVolumeS16(buf[:n], volumeMul)
-		}
+			var processedData []byte
+			if fg != nil {
+				out, _ := fg.Process(chunk.data)
+				if len(out) == 0 {
+					// atempo filter is still buffering — return silence for this tick.
+					for i := range buf {
+						buf[i] = 0
+					}
+					return len(buf), nil
+				}
+				processedData = out
+			} else {
+				processedData = p.adjustSamplesForSpeed(chunk.data, speed)
+			}
 
-		if n < len(processedData) {
+			n := copy(buf, processedData)
+
 			p.mu.Lock()
-			p.leftover = processedData[n:]
+			volumeMul = p.volumeMul
 			p.mu.Unlock()
+			if volumeMul != 1.0 {
+				applyVolumeS16(buf[:n], volumeMul)
+			}
+
+			if n < len(processedData) {
+				p.mu.Lock()
+				p.leftover = processedData[n:]
+				p.mu.Unlock()
+			}
+			return n, nil
+		default:
+			// No decoded audio ready yet — return silence.
+			// Each oto callback is ~23 ms; log a warning after ~230 ms of silence.
+			n := p.underrunCount.Add(1)
+			if p.debugEnabled.Load() {
+				p.debugUnderruns.Add(1)
+			}
+			if n == 10 || (n > 10 && n%50 == 0) {
+				logging.Warning(logging.CatPlayer, "audio underrun: %d consecutive silent frames (~%.0fms)", n, float64(n)*23)
+			}
+			for i := range buf {
+				buf[i] = 0
+			}
+			return len(buf), nil
 		}
-		return n, nil
-	default:
-		// No decoded audio ready yet — return silence.
-		// Each oto callback is ~23 ms; log a warning after ~230 ms of silence.
-		n := p.underrunCount.Add(1)
-		if n == 10 || (n > 10 && n%50 == 0) {
-			logging.Warning(logging.CatPlayer, "audio underrun: %d consecutive silent frames (~%.0fms)", n, float64(n)*23)
-		}
-		for i := range buf {
-			buf[i] = 0
-		}
-		return len(buf), nil
 	}
 }
 
@@ -479,6 +510,7 @@ const seekTolerance = 0.05
 // audible playback from the keyframe position when the keyframe is behind the
 // seek target.  The guard disarms automatically on the first in-range chunk.
 func (p *AudioPlayer) SetSeekTarget(seconds float64) {
+	p.seekDiscarded.Store(0)
 	p.seekTargetBits.Store(math.Float64bits(seconds))
 	p.seekGuardActive.Store(true)
 }
@@ -754,4 +786,22 @@ func (p *AudioPlayer) resample() ([]byte, error) {
 
 func timeSleep(d time.Duration) {
 	time.Sleep(d)
+}
+
+func (p *AudioPlayer) bufferReady() bool {
+	p.mu.Lock()
+	leftover := len(p.leftover) > 0
+	p.mu.Unlock()
+	if len(p.pcmCh) >= 4 {
+		return true
+	}
+	if !p.seekGuardActive.Load() {
+		if leftover {
+			return true
+		}
+		if p.otoPlayer != nil && p.otoPlayer.BufferedSize() > 0 {
+			return true
+		}
+	}
+	return false
 }

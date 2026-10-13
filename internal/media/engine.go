@@ -187,6 +187,12 @@ type Engine struct {
 	demuxerWg      sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
 	closed       bool // protected by mu; includes partial-open disposal
+ prebuffering atomic.Bool // prepare decoded content while output stays paused
+ debugEnabled atomic.Bool
+ debugAudioDrops atomic.Uint64
+ debugClockSnaps atomic.Uint64
+ debugVideoDrops atomic.Uint64
+ debugFrameReadNS atomic.Int64
  previewRead atomic.Bool // initial/paused preview demand
  frameRequests atomic.Int32 // active frame consumers allow paused demux
  pendingFrame *decodedFrame // cancelled presentation, protected by mu
@@ -807,7 +813,8 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 		ap.SetSpeed(speed)
 	}
 
-	e.audioPlayer = ap
+	ap.debugEnabled.Store(e.debugEnabled.Load())
+ e.audioPlayer = ap
 	e.audioStreamIdx = streamIdx
 	e.hasAudio = true
 
@@ -1325,7 +1332,8 @@ func (e *Engine) openFinalize() error {
 					e.info.HasAudio = false
 				} else {
 					logging.Info(logging.CatPlayer, "Audio player created OK")
-					e.audioPlayer = ap
+					ap.debugEnabled.Store(e.debugEnabled.Load())
+ e.audioPlayer = ap
 					e.audioPlayer.SetVolume(e.volume)
 					e.audioPlayer.SetMuted(e.muted)
 					e.hasAudio = true

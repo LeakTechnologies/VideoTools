@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
+
+Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.
+
 ## Player startup/resume continuity candidate — 2026-10-13
 
 Implemented the startup and pause/resume fixes within the source-ownership candidate. Native and race gates pass. User-witnessed checks support quicker continuous playback without the old jumps/distortion; measured first-frame presentation was 82ms and normal resume 33.5ms. Burst resumes were about 14-18ms. This is candidate implementation/verification, not a published release; exact seeking and residual faster-playback jitter remain open.
@@ -10,6 +14,26 @@ Implemented the startup and pause/resume fixes within the source-ownership candi
 Completed candidate implementation and automated media diagnostics for source/presentation ownership. The runtime gate exposed and led to repairs for a Fyne refresh/player-lock cycle and a paused-audio shutdown race. Final automated session completed with 398 frames and three source retirements. This records implementation work only; visual review and release acceptance remain pending. See docs/PLAYER_DEBUG.md.
 
 
+## v0.1.1-dev96 — Repository root cleanup
+
+Removed the unused author DVD-rip tab and generated test executable from the
+tracked tree. Archived reconciliation/triage reports under docs/history and
+relocated the independent QR prototype under scripts/legacy. References and
+ignore rules updated. Active root adapters are retained; history is preserved.
+See [root audit](docs/ROOT_CLEANUP_DEV96.md).
+
+Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
+
+## v0.1.1-dev95 — Convert workspace refinement
+
+Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained.
+
+Design: [UI_SUITE_DESIGN.md](docs/UI_SUITE_DESIGN.md). Validation and tester acceptance are tracked separately.
+
+Saved-position loading no longer waits for an unstarted frame-queue decoder; direct timed preview decoding is covered by behavioral regressions and a real resumed-load session. Accurate seek and transient resumed-frame distortion remain open.
+
+
+
 ## v0.1.1-dev94 — VT_Player cancellation foundation
 
 Frame reads and clock waits now return on engine retirement/caller cancellation. Clock waits respect speed and remain interruptible. Playback ignores retired reads and rejects results from detached engines. Behavioral regressions and full native verification pass. Visible media session and runtime log reviewed; minor jitter at the end of the 2x segment remains open. The overall reliability/comparison stages are not complete.
@@ -18,6 +42,7 @@ Frame reads and clock waits now return on engine retirement/caller cancellation.
 ## VT_Player upgrade planning
 
 Recorded the [ordered upgrade plan](docs/VT_PLAYER_UPGRADE_PLAN.md) and first lifecycle slice. This completes planning only; no upgrade stage has playback acceptance or a release.
+
 
 ## VT_Player audit — dev93 baseline, 2026-10-12
 
@@ -61,7 +86,7 @@ Rendering and recycled selection are covered by TestContentCardRendersAndRecycle
 
 ## v0.1.1-dev88 — Repo baseline reconciliation
 
-- **Pre-dev88 reconciliation (`RECONCILIATION.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.
+- **Pre-dev88 reconciliation (`docs/history/RECONCILIATION_DEV88.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.
 - **Seek audit findings preserved in version control.** TODO.md dev87 carries the findings index — confirmed defects, the disproved historical seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
 - **No-confirmation-loop directive (`14a189c7`).** AGENTS.md (repo + global opencode config): an agent with a single unambiguous track completes the task end-to-end before returning to the human.
 - **Next.** Real-media acceptance on an encrypted disc (priority 1); seek concurrency fix deferred to a later dev version by deliberate scoping — small dev versions, not crammed releases.

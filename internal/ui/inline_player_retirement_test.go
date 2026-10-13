@@ -301,3 +301,8 @@ func TestPlayDoesNotWaitBeforeStartingDecoder(t *testing.T) {
 	p.Close()
 	waitSignal(t, e.closed)
 }
+
+func (e *sessionEngine) PreparePlayback(context.Context, time.Duration) error { return nil }
+
+func (e *sessionEngine) SetDiagnosticsEnabled(bool)          {}
+func (e *sessionEngine) Diagnostics() media.PlayerDebugStats { return media.PlayerDebugStats{} }

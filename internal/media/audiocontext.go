@@ -13,18 +13,16 @@ const (
 	TargetSampleRate = 48000
 	// TargetChannels is the number of output channels (stereo).
 	TargetChannels = 2
-// audioBufferSize is the oto hardware output buffer duration.
-// 50ms provides headroom against underruns on typical hardware.
-// Total end-to-end audio latency includes OS buffer + hardware DAC (~10-30ms),
-// so the actual display-to-speaker latency is ~60-80ms. This value compensates
-// for the oto buffer only; the remaining pipeline latency causes video to
-// display slightly early relative to audio — which is imperceptible.
+	// The device context and per-player output queue are each bounded to
+	// 50ms. Oto's default per-player queue can hold roughly half a second,
+	// which must not be treated as if only the device buffer exists.
 	audioBufferSize = 50 * time.Millisecond
-	// AudioBufferLatency is the nominal end-to-end audio output latency
-	// (oto hardware buffer).  Used to compensate the master clock so that
-	// video PTS is displayed when the corresponding audio samples actually
-	// reach the speakers rather than when they are fed to the OS buffer.
-	AudioBufferLatency = audioBufferSize
+	// AudioBufferLatency includes both configured output queues. The reader
+	// applies playback speed when converting this physical latency to media time.
+	// OS/device latency beyond those queues still requires runtime measurement.
+	audioPlayerBufferDuration = 50 * time.Millisecond
+	audioPlayerBufferBytes    = int(audioPlayerBufferDuration * time.Duration(TargetSampleRate*TargetChannels*2) / time.Second)
+	AudioBufferLatency        = audioBufferSize + audioPlayerBufferDuration
 )
 
 var sharedOtoCtx struct {

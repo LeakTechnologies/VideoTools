@@ -7,6 +7,11 @@ package i18n
 // the romanization uses standard Latin characters.
 // Empty fields fall back to enCA automatically.
 var iuLatn = Strings{
+	PlayerFrameTools:      "Player tools", // English placeholder, needs human review
+	PlayerUseFrameAsCover: "Use current frame as cover", // English placeholder, needs human review
+	PlayerSaveFrame:       "Save current frame as PNG", // English placeholder, needs human review
+	PlayerImportCover:     "Import cover image", // English placeholder, needs human review
+
 	// ── App ──────────────────────────────────────────────────────────────
 	AppTitle: "VideoTools",
 

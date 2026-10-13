@@ -1,5 +1,9 @@
 # Player Debug Status
 
+## Dev97 integration playback evidence — 2026-10-13
+
+Two user-supplied local containers were exercised with saved-position loading, 8 seconds playback, 2 seconds pause and 12 seconds resumed playback. The final alternate-container session progressed at 25 fps; sampled frame reads were about 40 ms. No player WARNING/ERROR records, audio underruns, encoded-audio drops, video drops or clock snaps were recorded. Engine close and source retirement completed. User said the run looked good and reported no noticed lip-sync issues, then authorized integration push. Computer-use snapshots confirmed rendered pictures and the finished paused state; screenshots cannot certify motion smoothness or audible sync. The harness intentionally retained the paused frame for review; repeated stats after pause were cached, not continued playback. Earlier-container run retained a seek fallback warning and a marked post-resume glitch without starvation. Oto can refill a paused source: paused-silence buffering is a plausible unproven mechanism to instrument next. Reader audio timestamp lead is not a DAC drift measurement. Output buffering was reduced from roughly 100 kB to 10–15 kB; whole-chunk refill may exceed the requested 9600-byte threshold. Test binaries/logs remained outside the repository; media identities are omitted. Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.
+
 ## Startup/resume continuity visual check — 2026-10-13
 
 The user observed the original candidate as responsive but jumping/jittery/distorted, with a delay from pressing Play to motion. The original log showed 503ms before Engine.Resume, which followed a WaitForFrame(500ms) before the decoder was started. Resumes discarded 50 encoded video packets and up to eight decoded frames and reset codec references.
@@ -29,6 +33,59 @@ Final automated software-decode sequence: play, six rapid pause/play pairs, paus
 This run is automated evidence only. User reported being away and missed both visible checks; there is no visual/audio sign-off for this candidate. Do not land/publish it yet. One known seek accurate-fallback warning remains: requested 8 seconds displayed 7.875. After rapid resumes, the paused-step readout reached 23.891 despite a much shorter playback segment; resume queue/clock continuity needs a dedicated repair and measurement. These findings remain open rather than being called successful navigation. Hardware decode, native I/O interruption, encrypted-disc playback and synchronized comparison are not accepted by this run.
 
 
+## Dev95 UI/playback verification — 2026-10-12
+
+Final integrated candidate: local session 16:02–16:04 (America/Toronto).
+Reusing the earlier sample exposed a preexisting load stall: Start launches
+demuxing, but Resume starts the frame-queue decoder. Restoring a saved position
+called NextFrame before that producer existed and blocked Convert metadata.
+The loader now checks Seek and uses the existing timed GrabFrame path, retaining
+the initial preview on failure. Behavioral tests cover direct preview decoding,
+seek failure and preview failure without starting playback.
+
+The same saved-position sample now loaded and published metadata. Play advanced
+through about 54s; Pause held the frame/time while labeled tools were opened and
+closed. Closing preview freed space for metadata while Load Video/source identity
+remained available. Closing the window removed the candidate process. The log
+records saved position 45.61s, preview PTS 41.675s and first playback PTS 43.410s;
+the initial display still read 0:00 before Play. A transient visibly distorted
+frame was observed during resumed playback, followed by a clean paused frame.
+These are unresolved navigation/decode observations, not playback acceptance.
+No WARN/ERROR appeared in this session; that does not negate the visual defect.
+Native build/vet/full tests and non-native build passed after the loading fix.
+
+The evidence below is the earlier presentation candidate, before integration
+with the dev94 cancellation foundation; it is retained as separate evidence.
+
+The metadata-first Convert presentation was checked in a local native preview
+with large text and VCR OSD Mono. Empty SMPTE, metadata open/closed, preview
+open/closed, persistent source loading and the labeled Player tools dialog
+were inspected at restored and maximized window sizes. The empty metadata
+header was found to ignore its saved fold state; its initial and programmatic
+arrow state is now synchronized.
+
+A user-supplied local AVI sample (512×384, MPEG-4 video, MP3 audio, about 15m27s)
+was loaded through the new source action. Play presented real changing frames;
+the visible position advanced to about 49s; Pause held the displayed frame and
+time while the tools dialog was opened/closed and preview visibility changed.
+The preview process exited after its window was closed. This is a real session
+for this UI slice, not player transport/lifecycle or encrypted-disc acceptance.
+
+Reviewed the on-disk runtime session covering approximately 15:03–15:09 local
+(America/Toronto). It records decoder/audio initialization, Resume and the first
+20 frame reads, not an indefinite per-frame logging loop. No WARN/ERROR/CRASH
+entry occurred in that interval. This absence alone is not correctness proof:
+the first reported frame PTS was about 3.504s after resume from 0, and recorded
+clock/PTS deltas vary. Those observations remain in the coordinated VT_Player
+repair/measurement scope. A/V synchronization, seek, VFR, EOF and encrypted-disc
+playback were not accepted by this session.
+
+Native build/vet/full tests and the non-native build passed. The latter exposed
+an existing missing IsPlaying stub; the no-op method now matches the native
+API. Linux runtime, the full resolution/scaling/font matrix and Inuktitut
+translation review remain outstanding. Local preview DLL provisioning was test
+infrastructure only; Windows release packaging remains three static binaries.
+
 ## Dev94 candidate playback session — 2026-10-12
 
 A temporary visible Fyne verification window used the actual InlineVideoPlayer/FFmpeg/oto path with user-supplied local MP4 media, software decode and the cancellation candidate. Sequence: play 5 seconds, pause 1 second, resume 4 seconds, 2x for 3 seconds, close, allow teardown 2 seconds. Delivered 243 progress frames. Engine close was logged approximately 3 ms after the close request; the session completed normally. Logs remained outside the repo in the temporary candidate-session directory; media titles and full paths are not committed.
@@ -36,6 +93,7 @@ A temporary visible Fyne verification window used the actual InlineVideoPlayer/F
 Log review: zero ERROR, WARN and frame-DROP lines; normal milestones, resume and engine-close records observed. User confirmed playback/audio looked correct, then reported slight jitter at the end. The final segment was 2x; correlation is not a proven cause. Basic session completion supports this cancellation slice, not smoothness or full lifecycle acceptance. Hardware modes, accurate seeking, overlapping source loads, rapid transport stress and synchronized comparison remain unverified.
 
 Implemented: interruptible empty/paused frame reads and PTS waits; speed-aware capped waits; generation recheck after pacing; retired reads discarded by playback. Tests cover cancellation/retirement, future PTS, EOF separation, speed timing and detached-frame/EOF suppression. Full native build/vet/tests passed.
+
 
 
 ## Current audit — 2026-10-12 (dev93 baseline)

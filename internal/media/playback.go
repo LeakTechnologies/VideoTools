@@ -40,6 +40,9 @@ func (e *Engine) Start() {
 	e.running = true
 	e.paused = true
 	e.pausedAtomic.Store(true)
+	if e.hasAudio {
+		e.clock.ResetTime(-AudioBufferLatency.Seconds() * e.speed)
+	}
 	e.unlockMu()
 
 	logging.Info(logging.CatPlayer, "Engine.Start: starting demuxerLoop")
@@ -83,7 +86,7 @@ func (e *Engine) demuxerLoop() {
 		default:
 		}
 
-		if e.pausedAtomic.Load() && ((!e.previewRead.Load() && e.frameRequests.Load() == 0) || e.videoQueue.Size() > 0) {
+		if e.pausedAtomic.Load() && ((!e.previewRead.Load() && e.frameRequests.Load() == 0 && !e.prebuffering.Load()) || e.videoQueue.Size() > 0) {
 			timer := time.NewTimer(5 * time.Millisecond)
 			select {
 			case <-e.stop:
@@ -116,11 +119,16 @@ func (e *Engine) demuxerLoop() {
 		if streamIdx == e.videoStreamIdx {
 			e.videoQueue.Put(pkt) // blocking: never drop video packets
 		} else if streamIdx == e.audioStreamIdx {
-			// Non-blocking: if the audio queue is saturated, discard the
-			// packet rather than stalling the demuxer and starving the video
-			// queue.  A skipped AAC frame (23 ms) is inaudible compared to
-			// a several-second video freeze.
-			e.audioQueue.TryPut(pkt)
+			if e.pausedAtomic.Load() && !e.prebuffering.Load() && !e.previewRead.Load() {
+				// Preview/inspection has no active audio output consumer.
+				if !e.audioQueue.TryPut(pkt) {
+					e.debugAudioDrops.Add(1)
+				}
+			} else {
+				// Active playback/preparation must not silently lose encoded
+				// audio at a full queue. Decoder backpressure bounds memory.
+				e.audioQueue.Put(pkt)
+			}
 		} else {
 			e.subtitleCodecMu.Lock()
 			isSubStream := streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil
@@ -274,7 +282,7 @@ func (e *Engine) Seek(seconds float64) error {
 	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
 	if e.audioPlayer != nil {
-		clkTarget := seconds - AudioBufferLatency.Seconds()
+		clkTarget := seconds - AudioBufferLatency.Seconds()*e.speed
 		e.clock.ResetTime(clkTarget)
 		logging.Info(logging.CatPlayer, "Seek: clock reset to %.2f (audio offset: -%.2fs = AudioBufferLatency)", clkTarget, AudioBufferLatency.Seconds())
 	} else {
@@ -422,6 +430,10 @@ func (e *Engine) renderSWFrame() *image.RGBA {
 
 func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr error) {
 	e.previewRead.Store(true)
+	if e.audioPlayer != nil {
+		e.audioPlayer.primeDecode.Store(true)
+		defer e.audioPlayer.primeDecode.Store(false)
+	}
 	defer e.previewRead.Store(false)
 
 	defer func() {
@@ -433,20 +445,20 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 	}()
 
 	deadline := time.Now().Add(timeout)
-	logging.Info(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v, hwDevice=%v)", timeout, e.hwDevice)
+	logging.Debug(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v, hwDevice=%v)", timeout, e.hwDevice)
 
 	for time.Now().Before(deadline) {
 		pkt, ok := e.videoQueue.TryGet()
 		if !ok {
 			if e.videoQueue.IsClosedOrEOF() {
-				logging.Info(logging.CatPlayer, "GrabFrame: video queue EOF/closed")
+				logging.Debug(logging.CatPlayer, "GrabFrame: video queue EOF/closed")
 				return nil, io.EOF
 			}
 			time.Sleep(5 * time.Millisecond)
 			continue
 		}
 
-		logging.Info(logging.CatPlayer, "GrabFrame: sending packet to video codec")
+		logging.Debug(logging.CatPlayer, "GrabFrame: sending packet to video codec")
 		e.lockVideoCodecMu()
 		sendRet, excCode := SafeSendPacket(e.videoCodecCtx, pkt)
 		C.av_packet_free(&pkt)
@@ -459,11 +471,11 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 		}
 		if sendRet != 0 {
 			e.unlockVideoCodecMu()
-			logging.Info(logging.CatPlayer, "GrabFrame: avcodec_send_packet returned %d, skipping", int(sendRet))
+			logging.Debug(logging.CatPlayer, "GrabFrame: avcodec_send_packet returned %d, skipping", int(sendRet))
 			continue
 		}
 
-		logging.Info(logging.CatPlayer, "GrabFrame: packet sent OK, calling avcodec_receive_frame")
+		logging.Debug(logging.CatPlayer, "GrabFrame: packet sent OK, calling avcodec_receive_frame")
 		for {
 			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
 			if recvExc != 0 {
@@ -480,12 +492,12 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 
 			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 ||
 				e.frame.width <= 0 || e.frame.height <= 0 {
-				logging.Info(logging.CatPlayer, "GrabFrame: skipping invalid frame pts=%d w=%d h=%d", int64(e.frame.pts), int(e.frame.width), int(e.frame.height))
+				logging.Debug(logging.CatPlayer, "GrabFrame: skipping invalid frame pts=%d w=%d h=%d", int64(e.frame.pts), int(e.frame.width), int(e.frame.height))
 				continue
 			}
 
 			pts := float64(e.frame.pts) * e.videoTimeBase
-			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", pts, e.frame.hw_frames_ctx != nil)
+			logging.Debug(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", pts, e.frame.hw_frames_ctx != nil)
 
 			var img *image.RGBA
 			if e.hwDevice != HWDeviceNone {
@@ -494,7 +506,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 				if err != nil {
 					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
 					if e.frame.hw_frames_ctx != nil {
-						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
+						logging.Debug(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
 						e.unlockVideoCodecMu()
 						continue
 					}
@@ -504,6 +516,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 				img = e.renderSWFrame()
 			}
 			e.unlockVideoCodecMu()
+			e.lastVideoPTSBits.Store(math.Float64bits(pts))
 			return img, nil
 		}
 		e.unlockVideoCodecMu()
@@ -546,7 +559,7 @@ func (e *Engine) videoDecodeLoop() {
 		paused := e.pausedAtomic.Load()
 
 		if paused {
-			if len(e.frameQueue) >= 1 {
+			if len(e.frameQueue) >= 1 && !e.prebuffering.Load() {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
@@ -678,6 +691,10 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 // NextFrameContext returns on consumer cancellation or engine retirement,
 // including when decoding has stopped without sending a terminal frame.
 func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retErr error) {
+	if e.debugEnabled.Load() {
+		started := time.Now()
+		defer func() { e.debugFrameReadNS.Store(time.Since(started).Nanoseconds()) }()
+	}
 	e.frameRequests.Add(1)
 	defer e.frameRequests.Add(-1)
 	e.lockMu()
@@ -816,6 +833,7 @@ func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retE
 				return nil, err
 			}
 			if e.clock.GetTime()-target >= MaxDriftThreshold {
+				e.debugClockSnaps.Add(1)
 				e.clock.ResetTime(target)
 				traceAction = "snap"
 			}
@@ -840,6 +858,7 @@ func (e *Engine) NextFrameContext(ctx context.Context) (retImg *image.RGBA, retE
 		clockNow := e.clock.GetTime()
 		delay := e.clock.SyncVideo(pts)
 		if delay < 0 {
+			e.debugVideoDrops.Add(1)
 			logging.Warning(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 			logging.PlayerFrameTrace(nf, pts, clockNow, "drop", (clockNow-pts)*1000)
 			continue
@@ -1111,5 +1130,51 @@ func (e *Engine) parkFrame(df decodedFrame) {
 	defer e.unlockMu()
 	if !e.closed && df.gen == e.seekGen.Load() && e.pendingFrame == nil {
 		e.pendingFrame = &df
+	}
+}
+
+// PreparePlayback primes source data before output/clock resume; it does not
+// spend a fixed delay waiting for a producer that has not been started.
+func (e *Engine) PreparePlayback(ctx context.Context, timeout time.Duration) error {
+	e.lockMu()
+	if !e.running || e.closed {
+		e.unlockMu()
+		return ErrEngineClosed
+	}
+	e.prebuffering.Store(true)
+	ap := e.audioPlayer
+	if ap != nil {
+		ap.primeDecode.Store(true)
+	}
+	if !e.decodeLoopActive && e.videoCodecCtx != nil {
+		e.decodeLoopActive = true
+		e.decodeLoopWg.Add(1)
+		go e.videoDecodeLoop()
+	}
+	e.unlockMu()
+	defer e.prebuffering.Store(false)
+	if ap != nil {
+		defer ap.primeDecode.Store(false)
+	}
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(2 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		e.lockMu()
+		frameReady := e.pendingFrame != nil || len(e.frameQueue) > 0
+		e.unlockMu()
+		if frameReady && (ap == nil || ap.bufferReady()) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-e.stop:
+			return ErrEngineClosed
+		case <-deadline.C:
+			return fmt.Errorf("playback audio/video buffers did not become ready")
+		case <-ticker.C:
+		}
 	}
 }

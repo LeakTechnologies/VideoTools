@@ -22,6 +22,7 @@ func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) error { 
 
 func (v *InlineVideoPlayer) Play()                                 {}
 func (v *InlineVideoPlayer) Pause()                                {}
+func (v *InlineVideoPlayer) IsPlaying() bool                       { return false }
 func (v *InlineVideoPlayer) Seek(target float64)                   {}
 func (v *InlineVideoPlayer) ScrubTo(target float64)                {}
 func (v *InlineVideoPlayer) SetSpeed(speed float64)                {}
@@ -69,3 +70,6 @@ func (v *InlineVideoPlayer) SetPeer(other *InlineVideoPlayer)      {}
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	return nil, nil
 }
+
+func (v *InlineVideoPlayer) SetDiagnosticsEnabled(bool)          {}
+func (v *InlineVideoPlayer) Diagnostics() media.PlayerDebugStats { return media.PlayerDebugStats{} }
