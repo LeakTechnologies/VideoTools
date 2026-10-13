@@ -1,5 +1,13 @@
 # VideoTools TODO
 
+## Dev96 — Root hygiene
+
+- [x] Audit root sources and references; remove unused author DVD-rip tab and
+  untrack generated test executable.
+- [x] Archive historical reports, relocate QR prototype and correct references.
+- [ ] Continue the separate appState/module extraction before moving active
+  root adapters; see [root audit](docs/ROOT_CLEANUP_DEV96.md).
+
 ## Dev95 — Convert workspace and suite UI direction
 
 - [x] Document agreed task hierarchy, optional playback and SMPTE identity: [UI_SUITE_DESIGN.md](docs/UI_SUITE_DESIGN.md).
@@ -93,7 +101,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev88 Scope (Repo baseline reconciliation — released)
 
-- [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `RECONCILIATION.md` records the file-by-file evidence.
+- [x] **Pre-dev88 reconciliation** (`db51c395`) — provenance audit of the unexpected `445a0023` additions: `internal/ffi/` + `internal/app/modules/bridge/` retained (intentional, interdependent FFI pair); `**/__pycache__/` gitignore entry closes the committed-artifact hygiene violation; `docs/history/RECONCILIATION_DEV88.md` records the file-by-file evidence.
 - [x] **Seek audit findings index in TODO/CHANGELOG** — confirmed defects, the disproved seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
 - [x] **No-confirmation-loop directive** (`14a189c7`) — AGENTS.md repo + global: complete single-track tasks end-to-end before returning to the human.
 - [ ] **Tester verify: dev88 release** — (1) the release publishes with assets on both platforms (tag `v0.1.1-dev88`); (2) the in-app update button on a dev87 binary offers dev88 and installs it; (3) no `__pycache__` artifacts appear in future commits.
@@ -1074,7 +1082,7 @@ Remaining root files to extract â€” largest first (each becomes a dev cycle
 
 | Priority | Root file(s) | Lines | Target |
 |----------|-------------|-------|--------|
-| 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` |
+| 1 | `author_module.go`, `author_menu.go` | ~5,800 | `internal/app/modules/author/` |
 | 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
 | 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` â€” in progress |
 | 4 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |

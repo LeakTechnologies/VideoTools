@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev96 — Repository root cleanup
+
+Removed the unused author DVD-rip tab and generated test executable from the
+tracked tree. Archived reconciliation/triage reports under docs/history and
+relocated the independent QR prototype under scripts/legacy. References and
+ignore rules updated. Active root adapters are retained; history is preserved.
+See [root audit](docs/ROOT_CLEANUP_DEV96.md).
+
 Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
 
 ## v0.1.1-dev95 — Convert workspace refinement
@@ -64,7 +72,7 @@ Rendering and recycled selection are covered by TestContentCardRendersAndRecycle
 
 ## v0.1.1-dev88 — Repo baseline reconciliation
 
-- **Pre-dev88 reconciliation (`RECONCILIATION.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.
+- **Pre-dev88 reconciliation (`docs/history/RECONCILIATION_DEV88.md`, `db51c395`).** File-by-file provenance audit of the unexpected `445a0023` additions: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (CGo consumer via `InterceptMediaPayload`) confirmed intentional and interdependent — retained, no deletion. Committed `__pycache__` artifact neutralised with a `**/__pycache__/` gitignore entry.
 - **Seek audit findings preserved in version control.** TODO.md dev87 carries the findings index — confirmed defects, the disproved historical seekGen-lastSeekGen bug, and UNVERIFIED layout claims D1–D15 kept distinct.
 - **No-confirmation-loop directive (`14a189c7`).** AGENTS.md (repo + global opencode config): an agent with a single unambiguous track completes the task end-to-end before returning to the human.
 - **Next.** Real-media acceptance on an encrypted disc (priority 1); seek concurrency fix deferred to a later dev version by deliberate scoping — small dev versions, not crammed releases.

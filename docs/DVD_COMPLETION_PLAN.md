@@ -277,4 +277,4 @@ Write a test that:
 | `internal/dvd/theme/renderer.go` | Menu image renderer |
 | `internal/dvd/udf/udf.go` | UDF 1.02 + ISO 9660 writer |
 | `author_module.go` | Authoring pipeline orchestration |
-| `author_dvd_functions.go` | DVD rip tab, analyzeDVDStructure, ripTitle |
+| `author_dvd_functions.go` (removed dev96) | Historical unused DVD rip tab; current ripping lives in `internal/app/modules/rip/` |

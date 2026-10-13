@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev96 — October 2026
+
+- Removed the unused root author DVD-rip tab and stopped tracking the generated
+  test executable. Archived reconciliation/triage reports and relocated the QR
+  prototype to scripts/legacy; corrected references and ignores.
+- Active root module wiring remains required; no playback or workflow change.
+- Validation: Windows native build, vet and full tests passed; moved references
+  checked and Git diff hygiene passed.
+
 ## v0.1.1-dev95 — October 2026
 
 - Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained.
@@ -84,7 +93,7 @@ Dev93 verification finding: The runtime card test also exposed bulk-selection lo
 ### Repo baseline reconciliation: hygiene, audit index, loop discipline
 
 - **The gap.** dev87 landed as a documentation-only cycle, but its release commit (`445a0023`) had swept in unexpected files under a version-bump message — a committed `__pycache__/*.pyc`, an unreferenced-looking Rust FFI crate, a bridge module, and scripts with no CI integration — leaving no trustworthy baseline to implement the seek fix on top of.
-- **The reconciliation (`db51c395`, `RECONCILIATION.md`).** File-by-file provenance audit of everything `445a0023` added: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (the CGo consumer, `InterceptMediaPayload`) are **intentional and interdependent — retained**; the committed `.pyc` was a generated artifact — the hygiene violation is closed with a `**/__pycache__/` gitignore entry.
+- **The reconciliation (`db51c395`, `docs/history/RECONCILIATION_DEV88.md`).** File-by-file provenance audit of everything `445a0023` added: `internal/ffi/` (Rust `vt_ffi` staticlib) and `internal/app/modules/bridge/` (the CGo consumer, `InterceptMediaPayload`) are **intentional and interdependent — retained**; the committed `.pyc` was a generated artifact — the hygiene violation is closed with a `**/__pycache__/` gitignore entry.
 - **Audit findings preserved in version control.** TODO.md dev87 now carries the seek-audit findings index: confirmed defects (cap-1 mailbox drops, concurrent SetFrame/SetCurrentTime writers, missing isScrubbing gate, unbounded WaitForPTS), the disproved historical seekGen-lastSeekGen bug (already fixed at playback.go:607), and UNVERIFIED layout claims D1–D15 (need a rendered screenshot; static analysis cannot settle them).
 - **Loop discipline (`14a189c7`).** AGENTS.md gains the no-confirmation-loop Human Director directive: an agent with a single unambiguous track completes it end-to-end before returning to the human. Also mirrored in the global opencode AGENTS.md.
 - **Next.** Real-media acceptance on an encrypted disc remains priority 1; the seek concurrency fix is deliberately deferred to a later dev version (small dev versions, not crammed releases).
