@@ -1,5 +1,11 @@
 # VideoTools Roadmap
 
+## v0.1.1-dev98 — Selected chapter groups
+
+Rip page-style selections create separate range/chapter outputs with strict
+per-title validation and readable readiness feedback. Existing chapter executor
+constraints remain protected. [Design](RIP_SELECTED_CHAPTERS.md).
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
@@ -100,7 +106,8 @@ timeline
     v0.1.1-dev75 (Shipped) : **Dynamic rip-mode selection + bulk-selection deadlock fix** â€” the rip-mode radio now reshapes the title selection to the mode on transition (Movie+extras auto-selects all, Main-feature-only keeps the longest anchored, Scenes-only selects the segments; manual toggles inside a mode persist) : Select All / Deselect All no longer deadlock the UI thread (SetChecked-under-mutex root cause; lock layer is visual-only, selection owned by ReshapeSelection) : a freshly loaded disc resets the mode to Main-feature-only
     v0.1.1-dev76 (Shipped) : **ISO 9660 resolve fix + menu-export dedup + choose-titles starts empty** â€” the rip resolver demanded a nested `tempDir\VIDEO_TS` folder but the native UDF/ISO 9660 readers extract FLAT (files land in the destination root), so every ISO 9660-only grey-market image failed the rip path ("VIDEO_TS not found in ISO 9660 image") right after a successful scan (`ISO9660-sample-A.iso` + `ISO9660-sample-B.iso`); `extractedVideoTSPath` now accepts nested or flat. Repeated title rips of one disc no longer write a fresh identical `_Menu_<label>.mkv` per output base (`menuAlreadyExported` skips same-(label,size) menus). dev75's choose-titles reshape auto-selected every title on mode switch â†’ `CanonicalSelection` returns empty for "" mode â€” what is ticked is exactly what rips. Published 2026-09-14 (tag v0.1.1-dev76, ba864a8e)
     v0.1.1-dev80 (Shipped) : **Thumbnail "both"-mode output fix** (separate thumbnails actually generated at the sheet tile width, count = columnsÃ—rows, locked "matches contact sheet" label) : **Queue StartedAt/CompletedAt timestamp bug** (reused `now` variable â†’ every job showed equal times) : **Queue-history Progress copy fix** (finished jobs read Progress 0) : **Thumbnail job-log capture fix** (os.Create per thumbnail truncated the log to the last screenshot; one O_APPEND handle + per-frame headers). Published 2026-09-18 (tag v0.1.1-dev80, 13d6c474)
-    v0.1.1-dev96 (Current) : Root hygiene and obsolete-source removal
+    v0.1.1-dev98 (Current) : Rip selected chapter groups
+    v0.1.1-dev96 : Root hygiene and obsolete-source removal
     v0.1.1-dev95 : Convert metadata-first workspace; optional preview and labeled tools
     v0.1.1-dev93 : Rip Content Browser card rendering restored; open Rip audit findings recorded
     v0.1.1-dev92 : **Rip: output path follows the Title field live** — editing the Title did not update the output path box; Entry.SetText fires OnChanged synchronously, so every programmatic write (applyOutputPath/applyControls/Clear) set outputTouched=true, and the Title handler only re-derives while !outputTouched — after the first programmatic write the flag was stuck true and Title edits were ignored : a viewState.outputUpdating guard now wraps every programmatic outputEntry.SetText and the handler early-returns while raised, so outputTouched (and SetRipOutputPath) fire only for genuine hand-edits : hand-edited / load / reset / config contracts preserved : one mutation-verified source-reading guard
@@ -136,7 +143,7 @@ timeline
 > `Shipped` â†’ `Done (Untested)` â†’ `In Progress` â†’ `Planned` â†’ `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (dev96)
+## Current State (dev98)
 
 - **Dev95**: Convert now gives metadata the flexible workspace while optional preview stays compact. Collapsed sections use their actual header height, replacing the 50/50 and 3-percent split. The native Frame-only strip is removed; labeled Player tools expose source-track and frame/cover actions. Load Video and source identity remain available with preview closed. SMPTE branding and saved preview preferences are retained. Design and task audit recorded in [UI_SUITE_DESIGN.md](UI_SUITE_DESIGN.md) and [UI_SUITE_AUDIT.md](UI_SUITE_AUDIT.md). Validation: native build, vet and full tests passed; non-native build passed. Real Windows loaded-media playback, pause, optional-preview and tools checks plus runtime log review are recorded in PLAYER_DEBUG.md. Linux, full scaling/font coverage and encrypted-disc acceptance remain pending.
 
@@ -186,7 +193,7 @@ timeline
 - Theme system, PillButton/PillIconButton, text primitives, collapsible section headers â€” all migrations shipped.
 - All 11 Phase 1 items shipped. Phase 2 deferred.
 
-## Now (dev96 — Content Browser rendering restored; Rip audit findings open; real-media encrypted-DVD acceptance is priority 1, seek fix deliberately deferred)
+## Now (dev98 — Content Browser rendering restored; Rip audit findings open; real-media encrypted-DVD acceptance is priority 1, seek fix deliberately deferred)
 
 - **Dev-version cadence** — every run that lands a new fix or update is pushed as a new dev version (devN). `v0.1.2-dev*` is reserved for the moment the DVD suite works within its own ecosystem: author a DVD using VideoTools, then rip it back using VideoTools.
 - **Tester verification of dev92** — (1) load a disc and type in the Title field: the output path box updates on every keystroke; (2) hand-edit the output path, then change the Title — the path is left alone; (3) changing format, loading a disc, or Reset re-derives the path from Title + source + format; (4) Clear empties the output box and the next load re-derives it.

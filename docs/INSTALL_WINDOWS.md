@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Windows
 
+Dev98 Rip: All/Selected chapters and page-style groups create separate files.
+Existing static packaging and runtime dependencies are unchanged.
+
 ## Dev97 player integration
 
 Player lifecycle, resume continuity, saved-position readiness and opt-in diagnostics are integrated. No new runtime dependency or packaging/workflow change. Windows playback acceptance is recorded in PLAYER_DEBUG.md; Linux runtime playback remains pending. Local diagnostic builds use the developer FFmpeg library path; shipped Windows static packaging is unchanged.

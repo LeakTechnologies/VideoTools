@@ -1,5 +1,10 @@
 # Rip a Title by Chapter Range (dev81)
 
+Dev97 replaces the From/To UI with All chapters / Selected chapters and
+page-style groups producing separate files. See [selected chapter groups](RIP_SELECTED_CHAPTERS.md).
+The contiguous-range executor described below remains authoritative; new groups
+use strict bounds, while legacy jobs retain their existing range behavior.
+
 **Status:** active (dev81)
 **Type:** Rip module capability
 **Core ask:** *"rip a title by chapters, so we could rip just a specific scene if we need to"* — select a start and end chapter of a title and rip only that span.

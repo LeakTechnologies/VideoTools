@@ -772,6 +772,15 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	// to exactly the span's cells, and the embedded chapters are remapped so
 	// chapter N of the ripped file still marks the same boundary.
 	var remapChapters []float64
+	if opts.ChapterSelectionStrict {
+		chapterCount := 0
+		if titleInfo != nil {
+			chapterCount = len(titleInfo.Chapters)
+		}
+		if err := ValidateChapterSelection([]ChapterSelectionRange{{opts.ChapterStart, opts.ChapterEnd}}, chapterCount); err != nil {
+			return fmt.Errorf("chapter selection: %w", err)
+		}
+	}
 	concatCS, concatCE := 0, 0
 	rangeDur := 0.0
 	if opts.ChapterStart > 0 && titleInfo != nil && len(titleInfo.Chapters) > 0 {

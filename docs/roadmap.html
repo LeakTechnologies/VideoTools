@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev97 &mdash; October 2026 (Player lifecycle and continuity) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev98 &mdash; October 2026 (Rip chapter groups) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -308,6 +308,7 @@ const statusLabels = {
 const roadmap = {
   Rip: {
     items: [
+      { id: 'rip-selected-chapter-groups', title: 'Selected Chapter Groups (dev98)', desc: 'All/Selected chapters with page-style input. Each comma-separated chapter/range becomes a separate file per selected title. Validate all titles before enqueue and strict bounds at execution; existing range executor remains authoritative. Real-disc multi-output acceptance remains open.', status: 'done', cycle: 'dev98', files: ['internal/app/modules/rip/chapter_selection.go', 'internal/app/modules/rip/chapter_jobs.go', 'internal/app/modules/rip/chapter_controls.go'], deps: [], docs: ['docs/RIP_SELECTED_CHAPTERS.md'] },
       { id: 'ifo-scan', title: 'IFO Scanning', desc: 'Reads VMG TT_SRPT + per-VTS IFOs for titles, chapters, audio, subtitle tracks', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/ifo/extract.go', 'internal/dvd/ifo/vtsi.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: ['docs/RIP_ENRICHMENT_DESIGN.md'] },
       { id: 'iso-udf', title: 'ISO via UDF Reader', desc: 'Native Go UDF parser â€” extracts VIDEO_TS from ISO without 7zip or mounting', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/udf/reader.go'], deps: [], docs: [] },
       { id: 'region-detect', title: 'Region Detection', desc: 'VMG_Category parsing from VIDEO_TS.IFO for disc region display', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/scan.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: [] },
@@ -649,7 +650,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev97';
+const currentVersion = 'dev98';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -845,6 +846,9 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
+  { version: 'v0.1.1-dev98', date: 'October 2026', tag: 'current', sections: [{ title: 'Rip selected chapter outputs', items: ['Page-style selections queue separate outputs per group and title.', 'Strict bounds and all-target preflight; parser, planning and control regressions. Real-disc acceptance remains open.'] }] },
+
+
   { version: 'v0.1.1-dev97', date: 'October 2026', sections: [{ title: 'Player startup/resume continuity', items: ['Remove the pre-decoder wait and preserve paused playback content rather than flushing it.', 'Visible checks show 82ms first-frame presentation, 33.5ms normal resume and 14-18ms burst resumes.', 'User reports quicker continuous playback without distortion; small end jitter remains open.', 'Integrated with dev96; alternate-container audio/video accepted by tester. Linux/Windows dev CI green (run 38440710576); release tag pending.'] }] },
   { version: 'v0.1.1-dev95 candidate', date: 'October 2026', sections: [{ title: 'Unlanded player lifecycle candidate', items: ['Source/presentation ownership and native retirement fixes implemented on isolated branch.', 'Real-media automated stress completed; visual review unavailable while user away.', 'No master merge, tag or release acceptance claimed. Seeking and resume continuity still require repair.'] }] },
   { version: 'v0.1.1-dev94', date: 'October 2026', sections: [{ title: 'VT_Player cancellation foundation', items: ['Retirement-aware frame reads and capped speed-aware clock waits; natural EOF stays distinct.', 'Retired frame reads cannot stop replacement playback.', 'Native build/vet/full tests passed; visible session and log reviewed. Minor end-of-session jitter remains open.', 'Ordered upgrade plan recorded; source/presentation ownership and comparison remain outstanding.'] }] },
@@ -1815,6 +1819,8 @@ backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 's
 
 // --- Testing Checklist ---
 const checklistData = [
+  { title: 'Rip chapter groups (dev98)', items: ['All chapters preserves whole-title output', '1-3, 5-6, 8 produces three correctly named files', '1, 2 remains separate from 1-2', 'Malformed, overlapping and unavailable chapters cannot queue', 'Every selected title validates; queued jobs recheck strict bounds', 'Verify output content, duration and remapped chapters on real media'] },
+
   { title: 'Player startup/resume continuity candidate', items: ['First Play reaches decoder immediately instead of pre-start timeout', 'Normal resume retains encoded packets, decoded frames, codec references and PCM', 'Cancelled presentation retains its next frame; paused demux reads only for preview/frame demand', 'Native full gate and race tests pass; startup regression rejects the old wait', 'Visible 1x/2x and rapid-resume/reopen checks reviewed; exact seeking and residual faster-playback jitter remain open', 'Reconcile newer master/version and run CI before candidate landing/release'] },
   { title: 'VT_Player source ownership candidate', items: ['Older load finishing last cannot replace current source', 'Close during loading cannot resurrect source; partial-open cleanup finishes', 'Rapid pause/play and seek/step cancellation retain one presentation consumer', 'Late EOF/errors/UI callbacks do not affect replacement source', 'Paused audio close retains observable stop signal; scrubber repeated start/stop safe', 'Real-media stress completes close/reopen and retires all sources', 'Visual review and smoothness acceptance remain pending; known seeking/resume issues remain open'] },
 

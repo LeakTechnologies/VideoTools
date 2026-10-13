@@ -3,6 +3,17 @@ package i18n
 // enCA is the English (Canada) source of truth.
 // Every field must be populated — this is the fallback for all other languages.
 var enCA = Strings{
+	RipChaptersLabel            : "Chapters",
+	RipAllChapters              : "All chapters",
+	RipSelectedChapters         : "Selected chapters",
+	RipChapterSelectionHint     : "Each comma-separated chapter or range creates a separate file.",
+	RipChapterFilesReadyFmt     : "Ready to rip %d chapter file(s)",
+	RipChapterFilesQueuedFmt    : "Queued %d chapter file(s)",
+	RipChapterInputInvalid      : "Enter chapters such as 1-3, 5-6, 8. Use positive numbers and ascending ranges.",
+	RipChapterInputOverlap      : "Chapter groups overlap or repeat. List each chapter only once.",
+	RipChapterUnavailableFmt    : "This title has %d chapters; the selection exceeds that count.",
+	RipChapterScanRequired      : "Load and scan a title with chapter data before selecting chapters.",
+
 	PlayerFrameTools:      "Player tools",
 	PlayerUseFrameAsCover: "Use current frame as cover",
 	PlayerSaveFrame:       "Save current frame as PNG",

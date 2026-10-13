@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev98 — Rip selected chapter groups
+
+All/Selected chapters replaces the From/To control. A selection such as
+`1-3, 5-6, 8` queues three independent files in disc order, preserving title and
+enrichment settings. Validate every target before adding jobs and revalidate
+strict ranges at execution. Existing whole-title and legacy range contracts
+remain intact. [Design](docs/RIP_SELECTED_CHAPTERS.md); real-disc acceptance open.
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## v0.1.1-dev97 — Player integration acceptance (2026-10-13)

@@ -6,6 +6,17 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var iu = Strings{
+	RipChaptersLabel            : "Chapters", // machine-generated, needs human review
+	RipAllChapters              : "All chapters", // machine-generated, needs human review
+	RipSelectedChapters         : "Selected chapters", // machine-generated, needs human review
+	RipChapterSelectionHint     : "Each comma-separated chapter or range creates a separate file.", // machine-generated, needs human review
+	RipChapterFilesReadyFmt     : "Ready to rip %d chapter file(s)", // machine-generated, needs human review
+	RipChapterFilesQueuedFmt    : "Queued %d chapter file(s)", // machine-generated, needs human review
+	RipChapterInputInvalid      : "Enter chapters such as 1-3, 5-6, 8. Use positive numbers and ascending ranges.", // machine-generated, needs human review
+	RipChapterInputOverlap      : "Chapter groups overlap or repeat. List each chapter only once.", // machine-generated, needs human review
+	RipChapterUnavailableFmt    : "This title has %d chapters; the selection exceeds that count.", // machine-generated, needs human review
+	RipChapterScanRequired      : "Load and scan a title with chapter data before selecting chapters.", // machine-generated, needs human review
+
 	PlayerFrameTools:      "Player tools", // English placeholder, needs human review
 	PlayerUseFrameAsCover: "Use current frame as cover", // English placeholder, needs human review
 	PlayerSaveFrame:       "Save current frame as PNG", // English placeholder, needs human review

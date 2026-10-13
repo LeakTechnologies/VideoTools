@@ -4,6 +4,17 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var frCA = Strings{
+	RipChaptersLabel            : "Chapitres",
+	RipAllChapters              : "Tous les chapitres",
+	RipSelectedChapters         : "Chapitres sélectionnés",
+	RipChapterSelectionHint     : "Chaque chapitre ou plage séparé par une virgule crée un fichier distinct.",
+	RipChapterFilesReadyFmt     : "Prêt à extraire %d fichier(s) de chapitres",
+	RipChapterFilesQueuedFmt    : "%d fichier(s) de chapitres en file d’attente",
+	RipChapterInputInvalid      : "Entrez des chapitres comme 1-3, 5-6, 8. Utilisez des nombres positifs et des plages croissantes.",
+	RipChapterInputOverlap      : "Les groupes de chapitres se chevauchent ou se répètent. Indiquez chaque chapitre une seule fois.",
+	RipChapterUnavailableFmt    : "Ce titre contient %d chapitres; la sélection dépasse ce nombre.",
+	RipChapterScanRequired      : "Chargez et analysez un titre contenant des chapitres avant de les sélectionner.",
+
 	PlayerFrameTools:      "Outils de lecture",
 	PlayerUseFrameAsCover: "Utiliser cette image comme jaquette",
 	PlayerSaveFrame:       "Enregistrer cette image en PNG",

@@ -1,5 +1,8 @@
 # VideoTools Installation Guide
 
+Dev98: Rip uses All chapters / Selected chapters. Enter chapter groups such as
+1-3, 5-6, 8 to create separate files; no new runtime dependencies.
+
 ## Dev97 player integration
 
 Player lifecycle, resume continuity, saved-position readiness and opt-in diagnostics are integrated. No new runtime dependency or packaging/workflow change. Windows playback acceptance is recorded in PLAYER_DEBUG.md; Linux runtime playback remains pending. Local diagnostic builds use the developer FFmpeg library path; shipped Windows static packaging is unchanged.

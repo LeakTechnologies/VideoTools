@@ -1,5 +1,14 @@
 # VideoTools TODO
 
+## Dev98 — Selected chapter outputs
+
+- [x] All/Selected chapters control, page-style input and per-group outputs.
+- [x] Preflight all selected titles; preserve separate adjacent groups, reject
+  overlaps/unavailable chapters and carry strict bounds into queued jobs.
+- [ ] Real-media multi-output acceptance; see [design](docs/RIP_SELECTED_CHAPTERS.md).
+- [ ] Next requested Rip slice: per-title output naming and safe successful-job
+  reset of the disc title.
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## v0.1.1-dev97 — Player integration acceptance (2026-10-13)

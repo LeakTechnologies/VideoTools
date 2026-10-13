@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev98 — October 2026
+
+- Rip offers All chapters or Selected chapters. Page-style groups create
+  separate files with chapter suffixes; adjacent comma-separated groups stay
+  separate. Clear validation rejects malformed, overlapping or unavailable
+  chapters before queueing and checks strict bounds again at execution.
+- Native build/vet/full tests cover parsing, output planning and UI callbacks;
+  real-disc multi-output acceptance remains outstanding.
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## v0.1.1-dev97 — Player integration acceptance (2026-10-13)

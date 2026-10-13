@@ -151,8 +151,9 @@ type ExecuteOptions struct {
 	// range of the selected title (0 = whole title). The cell slice list and
 	// the output timeline are restricted to the span, and the chapter metafile
 	// is remapped so embedded chapter N still marks the chapter boundary.
-	ChapterStart int
-	ChapterEnd   int
+	ChapterStart           int
+	ChapterEnd             int
+	ChapterSelectionStrict bool // new page-style groups must never silently clamp
 
 	// AudioEncoder overrides the audio codec for menu-VOB exports. Empty = copy
 	// the source stream. Set by Execute when the content rip had to substitute
