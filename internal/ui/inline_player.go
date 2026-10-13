@@ -388,6 +388,9 @@ func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
+	if isDVDPlayerSource(path) {
+		return v.LoadDVD(path, 0)
+	}
 	return v.loadViaOpen(path, true, func(eng media.PlaybackEngine) error { return eng.OpenAuto(path) })
 }
 
@@ -395,7 +398,16 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 // player using FFmpeg's dvdvideo demuxer (libdvdnav/libdvdread). title=0
 // selects the longest title automatically; title>0 selects by DVD title number.
 func (v *InlineVideoPlayer) LoadDVD(devicePath string, title int) (err error) {
-	return v.loadViaOpen(devicePath, true, func(eng media.PlaybackEngine) error { return eng.OpenDVD(devicePath, title) })
+	preparedPath, preparedTitle := devicePath, title
+	_, err = v.loadSessionPrepared(devicePath, true, func(eng media.PlaybackEngine) error { return eng.OpenDVD(preparedPath, preparedTitle) }, nil,
+		func(ctx context.Context) (func(), error) {
+			path, selected, cleanup, prepareErr := prepareDVDTitle(ctx, devicePath, title)
+			if prepareErr == nil {
+				preparedPath, preparedTitle = path, selected
+			}
+			return cleanup, prepareErr
+		})
+	return err
 }
 
 // LoadURL opens a network stream or URL. opts may be nil to use sensible

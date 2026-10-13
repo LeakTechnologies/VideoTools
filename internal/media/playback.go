@@ -1048,6 +1048,7 @@ func (e *Engine) Close() {
 closeDrainDone:
 
 	e.demuxerWg.Wait()
+	e.thumbnailWg.Wait()
 
 	if e.audioPlayer != nil {
 		e.audioPlayer.Close()
