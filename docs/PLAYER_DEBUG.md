@@ -1,5 +1,7 @@
 # Player Debug Status
 
+Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## Dev97 integration playback evidence — 2026-10-13

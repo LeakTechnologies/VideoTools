@@ -1,5 +1,7 @@
 # VT_Player DVD playback and interactive navigation
 
+Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.
+
 ## Requirement and current evidence
 
 VideoTools should allow an ISO, VIDEO_TS directory or its parent to be dropped into VT_Player and load the DVD, including its interactive menu. This is a player-only requirement; other module/workflow/backend changes need their established approval.
