@@ -306,3 +306,13 @@ Always acquire in ascending order. `lockdep` build tag enables runtime verificat
 | `native_media.go` | Singleton getters, initNativeMediaAssets |
 
 Final verification: scripts/windows/dev-verify.ps1 passed native build, vet and full tests. Race-enabled internal/ui and internal/media tests passed, including the late-EOF and paused-audio shutdown regressions.
+
+## VT_Player transport and compact controls candidate — 2026-10-13
+
+Branch `codex/vt-player-transport-ui`, based on VideoTools dev100; no new release or master acceptance claimed. The player heading now receives the actual source filename and truncates within a single row. Player tools uses a compact icon with a tooltip and the existing popup. Other module layouts are preserved.
+
+Inline timeline commits user click/drag release to the playback source; programmatic progress cannot trigger seeks, overwrite edits or immediately bounce committed targets back. Fullscreen timeline paints no longer recursively seek; its frames are dispatched to the UI thread with a closed-window guard. Context controls: Space play/pause, Left/Right five-second seeks; fullscreen Escape/F exits. Paused seek/step publishes frames and progress to presentation observers.
+
+Native seeks use installed FFmpeg BACKWARD flags with timestamp units and discard decoded video preroll to the exact target. Retire and join the packet-owning video decoder before codec/queue reset to prevent pre-seek packets reaching the reset codec. Independent review found no concrete join deadlock or fullscreen feedback loop; pending timeline suppression is bounded to three seconds so failed navigation cannot indefinitely suppress actual progress.
+
+Real software-decode probe: paused 45.610 seconds -> 45.612; reverse 5.200 -> 5.205; playing 90.000 -> 90.023. Initial probe emitted an H.264 reference warning; decoder join repair removed that warning in the repeated probe. Final probe passed and source closed. This was muted and does not establish audible or visual acceptance. Temporary media probe was removed. Native build, vet and full tests passed. Player media/UI race tests and the non-native build passed. Human loaded-media title/tools/click-drag/fullscreen/context-key acceptance remains pending. Keep candidate off master until real UI playback and log review.

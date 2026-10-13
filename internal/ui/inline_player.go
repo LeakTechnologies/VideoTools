@@ -488,12 +488,7 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 			v.stopRun(s, r, err)
 			return
 		}
-		v.dispatchRun(s, r, func() {
-			if v.player != nil {
-				v.player.SetFrame(img)
-				v.player.SetCurrentTime(pts)
-			}
-		})
+		v.presentTransportFrame(s, r, img, pts)
 		if playing {
 			v.playFromRun(s, r)
 		}
@@ -605,13 +600,7 @@ func (v *InlineVideoPlayer) StepFrame(dir int) {
 			v.stopRun(s, r, err)
 			return
 		}
-		v.dispatchRun(s, r, func() {
-			if v.player != nil {
-				v.player.SetFrame(img)
-				v.player.SetCurrentTime(pts)
-				v.player.SetPlaying(false)
-			}
-		})
+		v.presentTransportFrame(s, r, img, pts)
 	}()
 }
 

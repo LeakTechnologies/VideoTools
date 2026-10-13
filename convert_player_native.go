@@ -11,12 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -89,6 +91,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	player := GetConvertPlayer()
 	playerWidget := player.Widget()
 	playerWidget.DisableBuiltinControls()
+	playerWidget.SetTransportKeysEnabled(state.active == "player")
 	playerWidget.SetOnTapEmpty(func() {
 		state.showVideoLoadDialog()
 	})
@@ -198,23 +201,19 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	slider := ui.MakeSlider(0, math.Max(1, srcDuration))
 	slider.Step = 0.5
 
-	var updatingProgress bool
-	updateProgress := func(val float64) {
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			updatingProgress = true
+	timeline := &ui.PlayerTimeline{
+		SetPosition: func(val float64) { currentTime.SetText(formatClock(val)); slider.SetValue(val) },
+		Preview: func(val float64) {
 			currentTime.SetText(formatClock(val))
-			slider.SetValue(val)
-			updatingProgress = false
-		}, false)
+			if !player.IsPlaying() {
+				state.scrubNative(val)
+			}
+		},
+		Seek: state.seekNative,
 	}
-
-	slider.OnChanged = func(val float64) {
-		if updatingProgress {
-			return
-		}
-		updateProgress(val)
-		state.scrubNative(val)
-	}
+	updateProgress := func(val float64) { fyne.Do(func() { timeline.Update(val) }) }
+	slider.OnChanged = timeline.Changed
+	slider.OnChangeEnded = timeline.Commit
 
 	// Feed playback position back to the seek slider as the video plays.
 	player.SetOnProgress(updateProgress)
@@ -224,8 +223,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	// state through OnPlayStateChange, which owns the icon.
 	var playBtn *widget.Button
 	player.SetOnEnd(func() {
-		slider.SetValue(0)
-		currentTime.SetText(formatClock(0))
+		timeline.Reset(0)
 	})
 
 	// navy returns a VT-Navy tinted icon for use on VT-green button backgrounds.
@@ -457,10 +455,16 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		}
 		fsImg := canvas.NewImageFromImage(playerWidget.CurrentFrame())
 		fsImg.FillMode = canvas.ImageFillContain
+		var fsAlive atomic.Bool
+		fsAlive.Store(true)
 
 		player.SetOnFrame(func(img *image.RGBA) {
-			fsImg.Image = img
-			fsImg.Refresh()
+			fyne.Do(func() {
+				if fsAlive.Load() {
+					fsImg.Image = img
+					fsImg.Refresh()
+				}
+			})
 		})
 
 		fsPlayBtn := widget.NewButtonWithIcon("", navy("pause"), nil)
@@ -500,17 +504,17 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		fsSeek := ui.MakeSlider(0, player.Duration())
 		fsSeek.Step = 0.1
 		fsSeek.Value = player.CurrentTime()
-		var fsUpdatingSeek bool
+		fsTimeline := &ui.PlayerTimeline{SetPosition: fsSeek.SetValue, Seek: timeline.Commit}
 		player.SetOnProgress(func(t float64) {
-			if !fsUpdatingSeek {
-				fsSeek.SetValue(t)
-			}
+			fyne.Do(func() {
+				if fsAlive.Load() {
+					timeline.Update(t)
+					fsTimeline.Update(t)
+				}
+			})
 		})
-		fsSeek.OnChanged = func(val float64) {
-			fsUpdatingSeek = true
-			state.seekNative(val)
-			fsUpdatingSeek = false
-		}
+		fsSeek.OnChanged = fsTimeline.Changed
+		fsSeek.OnChangeEnded = fsTimeline.Commit
 
 		ctrlBg := canvas.NewRectangle(color.NRGBA{R: 0x0A, G: 0x0E, B: 0x1A, A: 0xD0})
 		ctrlBar := container.NewMax(ctrlBg, container.NewPadded(
@@ -527,12 +531,28 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		fullscreenWin.SetContent(container.NewMax(canvas.NewRectangle(color.Black), content))
 		fullscreenWin.SetFullScreen(true)
 		fullscreenWin.Canvas().SetOnTypedKey(func(ev *fyne.KeyEvent) {
-			if ev.Name == fyne.KeyEscape {
+			switch ev.Name {
+			case fyne.KeyEscape, fyne.KeyF:
 				fullscreenWin.Close()
+			case fyne.KeySpace:
+				fsPlayBtn.OnTapped()
+			case fyne.KeyLeft:
+				state.seekNative(math.Max(0, player.CurrentTime()-5))
+			case fyne.KeyRight:
+				state.seekNative(math.Min(player.Duration(), player.CurrentTime()+5))
 			}
 		})
+		for _, key := range []fyne.KeyName{fyne.KeySpace, fyne.KeyLeft, fyne.KeyRight, fyne.KeyEscape, fyne.KeyF} {
+			key := key
+			fullscreenWin.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: key}, func(fyne.Shortcut) {
+				if fsAlive.Load() {
+					fullscreenWin.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: key})
+				}
+			})
+		}
 		fullscreenWin.Show()
 		fullscreenWin.SetOnClosed(func() {
+			fsAlive.Store(false)
 			fullscreenWin = nil
 			player.SetOnFrame(nil)
 			player.SetOnProgress(updateProgress)
@@ -558,6 +578,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	}
 
 	toolsBtn := widget.NewButton(t.PlayerFrameTools, nil)
+	if state.active == "player" {
+		toolsBtn.SetText("")
+		toolsBtn.SetIcon(navy("settings"))
+		ui.SetTooltip(toolsBtn, t.PlayerFrameTools)
+		toolsBtn.Importance = widget.LowImportance
+	}
 	rightBtns := container.NewHBox(speedSelect, volBox, toolsBtn, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 

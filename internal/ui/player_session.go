@@ -445,3 +445,24 @@ func grabResumePreview(eng media.PlaybackEngine, position float64) (*image.RGBA,
 		}
 	}
 }
+
+// Paused seek/step must notify frame mirrors and timeline consumers just like
+// playback. Every notification is scoped to the still-current transport run.
+func (v *InlineVideoPlayer) presentTransportFrame(s *playerSession, r *playbackRun, img *image.RGBA, pts float64) {
+	v.dispatchRun(s, r, func() {
+		if v.player != nil {
+			v.player.SetFrame(img)
+			v.player.SetCurrentTime(pts)
+			v.player.SetPlaying(v.IsPlaying())
+		}
+		v.mu.Lock()
+		frame, progress := v.onFrame, v.onProgress
+		v.mu.Unlock()
+		if frame != nil && v.runCurrent(s, r) {
+			frame(img)
+		}
+		if progress != nil && v.runCurrent(s, r) {
+			progress(pts)
+		}
+	})
+}

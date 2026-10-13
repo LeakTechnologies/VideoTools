@@ -114,10 +114,9 @@ const (
 type SeekFlags int
 
 const (
-	AVSEEK_FLAG_FRAME    = 0x01
-	AVSEEK_FLAG_BACKWARD = 0x02
-	AVSEEK_FLAG_ANY      = 0x04
-	AVSEEK_FLAG_ACCURATE = 0x08
+	AVSEEK_FLAG_FRAME    = C.AVSEEK_FLAG_FRAME
+	AVSEEK_FLAG_BACKWARD = C.AVSEEK_FLAG_BACKWARD
+	AVSEEK_FLAG_ANY      = C.AVSEEK_FLAG_ANY
 )
 
 type VideoInfo struct {
@@ -167,38 +166,38 @@ type Engine struct {
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
 
-	hwRgbaFrame  *C.AVFrame
-	hwRgbaBuffer []byte
-	hwSwsCtx     *C.struct_SwsContext // cached swscale context for HW→RGBA
-	hwSwsFmt     C.enum_AVPixelFormat
+	hwRgbaFrame    *C.AVFrame
+	hwRgbaBuffer   []byte
+	hwSwsCtx       *C.struct_SwsContext // cached swscale context for HW→RGBA
+	hwSwsFmt       C.enum_AVPixelFormat
 	hwSwsW, hwSwsH int
 
-	framePool    [][]byte
-	framepoolMu  sync.Mutex // protects framePool only (level 4 — see lock.go for hierarchy)
+	framePool   [][]byte
+	framepoolMu sync.Mutex // protects framePool only (level 4 — see lock.go for hierarchy)
 
 	videoTimeBase    float64
 	audioTimeBase    float64
 	subtitleTimeBase float64
 
-	mu             sync.Mutex // general engine state (level 1 — see lock.go for hierarchy)
-	formatMu       sync.Mutex // serialises av_read_frame vs avformat_seek_file (level 2)
-	videoCodecMu   sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame (level 3)
-	subtitleCodecMu sync.Mutex // serialises subtitleCodecCtx access (level 3.5)
-	demuxerWg      sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
-	running      bool
-	closed       bool // protected by mu; includes partial-open disposal
- prebuffering atomic.Bool // prepare decoded content while output stays paused
- debugEnabled atomic.Bool
- debugAudioDrops atomic.Uint64
- debugClockSnaps atomic.Uint64
- debugVideoDrops atomic.Uint64
- debugFrameReadNS atomic.Int64
- previewRead atomic.Bool // initial/paused preview demand
- frameRequests atomic.Int32 // active frame consumers allow paused demux
- pendingFrame *decodedFrame // cancelled presentation, protected by mu
-	paused       bool
-	stop         chan struct{}
-	loading      bool
+	mu               sync.Mutex     // general engine state (level 1 — see lock.go for hierarchy)
+	formatMu         sync.Mutex     // serialises av_read_frame vs avformat_seek_file (level 2)
+	videoCodecMu     sync.Mutex     // serialises avcodec_send_packet / avcodec_receive_frame (level 3)
+	subtitleCodecMu  sync.Mutex     // serialises subtitleCodecCtx access (level 3.5)
+	demuxerWg        sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
+	running          bool
+	closed           bool        // protected by mu; includes partial-open disposal
+	prebuffering     atomic.Bool // prepare decoded content while output stays paused
+	debugEnabled     atomic.Bool
+	debugAudioDrops  atomic.Uint64
+	debugClockSnaps  atomic.Uint64
+	debugVideoDrops  atomic.Uint64
+	debugFrameReadNS atomic.Int64
+	previewRead      atomic.Bool   // initial/paused preview demand
+	frameRequests    atomic.Int32  // active frame consumers allow paused demux
+	pendingFrame     *decodedFrame // cancelled presentation, protected by mu
+	paused           bool
+	stop             chan struct{}
+	loading          bool
 
 	volume  float32
 	muted   bool
@@ -212,19 +211,19 @@ type Engine struct {
 	lastDecodeTime time.Time
 	decodeTimes    []time.Duration
 
-	hwDevice       HWDeviceType
-	hwDegraded     bool
-	videoDecoded   bool   // set true after first successful video frame decode
-	videoDecodeDead bool  // set true when SEH catches access violation in video decode
-	hwFailCount    int
+	hwDevice        HWDeviceType
+	hwDegraded      bool
+	videoDecoded    bool // set true after first successful video frame decode
+	videoDecodeDead bool // set true when SEH catches access violation in video decode
+	hwFailCount     int
 
-	looping     bool
-	growingFile bool
+	looping       bool
+	growingFile   bool
 	abLoopEnabled bool
 	loopA         float64
 	loopB         float64
 	abLoopPending bool
-	hasAudio    bool
+	hasAudio      bool
 
 	numThreads int
 
@@ -250,13 +249,14 @@ type Engine struct {
 	// Decode-ahead pipeline.  videoDecodeLoop runs as a dedicated goroutine that
 	// pre-decodes and colour-converts frames into frameQueue.  NextFrame drains
 	// the queue and handles PTS sync, keeping I-frame decode latency invisible.
-	frameQueue      chan decodedFrame
-	decodeLoopStop  chan struct{}
-	decodeLoopWg    sync.WaitGroup
-	decodeLoopActive bool    // true while videoDecodeLoop goroutine is alive
-	decodeEOFSent       bool    // true once the EOF sentinel has been enqueued
-	hasSubtitleActive atomic.Bool // fast check: true when subtitle track is selected
-	pausedAtomic      atomic.Bool // fast check: true when paused (mirrors paused under mu)
+	frameQueue         chan decodedFrame
+	decodeLoopStop     chan struct{}
+	decodeLoopStopOnce sync.Once
+	decodeLoopWg       sync.WaitGroup
+	decodeLoopActive   bool        // true while videoDecodeLoop goroutine is alive
+	decodeEOFSent      bool        // true once the EOF sentinel has been enqueued
+	hasSubtitleActive  atomic.Bool // fast check: true when subtitle track is selected
+	pausedAtomic       atomic.Bool // fast check: true when paused (mirrors paused under mu)
 	// Deinterlace (bwdif) filter graph — lazily created on first interlaced frame.
 	deinterlaceEnabled bool
 	deintFilterGraph   *C.AVFilterGraph
@@ -266,10 +266,10 @@ type Engine struct {
 	// HDR tone-mapping filter graph — lazily created on first HDR frame.
 	// hdrTonemapUnsupported is set when zscale/tonemap are unavailable so we
 	// don't retry the expensive graph creation on every subsequent frame.
-	hdrFilterGraph       *C.AVFilterGraph
-	hdrBuffersrc         *C.AVFilterContext
-	hdrBuffersink        *C.AVFilterContext
-	hdrInputPixFmt       C.enum_AVPixelFormat
+	hdrFilterGraph        *C.AVFilterGraph
+	hdrBuffersrc          *C.AVFilterContext
+	hdrBuffersink         *C.AVFilterContext
+	hdrInputPixFmt        C.enum_AVPixelFormat
 	hdrTonemapUnsupported bool
 
 	// seekFlushBefore is read/written by both Seek() and videoDecodeLoop.
@@ -286,11 +286,11 @@ type Engine struct {
 	// error causes videoDecodeLoop to exit early (SEH, HW fatal), NextFrame returns
 	// this frozen frame instead of immediately returning io.EOF, preventing the
 	// display from going black on transient decode failures.
-	lastGoodFrame  atomic.Pointer[image.RGBA]
+	lastGoodFrame atomic.Pointer[image.RGBA]
 	// decodeErrored is set by videoDecodeLoop on fatal decode errors (SEH or
 	// HW-after-degrade).  NextFrame reads it to distinguish error-EOF from
 	// natural stream EOF — error-EOF returns the last good frame once.
-	decodeErrored  atomic.Bool
+	decodeErrored atomic.Bool
 }
 
 type PlaybackFrameCache struct {
@@ -405,21 +405,21 @@ func NewEngine() *Engine {
 		// encoded-packet headroom (enough for one GOP boundary) without letting
 		// the blocking Put hold the demuxer away from audio for >1.7s.
 		// audioQueue at 32 packets caps the post-EOF audio drain to <0.75s.
-		videoQueue:        NewPacketQueueWithMaxSize(50),
-		audioQueue:        NewPacketQueueWithMaxSize(32),
-		subtitleQueue:     NewPacketQueue(),
-		clock:             NewMasterClock(),
-		stop:              make(chan struct{}),
-		volume:            1.0,
-		speed:             1.0,
-		seekAcc:           SeekAccuracyKeyframe,
-		numThreads:        0,
-		framePool:         make([][]byte, 0, 4),
-		errorRingNext:     0,
-		hwDegraded:        false,
-		hwFailCount:       0,
-		frameQueue:        make(chan decodedFrame, preDecodeFrames),
-		decodeLoopStop:    make(chan struct{}),
+		videoQueue:     NewPacketQueueWithMaxSize(50),
+		audioQueue:     NewPacketQueueWithMaxSize(32),
+		subtitleQueue:  NewPacketQueue(),
+		clock:          NewMasterClock(),
+		stop:           make(chan struct{}),
+		volume:         1.0,
+		speed:          1.0,
+		seekAcc:        SeekAccuracyKeyframe,
+		numThreads:     0,
+		framePool:      make([][]byte, 0, 4),
+		errorRingNext:  0,
+		hwDegraded:     false,
+		hwFailCount:    0,
+		frameQueue:     make(chan decodedFrame, preDecodeFrames),
+		decodeLoopStop: make(chan struct{}),
 	}
 }
 
@@ -814,7 +814,7 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 	}
 
 	ap.debugEnabled.Store(e.debugEnabled.Load())
- e.audioPlayer = ap
+	e.audioPlayer = ap
 	e.audioStreamIdx = streamIdx
 	e.hasAudio = true
 
@@ -1333,7 +1333,7 @@ func (e *Engine) openFinalize() error {
 				} else {
 					logging.Info(logging.CatPlayer, "Audio player created OK")
 					ap.debugEnabled.Store(e.debugEnabled.Load())
- e.audioPlayer = ap
+					e.audioPlayer = ap
 					e.audioPlayer.SetVolume(e.volume)
 					e.audioPlayer.SetMuted(e.muted)
 					e.hasAudio = true
@@ -1620,7 +1620,3 @@ func av_get_pix_fmt_name(fmt C.enum_AVPixelFormat) *C.char {
 func (e *Engine) NewScrubber() Scrubber {
 	return NewSmoothScrubbing(e)
 }
-
-
-
-

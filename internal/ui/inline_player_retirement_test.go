@@ -306,3 +306,24 @@ func (e *sessionEngine) PreparePlayback(context.Context, time.Duration) error { 
 
 func (e *sessionEngine) SetDiagnosticsEnabled(bool)          {}
 func (e *sessionEngine) Diagnostics() media.PlayerDebugStats { return media.PlayerDebugStats{} }
+
+func TestPausedTransportUpdatesFrameMirrorAndTimeline(t *testing.T) {
+	e := fakeSessionEngine()
+	p := attachedPlayer(e)
+	r := p.beginRun(p.session, false)
+	defer close(r.done)
+	frameCalls := 0
+	progress := -1.0
+	p.SetOnFrame(func(*image.RGBA) { frameCalls++ })
+	p.SetOnProgress(func(t float64) { progress = t })
+	p.presentTransportFrame(p.session, r, image.NewRGBA(image.Rect(0, 0, 2, 2)), 42)
+	if frameCalls != 1 || progress != 42 {
+		t.Fatalf("paused seek hidden from mirror: frames=%d time=%v", frameCalls, progress)
+	}
+	r.cancel()
+	p.presentTransportFrame(p.session, r, nil, 99)
+	if frameCalls != 1 || progress != 42 {
+		t.Fatal("retired transport repainted mirrors")
+	}
+	p.Close()
+}
