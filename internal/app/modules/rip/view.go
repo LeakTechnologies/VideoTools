@@ -304,6 +304,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	// ── Content Browser ─────────────────────────────────────────────────────
 	contentBrowser := NewContentBrowser()
+	if opts.SetPreviewCleanup != nil {
+		opts.SetPreviewCleanup(contentBrowser.Close)
+	}
 	contentBrowser.SetOnOutputName(func(number int, name string) {
 		naming.SetOutputName(number, name)
 	})

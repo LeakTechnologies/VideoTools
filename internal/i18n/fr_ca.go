@@ -4,6 +4,8 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var frCA = Strings{
+	RipPreviewPreparing: "Préparation de l’aperçu",
+	RipPreviewUnavailable: "Aperçu indisponible",
 	RipOutputTitleName: "Titre du fichier",
 	RipOutputNamesHint: "Les fichiers utilisent titre du fichier_titre du disque. Sortie choisit leur dossier.",
 	RipChaptersLabel            : "Chapitres",

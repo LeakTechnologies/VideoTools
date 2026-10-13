@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"image/color"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -16,14 +14,13 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
-	"github.com/LeakTechnologies/VideoTools/internal/logging"
 	"github.com/LeakTechnologies/VideoTools/internal/ui"
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
 const (
-	thumbWidth  = 56
-	thumbHeight = 42
+	thumbWidth  = 80
+	thumbHeight = 60
 	cyclePeriod = 1500 * time.Millisecond
 	accentWidth = 6
 )
@@ -48,6 +45,8 @@ type ContentBrowser struct {
 	titleCards   []*titleCardState
 	ticker       *time.Ticker
 	tickerDone   chan struct{}
+	thumbnails   *thumbnailSession
+	retired      bool
 	onSelect     func(titleNum int, selected bool)
 	onPreview    func(titleNum int)
 	onBulkSel    func(map[int]bool)
@@ -85,13 +84,14 @@ func (box *cardBox) CreateRenderer() fyne.WidgetRenderer {
 }
 
 type titleCardState struct {
-	title    DiscTitle
-	isMain   bool
-	frames   []fyne.Resource
-	thumbImg *canvas.Image
-	checked  *widget.Check
-	box      *cardBox
-	updating bool
+	title        DiscTitle
+	previewState string
+	isMain       bool
+	frames       []fyne.Resource
+	thumbImg     *canvas.Image
+	checked      *widget.Check
+	box          *cardBox
+	updating     bool
 }
 
 // NewContentBrowser creates a new content browser widget.
@@ -152,6 +152,10 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 	cb.Stop()
 
 	cb.mu.Lock()
+	if cb.retired {
+		cb.mu.Unlock()
+		return
+	}
 	cb.scanResult = result
 	cb.sourcePath = sourcePath
 	cb.titleCards = nil
@@ -173,11 +177,16 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 		for _, dt := range result.Titles {
 			cb.selected[dt.Number] = true
 			cb.titleCards = append(cb.titleCards, &titleCardState{
-				title:  dt,
-				isMain: dt.Number == mainNum,
+				title:        dt,
+				isMain:       dt.Number == mainNum,
+				previewState: "loading",
 			})
 		}
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	session := &thumbnailSession{ctx: ctx, cancel: cancel}
+	cb.thumbnails = session
+	cards := append([]*titleCardState(nil), cb.titleCards...)
 	cb.mu.Unlock()
 
 	if result != nil && len(result.Titles) > 0 {
@@ -185,9 +194,7 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 		cb.list.Refresh()
 		cb.startCycling()
 		// Extract thumbnails in background.
-		for i := range cb.titleCards {
-			go cb.extractThumbnails(cb.titleCards[i])
-		}
+		go cb.extractScanThumbnails(session, sourcePath, cards)
 	} else {
 		cb.emptyHint.Show()
 		cb.list.Refresh()
@@ -326,8 +333,20 @@ func (cb *ContentBrowser) Stop() {
 		cb.ticker.Stop()
 		cb.ticker = nil
 	}
+	if cb.thumbnails != nil {
+		cb.thumbnails.cancel()
+		cb.thumbnails = nil
+	}
 	close(cb.tickerDone)
 	cb.tickerDone = make(chan struct{})
+}
+
+// Close retires a view permanently, including scan callbacks that finish late.
+func (cb *ContentBrowser) Close() {
+	cb.mu.Lock()
+	cb.retired = true
+	cb.mu.Unlock()
+	cb.Stop()
 }
 
 func (cb *ContentBrowser) setAllSelected(v bool) {
@@ -368,11 +387,16 @@ func (cb *ContentBrowser) setAllSelected(v bool) {
 
 func (cb *ContentBrowser) startCycling() {
 	cb.mu.Lock()
+	if cb.retired {
+		cb.mu.Unlock()
+		return
+	}
 	if cb.ticker != nil {
 		cb.ticker.Stop()
 	}
 	done := cb.tickerDone
 	cb.ticker = time.NewTicker(cyclePeriod)
+	ticker := cb.ticker
 	cb.mu.Unlock()
 
 	go func() {
@@ -380,8 +404,15 @@ func (cb *ContentBrowser) startCycling() {
 			select {
 			case <-done:
 				return
-			case <-cb.ticker.C:
-				cb.cycleThumbnails()
+			case <-ticker.C:
+				fyne.Do(func() {
+					cb.mu.Lock()
+					current := cb.ticker == ticker
+					cb.mu.Unlock()
+					if current {
+						cb.cycleThumbnails()
+					}
+				})
 			}
 		}
 	}()
@@ -389,8 +420,10 @@ func (cb *ContentBrowser) startCycling() {
 
 func (cb *ContentBrowser) cycleThumbnails() {
 	cb.mu.Lock()
-	for _, tc := range cb.titleCards {
-		if len(tc.frames) <= 1 || tc.thumbImg == nil {
+	cards := append([]*titleCardState(nil), cb.titleCards...)
+	cb.mu.Unlock()
+	for _, tc := range cards {
+		if len(tc.frames) <= 1 || tc.thumbImg == nil || tc.box == nil || tc.box.owner != tc {
 			continue
 		}
 		// Find current frame index and advance.
@@ -406,7 +439,6 @@ func (cb *ContentBrowser) cycleThumbnails() {
 		tc.thumbImg.Resource = tc.frames[next]
 		tc.thumbImg.Refresh()
 	}
-	cb.mu.Unlock()
 }
 
 func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
@@ -415,30 +447,31 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	thumb.FillMode = canvas.ImageFillContain
 
 	thumbBg := canvas.NewRectangle(ripCardBg)
+	thumbBg.SetMinSize(fyne.NewSize(thumbWidth, thumbHeight))
 	thumbBg.CornerRadius = 4
 	thumbBg.StrokeColor = ui.GridColor
 	thumbBg.StrokeWidth = 1
 
 	titleLabel := widget.NewLabel("T00")
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	titleLabel.Truncation = fyne.TextTruncateEllipsis
 
 	infoLabel := widget.NewLabel("--")
-	infoLabel.Wrapping = fyne.TextWrapWord
+	infoLabel.Truncation = fyne.TextTruncateEllipsis
 	infoLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	infoLabel.Importance = widget.MediumImportance
 
 	check := widget.NewCheck("", nil)
 	nameEntry := widget.NewEntry()
 	nameEntry.SetPlaceHolder(i18n.T().RipOutputTitleName)
-	nameRow := container.NewVBox(widget.NewLabel(i18n.T().RipOutputTitleName), nameEntry)
 
 	accentBar := canvas.NewRectangle(ripTeal)
 	accentBar.SetMinSize(fyne.NewSize(accentWidth, 0))
 
-	card := container.NewHBox(
+	card := container.New(titleCardLayout{},
 		accentBar,
 		container.NewMax(thumbBg, thumb),
-		container.NewVBox(titleLabel, infoLabel, nameRow),
+		container.New(titleDetailsLayout{}, titleLabel, infoLabel, nameEntry),
 		layout.NewSpacer(),
 		check,
 	)
@@ -494,6 +527,14 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	cb.mu.Unlock()
 
 	box := obj.(*cardBox)
+	cb.mu.Lock()
+	if previous := box.owner; previous != nil && previous != tc && previous.box == box {
+		previous.box = nil
+		previous.thumbImg = nil
+		previous.checked = nil
+	}
+	box.owner = tc
+	cb.mu.Unlock()
 	hbox := box.Container
 	accentBar := hbox.Objects[0].(*canvas.Rectangle)
 	thumbContainer := hbox.Objects[1].(*fyne.Container)
@@ -516,32 +557,33 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	thumbImg := thumbContainer.Objects[1].(*canvas.Image)
 	cb.mu.Lock()
 	tc.thumbImg = thumbImg
+	var frame fyne.Resource
 	if len(tc.frames) > 0 {
-		thumbImg.Resource = tc.frames[0]
-		thumbImg.Show()
-	} else {
-		thumbImg.Resource = nil
-		thumbImg.Hide()
+		frame = tc.frames[0]
 	}
 	cb.mu.Unlock()
+	thumbImg.Resource = frame
+	if frame != nil {
+		thumbImg.Show()
+	} else {
+		thumbImg.Hide()
+	}
+	// Resource assignment does not invalidate Fyne's cached image renderer.
+	thumbImg.Refresh()
 
 	// Title label.
 	titleLabel := vbox.Objects[0].(*widget.Label)
 	t := i18n.T()
 	label := fmt.Sprintf("T%02d  %s", dt.Number, FormatDuration(dt.Duration))
-	if tc.isMain {
-		label += "  " + t.RipMainFeature
-	}
 	titleLabel.SetText(label)
-	if isLockedOut {
-		titleLabel.Importance = widget.LowImportance
-	} else {
-		titleLabel.Importance = widget.MediumImportance
-	}
+	titleLabel.Importance = widget.MediumImportance
 
 	// Info line.
 	infoLabel := vbox.Objects[1].(*widget.Label)
 	infoParts := []string{}
+	if tc.isMain {
+		infoParts = append(infoParts, t.RipMainFeature)
+	}
 	if dt.NumChapters > 1 {
 		infoParts = append(infoParts, fmt.Sprintf(t.RipTitleCardFmt, dt.NumChapters))
 	}
@@ -562,12 +604,13 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	if len(infoParts) == 0 {
 		infoParts = append(infoParts, "—")
 	}
-	infoLabel.SetText(strings.Join(infoParts, " · "))
-	if isLockedOut {
-		infoLabel.Importance = widget.LowImportance
-	} else {
-		infoLabel.Importance = widget.MediumImportance
+	if tc.previewState == "loading" {
+		infoParts = append(infoParts, t.RipPreviewPreparing)
+	} else if tc.previewState == "failed" {
+		infoParts = append(infoParts, t.RipPreviewUnavailable)
 	}
+	infoLabel.SetText(strings.Join(infoParts, " · "))
+	infoLabel.Importance = widget.MediumImportance
 
 	// Selection toggle. Locked-out titles are displayed unchecked: clicking
 	// one exits the restrictive rip mode and selects that title. Anchored
@@ -659,93 +702,6 @@ func (r *contentBrowserRenderer) Layout(s fyne.Size)           { r.content.Resiz
 func (r *contentBrowserRenderer) MinSize() fyne.Size           { return r.content.MinSize() }
 func (r *contentBrowserRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.content} }
 func (r *contentBrowserRenderer) Refresh()                     { r.content.Refresh() }
-
-// extractThumbnails runs ffmpeg to extract keyframes for a single title.
-func (cb *ContentBrowser) extractThumbnails(tc *titleCardState) {
-	cb.mu.Lock()
-	sourcePath := cb.sourcePath
-	dvdVideo := SupportsDVDVideo()
-	cb.mu.Unlock()
-
-	if sourcePath == "" {
-		return
-	}
-
-	dur := tc.title.Duration
-	if dur <= 0 {
-		dur = 120.0
-	}
-	positions := []float64{0.10, 0.25, 0.50, 0.75, 0.90}
-
-	var frames []fyne.Resource
-	for _, pos := range positions {
-		t := dur * pos
-		data, err := extractTitleFrame(sourcePath, tc.title.Number, t, dvdVideo)
-		if err != nil {
-			logging.Debug(logging.CatDVD, "content_browser: thumb extract failed T%02d @%.0fs: %v", tc.title.Number, t, err)
-			continue
-		}
-		res := fyne.NewStaticResource(
-			fmt.Sprintf("thumb_t%d_%.0f.png", tc.title.Number, pos*100), data)
-		frames = append(frames, res)
-	}
-
-	if len(frames) == 0 {
-		return
-	}
-
-	cb.mu.Lock()
-	tc.frames = frames
-	if tc.thumbImg != nil && tc.thumbImg.Resource == nil {
-		tc.thumbImg.Resource = frames[0]
-		tc.thumbImg.Show()
-		tc.thumbImg.Refresh()
-	}
-	cb.mu.Unlock()
-}
-
-// extractTitleFrame extracts a single frame from a DVD title via ffmpeg.
-func extractTitleFrame(sourcePath string, titleNum int, timestamp float64, dvdVideo bool) ([]byte, error) {
-	tmpDir := os.TempDir()
-	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("vt_cb_t%d_%d.png", titleNum, time.Now().UnixNano()))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	var args []string
-	if dvdVideo {
-		args = []string{
-			"-hide_banner", "-loglevel", "error",
-			"-f", "dvdvideo",
-			"-title", fmt.Sprintf("%d", titleNum),
-			"-ss", formatTimestamp(timestamp),
-			"-i", sourcePath,
-			"-frames:v", "1",
-			"-vf", fmt.Sprintf("scale=%d:-1", thumbWidth),
-			"-q:v", "5",
-			"-y", tmpFile,
-		}
-	} else {
-		args = []string{
-			"-hide_banner", "-loglevel", "error",
-			"-ss", formatTimestamp(timestamp),
-			"-i", sourcePath,
-			"-map", "0:v:0",
-			"-frames:v", "1",
-			"-vf", fmt.Sprintf("scale=%d:-1", thumbWidth),
-			"-q:v", "5",
-			"-y", tmpFile,
-		}
-	}
-
-	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffmpeg thumb extract: %w", err)
-	}
-	defer os.Remove(tmpFile)
-
-	return os.ReadFile(tmpFile)
-}
 
 func formatTimestamp(seconds float64) string {
 	h := int(seconds) / 3600

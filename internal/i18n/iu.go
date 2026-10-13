@@ -6,6 +6,8 @@ package i18n
 // Empty fields fall back to enCA automatically.
 // Translation progress: see README for current percentage.
 var iu = Strings{
+	RipPreviewPreparing: "Preparing preview", // machine-generated, needs human review
+	RipPreviewUnavailable: "Preview unavailable", // machine-generated, needs human review
 	RipOutputTitleName: "Output title", // machine-generated, needs human review
 	RipOutputNamesHint: "Files use output title_disc title. Output chooses their folder.", // machine-generated, needs human review
 	RipChaptersLabel            : "Chapters", // machine-generated, needs human review

@@ -1,5 +1,18 @@
 # VideoTools Changelog
 
+## v0.1.1-dev100 — October 2026
+
+- Rip cards put the editable name beside title identity/duration, with one
+  metadata line below. Remove repeated Output title labels, preserve readable
+  locked titles and provide an 80×60 preview slot.
+- Fix cached blank thumbnail images; normalize/decrypt one shared source per
+  scan, prioritize first stills with two workers, preserve display aspect ratio,
+  and use only correctly mapped title cells for fallback. Preview states use
+  the metadata line; retired views reject late work.
+- Neutral large-VCR rendering, real FFmpeg PNG/DAR and behavioral checks passed.
+  Real encrypted-disc previews still require acceptance. CSS copying completes
+  before cancellation cleanup; preparation is serialized to bound copy pressure.
+
 Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.
 
 VT_Player DVD requirement recorded: ISO/VIDEO_TS title playback exists in code but needs real-disc acceptance; interactive menus are not implemented. Player-only delivery/test sequence: [DVD navigation plan](VT_PLAYER_DVD_NAVIGATION.md). Planning only; no playback change.

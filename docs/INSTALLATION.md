@@ -1,5 +1,9 @@
 # VideoTools Installation Guide
 
+Dev100: Rip cards use inline name editing and preview thumbnails. Encrypted
+sources prepare one temporary plaintext copy for previews; allow preparation
+time. No new runtime dependencies.
+
 Dev99: Rip title cards have Output title entries. Single-title filenames combine
 that name with the disc Title; chapter groups add suffixes. Success clears the
 matching project's disc Title. No new runtime dependencies.

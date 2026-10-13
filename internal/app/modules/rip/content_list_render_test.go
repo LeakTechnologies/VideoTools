@@ -1,13 +1,53 @@
 package rip
 
 import (
+	"bytes"
+	"image"
+	"image/color"
+	"image/png"
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
+
+func TestContentCardRefreshesArrivingThumbnail(t *testing.T) {
+	a := test.NewApp()
+	defer a.Quit()
+	a.Settings().SetTheme(theme.DefaultTheme())
+	cb := NewContentBrowser()
+	cb.scanResult = &DiscScanResult{Titles: []DiscTitle{{Number: 1}}}
+	cb.selected = map[int]bool{1: true}
+	state := &titleCardState{title: cb.scanResult.Titles[0]}
+	cb.titleCards = []*titleCardState{state}
+	card := cb.buildCardTemplate().(*cardBox)
+	cb.updateCard(0, card)
+	card.Resize(fyne.NewSize(600, card.MinSize().Height))
+	thumb := card.Container.Objects[1].(*fyne.Container).Objects[1].(*canvas.Image)
+	img := image.NewRGBA(image.Rect(0, 0, 4, 3))
+	for y := 0; y < 3; y++ {
+		for x := 0; x < 4; x++ {
+			img.Set(x, y, color.RGBA{R: 255, A: 255})
+		}
+	}
+	var data bytes.Buffer
+	if err := png.Encode(&data, img); err != nil {
+		t.Fatal(err)
+	}
+	state.frames = []fyne.Resource{fyne.NewStaticResource("neutral-preview.png", data.Bytes())}
+	cb.updateCard(0, card)
+	if !thumb.Visible() || thumb.Image == nil {
+		t.Fatal("arriving frame did not refresh the cached image")
+	}
+	r, g, b, _ := thumb.Image.At(0, 0).RGBA()
+	if r < 60000 || g > 1000 || b > 1000 {
+		t.Fatal("thumbnail contains stale pixels")
+	}
+}
 
 func TestContentCardRendersAndRecyclesSelection(t *testing.T) {
 	app := test.NewApp()

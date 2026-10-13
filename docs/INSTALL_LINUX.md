@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Dev100: compact Rip cards and restored preview handling. Encrypted preview
+preparation uses a temporary copy; runtime dependencies are unchanged.
+
 Dev99: Rip card output names combine with disc Title and chapter suffixes.
 Successful jobs clear the matching disc Title. Runtime dependencies are unchanged.
 

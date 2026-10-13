@@ -52,6 +52,8 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
+- **Cycle: v0.1.1-dev100** — Rip cards use two compact rows with inline output-name editing and an 80×60 preview slot. Keep locked text readable. Explicit image Refresh fixes blank cached thumbnails; shared source preparation handles CSS once per scan, bounded workers prioritize first frames, and strict title-cell fallback avoids wrong-title images. Retire preview work on navigation/rebuild and reject late scan/publication. [Evidence](docs/RIP_BROWSER_DEV100.md). Real encrypted-disc thumbnail acceptance remains outstanding; existing CSS copy checks cancellation after returning and source preparation is serialized.
+
 - **Cycle: v0.1.1-dev99** — Rip title cards have editable output names. Single-title files combine title name + disc Title, then optional chapter suffix. Project-scoped successful-job reset clears only the matching current disc Title; failures, queued filenames and newer project edits remain intact. [Design](docs/RIP_OUTPUT_NAMES.md). Recycled card handlers bind current ownership before programmatic SetText. Real-media output and visual acceptance remain open.
 
 - **Cycle: v0.1.1-dev98** — Rip selected chapters accepts page-style chapter groups and queues a separate file for each group per selected title. Validate all titles before enqueue; new jobs reject unavailable runtime chapter bounds instead of clamping. All chapters and legacy ranges retain their established behavior. [Design](docs/RIP_SELECTED_CHAPTERS.md). Encrypted-disc/content acceptance remains outstanding.

@@ -3,6 +3,8 @@ package i18n
 // enCA is the English (Canada) source of truth.
 // Every field must be populated — this is the fallback for all other languages.
 var enCA = Strings{
+	RipPreviewPreparing: "Preparing preview",
+	RipPreviewUnavailable: "Preview unavailable",
 	RipOutputTitleName: "Output title",
 	RipOutputNamesHint: "Files use output title_disc title. Output chooses their folder.",
 	RipChaptersLabel            : "Chapters",

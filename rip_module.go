@@ -36,6 +36,10 @@ func (s *appState) showRipView() {
 }
 
 func (s *appState) buildRipView() fyne.CanvasObject {
+	if s.ripPreviewCleanup != nil {
+		s.ripPreviewCleanup()
+		s.ripPreviewCleanup = nil
+	}
 	if s.ripProjectNaming == nil {
 		s.ripProjectNaming = ripmod.NewProjectNaming()
 	}
@@ -58,8 +62,9 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		OnOpenInPlayer:           func(path string) { s.showDVDDiscView(path) },
 		OnLoadDisc:               s.loadDiscFromDrive,
 
-		SetRipSourcePath: func(p string) { s.ripSourcePath = p },
-		SetRipOutputPath: func(p string) { s.ripOutputPath = p },
+		SetRipSourcePath:  func(p string) { s.ripSourcePath = p },
+		SetRipOutputPath:  func(p string) { s.ripOutputPath = p },
+		SetPreviewCleanup: func(cleanup func()) { s.ripPreviewCleanup = cleanup },
 
 		JobQueue: func() *queue.Queue { return s.jobQueue },
 		AddJob:   func(job *queue.Job) { s.jobQueue.Add(job) },

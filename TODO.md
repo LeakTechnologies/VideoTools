@@ -1,5 +1,15 @@
 # VideoTools TODO
 
+## Dev100 — Compact Rip cards and previews
+
+- [x] Inline name editing, two-row geometry, readable locked text and larger preview slot.
+- [x] Refresh cached images; shared normalized/CSS source, two preview workers,
+  first-frame priority, strict title fallback and retirement guards.
+- [x] Geometry/recycling/cache-pixel tests and actual FFmpeg neutral PNG check.
+- [ ] Real encrypted-disc thumbnail acceptance; [evidence](docs/RIP_BROWSER_DEV100.md).
+- [ ] Future: cancellable CSS-copy inner loop and application-shutdown scratch
+  cleanup acceptance; current preparation serializes copies and cleans after return.
+
 Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.
 
 VT_Player DVD requirement recorded: ISO/VIDEO_TS title playback exists in code but needs real-disc acceptance; interactive menus are not implemented. Player-only delivery/test sequence: [DVD navigation plan](docs/VT_PLAYER_DVD_NAVIGATION.md). Planning only; no playback change.

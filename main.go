@@ -105,7 +105,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev99"
+	appVersion         = "v0.1.1-dev100"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1462,6 +1462,7 @@ type appState struct {
 
 	// Rip module state
 	ripProjectNaming *ripmodule.ProjectNaming
+	ripPreviewCleanup func()
 	ripSourcePath  string
 	ripOutputPath  string
 	ripFormat      string
@@ -2226,6 +2227,10 @@ func registerPrimaryActionShortcut(window fyne.Window, action func()) {
 }
 
 func (s *appState) setContent(body fyne.CanvasObject) {
+	if s.active != "rip" && s.ripPreviewCleanup != nil {
+		s.ripPreviewCleanup()
+		s.ripPreviewCleanup = nil
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Crash(logging.CatUI, "panic in setContent: %v", r)

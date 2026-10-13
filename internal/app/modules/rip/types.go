@@ -60,8 +60,9 @@ type Options struct {
 	OnLoadDisc               func() (string, error) // detect optical drive, resolve VIDEO_TS; "" = user cancelled
 
 	// State setters.
-	SetRipSourcePath func(string)
-	SetRipOutputPath func(string)
+	SetRipSourcePath  func(string)
+	SetRipOutputPath  func(string)
+	SetPreviewCleanup func(func())
 
 	// Queue.
 	JobQueue func() *queue.Queue
