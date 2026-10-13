@@ -306,3 +306,48 @@ func (e *sessionEngine) PreparePlayback(context.Context, time.Duration) error { 
 
 func (e *sessionEngine) SetDiagnosticsEnabled(bool)          {}
 func (e *sessionEngine) Diagnostics() media.PlayerDebugStats { return media.PlayerDebugStats{} }
+
+func TestPreparedSourceCleanupFollowsEngineClose(t *testing.T) {
+	enabled := media.HWDecodeEnabled()
+	media.SetHWDecodeEnabled(false)
+	defer media.SetHWDecodeEnabled(enabled)
+	e := fakeSessionEngine()
+	p := &InlineVideoPlayer{newEngine: func() media.PlaybackEngine { return e }, dispatch: func(fn func()) { fn() }, speed: 1, audioIdx: -1, subtitleIdx: -1}
+	cleaned := make(chan struct{})
+	_, err := p.loadSessionPrepared("disc", true, func(media.PlaybackEngine) error { return nil }, nil, func(context.Context) (func(), error) {
+		return func() {
+			select {
+			case <-e.closed:
+			default:
+				t.Error("prepared media removed before native reader closed")
+			}
+			close(cleaned)
+		}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Close()
+	waitSignal(t, cleaned)
+}
+func TestCancelledDVDPreparationDoesNotOpenEngine(t *testing.T) {
+	enabled := media.HWDecodeEnabled()
+	media.SetHWDecodeEnabled(false)
+	defer media.SetHWDecodeEnabled(enabled)
+	e := fakeSessionEngine()
+	p := &InlineVideoPlayer{newEngine: func() media.PlaybackEngine { return e }, dispatch: func(fn func()) { fn() }, speed: 1, audioIdx: -1, subtitleIdx: -1}
+	entered, done := make(chan struct{}), make(chan struct{})
+	var opened atomic.Bool
+	var loadErr error
+	go func() {
+		defer close(done)
+		_, loadErr = p.loadSessionPrepared("disc", true, func(media.PlaybackEngine) error { opened.Store(true); return nil }, nil, func(ctx context.Context) (func(), error) { close(entered); <-ctx.Done(); return nil, ctx.Err() })
+	}()
+	waitSignal(t, entered)
+	p.Close()
+	waitSignal(t, done)
+	waitSignal(t, e.closed)
+	if opened.Load() || !errors.Is(loadErr, context.Canceled) {
+		t.Fatalf("cancelled prepared source opened=%v err=%v", opened.Load(), loadErr)
+	}
+}

@@ -21,6 +21,7 @@ type playerSession struct {
 	loaded   chan struct{}
 	ops      sync.Mutex
 	engine   media.PlaybackEngine
+	cleanup  func()
 	scrubber media.Scrubber
 	run      *playbackRun // protected by the owning player's mu
 }
@@ -117,6 +118,9 @@ func retireSession(s *playerSession) {
 		if s.engine != nil {
 			s.engine.Close()
 			logging.Info(logging.CatPlayer, "player source session %d retired", s.id)
+		}
+		if s.cleanup != nil {
+			s.cleanup()
 		}
 	}()
 }
@@ -230,7 +234,10 @@ func (v *InlineVideoPlayer) seekAndPlaySession(s *playerSession, position float6
 	s.ops.Unlock()
 	v.playSession(s)
 }
-func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media.PlaybackEngine) error, expected *playerSession) (s *playerSession, err error) {
+func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media.PlaybackEngine) error, expected *playerSession) (*playerSession, error) {
+	return v.loadSessionPrepared(path, reset, open, expected, nil)
+}
+func (v *InlineVideoPlayer) loadSessionPrepared(path string, reset bool, open func(media.PlaybackEngine) error, expected *playerSession, prepare func(context.Context) (func(), error)) (s *playerSession, err error) {
 	v.mu.Lock()
 	if expected != nil && v.session != expected {
 		v.mu.Unlock()
@@ -278,6 +285,20 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			err = fmt.Errorf("player load failed: %v", recovered)
+			failure := err
+			v.dispatchSession(s, func() {
+				if v.player != nil {
+					v.player.SetLoading(false)
+					v.player.SetError(failure.Error())
+					v.player.SetPlaying(false)
+				}
+				v.mu.Lock()
+				callback := v.onLoad
+				v.mu.Unlock()
+				if callback != nil {
+					callback(LoadEvent{Phase: LoadPhaseFailed, At: time.Now(), Err: failure})
+				}
+			})
 		}
 		if err != nil && s.engine != nil {
 			if s.scrubber != nil {
@@ -285,6 +306,9 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 				s.scrubber = nil
 			}
 			s.engine.Close()
+		}
+		if err != nil && s.cleanup != nil {
+			s.cleanup()
 		}
 	}()
 	emit := func(phase LoadPhase, err error) {
@@ -318,6 +342,19 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	eng.SetDropFrames(true)
 	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
 		eng.SetHWDevice(hw)
+	}
+	if prepare != nil {
+		s.cleanup, err = prepare(s.ctx)
+		if err != nil {
+			emit(LoadPhaseFailed, err)
+			v.dispatchSession(s, func() {
+				if v.player != nil {
+					v.player.SetLoading(false)
+					v.player.SetError(err.Error())
+				}
+			})
+			return s, err
+		}
 	}
 	if err = open(eng); err != nil {
 		emit(LoadPhaseFailed, err)

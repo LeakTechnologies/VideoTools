@@ -176,6 +176,7 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 func (s *SmoothScrubbing) openDecoder() error {
 	s.engine.lockMu()
 	path := s.engine.filePath
+	dvd, title := s.engine.dvdSource, s.engine.dvdTitle
 	s.engine.unlockMu()
 	if path == "" {
 		return fmt.Errorf("no file path")
@@ -184,7 +185,9 @@ func (s *SmoothScrubbing) openDecoder() error {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
-	if C.avformat_open_input(&s.fmtCtx, cPath, nil, nil) != 0 {
+	var openRet C.int
+	s.fmtCtx, openRet = openPlayerAuxiliaryInput(path, dvd, title)
+	if openRet != 0 {
 		return fmt.Errorf("avformat_open_input failed")
 	}
 
