@@ -105,7 +105,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev100"
+	appVersion         = "v0.1.1-dev101"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1461,14 +1461,14 @@ type appState struct {
 	burnLogFilePath string
 
 	// Rip module state
-	ripProjectNaming *ripmodule.ProjectNaming
+	ripProjectNaming  *ripmodule.ProjectNaming
 	ripPreviewCleanup func()
-	ripSourcePath  string
-	ripOutputPath  string
-	ripFormat      string
-	ripProgress    float64
-	ripProgressBar *widget.ProgressBar
-	ripStatusLabel *widget.Label
+	ripSourcePath     string
+	ripOutputPath     string
+	ripFormat         string
+	ripProgress       float64
+	ripProgressBar    *widget.ProgressBar
+	ripStatusLabel    *widget.Label
 
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
@@ -2244,6 +2244,7 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 	}
 
 	update := func() {
+		ui.DismissTooltips()
 		bg := canvas.NewRectangle(backgroundColor)
 		if body == nil {
 			s.window.SetContent(bg)
@@ -9983,7 +9984,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	autoNameCheck.Checked = state.convert.UseAutoNaming
 
-	autoNameTemplate := widget.NewEntry()
+	autoNameTemplate := ui.NewTooltipEntry(t.ConvertAutoNameHint)
 	autoNameTemplate.SetPlaceHolder("<actress> - <studio> - <scene>")
 	autoNameTemplate.SetText(state.convert.AutoNameTemplate)
 
@@ -9993,9 +9994,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			applyAutoName(true)
 		}
 	}
-
-	autoNameHint := widget.NewLabel(t.ConvertAutoNameHint)
-	autoNameHint.Wrapping = fyne.TextWrapWord
 
 	if state.convert.UseAutoNaming {
 		applyAutoName(true)
@@ -10175,8 +10173,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		detectCropBtn.Disable()
 	}
 
-	autoCropHint := widget.NewLabel(t.ConvertAutoCropHint)
-	autoCropHint.Wrapping = fyne.TextWrapWord
+	autoCropHint := ui.NewHelpButton(t.ConvertAutoCropHint)
 
 	// Flip and Rotation controls
 	flipHorizontalCheck := widget.NewCheck(t.ConvertFlipHorizontal, func(checked bool) {
@@ -10219,8 +10216,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		rotationSelect.SetSelected("0 deg")
 	}
 
-	transformHint := widget.NewLabel(t.ConvertTransformHint)
-	transformHint.Wrapping = fyne.TextWrapWord
+	transformHint := ui.NewHelpButton(t.ConvertTransformHint)
 
 	aspectTargets := []string{sourceAspectLabel, "16:9", "4:3", "1:1", "9:16", "21:9", customAspectLabel}
 	var (
@@ -10279,11 +10275,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if utils.ParseAspectValue(val) <= 0 {
 			for _, hint := range customAspectHintLabels {
 				hint.SetText(t.ConvertAspectRatioEntry)
+				hint.Show()
 			}
 			return
 		}
 		for _, hint := range customAspectHintLabels {
-			hint.SetText("Custom aspect ratio in use.")
+			hint.SetText("")
+			hint.Hide()
 		}
 		customAspectValue = val
 		customAspectActive = true
@@ -10309,8 +10307,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelect.SetSelected(aspectLabelForValue(state.convert.OutputAspect))
-	targetAspectHint := widget.NewLabel(t.ConvertTargetAspectHint)
-	targetAspectHint.Wrapping = fyne.TextWrapWord
+	targetAspectHint := ui.NewHelpButton(t.ConvertTargetAspectHint)
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	targetAspectHintContainer := container.NewPadded(targetAspectHint)
 
@@ -10319,11 +10316,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectEntry.OnChanged = func(val string) {
 		applyCustomAspect(val)
 	}
-	customAspectHint := widget.NewLabel(t.ConvertCustomAspectHint)
+	customAspectHint := widget.NewLabel("")
 	customAspectHint.Wrapping = fyne.TextWrapWord
+	customAspectHint.Hide()
 	customAspectBox := container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionCustomAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		customAspectEntry,
+		ui.WithHelp(customAspectEntry, t.ConvertCustomAspectHint),
 		customAspectHint,
 	)
 	customAspectEntries = append(customAspectEntries, customAspectEntry)
@@ -10344,11 +10342,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	aspectOptions.SetSelected(state.convert.AspectHandling)
 
-	backgroundHint := widget.NewLabel(t.ConvertBackgroundHint)
+	backgroundHint := ui.NewHelpButton(t.ConvertBackgroundHint)
 	aspectBox := container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionAspectHandling, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		aspectOptions,
-		backgroundHint,
+		container.NewBorder(nil, nil, nil, backgroundHint, aspectOptions),
 	)
 
 	updateAspectBoxVisibility := func() {
@@ -10461,8 +10458,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Encoder Preset with hint
-	encoderPresetHint := widget.NewLabel("")
-	encoderPresetHint.Wrapping = fyne.TextWrapWord
+	encoderPresetHint := ui.NewHelpButton("")
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	encoderPresetHintContainer := container.NewPadded(encoderPresetHint)
 
@@ -10490,7 +10486,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		default:
 			hint = ""
 		}
-		encoderPresetHint.SetText(hint)
+		encoderPresetHint.SetHelpText(hint)
 	}
 
 	encoderPresetOptions := []string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast", "superfast", "ultrafast"}
@@ -10521,18 +10517,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 
 	// Settings management for batch operations
-	settingsInfoLabel := widget.NewLabel(t.ConvertSettingsInfo)
-	settingsInfoLabel.Alignment = fyne.TextAlignCenter
-	settingsInfoLabel.Wrapping = fyne.TextWrapWord
+
 	// Wrap in padded container for proper text wrapping in narrow windows
-	settingsInfoContainer := container.NewPadded(settingsInfoLabel)
 
 	cacheDirLabel := widget.NewLabelWithStyle(t.ConvertSectionCacheDir, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	cacheDirEntry := widget.NewEntry()
 	cacheDirEntry.SetPlaceHolder("System temp (recommended SSD)")
 	cacheDirEntry.SetText(state.convert.TempDir)
-	cacheDirHint := widget.NewLabel(t.ConvertCacheDirHint)
-	cacheDirHint.Wrapping = fyne.TextWrapWord
+	cacheDirHint := ui.NewHelpButton(t.ConvertCacheDirHint)
 	// Wrap in padded container for proper text wrapping in narrow windows
 	cacheDirHintContainer := container.NewPadded(cacheDirHint)
 	cacheDirEntry.OnChanged = func(val string) {
@@ -10559,8 +10551,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	logsDirEntry := widget.NewEntry()
 	logsDirEntry.SetPlaceHolder(defaultLogsDir())
 	logsDirEntry.SetText(state.convert.LogDir)
-	logsDirHint := widget.NewLabel(fmt.Sprintf(t.ConvertDefaultPathFmt, defaultLogsDir()))
-	logsDirHint.Wrapping = fyne.TextWrapWord
+	logsDirHint := ui.NewHelpButton(fmt.Sprintf(t.ConvertDefaultPathFmt, defaultLogsDir()))
 	logsDirHintContainer := container.NewPadded(logsDirHint)
 	applyLogsDir := func(val string) {
 		state.convert.LogDir = strings.TrimSpace(val)
@@ -10591,17 +10582,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 
 	settingsContent := container.NewVBox(
-		settingsInfoContainer,
-		widget.NewSeparator(),
-		cacheDirLabel,
+
+		container.NewBorder(nil, nil, nil, cacheDirHintContainer, cacheDirLabel),
 		container.NewBorder(nil, nil, nil, cacheBrowseBtn, cacheDirEntry),
 		cacheUseSystemBtn,
-		cacheDirHintContainer,
+
 		widget.NewSeparator(),
-		logsDirLabel,
+		container.NewBorder(nil, nil, nil, logsDirHintContainer, logsDirLabel),
 		container.NewBorder(nil, nil, nil, logsBrowseBtn, logsDirEntry),
 		logsUseDefaultBtn,
-		logsDirHintContainer,
+
 		resetSettingsBtn,
 	)
 	settingsContent.Hide()
@@ -10630,7 +10620,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	settingsBox := container.NewVBox(
-		toggleSettingsBtnWithLabel,
+		ui.WithHelp(toggleSettingsBtnWithLabel, t.ConvertSettingsInfo),
 		settingsContent,
 		widget.NewSeparator(),
 	)
@@ -11002,11 +10992,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectEntrySimple.OnChanged = func(val string) {
 		applyCustomAspect(val)
 	}
-	customAspectHintSimple := widget.NewLabel(t.ConvertCustomAspectHint)
+	customAspectHintSimple := widget.NewLabel("")
 	customAspectHintSimple.Wrapping = fyne.TextWrapWord
+	customAspectHintSimple.Hide()
 	customAspectBoxSimple := container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionCustomAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		customAspectEntrySimple,
+		ui.WithHelp(customAspectEntrySimple, t.ConvertCustomAspectHint),
 		customAspectHintSimple,
 	)
 	customAspectEntries = append(customAspectEntries, customAspectEntrySimple)
@@ -11511,8 +11502,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
 	// Hardware Acceleration with hint
-	hwAccelHint := widget.NewLabel(t.ConvertHwAccelHint)
-	hwAccelHint.Wrapping = fyne.TextWrapWord
+	hwAccelHint := ui.NewHelpButton(t.ConvertHwAccelHint)
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
 	// Always show platform-relevant options so users can manually override
@@ -12270,9 +12260,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleEncodingSection = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		qualitySectionSimple,
 		widget.NewLabelWithStyle(t.ConvertSectionEncoderSpeed, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel(t.ConvertEncoderPresetHint),
+
 		widget.NewLabelWithStyle(t.ConvertSectionEncoderPreset, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		simplePresetSelect,
+		ui.WithHelp(simplePresetSelect, t.ConvertEncoderPresetHint),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionBitrateSimple, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simpleBitrateSelect,
@@ -12305,16 +12295,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	aspectSectionSimple := buildConvertBox(t.ConvertSectionAspectRatio, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		targetAspectSelectSimple,
-		targetAspectHintContainer,
+		container.NewBorder(nil, nil, nil, targetAspectHintContainer, targetAspectSelectSimple),
 		widget.NewSeparator(),
 		customAspectBoxSimple,
 		makeForceAspectCheck(),
 	))
 
 	devicePresetSectionSimple := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
-		widget.NewLabel(t.ConvertDevicePresetHint),
-		devicePresetSelect,
+
+		ui.WithHelp(devicePresetSelect, t.ConvertDevicePresetHint),
 	))
 
 	userPresetSectionSimple := buildConvertBox(t.ConvertUserPresets, container.NewVBox(
@@ -12403,8 +12392,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	advancedVideoEncodingBlock = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		videoCodecRow,
-		videoCodecControls,
-		encoderPresetHintContainer,
+		container.NewBorder(nil, nil, nil, encoderPresetHintContainer, videoCodecControls),
 		profileLevelContainer,
 		tuneContainer,
 		widget.NewSeparator(),
@@ -12428,8 +12416,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		pixelFormatSelect,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionHardwareAccel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		hwAccelSelect,
-		hwAccelHintContainer,
+		container.NewBorder(nil, nil, nil, hwAccelHintContainer, hwAccelSelect),
 		twoPassCheck,
 		twoPassNote,
 	))
@@ -12469,8 +12456,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	aspectSectionAdvanced := buildConvertBox(t.ConvertSectionAspectRatio, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		targetAspectSelect,
-		targetAspectHintContainer,
+		container.NewBorder(nil, nil, nil, targetAspectHintContainer, targetAspectSelect),
 		widget.NewSeparator(),
 		customAspectBox,
 		aspectBox,
@@ -12479,16 +12465,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	autoCropSection := buildConvertBox(t.ConvertSectionAutoCrop, container.NewVBox(
 		autoCropCheck,
-		detectCropView,
-		autoCropHint,
+		container.NewBorder(nil, nil, nil, autoCropHint, detectCropView),
 	))
 
 	transformSection := buildConvertBox(t.ConvertSectionTransformations, container.NewVBox(
 		flipHorizontalCheck,
 		flipVerticalCheck,
 		widget.NewLabelWithStyle(t.ConvertSectionRotation, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		rotationSelect,
-		transformHint,
+		container.NewBorder(nil, nil, nil, transformHint, rotationSelect),
 	))
 
 	deinterlaceSection := buildConvertBox(t.ConvertSectionDeinterlacing, container.NewVBox(
@@ -12503,8 +12487,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	devicePresetSectionAdv := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
-		widget.NewLabel(t.ConvertDevicePresetHint),
-		devicePresetSelect,
+
+		ui.WithHelp(devicePresetSelect, t.ConvertDevicePresetHint),
 	))
 
 	userPresetSectionAdv := buildConvertBox(t.ConvertUserPresets, container.NewVBox(
@@ -12772,8 +12756,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
-	snippetModeHint := widget.NewLabel(t.ConvertUseConvSettings)
-	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
+	snippetModeHint := ui.NewHelpButton(t.ConvertUseConvSettings)
 
 	// Snippet position mode
 	snippetPositionLabel := widget.NewLabel(t.ConvertSnippetPosition)
@@ -12781,20 +12764,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.snippetFromCurrent = checked
 	})
 	snippetPositionCheck.SetChecked(state.snippetFromCurrent)
-	snippetPositionHint := widget.NewLabel(t.ConvertSnippetFromCurrentHint)
-	snippetPositionHint.TextStyle = fyne.TextStyle{Italic: true}
+	snippetPositionHint := ui.NewHelpButton(t.ConvertSnippetFromCurrentHint)
 
 	snippetConfigRow := container.NewVBox(
 		snippetLengthLabel,
 		snippetLengthSlider,
 		widget.NewSeparator(),
 		snippetModeLabel,
-		snippetModeCheck,
-		snippetModeHint,
+		container.NewBorder(nil, nil, nil, snippetModeHint, snippetModeCheck),
 		widget.NewSeparator(),
 		snippetPositionLabel,
-		snippetPositionCheck,
-		snippetPositionHint,
+		container.NewBorder(nil, nil, nil, snippetPositionHint, snippetPositionCheck),
 	)
 
 	snippetBtn := ui.MakePillButton(t.ConvertGenerateSnippet, ui.BorderDim, func() {
@@ -12959,7 +12939,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		})
 	}
 
-	snippetHint := widget.NewLabel(t.ConvertSnippetHint)
+	snippetHint := ui.NewHelpButton(t.ConvertSnippetHint)
 
 	var snippetOptionsBtn *ui.PillButton
 	snippetOptionsBtn = ui.MakePillButton(t.ConvertSnippetOptions, ui.BorderDim, func() {

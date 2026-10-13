@@ -1145,9 +1145,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	// Motion background (video loop) controls
 	motionBgLabel := widget.NewLabel(state.authorMenuMotionBackground)
 	motionBgLabel.Wrapping = fyne.TextWrapWord
-	motionBgNote := widget.NewLabel(t.AuthorMotionBackground)
-	motionBgNote.TextStyle = fyne.TextStyle{Italic: true}
-	motionBgNote.Wrapping = fyne.TextWrapWord
 	motionBgButton := ui.MakePillButton(t.AuthorSelectMotionBG, ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -1389,10 +1386,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		updateMargin(state.authorMenuStudioLogoMargin+2, true)
 	})
 
-	safeAreaNote := widget.NewLabel("Logos are constrained to DVD safe areas.")
-	safeAreaNote.TextStyle = fyne.TextStyle{Italic: true}
-	safeAreaNote.Wrapping = fyne.TextWrapWord
-
 	menuStructureSelect := widget.NewSelect([]string{
 		"Feature Only",
 		"Feature + Chapters",
@@ -1432,8 +1425,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	extrasMenuCheck.SetChecked(state.authorMenuExtrasEnabled)
-	extrasNote := widget.NewLabel(t.AuthorExtrasNote)
-	extrasNote.Wrapping = fyne.TextWrapWord
 
 	thumbSourceSelect := widget.NewSelect([]string{
 		"Auto",
@@ -1448,9 +1439,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.authorMenuChapterThumbnailSrc = "Auto"
 	}
 	thumbSourceSelect.SetSelected(state.authorMenuChapterThumbnailSrc)
-
-	info := widget.NewLabel("DVD menus are generated using the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
-	info.Wrapping = fyne.TextWrapWord
 
 	logoPreviewGroup := container.NewMax(
 		previewMin,
@@ -1490,7 +1478,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		createMenuCheck,
 		menuDisabledNote,
 		widget.NewLabel("Theme:"),
-		menuThemeSelect,
+		ui.WithHelp(menuThemeSelect, t.AuthorMenuStyleHelp),
 		container.NewHBox(widget.NewLabel("Bg:"), customBgColorEntry),
 		container.NewHBox(widget.NewLabel("Text:"), customTextColorEntry),
 		container.NewHBox(widget.NewLabel("Accent:"), customAccentColorEntry),
@@ -1499,9 +1487,8 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		bgImageLabel,
 		bgImageButton,
 		layout.NewSpacer(),
-		motionBgNote,
 		motionBgLabel,
-		container.NewHBox(motionBgButton, clearMotionBgButton),
+		ui.WithHelp(container.NewHBox(motionBgButton, clearMotionBgButton), t.AuthorMotionBackground),
 		widget.NewLabel("Menu Structure:"),
 		menuStructureSelect,
 	))
@@ -1512,8 +1499,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		logoFileRow,
 		logoPositionRow,
 		logoScaleRow,
-		logoMarginRow,
-		safeAreaNote,
+		ui.WithHelp(logoMarginRow, t.AuthorLogoSafeAreaHelp),
 	)
 	brandingContent := container.NewBorder(nil, nil, nil, logoPreviewGroup, brandingLeft)
 	brandingItem := widget.NewAccordionItem(t.AuthorBranding, brandingContent)
@@ -1530,8 +1516,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	navigation := buildMenuBox(t.AuthorNavigation, container.NewVBox(
-		extrasMenuCheck,
-		extrasNote,
+		ui.WithHelp(extrasMenuCheck, t.AuthorExtrasNote),
 		widget.NewLabel(t.AuthorChapterThumbSource),
 		thumbSourceSelect,
 	))
@@ -1548,8 +1533,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		navigation,
 		sectionGap(),
 		previewBox,
-		sectionGap(),
-		info,
 	)
 
 	updateMenuControls = func(enabled bool) {

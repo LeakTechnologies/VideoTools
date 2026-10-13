@@ -23,21 +23,19 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/queue"
 	vtheme "github.com/LeakTechnologies/VideoTools/internal/theme"
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
-	tooltipwidget "github.com/dweymouth/fyne-tooltip/widget"
 )
 
 // ShowTooltips controls whether tooltips are displayed globally.
 // Set this from main.go based on user preferences.
 var ShowTooltips bool = true
 
-// SetTooltip adds a tooltip to a widget if ShowTooltips is enabled
+// SetTooltip updates a control that implements durable tooltip support.
+// Plain widgets need a tooltip subclass or WithHelp; Go cannot add hover methods
+// to an existing widget dynamically.
 func SetTooltip(wid fyne.Widget, tooltip string) {
-	if !ShowTooltips || tooltip == "" {
-		return
+	if control, ok := wid.(interface{ SetToolTip(string) }); ok {
+		control.SetToolTip(tooltip)
 	}
-	var twe tooltipwidget.ToolTipWidgetExtend
-	twe.ExtendToolTipWidget(wid)
-	twe.SetToolTip(tooltip)
 }
 
 type monoFonts struct {
@@ -362,6 +360,7 @@ type ModuleTile struct {
 	onDropped           func([]fyne.URI)
 	flashing            bool
 	draggedOver         bool
+	help                hoverHelp
 }
 
 // NewModuleTile creates a new module tile
@@ -377,12 +376,7 @@ func NewModuleTile(label string, col color.Color, textCol color.Color, enabled b
 	}
 	m.ExtendBaseWidget(m)
 
-	// Set tooltip if provided
-	if tooltip != "" {
-		var twe tooltipwidget.ToolTipWidgetExtend
-		twe.ExtendToolTipWidget(m)
-		twe.SetToolTip(tooltip)
-	}
+	m.help = hoverHelp{owner: m, text: tooltip}
 
 	return m
 }
@@ -1717,6 +1711,7 @@ type ColoredSelect struct {
 	disabled        bool
 	disabledOptions map[string]bool
 	tooltip         string
+	help            hoverHelp
 }
 
 // NewColoredSelect creates a new colored select widget
@@ -1738,11 +1733,7 @@ func NewColoredSelect(options []string, colorMap map[string]color.Color, onChang
 // NewColoredSelectWithTooltip creates a new colored select widget with tooltip
 func NewColoredSelectWithTooltip(options []string, colorMap map[string]color.Color, onChange func(string), window fyne.Window, tooltip string) *ColoredSelect {
 	cs := NewColoredSelect(options, colorMap, onChange, window)
-	if ShowTooltips && tooltip != "" {
-		var twe tooltipwidget.ToolTipWidgetExtend
-		twe.ExtendToolTipWidget(cs)
-		twe.SetToolTip(tooltip)
-	}
+	cs.help = hoverHelp{window: window, owner: cs, text: tooltip}
 	return cs
 }
 

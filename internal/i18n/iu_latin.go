@@ -11,13 +11,23 @@ var iuLatn = Strings{
 	RipPreviewUnavailable: "Preview unavailable", // machine-generated, needs human review
 	RipOutputTitleName: "Output title", // machine-generated, needs human review
 	RipOutputNamesHint: "Files use output title_disc title. Output chooses their folder.", // machine-generated, needs human review
+	// machine-generated, needs human review
+	RipWholeTitle: "Full title (one file)",
+	RipIndividualChapters: "Every chapter (separate files)",
+	RipTitleChapterCountFmt: "Title %02d · %d chapters",
+	RipCustomChapterRanges: "Custom ranges",
+	RipChooseChapters: "Choose chapters to save as separate files.",
+	// machine-generated, needs human review
+	UpscaleMethodHelp: "Lanczos: sharp detail. Bicubic: smooth edges. Spline: balanced. Bilinear: faster processing.",
+	AuthorLogoSafeAreaHelp: "Logos are constrained to DVD safe areas.",
+	AuthorMenuStyleHelp: "DVD menus use the VideoTools theme and IBM Plex Mono. These settings apply only to disc authoring.",
 	RipChaptersLabel            : "Chapters", // machine-generated, needs human review
 	RipAllChapters              : "All chapters", // machine-generated, needs human review
 	RipSelectedChapters         : "Selected chapters", // machine-generated, needs human review
 	RipChapterSelectionHint     : "Each comma-separated chapter or range creates a separate file.", // machine-generated, needs human review
 	RipChapterFilesReadyFmt     : "Ready to rip %d chapter file(s)", // machine-generated, needs human review
 	RipChapterFilesQueuedFmt    : "Queued %d chapter file(s)", // machine-generated, needs human review
-	RipChapterInputInvalid      : "Enter chapters such as 1-3, 5-6, 8. Use positive numbers and ascending ranges.", // machine-generated, needs human review
+	RipChapterInputInvalid      : "Check the chapter numbers or ranges.", // machine-generated, needs human review
 	RipChapterInputOverlap      : "Chapter groups overlap or repeat. List each chapter only once.", // machine-generated, needs human review
 	RipChapterUnavailableFmt    : "This title has %d chapters; the selection exceeds that count.", // machine-generated, needs human review
 	RipChapterScanRequired      : "Load and scan a title with chapter data before selecting chapters.", // machine-generated, needs human review

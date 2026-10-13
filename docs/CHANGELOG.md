@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev101 — Chapter choices and contextual help
+
+- Rip offers full title, every chapter separately and chosen chapters with per-title counts and numbered checks; custom groups collapse.
+- Repair shared hover help and place optional explanations beside controls across unlocked modules. Preserve required labels, warnings and availability.
+- Remove unused hidden Rip disc player reads and replace whole-disc optical preview preparation with bounded exact-title samples.
+
+
 ## v0.1.1-dev100 — October 2026
 
 - Rip cards put the editable name beside title identity/duration, with one

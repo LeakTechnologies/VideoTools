@@ -2,6 +2,7 @@ package rip
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/queue"
@@ -11,12 +12,31 @@ func (vs *viewState) selectedChapterRanges() ([]ChapterSelectionRange, int, erro
 	if !vs.chapterOnly {
 		return nil, 0, nil
 	}
-	ranges, err := ParseChapterSelection(vs.chapterSelection)
-	if err != nil {
-		return nil, 0, err
-	}
 	if vs.scanResult == nil || len(vs.scanResult.Titles) == 0 {
 		return nil, 0, fmt.Errorf("%s", i18n.T().RipChapterScanRequired)
+	}
+	titles := vs.chapterTargets()
+	if len(titles) == 0 {
+		return nil, 0, fmt.Errorf("%s", i18n.T().RipReadyNoSelection)
+	}
+	var first []ChapterSelectionRange
+	count := 0
+	for _, title := range titles {
+		ranges, err := vs.rangesForTitle(title)
+		if err != nil {
+			return nil, 0, fmt.Errorf("%s %d: %w", i18n.T().RipTitleShort, title.Number, err)
+		}
+		if first == nil {
+			first = ranges
+		}
+		count += len(ranges)
+	}
+	return first, count, nil
+}
+
+func (vs *viewState) chapterTargets() []DiscTitle {
+	if vs.scanResult == nil || len(vs.scanResult.Titles) == 0 {
+		return nil
 	}
 	var titles []DiscTitle
 	if vs.extractMode == "main" {
@@ -34,15 +54,29 @@ func (vs *viewState) selectedChapterRanges() ([]ChapterSelectionRange, int, erro
 			}
 		}
 	}
-	if len(titles) == 0 {
-		return nil, 0, fmt.Errorf("%s", i18n.T().RipReadyNoSelection)
-	}
-	for _, title := range titles {
-		if err := ValidateChapterSelection(ranges, len(title.Chapters)); err != nil {
-			return nil, 0, fmt.Errorf("%s %d: %w", i18n.T().RipTitleShort, title.Number, err)
+	return titles
+}
+
+func (vs *viewState) rangesForTitle(title DiscTitle) ([]ChapterSelectionRange, error) {
+	if vs.chapterIndividual {
+		ranges := make([]ChapterSelectionRange, len(title.Chapters))
+		for i := range ranges {
+			ranges[i] = ChapterSelectionRange{Start: i + 1, End: i + 1}
 		}
+		return ranges, ValidateChapterSelection(ranges, len(title.Chapters))
 	}
-	return ranges, len(titles) * len(ranges), nil
+	text := vs.chapterSelection
+	if vs.chapterSelections != nil {
+		text = vs.chapterSelections[title.Number]
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, fmt.Errorf("%s", i18n.T().RipChooseChapters)
+	}
+	ranges, err := ParseChapterSelection(text)
+	if err != nil {
+		return nil, err
+	}
+	return ranges, ValidateChapterSelection(ranges, len(title.Chapters))
 }
 
 // Expand only after every target title has passed selection preflight.

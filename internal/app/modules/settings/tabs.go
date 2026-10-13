@@ -44,14 +44,6 @@ func settingsCard(title string, items ...fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewPadded(container.NewMax(bg, container.NewPadded(container.NewVBox(parts...))))
 }
 
-// hint returns a standard italic, word-wrapped hint label.
-func hint(text string) *widget.Label {
-	lbl := widget.NewLabel(text)
-	lbl.TextStyle = fyne.TextStyle{Italic: true}
-	lbl.Wrapping = fyne.TextWrapWord
-	return lbl
-}
-
 func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
 	t := i18n.T()
 	content := container.NewVBox()
@@ -204,8 +196,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		settingsRow(t.UpdateVersionHash, hashValLabel),
 		container.NewHBox(updateStatusIcon, updateStatusLabel),
 		container.NewHBox(checkBtn, installBtn),
-		settingsRow(t.UpdateAutoCheck, autoCheckSelect),
-		hint(t.SettingsUpdatesAutoInfo),
+		ui.WithHelp(settingsRow(t.UpdateAutoCheck, autoCheckSelect), t.SettingsUpdatesAutoInfo),
 	)
 
 	// ── Language ──────────────────────────────────────────────────────────────
@@ -316,13 +307,10 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	appearanceCard := settingsCard("Appearance",
 		settingsRow("Font Size", fontSizeSelect),
-		settingsRow(t.SettingsFont, fontSelect),
-		hint(t.SettingsFontHint),
+		ui.WithHelp(settingsRow(t.SettingsFont, fontSelect), t.SettingsFontHint),
 		showTooltipsCheck,
-		container.NewHBox(testPatternBtn),
-		hint(t.SettingsTestPatternHint),
-		settingsRow(t.SettingsPlayerAspect, aspectSelect),
-		hint(t.SettingsPlayerAspectHint),
+		ui.WithHelp(container.NewHBox(testPatternBtn), t.SettingsTestPatternHint),
+		ui.WithHelp(settingsRow(t.SettingsPlayerAspect, aspectSelect), t.SettingsPlayerAspectHint),
 	)
 
 	// ── Player ────────────────────────────────────────────────────────────────
@@ -405,21 +393,16 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	}
 
 	playerCard := settingsCard(t.ModulePlayer,
-		autoDeintCheck,
-		hint(t.SettingsAutoDeinterlaceHint),
+		ui.WithHelp(autoDeintCheck, t.SettingsAutoDeinterlaceHint),
 		widget.NewSeparator(),
-		settingsRow(t.SettingsSeekAccuracy, seekSelect),
-		hint(t.SettingsSeekAccuracyHint),
+		ui.WithHelp(settingsRow(t.SettingsSeekAccuracy, seekSelect), t.SettingsSeekAccuracyHint),
 		widget.NewSeparator(),
-		settingsRow(t.SettingsAVOffset, avOffsetEntry),
-		hint(t.SettingsAVOffsetHint),
+		ui.WithHelp(settingsRow(t.SettingsAVOffset, avOffsetEntry), t.SettingsAVOffsetHint),
 		widget.NewSeparator(),
 		hwDecodeHeader,
 		hwDecodeStatus,
-		hwDecodeAutoCheck,
-		hint(t.SettingsHWDecodeAutoHint),
-		settingsRow(t.SettingsHWDenyList, hwDenyListEntry),
-		hint(t.SettingsHWDenyListHint),
+		ui.WithHelp(hwDecodeAutoCheck, t.SettingsHWDecodeAutoHint),
+		ui.WithHelp(settingsRow(t.SettingsHWDenyList, hwDenyListEntry), t.SettingsHWDenyListHint),
 	)
 
 	// ── Hardware ──────────────────────────────────────────────────────────────
@@ -477,9 +460,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	showDisc.SetChecked(cb.ConvertShowDisc())
 
 	modulesCard := settingsCard(t.SettingsModuleVisibility,
-		showUpscale,
-		showDisc,
-		hint(t.SettingsModuleVisibilityHint),
+		ui.WithHelp(container.NewVBox(showUpscale, showDisc), t.SettingsModuleVisibilityHint),
 	)
 
 	// ── Queue Behaviour ───────────────────────────────────────────────────────
@@ -504,8 +485,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	queueCard := settingsCard(t.SettingsQueueSection,
 		widget.NewLabel(t.SettingsQueuePlayLabel),
-		queuePlayRadio,
-		hint(t.SettingsQueuePlayHint),
+		ui.WithHelp(queuePlayRadio, t.SettingsQueuePlayHint),
 	)
 
 	// ── Pipeline ──────────────────────────────────────────────────────────────
@@ -516,8 +496,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	keepIntermediateCheck.SetChecked(prefs.PipelineKeepIntermediate)
 
 	pipelineCard := settingsCard(t.SettingsPipelineSection,
-		keepIntermediateCheck,
-		hint(t.SettingsPipelineKeepIntermediateHint),
+		ui.WithHelp(keepIntermediateCheck, t.SettingsPipelineKeepIntermediateHint),
 	)
 
 	// ── Output Directory ──────────────────────────────────────────────────────
@@ -559,9 +538,8 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	outputCard := settingsCard(t.SettingsDefaultOutputDir,
 		container.NewBorder(nil, nil, nil,
 			container.NewHBox(outputBrowseBtn, outputClearBtn),
-			outputDirEntry,
+			ui.WithHelp(outputDirEntry, t.SettingsDefaultOutputDirHint),
 		),
-		hint(t.SettingsDefaultOutputDirHint),
 	)
 
 	// ── Developer Tools ───────────────────────────────────────────────────────
@@ -571,8 +549,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	verboseDiscCheck.SetChecked(cb.VerboseDiscLogging())
 
 	developerCard := settingsCard("Developer Tools",
-		verboseDiscCheck,
-		hint("Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues."),
+		ui.WithHelp(verboseDiscCheck, "Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues."),
 	)
 
 	// ── Log File ──────────────────────────────────────────────────────────────
@@ -598,8 +575,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	logCard := settingsCard("Log File",
 		logPathLabel,
-		container.NewHBox(openLogBtn, clearLogBtn),
-		hint("Clear removes all previous sessions from the log file. The file stays open — no restart needed."),
+		ui.WithHelp(container.NewHBox(openLogBtn, clearLogBtn), "Clear removes all previous sessions from the log file. The file stays open — no restart needed."),
 	)
 
 	return container.NewVBox(

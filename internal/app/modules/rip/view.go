@@ -58,6 +58,8 @@ type viewState struct {
 	outputUpdating        bool   // raised around programmatic outputEntry.SetText so its OnChanged is ignored
 	chapterOnly           bool   // each selected chapter group becomes a separate output
 	chapterSelection      string // page-style inclusive chapter groups
+	chapterIndividual     bool
+	chapterSelections     map[int]string
 	progress              float64
 
 	scanResult     *DiscScanResult
@@ -298,10 +300,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return lbl
 	}
 
-	// ── DVD Player (for background playback; hidden from main layout) ──────
-	dvdPlayer := ui.NewInlineVideoPlayer()
-	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
-
 	// ── Content Browser ─────────────────────────────────────────────────────
 	contentBrowser := NewContentBrowser()
 	if opts.SetPreviewCleanup != nil {
@@ -324,8 +322,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	contentBrowser.SetOnPreview(func(titleNum int) {
 		contentBrowser.SetFocused(titleNum)
-		discRoot := resolveDVDRoot(vs.sourcePath)
-		go func() { _ = dvdPlayer.LoadDVD(discRoot, titleNum) }()
 	})
 	contentBrowser.SetOnLockedSelect(func(titleNum int) {
 		if vs.extractMode != "main" && vs.extractMode != "segments" {
@@ -451,6 +447,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 			reservedOutputs[strings.ToLower(filepath.Clean(pending.OutputFile))] = true
 		}
 		enqueue := func(job *queue.Job) {
+			if vs.chapterOnly {
+				number, _ := job.Config["titleNumber"].(int)
+				for _, title := range vs.chapterTargets() {
+					if title.Number == number {
+						chapterRanges, _ = vs.rangesForTitle(title)
+						break
+					}
+				}
+			}
 			outputs := chapterOutputJobs(job, chapterRanges)
 			if ripFormat != FormatArchivist {
 				outputs = prepareNamedChapterJobs(job, naming, chapterRanges, reservedOutputs)
@@ -797,7 +802,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.videoTSPath = ""
 		vs.scanResult = nil
 		vs.selectedTitles = nil
-		dvdPlayer.Close()
 		rebuildTitleNav()
 		rebuildEnrich()
 		if opts.SetRipSourcePath != nil {
@@ -1210,12 +1214,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		// Rebuild content objects
 		objs := []fyne.CanvasObject{
 			widget.NewLabelWithStyle(t.RipTitleLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			titleEntry,
-			func() fyne.CanvasObject {
-				hint := widget.NewLabel(t.RipOutputNamesHint)
-				hint.Wrapping = fyne.TextWrapWord
-				return hint
-			}(),
+			ui.WithHelp(titleEntry, t.RipOutputNamesHint),
 			chaptersCheck,
 			chapterSelectionBox,
 			allAudioCheck,
@@ -1326,6 +1325,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.lastShapeMode = ""
 		vs.scanResult = nil
 		vs.selectedTitles = nil
+		vs.chapterSelections = nil
+		vs.chapterSelection = ""
 		rebuildEnrich()
 
 		// Set the scanning state AFTER the enrich rebuild — rebuildEnrich()
@@ -1361,7 +1362,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 							for _, dt := range result.Titles {
 								vs.selectedTitles[dt.Number] = true
 							}
-							go func() { _ = dvdPlayer.LoadDVD(path, result.Titles[0].Number) }()
 						}
 						rebuildTitleNav()
 						rebuildEnrich()
@@ -1394,10 +1394,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 						vs.selectedTitles = make(map[int]bool)
 						for _, dt := range result.Titles {
 							vs.selectedTitles[dt.Number] = true
-						}
-						if len(result.Titles) > 0 {
-							discRoot := resolveDVDRoot(vs.sourcePath)
-							go func() { _ = dvdPlayer.LoadDVD(discRoot, result.Titles[0].Number) }()
 						}
 						rebuildTitleNav()
 						rebuildEnrich()

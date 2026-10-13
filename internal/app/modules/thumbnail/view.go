@@ -140,10 +140,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
-	instructions := widget.NewLabel(or(opts.InstructionsLabel, "Generate thumbnails from a video file. Load a video and configure settings."))
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
 	if opts.ThumbnailCount == 0 {
 		opts.ThumbnailCount = 24
 	}
@@ -592,9 +588,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.32}, settingsPanel, livePanel)
 
 	topRow := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, clearBtn), fileLabel),
+		ui.WithHelp(container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, clearBtn), fileLabel), opts.InstructionsLabel),
 		widget.NewSeparator(),
 	)
 

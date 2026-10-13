@@ -25,3 +25,5 @@ review. Validation covers grammar, bounds, ordering, output naming, per-title
 preflight and independent queued configuration. Native build/vet/full tests
 remain the gate. Real-media multi-output and encrypted-disc acceptance are
 separate checks; the UI is not proof of content correctness.
+
+Dev101 replaces the shared input as the primary UI: counts and numbered checks are per title, Every chapter creates separate files, and custom groups remain optional under a collapsed section. Full title is the default. See [contextual help](UI_CONTEXTUAL_HELP.md).

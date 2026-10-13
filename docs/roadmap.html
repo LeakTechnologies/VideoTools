@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev100 &mdash; October 2026 (Rip browser cards and previews) &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev101 &mdash; October 2026 (Chapter choices and contextual help) &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -308,6 +308,7 @@ const statusLabels = {
 const roadmap = {
   Rip: {
     items: [
+      { id: 'contextual-help', title: 'Chapter Choices and Contextual Help (dev101)', desc: 'Visible per-title chapter counts and numbered choices: full title, every chapter separately, or chosen chapters. Optional ranges collapse. Durable hover/click help beside controls across unlocked modules; required status and warnings remain visible. Optical preview sampling replaces whole-disc preparation; one encrypted optical title produced a visibly populated representative still in 3.322s. Browser/output/playback acceptance remains separate.', status: 'done', cycle: 'dev101', files: ['internal/ui/help.go', 'internal/app/modules/rip/chapter_controls.go', 'internal/app/modules/rip/content_thumbnails.go'], deps: ['rip-selected-chapter-groups', 'rip-compact-previews'], docs: ['docs/UI_CONTEXTUAL_HELP.md'] },
       { id: 'rip-compact-previews', title: 'Compact Browser and Previews (dev100)', desc: 'Inline output names share title identity row; readable metadata and fixed preview slot. Refresh cached images, prepare one normalized/decrypted source, prioritize first stills with bounded workers and exact-title fallback. Retired views reject late scans/results. Neutral VCR/FFmpeg checks pass; encrypted-disc acceptance open.', status: 'done', cycle: 'dev100', files: ['internal/app/modules/rip/title_card_layout.go', 'internal/app/modules/rip/content_thumbnails.go', 'internal/app/modules/rip/content_list.go'], deps: ['rip-output-names'], docs: ['docs/RIP_BROWSER_DEV100.md'] },
       { id: 'rip-output-names', title: 'Per-title Output Names (dev99)', desc: 'Editable names on title cards combine with the disc Title and chapter suffixes. Protect existing and queued output paths. Success clears only the matching project/revision Title, preserving newer edits and queued snapshots. Stable recycled entry handlers; real-media/visual acceptance open.', status: 'done', cycle: 'dev99', files: ['internal/app/modules/rip/output_names.go', 'internal/app/modules/rip/content_list.go'], deps: ['rip-selected-chapter-groups'], docs: ['docs/RIP_OUTPUT_NAMES.md'] },
       { id: 'rip-selected-chapter-groups', title: 'Selected Chapter Groups (dev98)', desc: 'All/Selected chapters with page-style input. Each comma-separated chapter/range becomes a separate file per selected title. Validate all titles before enqueue and strict bounds at execution; existing range executor remains authoritative. Real-disc multi-output acceptance remains open.', status: 'done', cycle: 'dev98', files: ['internal/app/modules/rip/chapter_selection.go', 'internal/app/modules/rip/chapter_jobs.go', 'internal/app/modules/rip/chapter_controls.go'], deps: [], docs: ['docs/RIP_SELECTED_CHAPTERS.md'] },
@@ -653,7 +654,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev100';
+const currentVersion = 'dev101';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -849,7 +850,8 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev100', date: 'October 2026', tag: 'current', sections: [{ title: 'Rip browser cards and previews', items: ['Two-row cards, inline names, readable locked text and fixed previews.', 'Image refresh and shared title-correct preview pipeline; retirement, neutral PNG/DAR and geometry regressions. Encrypted-disc acceptance remains open.'] }] },
+  { version: 'v0.1.1-dev101', date: 'October 2026', tag: 'current', sections: [{ title: 'Chapter choices and contextual help', items: ['Per-title chapter choices and separate chapter outputs; full-title default retained.', 'Optional help beside controls throughout unlocked modules; working hover, click and navigation dismissal.', 'Bounded exact-title optical previews and no hidden Rip player reads.'] }] },
+  { version: 'v0.1.1-dev100', date: 'October 2026', tag: 'done', sections: [{ title: 'Rip browser cards and previews', items: ['Two-row cards, inline names, readable locked text and fixed previews.', 'Image refresh and shared title-correct preview pipeline; retirement, neutral PNG/DAR and geometry regressions. Encrypted-disc acceptance remains open.'] }] },
   { version: 'v0.1.1-dev99', date: 'October 2026', tag: 'done', sections: [{ title: 'Rip title names', items: ['Editable title names combine with disc Title and chapter suffixes; collision-safe output allocation.', 'Project-scoped success reset, immutable queued filenames and stable recycled entry ownership. Real-media/visual acceptance open.'] }] },
   { version: 'v0.1.1-dev98', date: 'October 2026', tag: 'done', sections: [{ title: 'Rip selected chapter outputs', items: ['Page-style selections queue separate outputs per group and title.', 'Strict bounds and all-target preflight; parser, planning and control regressions. Real-disc acceptance remains open.'] }] },
 
@@ -1824,6 +1826,7 @@ backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 's
 
 // --- Testing Checklist ---
 const checklistData = [
+  { title: 'Chapter choices and help (dev101)', items: ['Main feature full title remains one file', 'Every chapter uses each selected title chapter count', 'Chosen chapters and custom groups preserve per-title file boundaries', 'Hover delay, exit, navigation and preference behavior work; click and keyboard help stay available', 'Large text and many chapters remain readable', 'Optical previews use bounded title samples; encrypted previews require actual decode evidence', 'ISO extraction remains an explicit outstanding cost'] },
   { title: 'Rip compact previews (dev100)', items: ['No separate Output title label row; name input and identity stay readable', 'Normal/large text and narrow/wide cards do not overlap controls', 'Arriving thumbnail replaces blank cached pixels', 'DVD/ISO previews show the intended title and correct display aspect ratio', 'First stills precede later cycling frames; failures are visible inline', 'Changing source or leaving Rip prevents stale frames/scans', 'Complete encrypted-disc visual acceptance and shutdown scratch-cleanup checks'] },
   { title: 'VT_Player DVD navigation', items: ['ISO and VIDEO_TS/parent loading', 'Title/chapter timestamp correctness', 'Menu highlights and mouse/keyboard activation', 'Still/motion menus and menu return', 'Audio/subtitle choice', 'Close/replacement retirement', 'Encrypted/unencrypted acceptance'] },
   { title: 'Rip names (dev99)', items: ['Edit titles while scrolling; no cross-row name changes', 'Title and disc names combine with chapter suffixes', 'Existing/queued files cannot overwrite each other', 'Success clears the matching disc Title; failure/newer edits retain it', 'Queued names remain unchanged after reset; view rebuild retains the reset', 'Verify narrow/large-font UI and real-media output'] },

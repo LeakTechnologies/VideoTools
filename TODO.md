@@ -1,5 +1,13 @@
 # VideoTools TODO
 
+## dev101 follow-up
+
+- [x] Visible per-title chapter counts, chosen chapters, separate individual chapters and full titles.
+- [x] Repair durable hover help and collapse optional explanatory text across unlocked modules. [Audit](docs/UI_CONTEXTUAL_HELP.md).
+- [ ] Complete encrypted DVD -> Rip -> Convert -> playback acceptance and chapter output content checks.
+- [ ] Bound ISO preview source resolution without extracting the complete ISO.
+
+
 ## Dev100 — Compact Rip cards and previews
 
 - [x] Inline name editing, two-row geometry, readable locked text and larger preview slot.
@@ -1744,3 +1752,5 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
 
+
+- [ ] Repair Rip executor cell-concat address mapping: logical VOBID is not a physical VOB suffix; cell sectors span the VTS title stream. Preview test exposed this; executor output acceptance remains required.

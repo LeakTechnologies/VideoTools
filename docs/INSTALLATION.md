@@ -1,5 +1,7 @@
 # VideoTools Installation Guide
 
+VideoTools dev101: chapter selection shows available counts and numbered choices; optional help opens on hover or via the adjacent information button. Hover respects Settings. Full title remains one file; Every chapter creates separate files. Optical previews sample title data; ISO extraction remains unchanged.
+
 Dev100: Rip cards use inline name editing and preview thumbnails. Encrypted
 sources prepare one temporary plaintext copy for previews; allow preparation
 time. No new runtime dependencies.

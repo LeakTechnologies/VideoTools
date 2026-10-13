@@ -176,9 +176,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	methodSelect.SetSelected(opts.UpscaleMethod())
 
-	methodInfo := widget.NewLabel("Lanczos: Sharp, best quality\nBicubic: Smooth\nSpline: Balanced\nBilinear: Fast")
-	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
-	methodInfo.Wrapping = fyne.TextWrapWord
+	methodInfo := ui.NewHelpButton(t.UpscaleMethodHelp)
 
 	// One-click preset selector
 	presetDescLabel := widget.NewLabel("")
@@ -273,15 +271,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleManualCRF(int(v))
 		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
 	}
-	crfHint := newWrappingLabel(t.UpscaleCRFHint)
-	crfHint.TextStyle = fyne.TextStyle{Italic: true}
-	crfHint.Wrapping = fyne.TextWrapWord
+	crfHint := ui.NewHelpButton(t.UpscaleCRFHint)
 	crfSection := container.NewVBox(
 		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleManualCRFLabel),
+			container.NewBorder(nil, nil, nil, crfHint, widget.NewLabel(t.UpscaleManualCRFLabel)),
 			container.NewBorder(nil, nil, nil, crfValueLabel, crfSlider),
 		),
-		crfHint,
 	)
 
 	bitratePresetOptions := []string{
@@ -351,10 +346,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		currentPreset = "2.5 Mbps - Medium"
 	}
 	bitratePresetSelect.SetSelected(currentPreset)
-	bitrateHint := newWrappingLabel(t.UpscaleBitrateHint)
+	bitrateHint := ui.NewHelpButton(t.UpscaleBitrateHint)
 	bitrateSection := container.NewVBox(
 		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleBitrateValueLabel),
+			container.NewBorder(nil, nil, nil, bitrateHint, widget.NewLabel(t.UpscaleBitrateValueLabel)),
 			bitratePresetSelect,
 		),
 		container.NewGridWithColumns(2,
@@ -362,7 +357,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			customCheck,
 		),
 		bitrateEntry,
-		bitrateHint,
 	)
 
 	updateBitrateModeUI := func(mode string) {
@@ -465,13 +459,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	skinToneSelect.SetSelected(opts.UpscaleSkinTone())
 
-	colourHint := newWrappingLabel(t.UpscaleColourHint)
-	colourHint.TextStyle = fyne.TextStyle{Italic: true}
-	colourHint.Wrapping = fyne.TextWrapWord
+	colourHint := ui.NewHelpButton(t.UpscaleColourHint)
 
 	colourAccuracySection := buildUpscaleBox(t.UpscaleColourBox, container.NewVBox(
 		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleSrcColourLabel),
+			container.NewBorder(nil, nil, nil, colourHint, widget.NewLabel(t.UpscaleSrcColourLabel)),
 			srcColourSelect,
 		),
 		container.NewGridWithColumns(2,
@@ -482,7 +474,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			widget.NewLabel(t.UpscaleSkinToneLabel),
 			skinToneSelect,
 		),
-		colourHint,
 	))
 
 	frameRateLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleFrameRateFmt, opts.UpscaleFrameRate()))
@@ -510,9 +501,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 	})
-	motionInterpHint := newWrappingLabel(t.UpscaleMotionHint)
-	motionInterpHint.TextStyle = fyne.TextStyle{Italic: true}
-	motionInterpHint.Wrapping = fyne.TextWrapWord
+	motionInterpHint := ui.NewHelpButton(t.UpscaleMotionHint)
 
 	frameRateSection = buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
 		container.NewGridWithColumns(2,
@@ -813,7 +802,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	traditionalSection := buildUpscaleBox(t.UpscaleScalingBox, container.NewVBox(
-		newWrappingLabel(t.UpscaleClassicDesc),
+		ui.WithHelp(widget.NewLabel(t.UpscaleScalingBox), t.UpscaleClassicDesc),
 		container.NewGridWithColumns(2,
 			presetLabel,
 			presetSelect,
@@ -821,11 +810,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		presetDescLabel,
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleScalingLabel),
-			methodSelect,
+			container.NewBorder(nil, nil, nil, methodInfo, methodSelect),
 		),
 		methodLabel,
 		widget.NewSeparator(),
-		methodInfo,
 		widget.NewSeparator(),
 		aiSection,
 	))
@@ -1293,8 +1281,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		colourAccuracySection,
 		spacing(),
 		frameRateSection,
-		motionInterpCheck,
-		motionInterpHint,
+		container.NewBorder(nil, nil, nil, motionInterpHint, motionInterpCheck),
 		spacing(),
 		rifeSection,
 		spacing(),

@@ -9,20 +9,30 @@ package i18n
 //  2. Set the English value in en_ca.go.
 //  3. Add translations to other language files as available.
 type Strings struct {
-	RipPreviewPreparing string
-	RipPreviewUnavailable string
-	RipOutputTitleName string
-	RipOutputNamesHint string
-	RipChaptersLabel            string
-	RipAllChapters              string
-	RipSelectedChapters         string
-	RipChapterSelectionHint     string
-	RipChapterFilesReadyFmt     string
-	RipChapterFilesQueuedFmt    string
-	RipChapterInputInvalid      string
-	RipChapterInputOverlap      string
-	RipChapterUnavailableFmt    string
-	RipChapterScanRequired      string
+	UpscaleMethodHelp      string
+	AuthorLogoSafeAreaHelp string
+	AuthorMenuStyleHelp    string
+
+	RipWholeTitle           string
+	RipIndividualChapters   string
+	RipTitleChapterCountFmt string
+	RipCustomChapterRanges  string
+	RipChooseChapters       string
+
+	RipPreviewPreparing      string
+	RipPreviewUnavailable    string
+	RipOutputTitleName       string
+	RipOutputNamesHint       string
+	RipChaptersLabel         string
+	RipAllChapters           string
+	RipSelectedChapters      string
+	RipChapterSelectionHint  string
+	RipChapterFilesReadyFmt  string
+	RipChapterFilesQueuedFmt string
+	RipChapterInputInvalid   string
+	RipChapterInputOverlap   string
+	RipChapterUnavailableFmt string
+	RipChapterScanRequired   string
 
 	// ── App ──────────────────────────────────────────────────────────────
 	AppTitle string

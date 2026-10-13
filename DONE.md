@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## VideoTools v0.1.1-dev101
+
+Chapter picker and contextual help integrated across unlocked modules. Optical preview samples are bounded and main-feature first. [Evidence and checklist](docs/UI_CONTEXTUAL_HELP.md). Real-media acceptance is reported separately.
+
+
 ## v0.1.1-dev100 — Compact Rip browser cards and thumbnails
 
 Output-name input shares the identity row; metadata remains below. Locked text

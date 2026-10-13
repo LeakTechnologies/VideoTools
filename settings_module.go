@@ -1897,6 +1897,9 @@ func (a *preferencesAdapter) PrefsConfig() prefsConfig {
 }
 
 func (a *preferencesAdapter) SetShowTooltips(enabled bool) {
+	if !enabled {
+		ui.DismissTooltips()
+	}
 	a.s.prefs.ShowTooltips = enabled
 	ui.ShowTooltips = enabled
 	if err := savePrefsConfig(a.s.prefs); err != nil {

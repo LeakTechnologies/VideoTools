@@ -58,3 +58,30 @@ func TestChapterSelectionPreflightsEveryTarget(t *testing.T) {
 		t.Fatal("all chapters must not require scan")
 	}
 }
+
+func TestIndividualChaptersUseEachTitlesOwnCount(t *testing.T) {
+	vs := &viewState{chapterOnly: true, chapterIndividual: true, selectedTitles: map[int]bool{1: true, 2: true}, scanResult: &DiscScanResult{Titles: []DiscTitle{{Number: 1, Chapters: make([]float64, 5)}, {Number: 2, Chapters: make([]float64, 2)}}}}
+	if _, count, err := vs.selectedChapterRanges(); err != nil || count != 7 {
+		t.Fatalf("individual files: %d %v", count, err)
+	}
+	for _, title := range vs.chapterTargets() {
+		ranges, err := vs.rangesForTitle(title)
+		if err != nil || len(ranges) != len(title.Chapters) {
+			t.Fatalf("title-specific ranges: %v %v", ranges, err)
+		}
+		for i, span := range ranges {
+			if span.Start != i+1 || span.End != i+1 {
+				t.Fatal("individual chapters merged")
+			}
+		}
+	}
+	vs.chapterIndividual = false
+	vs.chapterSelections = map[int]string{1: "1, 3-4", 2: "2"}
+	if _, count, err := vs.selectedChapterRanges(); err != nil || count != 3 {
+		t.Fatalf("per-title selection: %d %v", count, err)
+	}
+	vs.chapterSelections[2] = "3"
+	if _, count, err := vs.selectedChapterRanges(); err == nil || count != 0 {
+		t.Fatal("invalid per-title choice accepted")
+	}
+}

@@ -67,16 +67,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	bottomBar := cb.ModuleFooter(nil)
 
-	instructions := widget.NewLabel(t.InspectInstructions)
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
 	clearBtn := ui.MakePillButton(t.ActionClear, ui.BorderDim, func() {
 		cb.ClearFile()
 		cb.ShowInspectView()
 	})
-
-	instructionsRow := container.NewBorder(nil, nil, nil, nil, instructions)
 
 	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -686,7 +680,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	mainSplit = container.NewHSplit(leftColumn, rightColumn)
 	mainSplit.SetOffset(0.5)
 	content := container.NewBorder(
-		container.NewVBox(instructionsRow, actionButtons, widget.NewSeparator()),
+		container.NewVBox(ui.WithHelp(actionButtons, t.InspectInstructions), widget.NewSeparator()),
 		nil, nil, nil,
 		mainSplit,
 	)

@@ -141,10 +141,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bottomBar = container.NewVBox(statsBar, layout.NewSpacer())
 	}
 
-	instructions := widget.NewLabel(t.CompareInstructions)
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
 	fullscreenBtn := ui.MakePillButton(t.CompareFullscreen, compareColor, func() {
 		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosFSMsg, opts.Window)
@@ -313,7 +309,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return ui.SectionBox(navyBlue, compareColor, title, content)
 	}
 
-	instructionsRow := container.NewBorder(nil, nil, nil, container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), instructions)
+	instructionsRow := ui.WithHelp(container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), t.CompareInstructions)
 
 	file1Label := widget.NewLabel(t.CompareFile1NotLoaded)
 	file1Label.TextStyle = fyne.TextStyle{Bold: true}

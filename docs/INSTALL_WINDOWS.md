@@ -1,5 +1,7 @@
 # VideoTools Installation Guide for Windows
 
+VideoTools dev101: chapter selection shows available counts and numbered choices; optional help opens on hover or via the adjacent information button. Hover respects Settings. Full title remains one file; Every chapter creates separate files. Optical previews sample title data; ISO extraction remains unchanged.
+
 Dev100: compact Rip cards and restored preview handling. Encrypted preview
 preparation uses a temporary copy; static packaging and dependencies are unchanged.
 

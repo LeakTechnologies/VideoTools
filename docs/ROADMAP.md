@@ -1,5 +1,10 @@
 # VideoTools Roadmap
 
+## v0.1.1-dev101 — Chapter choices and contextual help
+
+Visible chapter counts and per-title choices; individual files or full titles. Optional explanations move beside controls throughout unlocked modules. Automatic optical previews use bounded samples. [Design and audit](UI_CONTEXTUAL_HELP.md).
+
+
 ## v0.1.1-dev100 — Rip browser presentation and previews
 
 Compact inline title naming and restored image-cache/source handling. Shared,
