@@ -1,5 +1,7 @@
 # VideoTools - Completed Features
 
+Documentation correction: release versions belong to VideoTools; VT_Player is the module name. AGENTS.md now makes this distinction strict, and the roadmap acceptance heading is corrected. Application name, version metadata and existing tags were already correct.
+
 ## v0.1.1-dev98 — Rip selected chapter groups
 
 All/Selected chapters replaces the From/To control. A selection such as

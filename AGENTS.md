@@ -1,5 +1,12 @@
 # VideoTools Agent Workflow Rules
 
+## Product and module naming — strict
+
+- **VideoTools** is the product; **VT** may be used as its abbreviation. Every version, release, tag and published build belongs to VideoTools: `VideoTools v0.1.1-devN`.
+- **VT_Player** is a module within VideoTools. Use this exact spelling in prose. Describe its changes as “VideoTools v0.1.1-devN — VT_Player improvements”; never describe a suite version as “VT_Player devN” or imply a separately versioned player product.
+- Preserve established code identifiers, package paths and application metadata. This naming rule does not authorize unrelated renames or a separate player release.
+
+
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
 
 ## Lead designer handoff — Player Clear source state
