@@ -36,6 +36,9 @@ func (s *appState) showRipView() {
 }
 
 func (s *appState) buildRipView() fyne.CanvasObject {
+	if s.ripProjectNaming == nil {
+		s.ripProjectNaming = ripmod.NewProjectNaming()
+	}
 	opts := ripmod.Options{
 		Window:      s.window,
 		ModuleColor: moduleColor("rip"),
@@ -44,6 +47,7 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		RipOutputPath: s.ripOutputPath,
 		RipFormat:     s.ripFormat,
 		RipProgress:   s.ripProgress,
+		ProjectNaming: s.ripProjectNaming,
 
 		QueueBtn: s.queueBtn,
 
@@ -268,7 +272,18 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		OnLogFileCreated: func(logPath string) { job.LogPath = logPath },
 	}
 
-	return ripmod.Execute(ctx, execOpts)
+	if err := ripmod.Execute(ctx, execOpts); err != nil {
+		return err
+	}
+	projectToken := toString(cfg["ripProjectToken"])
+	if app := fyne.CurrentApp(); app != nil && app.Driver() != nil {
+		app.Driver().DoFromGoroutine(func() {
+			if s.ripProjectNaming != nil {
+				s.ripProjectNaming.ResetIfCurrent(projectToken)
+			}
+		}, false)
+	}
+	return nil
 }
 
 func defaultRipOutputPath(sourcePath, format string) string {

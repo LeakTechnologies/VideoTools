@@ -1,5 +1,15 @@
 # VideoTools Changelog
 
+## v0.1.1-dev99 — October 2026
+
+- Rip content cards gain Output title entries. Filenames use
+  title-name_disc-title plus chapter-group suffixes, preserving output directory
+  and extension while avoiding existing and queued collisions.
+- Successful verified rips clear the current project's disc Title. Failures and
+  older completions cannot clear newer edits; queued files retain their names.
+- Behavioral recycling, allocation, snapshot and reset tests; real-disc and
+  full visual acceptance remain open.
+
 Documentation correction: release versions belong to VideoTools; VT_Player is the module name. AGENTS.md now makes this distinction strict, and the roadmap acceptance heading is corrected. Application name, version metadata and existing tags were already correct.
 
 ## v0.1.1-dev98 — October 2026

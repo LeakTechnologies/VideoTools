@@ -43,6 +43,7 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/app/configpath"
 	convertmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/convert"
 	queuemodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/queue"
+	ripmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/trim"
 	"github.com/LeakTechnologies/VideoTools/internal/app/recentfiles"
 	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
@@ -104,7 +105,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev98"
+	appVersion         = "v0.1.1-dev99"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1460,6 +1461,7 @@ type appState struct {
 	burnLogFilePath string
 
 	// Rip module state
+	ripProjectNaming *ripmodule.ProjectNaming
 	ripSourcePath  string
 	ripOutputPath  string
 	ripFormat      string

@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Linux & WSL
 
+Dev99: Rip card output names combine with disc Title and chapter suffixes.
+Successful jobs clear the matching disc Title. Runtime dependencies are unchanged.
+
 Dev98 Rip: All/Selected chapters and page-style groups create separate files.
 Runtime dependencies are unchanged; Linux visual acceptance remains pending.
 

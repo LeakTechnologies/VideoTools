@@ -141,6 +141,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 		format:     opts.RipFormat,
 		progress:   opts.RipProgress,
 	}
+	naming := opts.ProjectNaming
+	if naming == nil {
+		naming = NewProjectNaming()
+	}
+	naming.SetOnReset(nil)
+	naming.SetSource(vs.sourcePath)
+	vs.discTitle = naming.DiscTitle
 
 	// Load persisted config.
 	if cfg, err := loadPersistedRipConfig(); err == nil {
@@ -178,6 +185,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	sourceEntry.SetText(vs.sourcePath)
 	sourceEntry.OnChanged = func(val string) {
 		vs.sourcePath = strings.TrimSpace(val)
+		naming.SetSource(vs.sourcePath)
 		if opts.SetRipSourcePath != nil {
 			opts.SetRipSourcePath(vs.sourcePath)
 		}
@@ -296,6 +304,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	// ── Content Browser ─────────────────────────────────────────────────────
 	contentBrowser := NewContentBrowser()
+	contentBrowser.SetOnOutputName(func(number int, name string) {
+		naming.SetOutputName(number, name)
+	})
 	contentBrowser.SetOnSelect(func(titleNum int, selected bool) {
 		vs.selectedTitles[titleNum] = selected
 		if updateRipSummary != nil {
@@ -359,6 +370,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// and selection so the radio and title cards stay in sync.
 	rebuildTitleNav = func() {
 		contentBrowser.SetScanResult(vs.scanResult, vs.sourcePath)
+		contentBrowser.SetOutputNames(naming.OutputNames)
 		sceneSet = SceneSetInfo{}
 		if vs.scanResult != nil {
 			sceneSet = DetectSceneSets(vs.scanResult.Titles)
@@ -402,12 +414,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 				InputFile:   vs.sourcePath,
 				OutputFile:  vs.outputPath,
 				Config: map[string]interface{}{
-					"sourcePath":    vs.sourcePath,
-					"outputPath":    vs.outputPath,
-					"format":        ripFormat,
-					"regionConvert": vs.regionConvert,
-					"extractMode":   vs.extractMode,
-					"discTitle":     vs.discTitle,
+					"sourcePath":      vs.sourcePath,
+					"outputPath":      vs.outputPath,
+					"format":          ripFormat,
+					"regionConvert":   vs.regionConvert,
+					"extractMode":     vs.extractMode,
+					"discTitle":       vs.discTitle,
+					"ripProjectToken": naming.Token(),
 				},
 			}
 			opts.AddJob(job)
@@ -430,8 +443,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 		queuedCount := 0
+		reservedOutputs := make(map[string]bool)
+		for _, pending := range jq.List() {
+			reservedOutputs[strings.ToLower(filepath.Clean(pending.OutputFile))] = true
+		}
 		enqueue := func(job *queue.Job) {
-			for _, chapterJob := range chapterOutputJobs(job, chapterRanges) {
+			outputs := chapterOutputJobs(job, chapterRanges)
+			if ripFormat != FormatArchivist {
+				outputs = prepareNamedChapterJobs(job, naming, chapterRanges, reservedOutputs)
+			} else {
+				job.Config["ripProjectToken"] = naming.Token()
+			}
+			for _, chapterJob := range outputs {
 				opts.AddJob(chapterJob)
 				queuedCount++
 			}
@@ -791,12 +814,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 	titleEntry.SetText(vs.discTitle)
 	titleEntry.OnChanged = func(v string) {
 		vs.discTitle = strings.TrimSpace(v)
+		naming.SetDiscTitle(vs.discTitle)
 		// The output follows the Title once set, unless the user has hand-edited
 		// the path (full-disc/region outputs get the title-based folder name too).
 		if !vs.outputTouched {
 			applyOutputPath()
 		}
 	}
+	naming.SetOnReset(func() {
+		vs.discTitle = ""
+		titleEntry.SetText("")
+		applyOutputPath()
+		contentBrowser.SetOutputNames(naming.OutputNames)
+		if updateDiscInfo != nil {
+			updateDiscInfo()
+		}
+	})
 
 	chaptersCheck := widget.NewCheck(t.RipEmbedChapters, func(v bool) {
 		vs.embedChapters = v
@@ -1094,7 +1127,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	// Pre-fill title from source path when source changes
 	sourceChangedHook := func(path string) {
-		if vs.discTitle == "" && path != "" {
+		if vs.discTitle == "" && path != "" && !naming.TitleCleared {
 			base := filepath.Base(strings.TrimSuffix(path, string(filepath.Separator)))
 			if strings.EqualFold(base, "VIDEO_TS") {
 				base = filepath.Base(filepath.Dir(path))
@@ -1175,6 +1208,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		objs := []fyne.CanvasObject{
 			widget.NewLabelWithStyle(t.RipTitleLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
+			func() fyne.CanvasObject {
+				hint := widget.NewLabel(t.RipOutputNamesHint)
+				hint.Wrapping = fyne.TextWrapWord
+				return hint
+			}(),
 			chaptersCheck,
 			chapterSelectionBox,
 			allAudioCheck,

@@ -44,6 +44,7 @@ type Options struct {
 	RipOutputPath string
 	RipFormat     string
 	RipProgress   float64
+	ProjectNaming *ProjectNaming
 
 	// Widget refs set back on the caller via Set* callbacks.
 	QueueBtn       *ui.PillButton

@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## v0.1.1-dev99 — Rip per-title naming
+
+Editable card names combine with disc Title; chapter groups retain suffixes.
+Existing and queued paths are protected from collisions. Successful verified
+rips clear the matching project's Title without changing queued names or newer
+edits; failed jobs retain state. Recycled entry handlers use stable ownership.
+[Design](docs/RIP_OUTPUT_NAMES.md). Real-media and full visual acceptance open.
+
 Documentation correction: release versions belong to VideoTools; VT_Player is the module name. AGENTS.md now makes this distinction strict, and the roadmap acceptance heading is corrected. Application name, version metadata and existing tags were already correct.
 
 ## v0.1.1-dev98 — Rip selected chapter groups

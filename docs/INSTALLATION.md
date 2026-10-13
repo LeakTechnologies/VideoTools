@@ -1,5 +1,9 @@
 # VideoTools Installation Guide
 
+Dev99: Rip title cards have Output title entries. Single-title filenames combine
+that name with the disc Title; chapter groups add suffixes. Success clears the
+matching project's disc Title. No new runtime dependencies.
+
 Dev98: Rip uses All chapters / Selected chapters. Enter chapter groups such as
 1-3, 5-6, 8 to create separate files; no new runtime dependencies.
 

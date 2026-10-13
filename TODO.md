@@ -1,5 +1,13 @@
 # VideoTools TODO
 
+## Dev99 — Per-title output names
+
+- [x] Output title entries in every content card; combined title/disc filenames,
+  safe path components and existing/queued collision allocation.
+- [x] Project/revision-scoped success reset; failed jobs/newer edits unaffected.
+- [x] Behavioral recycling, naming, queue snapshot and reset tests.
+- [ ] Real-media acceptance and narrow/large-font visual checks; [design](docs/RIP_OUTPUT_NAMES.md).
+
 Documentation correction: release versions belong to VideoTools; VT_Player is the module name. AGENTS.md now makes this distinction strict, and the roadmap acceptance heading is corrected. Application name, version metadata and existing tags were already correct.
 
 ## Dev98 — Selected chapter outputs
@@ -8,7 +16,7 @@ Documentation correction: release versions belong to VideoTools; VT_Player is th
 - [x] Preflight all selected titles; preserve separate adjacent groups, reject
   overlaps/unavailable chapters and carry strict bounds into queued jobs.
 - [ ] Real-media multi-output acceptance; see [design](docs/RIP_SELECTED_CHAPTERS.md).
-- [ ] Next requested Rip slice: per-title output naming and safe successful-job
+- [x] Next requested Rip slice: per-title output naming and safe successful-job
   reset of the disc title.
 
 Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.

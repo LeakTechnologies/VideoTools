@@ -42,19 +42,21 @@ var (
 type ContentBrowser struct {
 	widget.BaseWidget
 
-	mu         sync.Mutex
-	scanResult *DiscScanResult
-	sourcePath string
-	titleCards []*titleCardState
-	ticker     *time.Ticker
-	tickerDone chan struct{}
-	onSelect   func(titleNum int, selected bool)
-	onPreview  func(titleNum int)
-	onBulkSel  func(map[int]bool)
-	selected   map[int]bool
-	locked     map[int]bool // mode-locked titles: greyed out + deselected; clicking exits the mode
-	anchored   map[int]bool // mode-anchored titles: forced selected, clicking is a no-op
-	focused    int          // title number currently focused for preview; 0 = none
+	mu           sync.Mutex
+	scanResult   *DiscScanResult
+	sourcePath   string
+	titleCards   []*titleCardState
+	ticker       *time.Ticker
+	tickerDone   chan struct{}
+	onSelect     func(titleNum int, selected bool)
+	onPreview    func(titleNum int)
+	onBulkSel    func(map[int]bool)
+	onOutputName func(titleNum int, name string)
+	outputNames  map[int]string
+	selected     map[int]bool
+	locked       map[int]bool // mode-locked titles: greyed out + deselected; clicking exits the mode
+	anchored     map[int]bool // mode-anchored titles: forced selected, clicking is a no-op
+	focused      int          // title number currently focused for preview; 0 = none
 
 	onLockedSelect   func(titleNum int)
 	onLockedModeExit func()
@@ -70,8 +72,10 @@ type ContentBrowser struct {
 // the user is looking at.
 type cardBox struct {
 	widget.BaseWidget
-	Container *fyne.Container
-	owner     *titleCardState
+	Container    *fyne.Container
+	owner        *titleCardState
+	nameEntry    *widget.Entry
+	nameUpdating bool
 }
 
 // Fyne traverses widgets through their renderer. Embedding a Container alone
@@ -152,6 +156,7 @@ func (cb *ContentBrowser) SetScanResult(result *DiscScanResult, sourcePath strin
 	cb.sourcePath = sourcePath
 	cb.titleCards = nil
 	cb.selected = make(map[int]bool)
+	cb.outputNames = make(map[int]string)
 	cb.locked = nil
 	cb.anchored = nil
 
@@ -199,6 +204,25 @@ func (cb *ContentBrowser) SetOnSelect(fn func(int, bool)) {
 	cb.mu.Lock()
 	cb.onSelect = fn
 	cb.mu.Unlock()
+}
+
+// SetOnOutputName registers user edits to a title's output filename component.
+func (cb *ContentBrowser) SetOnOutputName(fn func(int, string)) {
+	cb.mu.Lock()
+	cb.onOutputName = fn
+	cb.mu.Unlock()
+}
+
+// SetOutputNames restores names for the current disc without firing edit callbacks.
+// Like other visual browser updates, call this on the UI thread.
+func (cb *ContentBrowser) SetOutputNames(names map[int]string) {
+	cb.mu.Lock()
+	cb.outputNames = make(map[int]string, len(names))
+	for number, name := range names {
+		cb.outputNames[number] = name
+	}
+	cb.mu.Unlock()
+	cb.list.Refresh()
 }
 
 // SetOnBulkSelect registers a callback invoked once after Select All /
@@ -404,6 +428,9 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	infoLabel.Importance = widget.MediumImportance
 
 	check := widget.NewCheck("", nil)
+	nameEntry := widget.NewEntry()
+	nameEntry.SetPlaceHolder(i18n.T().RipOutputTitleName)
+	nameRow := container.NewVBox(widget.NewLabel(i18n.T().RipOutputTitleName), nameEntry)
 
 	accentBar := canvas.NewRectangle(ripTeal)
 	accentBar.SetMinSize(fyne.NewSize(accentWidth, 0))
@@ -411,7 +438,7 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	card := container.NewHBox(
 		accentBar,
 		container.NewMax(thumbBg, thumb),
-		container.NewVBox(titleLabel, infoLabel),
+		container.NewVBox(titleLabel, infoLabel, nameRow),
 		layout.NewSpacer(),
 		check,
 	)
@@ -421,10 +448,31 @@ func (cb *ContentBrowser) buildCardTemplate() fyne.CanvasObject {
 	// scrolling; a handler rewired at the end of a render stays active during
 	// the NEXT row's SetChecked, which fires it synchronously and overwrites
 	// the previous row's selection with the new row's display state.
-	box := &cardBox{Container: card}
+	box := &cardBox{Container: card, nameEntry: nameEntry}
 	box.ExtendBaseWidget(box)
 	check.OnChanged = func(v bool) {
 		cb.toggleCard(box, check, v)
+	}
+	nameEntry.OnChanged = func(name string) {
+		if box.nameUpdating {
+			return
+		}
+		cb.mu.Lock()
+		owner := box.owner
+		if owner == nil {
+			cb.mu.Unlock()
+			return
+		}
+		if cb.outputNames == nil {
+			cb.outputNames = make(map[int]string)
+		}
+		number := owner.title.Number
+		cb.outputNames[number] = name
+		fn := cb.onOutputName
+		cb.mu.Unlock()
+		if fn != nil {
+			fn(number, name)
+		}
 	}
 	return box
 }
@@ -439,6 +487,10 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	tc := cb.titleCards[id]
 	isSelected := cb.selected[dt.Number]
 	isLockedOut := cb.locked[dt.Number]
+	outputName, hasOutputName := cb.outputNames[dt.Number]
+	if !hasOutputName {
+		outputName = fmt.Sprintf("Title_%02d", dt.Number)
+	}
 	cb.mu.Unlock()
 
 	box := obj.(*cardBox)
@@ -522,6 +574,11 @@ func (cb *ContentBrowser) updateCard(id widget.ListItemID, obj fyne.CanvasObject
 	// titles are forced selected; clicking them is a no-op.
 	displayChecked := isSelected && !isLockedOut
 	box.owner = tc
+	// Entry.SetText fires OnChanged synchronously. Bind ownership first and
+	// guard the recycled widget itself so rebinding cannot edit either row.
+	box.nameUpdating = true
+	box.nameEntry.SetText(outputName)
+	box.nameUpdating = false
 	tc.box = box
 	tc.checked = check
 	// The card's OnChanged handler was wired once in buildCardTemplate and

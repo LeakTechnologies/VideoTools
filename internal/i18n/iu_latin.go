@@ -7,6 +7,8 @@ package i18n
 // the romanization uses standard Latin characters.
 // Empty fields fall back to enCA automatically.
 var iuLatn = Strings{
+	RipOutputTitleName: "Output title", // machine-generated, needs human review
+	RipOutputNamesHint: "Files use output title_disc title. Output chooses their folder.", // machine-generated, needs human review
 	RipChaptersLabel            : "Chapters", // machine-generated, needs human review
 	RipAllChapters              : "All chapters", // machine-generated, needs human review
 	RipSelectedChapters         : "Selected chapters", // machine-generated, needs human review

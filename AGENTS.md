@@ -48,6 +48,8 @@ These rules apply to **every** agent working in this repo — Claude, opencode, 
 
 ## Current Project State
 
+- **Cycle: v0.1.1-dev99** — Rip title cards have editable output names. Single-title files combine title name + disc Title, then optional chapter suffix. Project-scoped successful-job reset clears only the matching current disc Title; failures, queued filenames and newer project edits remain intact. [Design](docs/RIP_OUTPUT_NAMES.md). Recycled card handlers bind current ownership before programmatic SetText. Real-media output and visual acceptance remain open.
+
 - **Cycle: v0.1.1-dev98** — Rip selected chapters accepts page-style chapter groups and queues a separate file for each group per selected title. Validate all titles before enqueue; new jobs reject unavailable runtime chapter bounds instead of clamping. All chapters and legacy ranges retain their established behavior. [Design](docs/RIP_SELECTED_CHAPTERS.md). Encrypted-disc/content acceptance remains outstanding.
 
 - **Cycle: v0.1.1-dev96** — Root hygiene audit: removed the unused author DVD-rip tab and untracked generated test executable; moved historical reports to docs/history and the standalone QR prototype to scripts/legacy. Active package-main adapters, platform/stub variants and embedded assets remain required. Evidence: [ROOT_CLEANUP_DEV96.md](docs/ROOT_CLEANUP_DEV96.md). Current triage belongs in docs/TRIAGE.md. No workflow or playback change.

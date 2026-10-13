@@ -9,6 +9,8 @@ package i18n
 //  2. Set the English value in en_ca.go.
 //  3. Add translations to other language files as available.
 type Strings struct {
+	RipOutputTitleName string
+	RipOutputNamesHint string
 	RipChaptersLabel            string
 	RipAllChapters              string
 	RipSelectedChapters         string

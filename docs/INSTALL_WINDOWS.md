@@ -1,5 +1,8 @@
 # VideoTools Installation Guide for Windows
 
+Dev99: Rip card output names combine with disc Title and chapter suffixes.
+Successful jobs clear the matching disc Title. Static packaging is unchanged.
+
 Dev98 Rip: All/Selected chapters and page-style groups create separate files.
 Existing static packaging and runtime dependencies are unchanged.
 
