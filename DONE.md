@@ -1,5 +1,7 @@
 # VideoTools - Completed Features
 
+Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
+
 ## v0.1.1-dev97 — Player integration acceptance (2026-10-13)
 
 Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately.

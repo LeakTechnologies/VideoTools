@@ -1,5 +1,7 @@
 # VideoTools Agent Workflow Rules
 
+Development CI for implementation commit 42862da5 passed Linux and Windows: https://github.com/LeakTechnologies/VideoTools/actions/runs/38440710576. User accepted alternate-container playback with no noticed lip-sync issues. Release token is absent; tag publication is a Human Director handoff, not a published release claim.
+
 ## Lead designer handoff — Player Clear source state
 
 Confirmed static source-state defect outside this player implementation scope: internal/app/modules/player/view.go Clear resets opts.PlayerFile, while host state.playerFile remains populated in player_module.go. A subsequent host rebuild can restore the cleared source. Lead designer should wire authoritative host clearing and verify rebuilt panes. Do not modify other modules in this player task. Track-selector population before asynchronous Ready is a separate verification candidate, not a confirmed rendered defect.
