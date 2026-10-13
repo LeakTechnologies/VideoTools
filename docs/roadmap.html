@@ -377,7 +377,7 @@ status: 'done', cycle: 'dev74', files: ['internal/dvd/ifo/extract.go', 'internal
 
   Player: {
     items: [
-      { id: 'player-dvd-navigation', title: 'VT_Player Interactive DVD Navigation', desc: 'ISO/VIDEO_TS title playback exists in code and needs real-disc acceptance. Add source-owned menu navigation, highlights, mouse/keyboard button activation, still handling and menu return. FFmpeg menu-asset demuxing alone is insufficient. No backend/workflow change authorized.', status: 'planned', cycle: 'future', files: ['internal/ui/inline_player.go', 'internal/media/engine.go', 'player_module.go'], deps: ['player-source-ownership-candidate'], docs: ['docs/VT_PLAYER_DVD_NAVIGATION.md'] },
+      { id: 'player-dvd-navigation', title: 'VT_Player Interactive DVD Navigation', desc: 'ISO/VIDEO_TS title playback exists in code; real-disc acceptance and interactive menu navigation remain outstanding. Plan source-owned highlights, button activation, still handling and menu return without backend/workflow changes.', status: 'planned', cycle: 'future', files: ['internal/ui/inline_player.go', 'internal/media/engine.go', 'player_module.go'], deps: ['player-source-ownership-candidate'], docs: ['docs/VT_PLAYER_DVD_NAVIGATION.md'] },
       { id: 'player-continuity-candidate', title: 'VT_Player Startup and Resume Continuity', desc: 'Candidate repair verified locally: no frame wait before decoder startup, no queue/codec flush on normal resume, demand-driven paused demux, retained pending frame/PCM, and no initial-preview packet discard. Visible first frame 82ms; normal resume 33.5ms; burst resumes 14-18ms. User reports quicker continuous playback without distortion; intentional burst pauses explain perceived interruptions. Residual 2x/end jitter and exact seeking remain open. Integrated with dev96; saved-position audio readiness and timestamp preview repaired. User reports no lip-sync issues. Linux/Windows dev CI green (run 38440710576); release tag pending.', status: 'done', cycle: 'dev97', files: ['internal/ui/player_session.go', 'internal/media/playback.go', 'internal/media/audio.go', 'internal/media/engine.go'], deps: ['player-source-ownership-candidate'], docs: ['docs/VT_PLAYER_UPGRADE_PLAN.md', 'docs/PLAYER_DEBUG.md'] },
       { id: 'player-source-ownership-candidate', title: 'VT_Player Source and Presentation Ownership', desc: 'Candidate: source-owned load and presentation sessions cancel and join old reads, serialize native access and suppress retired callbacks/EOF reloads. Close handles partial opens. Runtime stress exposed and repaired a Fyne refresh lock cycle and paused-audio shutdown losing its stop channel; scrubber start/stop are idempotent. Automated media run completed with 398 frames and three retired sources. User-witnessed lifecycle/continuity and alternate-container playback accepted; exact seek remains open.', status: 'done', cycle: 'dev97', files: ['internal/ui/player_session.go', 'internal/ui/inline_player.go', 'internal/media/audio.go', 'internal/media/playback.go', 'internal/media/scrub.go'], deps: ['player-retirement-dev94'], docs: ['docs/VT_PLAYER_UPGRADE_PLAN.md', 'docs/PLAYER_DEBUG.md'] },
       { id: 'player-retirement-dev94', title: 'VT_Player Retirement-Aware Frame Reads', desc: 'Frame queue and PTS waits return on cancellation/engine retirement; speed-aware capped clock waits; stale frame generation rechecked after pacing. Player ignores retired reads instead of surfacing EOF/errors. Native build/vet/full tests pass. Visible software-decode session delivered 243 frames and closed cleanly; user reported minor jitter at the end of the 2x segment. Broader source/presentation ownership remains active.', status: 'done', cycle: 'dev94', files: ['internal/media/clock.go', 'internal/media/playback.go', 'internal/ui/inline_player.go'], deps: ['vt-player-upgrade-foundation'], docs: ['docs/VT_PLAYER_UPGRADE_PLAN.md', 'docs/PLAYER_DEBUG.md'] },
@@ -1822,5 +1822,351 @@ backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 's
 
 // --- Testing Checklist ---
 const checklistData = [
+  { title: 'VT_Player DVD navigation', items: ['ISO and VIDEO_TS/parent loading', 'Title/chapter timestamp correctness', 'Menu highlights and mouse/keyboard activation', 'Still/motion menus and menu return', 'Audio/subtitle choice', 'Close/replacement retirement', 'Encrypted/unencrypted acceptance'] },
+  { title: 'Rip names (dev99)', items: ['Edit titles while scrolling; no cross-row name changes', 'Title and disc names combine with chapter suffixes', 'Existing/queued files cannot overwrite each other', 'Success clears the matching disc Title; failure/newer edits retain it', 'Queued names remain unchanged after reset; view rebuild retains the reset', 'Verify narrow/large-font UI and real-media output'] },
+  { title: 'Rip chapter groups (dev98)', items: ['All chapters preserves whole-title output', '1-3, 5-6, 8 produces three correctly named files', '1, 2 remains separate from 1-2', 'Malformed, overlapping and unavailable chapters cannot queue', 'Every selected title validates; queued jobs recheck strict bounds', 'Verify output content, duration and remapped chapters on real media'] },
 
-  { title: 'VT_Player DVD navigation', items: ['ISO and VIDEO_TS/parent source loading', 'Title/chapter timestamp correctness', 'Menu highlight and mouse/keyboard activation', 'Still and motion menus', 'Menu return and audio/subtitle selection', 'Replacement/Close retirement', 'Encrypted and unencrypted playback acceptance'] },
+  { title: 'Player startup/resume continuity candidate', items: ['First Play reaches decoder immediately instead of pre-start timeout', 'Normal resume retains encoded packets, decoded frames, codec references and PCM', 'Cancelled presentation retains its next frame; paused demux reads only for preview/frame demand', 'Native full gate and race tests pass; startup regression rejects the old wait', 'Visible 1x/2x and rapid-resume/reopen checks reviewed; exact seeking and residual faster-playback jitter remain open', 'Reconcile newer master/version and run CI before candidate landing/release'] },
+  { title: 'VT_Player source ownership candidate', items: ['Older load finishing last cannot replace current source', 'Close during loading cannot resurrect source; partial-open cleanup finishes', 'Rapid pause/play and seek/step cancellation retain one presentation consumer', 'Late EOF/errors/UI callbacks do not affect replacement source', 'Paused audio close retains observable stop signal; scrubber repeated start/stop safe', 'Real-media stress completes close/reopen and retires all sources', 'Visual review and smoothness acceptance remain pending; known seeking/resume issues remain open'] },
+
+  { title: 'Root cleanup (dev96)', items: ['No tracked root test executable', 'Historical report references resolve after relocation', 'QR prototype remains an isolated legacy module', 'Native build, vet and full tests pass', 'Active root modules and build variants remain intact'] },
+  { title: 'VideoTools dev94 — VT_Player acceptance', items: ['Cancellation/retirement exits paused and empty frame reads and future-PTS waits', 'Natural EOF remains distinct; stale reads cannot stop replacement playback', 'Visible software-decode play/pause/resume/2x/close session reviewed', 'Minor end-of-session jitter remains open for measurement', 'Source generations, one presentation consumer and native I/O cancellation still require follow-up'] },
+  { title: 'VT_Player upgrade foundation (candidate)', items: ['Retired engine and cancelled caller unblock empty/paused frame reads and PTS waits', 'Cancellation is distinct from natural EOF', 'Only one presentation consumer survives rapid transport/source changes', 'Native build, vet and full tests pass', 'Real playback session and runtime log reviewed before landing', 'Small dev release and synchronized docs after acceptance'] },
+  { title: 'VT_Player audit follow-up (dev93; unverified)', items: ['Rapid pause/play and source replacement retain one presentation consumer', 'Close cancels load, seek, frame waits and growing-file watchers', 'Correct FFmpeg flags and final drag commit; verify actual returned PTS', 'Backward step returns preceding presented frame', 'Clear resets host source; source switch resets chapters, thumbnails and tracks', 'Profile neutral samples and review real playback logs', 'Complete encrypted DVD to Rip to Convert to playback acceptance'] },
+  { title: 'Player (dev84)', items: [
+    'Settings no longer offers a "Use libVLC backend" checkbox - it was removed because it did nothing in any shipped build',
+    'Settings > Player still shows Auto-deinterlace and Seek accuracy, and both still work as before',
+    'Playback is unchanged: the FFmpeg engine was the only backend that ever reached a binary',
+    'No config error on startup for anyone whose prefs file still carries a UsePlayerVLC key'
+  ] },
+  { title: 'Convert Module', items: [
+    'Audio sample rate dropdown applies correct frequency to output',
+    'Normalize audio with LUFS/TruePeak sliders produces correct loudness',
+    'Deinterlace modes (off/yadif/bwdif/w3fdif) produce correct output',
+    'H.264 Profile/Level controls respected in encoded output',
+    'x264/x265 tuning presets applied (Film, Animation, Grain, Stillimage, Fastdecode)',
+    'Drag-and-drop file registration works correctly',
+    'Presets dropdown loads/saves/removes user-defined named presets',
+    'H.264 MKV/MP4 and Lossless MKV presets encode without crash',
+    'i18n strings render in English (en-CA) and French (fr-CA)',
+    'Menu-driven re-entry after another playback module (e.g. Inspect â†’ menu â†’ Convert) shows idle SMPTE bars, not the previous module\'s last frame',
+  ]},
+  { title: 'Rip Module', items: [
+    'IFO scanning reads titles, chapters, audio/subtitle tracks correctly',
+    'ISO via UDF reader extracts VIDEO_TS without mounting',
+    'Region detection shows correct disc region from VMG_Category',
+    'NTSC/PAL video standard detection shows correct standard from VTS IFO PGC frame-rate bits',
+    'Disc info (type/size/region/standard) displayed at top of view',
+    'Progress bar with ETA tracks encode correctly from out_time_us',
+    'CSS encryption detected and warned on protected discs',
+    '-f dvdvideo demuxer handles seamless branching discs correctly (no-scan rips default to title 1; CI-shipped demuxer)',
+    'Rip DVD player pane shows preview after scan',
+    'No-scan rip of a multi-VOB disc completes without the player crash at VOB boundary (~25-32% mark)',
+    'Title selection UI queues multiple titles correctly',
+    'Menu VOBs excluded from content sets â€” no menu bleed in output video',
+    'Chapters appear in output file with correct timestamps',
+    'Menu preservation checkbox exports menu VOBs as separate files',
+    'Main feature (longest title) uses main output path; extras get _Extra suffix',
+    'Disc info panel populates on ISO/VIDEO_TS load (type/standard/region/size/title count)',
+    'DiscSummary card shows explicit empty/scanning/scanned/error states',
+    'Linear SOURCEâ†’DISCâ†’TITLESâ†’OUTPUTâ†’ACTION workflow renders correctly',
+    'Advanced accordion groups menus/PALâ†”NTSC/full-disc options',
+    '"Ready to rip N title(s)" readiness line updates with selection',
+    'Two-column workspace: action buttons render as a compact full-width bar below the columns (never stretch vertically); readiness line stays on one line (truncates when tight)',
+    'No-disc empty state: DiscSummary shows only title+hint rows, MenuPreview collapses to a short NO MENU FOUND strip, ContentBrowser shows the centred load-a-disc hint',
+    'Right column Format/Output/Status fully visible at ~1600Ã—900 and 1280Ã—720 (nothing clipped behind the action bar)',
+    'In-app updater: a dev61 binary offers and installs dev62 from Settings (first end-to-end exercise of the asset-suffix fix)',
+    'Rip labels/dialogs/regions render in en/fr/iu/iu_latin',
+    'Metadata folders in Convert/Filters/Upscale stay expandable when folded (the tappable header never hides)',
+    'Loading an ISO shows "Reading disc information" while the scan runs (not "No disc loaded") until titles populate',
+    'Scan-as-you-go: DiscSummary shows incremental disc facts while scanning (region Â· type Â· title count, per-title T0N duration Â· ch Â· audio Â· subs, video standard)',
+    'Rip mode radio: "Full movie (main feature)" is the default and first option; "Selected scenes" (per-title) second; full-movie rip targets the longest title with a single job; hidden when region conversion forces full-disc extraction',
+    'Lying-IFO disc (IFO advertises more subtitle languages than physical streams): the Main-Feature rip completes via the VOB-concat fallback â€” the log shows "dropping N trailing subtitle mapping(s)" and the output has the present subtitle streams correctly labelled',
+    'Stale-PTS disc (VOB carries a trailing phantom packet with a +huge PTS offset): a fallback rip completes with the real title duration, not "26hrs" â€” the log shows "capping output at N s"; the output plays to its end and no player/Explorer shows a multi-hour duration',
+    'Subtitle checkboxes: one per language of the main title; deselecting a language strips its streams from the ripped output; legacy configs default to all languages',
+    'No Disc Menu panel and no in-app Rip Log â€” the Content Browser (title list) owns the full column height and shows 4+ titles without scrolling at ~1600Ã—900; rip activity goes to the on-disk log file only',
+    'LOAD DISC: button in the Source row; loads a physical DVD directly (drive picker radio dialog when several drives); data disc / empty drive / no drive each surface a clear user-visible error without crashing',
+    'Settings keyboard navigation: PageUp/PageDown scroll the active tab by one page, Home jumps to top, End to bottom; works on every tab; keys stop working after leaving Settings',
+    'Update check failure dialog explains the cause (rate-limit vs release-not-published vs no network) instead of a raw network detail',
+    'Rip mode radio reworded: "Movie + extras (choose titles)" and "Main feature only" both read clearly; the radio stacks vertically and still defaults to "Main feature only" (longest title, single job)',
+    'Content Browser title card: the info line under the header reads one compact line "N chapters Â· N audio Â· N subs" with no word-wrap splitting "1 audio" onto its own line and no duplicated T##/duration (the header owns the duration)',
+    'Subtitle-language picker: Select All / Deselect All buttons appear when a title has multiple languages, set the whole list in one click, persist to config, and the rip maps exactly the chosen streams',
+    'Stale-PTS cap hardening: a disc whose VOB probes to +hours (or trips the bundled static ffprobe) still gets a safe -t cap from the IFO PGC duration â€” the rip completes at the real title duration (~30m23s / 1822.8 s), "capping output at N s" is logged instead of "leaving output duration uncapped", and seeking around the playback timeline does NOT crash a player (the uncapped 26h file was structurally broken â€” its +26h timestamp jump crashed MPV on skip)',
+    'Output filename follows the rip Title field when set (Title "test" â†’ test.mkv in the DVD_Rips folder); a blank Title or a Source/format change falls back to the source-folder name; full-disc/region runs get the title-based directory name too; editing the output path by hand stops auto-naming for that run',
+    'ISO9660-only disc image (broken UDF bridge â€” AVDP points at a VDS with no parseable LVD): scanning and ripping fall back to the native ISO 9660 reader and complete normally, with CatDVD logs showing the UDF failure then the ISO 9660 fallback; an image that is neither UDF nor ISO 9660 (or is genuinely damaged) surfaces an error naming both backends instead of a bare "LVD not found" â€” never a false-corrupt label',
+    'Multi-PGC title disc (scene-segmented "extras" titles sharing one VTS, e.g. a 7-title scene-segmented disc 7-title disc): the title list shows TRUE per-title durations and chapter counts â€” the two full runs â‰ˆ 1h 38m / 15 chapters, the five segments â‰ˆ 14/10/33/22/19 min / 3 chapters â€” instead of every title reading the same "1h 38m"; ripping one segment title embeds that segment\'s chapters and duration, not the whole movie\'s',
+    'Scene-segment disc (a 7-title scene-segmented disc): after a scan, the rip mode radio shows the third option "Scene segments only (skip full movie)"; selecting it greys/locks the two whole-movie titles, selects all five scene segments (still toggleable), and the readiness line reads "Ready to rip 5 scene segments"; clicking a greyed title leaves restrictive mode and returns to "Movie + extras (choose titles)"',
+    'Scene-segment rip content: a scene-segment title ripped via the VOB-concat fallback (Windows build) plays the ACTUAL segment (~14/10/33/22/19 min with its own 3 chapters), not the movie\'s opening â€” the log shows "using cell-accurate input list (N cell ranges)"; the whole-movie titles still rip the full 5926/5932 s movie with 15 chapters',
+    'Reload regression: loading a disc after a previous rip with a set Title produces a fresh default filename from the new source (the old movie title no longer leaks into the new output path)',
+    'Dynamic mode selection (dev75): switching the rip-mode radio to "Movie + extras (choose titles)" reshapes the selection; "Main feature only" shows only the main title selected+anchored and greys everything else; "Scene segments only" (scene-segmented disc) greys the whole-movie titles and pre-selects the segments; per-title toggles inside a mode persist until the next mode change',
+    'Select All / Deselect All never freeze the UI, including right after a mode switch: Select All ticks every title, Deselect All unticks every title and leaves "Movie + extras" mode (readiness "Ready to rip N title(s)" / no-selection message update correctly)',
+    'A freshly loaded disc always starts in "Main feature only" and re-shapes its selection once (a prior scene-set disc\'s segment restrictions are never carried into the new disc)',
+    'ISO 9660-only rip (dev76): load "ISO9660-sample-A.iso" or "ISO9660-sample-B.iso" â€” the RIP completes with NO "VIDEO_TS not found in ISO 9660 image" error (the resolve path now accepts the flat extraction layout; CatDVD rip log shows "Extracted VIDEO_TS via ISO 9660 fallback")',
+    'Menu dedup (dev76): rip several titles of one disc with Preserve Menus on â€” each menu exports ONCE into the output directory; later titles log "already exported (same menu content)" and skip, while an animated-menu reauthor still gets its _Menu_<label>.mkv',
+    'Choose-titles starts empty (dev76): switch the radio to "Movie + extras (choose titles)" â€” the title list starts with NOTHING ticked (readiness shows the no-selection message) and RIP NOW rips exactly what you tick; Select All still selects everything; "main" and "segments" defaults are unchanged',
+    'Movie + extras auto-select (dev77): on a scene-segmented disc, switching to "Movie + extras (choose titles)" pre-selects ONLY the main feature + genuine extras â€” the scene segments stay unticked (the movie already contains them) and duplicate whole-movie copies stay unticked; on a disc with no scene set the list starts empty as before',
+    'Thumbnail native size (dev77): individual and contact-sheet size selects offer "Native (WxH)" using the source video\'s real width; picking it produces source-resolution thumbnails',
+    'Thumbnail total counter (dev77): moving the contact-sheet columns/rows sliders updates the "Total thumbnails" count immediately (it no longer shows a stale value captured before the sliders moved)',
+    'Thumbnail overlays (dev77): generated contact sheets show the timestamp/metadata header when the bundled FFmpeg has drawtext (CI builds now ship libfreetype); a build without drawtext completes anyway with plain output and a debug warning instead of failing "No such filter"',
+    'Queue status (dev77): a completed job\'s status line reads just "Status: Completed" (no redundant elapsed suffix)',
+    'dvdvideo rip path actually engages (dev79): rip a seamless-branching / multi-VOB title on a Windows build â€” the rip log shows the dvdvideo demuxer path, NOT the whole-file VOB concat fallback, exit 0, and the output plays cleanly with no 26h-freeze / post-cutoff slideshow corruption; on discs where libdvdnav still rejects the source the cell-accurate VOB-concat fallback still engages as before',
+    'Bulk selection state sync (dev79): after a bulk Select All inside a locked rip mode, the previously greyed/locked titles are actually selected (checked) and the readiness summary + queued rip match the visible checkboxes; after Deselect All everything is unticked and the summary reads no-selection',
+    'Release CI (dev79): the tag-triggered release pipeline builds harfbuzz via meson with no "meson: command not found" (the dev78 release failure is fixed)',
+    'Thumbnail "both" output (dev80): set the thumbnail output mode to "both" â€” the live preview and the output directory contain the contact sheet AND the same number of individual screenshots as the grid (a 4Ã—8 grid â‡’ 32 screenshots); these are real per-frame images, not just the sheet',
+    'Thumbnail "both" settings (dev80): with "both" selected, BOTH settings boxes render â€” the Contact Sheet Grid box with columns/rows and the Individual Thumbnails box showing a locked "Count: N (matches contact sheet)" label that tracks the grid sliders live; individual mode alone still generates just the separate thumbnails and contact-sheet mode alone just the sheet',
+    'Queue history timestamps (dev80): a completed job\'s history row shows its real elapsed time (StartedAt â‰  CompletedAt) â€” the StartedAt == CompletedAt bug is gone',
+    'Queue history progress (dev80): a finished thumbnail/rip job\'s history row shows Progress = 100 (was 0 because addToHistory never copied Progress)',
+    'Thumbnail job log (dev80): a "both" thumbnail job\'s log file shows the contact sheet AND every individual thumbnail, each under its own "===== thumbnail N (t=..) -> path =====" header â€” not just the last screenshot',
+    'Chapter-range rip (dev81): on a DVD with a multi-chapter title, tick "Rip chapters only" and pick From chapter 3 / To chapter 5 (or any sub-range) â€” the queued rip produces ONLY that span: the output plays that scene, no 26h-freeze or slideshow corruption, and a player seek into the ripped file does not crash',
+    'Chapter-range cells (dev81): on a multi-PGC scene-segment disc (e.g. a 7-title scene-segmented disc), ripping a segment title with "Rip chapters only" engaged produces exactly the chosen chapter span â€” the rip log shows the cell-accurate slice list covering only the range (or, on the dvdvideo path, the -ss/-to trim); the whole-file VOB-concat fallback never leaks the movie\'s opening',
+    'Chapter-range chapters metadata (dev81): with Embed chapters on, the chapter-range output\'s embedded chapters describe the RANGE â€” Chapter 1 sits at the span start (00:00) and the last chapter ends at the range duration (not the whole-title markers)',
+    'Chapter-range UI (dev81): the From/To selects bound to the greatest chapter count on the disc; tick the checkbox on a single-chapter title or with archivist/full-disc region conversion active and the control is disabled/hidden and no range is applied; the selection is a per-rip choice (leaving and re-opening the Rip view does not re-tick it)',
+    'Chapter-range regression (dev81): a normal whole-title rip (checkbox off) still embeds the full chapter list, plays the whole movie, and the stale-PTS failover cap log is unchanged ("capping output at N s" with the IFO/VOB-sum source)',
+    'Queue output allocation (dev82): queue a conversion whose output name already exists on disk â€” the job output takes the deterministic -2 suffix (not a silent overwrite); queue two same-named conversions in one batch (drag-select multiple files) â€” the second takes the next suffix even though neither output exists on disk yet',
+    'Configured output dirs (dev82): with a module OutputDir set (or the app default output dir set in Settings), batch-added drops (multi-file drop onto the queue area) now write outputs into the configured directory, not next to each source file; single-add honors the same chain',
+    'ProRes preset (dev82): select the MOV (ProRes) format â€” the codec select follows to ProRes and the output is encoded prores_ks (verify with ffprobe: prores), not silently H.264; the default CBR flags run cleanly (verified exit 0 empirically)',
+    'Theora preset (dev82): select the OGG (Theora) format with default AAC audio â€” the job completes (audio substitutes to Vorbis-family; previously the muxer rejected the invocation outright); the output plays in a player',
+    'Interlace identity (dev82): select source A in Convert, start the interlace analysis, switch to source B while it runs â€” no A result ever renders in B\'s context; the Inspect module keeps its own independent result across the same sequence; Clear File clears the interlace state',
+    'Config migration (dev82): with a pre-existing config that lacks the newer fields, load the app â€” the loudness sliders read the defaults (-16 LUFS / -1.5 dBTP), not 0; a config saved with all three layout panels deliberately collapsed STAYS collapsed across restarts (previously forced back open)',
+    'Queued normalization (dev82): queue a conversion with audio normalization on â€” the job log shows the loudnorm filter with the configured LUFS/dBTP targets and the output measures at the target; the command preview shows the same filter',
+    'Reset layout (dev82): collapse the player and/or metadata panels, then click Reset â€” the panels return visible with matching header arrows and the split follows the shared policy (both-open 50/50), with the persisted layout in sync',
+    'LPCM rip (dev83): rip a title whose audio is 20-bit LPCM (pcm_dvd) in a lossless format â€” the rip COMPLETES instead of failing with "No wav codec tag found for codec pcm_dvd"; the job log shows the "Muxer rejected the source audio codec â€” retrying with lossless FLAC audio" line; the output plays, video is still the copied MPEG-2 stream and the audio is FLAC (confirm with ffprobe: mpeg2video + flac)',
+    'LPCM rip no-regression (dev83): a title whose audio the Matroska muxer accepts rips on the first attempt with no spurious FLAC retry line in the log; menu VOBs (Preserve menus on) export alongside without failing the same way',
+    'Two-pass honesty (dev83): in Convert, the "Two-pass encoding" control reads as not implemented and cannot be switched on; toggling it does nothing; the preview shows no "2-pass" size claim (the app only ever did single-pass CRF encoding)',
+    'CSS crack (dev85): a CSS-encrypted VIDEO_TS tree (or the scrambled-test fixture) is decrypted in software â€” the disc key is recovered from the key-region sectors, VTS/VMG title keys derived per-VTS, and every VOB payload decrypted into a scratch dir before ffmpeg reads it; IFO/BUP pass through byte-for-byte',
+    'CSS rip honesty (dev85): when the crack or decryption cannot complete, the rip fails with a clear css-crack/decrypt error naming the failing stage instead of a misleading success',
+    'Rip output verification (dev85): a rip whose output is missing, trivial (< 1 kB), or contains no video stream fails with an actionable error rather than reporting success',
+    'Interlace-lossless prompt (dev86): with a lossless MKV rip of a selected interlaced title (an NTSC disc where the IFO reports FilmMode==0), the queue buttons prompt "Rip as H.264 (deinterlaced)" vs "Keep lossless copy" — choosing H.264 produces a deinterlaced output, Keep lossless stream-copies the fields; the persisted format selection is untouched by the choice',
+    'Interlace prompt no-regression (dev86): ripping the same interlaced title on an H.264 format, with region conversion, or on a progressive title never prompts — and a lossless rip with nothing interlaced selected never prompts',
+    'Thumbnail probes silent (dev86): generating a contact sheet or thumbnails on Windows flashes no console window from start to finish (both the drawtext probe and the interlace-detection frame probe are covered)',
+    'CSS log tone (dev86): a CSS-encrypted rip\'s log lines read as neutral facts ("CSS-encrypted source: copying and decrypting VIDEO_TS to a scratch tree before processing" / "CSS: processing the decrypted scratch copy") — no triumphant phrasing',
+  ]},
+  { title: 'Convert Workspace (dev95)', items: ['Preview open: metadata retains useful space.', 'Preview closed: Load Video and source identity remain available.', 'Collapsed metadata header is fully visible and reopenable.', 'Idle SMPTE has no Frame-only strip; loaded Player tools are labeled and usable.', 'Large text and supported font checks; review a real playback log.'] },
+  { title: 'Rip Card Rendering (dev93)', items: ['Load a multi-title disc: labels, checks and thumbnail area are visible.', 'Scroll and toggle titles: selection and readiness remain consistent.', 'Select All and Deselect All work after scrolling.', 'Switch source or Clear during scanning: audit source-state findings remain open.', 'Walk encrypted DVD to Rip to Convert to playback acceptance.'] },
+  { title: 'Rip Output Path Follows Title (dev92)', items: [
+    'Live follow: with a disc loaded, typing in the Title field updates the output path box on every keystroke — the filename portion tracks the Title',
+    'No hand-edit conflict: after manually editing the output path, further Title edits leave the path alone (the hand-edited path is respected)',
+    'Recovery: loading a disc, changing the format, or Reset re-derives the output path from the Title + source + format (auto-manage resumes)',
+    'Clear: clearing the disc empties the output box and it re-derives cleanly on the next load',
+  ]},
+  { title: 'Rip Content Browser + Mode Radio (dev91)', items: [
+    'Scroll stability: with several titles in the Content Browser, scrolling up/down repeatedly never ticks, unticks, greys, or un-greys any title the user did not click — the "Ready to rip N title(s)" count and the queued rip match exactly what was selected',
+    'Mode-switch stability: switching rip modes (Main feature only / Scene segments only / Movie + extras) reshapes the selection ONCE to the mode\'s canonical set; the visible checkboxes then stay put — the churn that previously followed a mode switch is gone',
+    'Radio re-click: clicking the already-selected rip-mode option does nothing visible (the mode stays active); it no longer jumps to "Main feature only"',
+    'Radio state on locked titles: clicking a greyed-out title still exits the restrictive mode and selects that title; Select All / Deselect All still clear the lock and never freeze the UI',
+  ]},
+  { title: 'Player Module (dev50 gap fixes)', items: [
+    'DegradeToSoftware(): HW decode fails after N attempts â†’ permanent SW degradation (no per-frame retry thrash)',
+    'NextFrame hang: rapid close/reopen after HW decode crash does not hang NextFrame',
+    'Backward step: Ctrl+Left (StepFrame(-1)) moves one frame backward',
+    'Error ring buffer: errors.go exposes 16-entry GetErrorHistory() with timestamps',
+    'OpenAuto: Load() on a disc directory/ISO auto-detects and uses OpenDVD',
+    'LoadURL: opening http/https/hls/rtsp URL plays without blocking indefinitely (timeout + reconnect configured)',
+    'SeekAccuracy UI: Settings â†’ Player dropdown switches between Keyframe/Frame/Accurate modes',
+    'Player Tuning UI: Settings â†’ Player shows HW toggle, buffer size, thread count controls',
+    'A-B loop: SetLoopPoints(a,b) + SetABLoopEnabled causes NextFrame to auto-seek from B back to A',
+    'Frame timing overlay: InlineVideoPlayer.SetFrameTimingOverlayVisible toggle â€” per-frame PTS/delta/gap overlay in top-right corner',
+  ]},
+  { title: 'Player Module (legacy â€” stable)', items: [
+    'CGo/FFmpeg engine plays video with A/V sync',
+    'D3D11VA hardware decode works on Windows without crash',
+    'Audio sync via oto timing is correct',
+    'SMPTE bars show idle state when no media loaded',
+    'Thread safety: no crashes on rapid load/close/seek cycles',
+    'InlineVideoPlayer API works across all consuming modules',
+    'STATUS_STACK_OVERFLOW: no crash on Windows startup with GPU driver DLL injection',
+    'Filters module: before/after players play, pause, and seek in sync',
+    'Upscale module: before/after players play, pause, and seek in sync',
+    'Preview players are muted (no double audio)',
+    'Frame pacing: video without audio plays at correct speed (no fast-forward from missing PTS pacing)',
+    'Frame pacing: video with audio has no vsync-jitter stutter (smooth playback at native frame rate)',
+    'Frame rate: player widget reports correct source frame rate via GetFrameRate()',
+    'Seek: dragging seek bar to any position shows correct frame (no mid-GOP corruption)',
+    'Seek: accurate fallback lands at keyframe before target (no garbage for 1-3s after seek)',
+    'Player consolidation: all modules share the same primary player instance',
+  ]},
+  { title: 'Player Module (VLC Backend â€” planned)', items: [
+    'PlaybackEngine interface implemented by both FFmpeg and VLC backends',
+    'VLC: Load and play MP4 (H.264 + AAC)',
+    'VLC: Load and play MKV (H.265 + AAC)',
+    'VLC: Seek to random positions (10+ rapid seeks without crash)',
+    'VLC: Pause and resume (position exact)',
+    'VLC: Resume after app restart (persisted position)',
+    'VLC: Volume control and mute',
+    'VLC: Playback speed (0.5Ã—, 1Ã—, 2Ã—)',
+    'VLC: Audio/subtitle track selection',
+    'VLC: EOF notification fires',
+    'VLC: Error handling (corrupt file)',
+    'VLC: Thumbnail extraction',
+    'VLC: Smooth scrubbing (slider drag)',
+    'VLC: Trim in/out markers',
+    'Settings toggle for backend selection (FFmpeg vs VLC)',
+  ]},
+  { title: 'Burn Module', items: [
+    'isoburn.exe (Windows) burns DVD without errors',
+    'growisofs (Linux) burns DVD with progress parsing',
+    'Drive info shows disc type/capacity before burning',
+    'ConsoleBox log shows real-time burn output',
+  ]},
+  { title: 'Queue Module', items: [
+    'Multi-job management with progress tracking',
+    'Module pipeline (&&) chains two modules correctly',
+    'Intermediate file cleanup works (with/without KeepIntermediate)',
+    'ConsoleBox live output updates in real time',
+    'notifyChange race condition does not trigger',
+  ]},
+  { title: 'Author Module', items: [
+    'M1-M7 menu system produces playable DVD menu',
+    'IFO regeneration produces valid IFO/BUP files',
+    'ConsoleBox log shows authoring output',
+    'Full log preserved (no truncation)',
+  ]},
+  { title: 'Audio Module', items: [
+    'Phase 1 layout consistent with other modules',
+    'InlineVideoPlayer integration shows video preview',
+    'Track selection: codec colours, language flags, reordering work',
+  ]},
+  { title: 'Dev51 â€” Player Overlay & Cleanup', items: [
+    'Error/loading/buffering overlay indicators render correctly over the video (loading spinner, buffering label, red error circle+message)',
+    'VideoPlayer: no compile errors from removed fields (OnFrameRate, OnChapterSelect, OnHover, etc.)',
+    'VideoPlayer: no runtime errors from removed fullscreen/PiP button methods',
+    'CC button: toggles first subtitle track on/off correctly',
+    'view.go split: VideoPlayer widget renders and controls function after component extraction',
+    'UDF thread safety: concurrent ISO reads do not race on partitionStartAbs',
+    'Legacy alias vars removed: all module getter functions work correctly (GetConvertPlayer, GetTrimPlayer, etc.)',
+  ]},
+  { title: 'Infrastructure', items: [
+    'DLL bootstrap finds DLLs in DLL/, exe-dir, LOCALAPPDATA fallback',
+    'FFmpeg built from source with static x264/x265 linked',
+    'Windows CI builds with shared DLLs, packages in ZIP',
+    'Forgejo release automation creates/updates release correctly',
+    'i18n: en-CA, fr-CA, Inuktitut all render UI correctly',
+    'Inuktitut transliteration: empty script fields auto-filled from counterpart; manual entries preserved as overrides',
+    'All module buttons use MakePillButton / MakePillIconButton (no raw widget.Button remaining)',
+    'All sliders use ui.Slider / ui.MakeSlider (no raw widget.Slider remaining)',
+  ]},
+  { title: 'Real-ESRGAN Upscaling', items: [
+    'SDâ†’HD presets produce correctly upscaled output',
+    '1080pâ†’4K presets produce correctly upscaled output',
+    'Anime preset works on cartoon/anime sources',
+    'Restoration preset works on old/ damaged footage',
+    'VerifyTool detects realesrgan-ncnn-vulkan at PATH and app-local',
+  ]},
+  { title: 'Real-CUGAN Anime Upscaling', items: [
+    'Real-CUGAN selected as alternative upscaler for anime sources',
+    'Real-CUGAN preserves line art and flat colour better than ESRGAN',
+  ]},
+  { title: 'RIFE Frame Interpolation', items: [
+    'FPS multiplier (2x/4x/8x) select produces smooth output',
+    'rife-ncnn-vulkan detected at PATH and app-local',
+    'RIFE chains correctly after Real-ESRGAN upscale',
+  ]},
+  { title: 'Upscale Presets & HW', items: [
+    'One-click presets (SDâ†’HD, 1080pâ†’4K, Anime, Restoration, Social Media) all work',
+    'Hardware acceleration syncs from master setting to upscale jobs',
+    'Preset dropdown shows description labels',
+  ]},
+  { title: 'Enhancement Module', items: [
+    'Shell UI renders without error',
+    'AI model pipeline integration (BasicVSR, multi-model chaining) works',
+  ]},
+  { title: 'Other Modules', items: [
+    'Compare: side-by-side playback with two engines works',
+    'Subtitles: extraction, conversion (SRT/SSA/VOBSUB), timing adjustments work',
+    'Filters: brightness, contrast, saturation, rotate work',
+    'Thumbnail: 3-way output (single, grid, contact-sheet) works',
+    'Merge: video concatenation produces correct output',
+    'Inspect: codec info, stream tree, interlaced detection all correct',
+    'Trim: in/out markers produce correct cuts',
+  ]},
+];
+
+function buildTestChecklist() {
+  const body = document.getElementById('testChecklistBody');
+  body.innerHTML = '<p style="color:var(--vt-text-muted);font-size:0.82rem;margin-bottom:1rem;">Check off items as they pass manual testing. This list should be updated whenever new features are added to ensure nothing regresses.</p>';
+
+  const statusCounts = { pass: 0, fail: 0, untested: 0 };
+
+  for (const section of checklistData) {
+    const secEl = document.createElement('div');
+    secEl.style.cssText = 'margin-bottom:0.8rem;border-bottom:1px solid var(--vt-border);padding-bottom:0.6rem;';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:0.82rem;font-weight:600;color:#cbd5e1;margin-bottom:0.35rem;letter-spacing:0.02em;';
+    title.textContent = section.title;
+    secEl.appendChild(title);
+
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+
+    for (const item of section.items) {
+      const key = section.title.replace(/\s+/g, '-').toLowerCase() + '-' + item.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 60);
+      const stored = localStorage.getItem('checklist-' + key) || 'untested';
+
+      if (stored === 'pass') statusCounts.pass++;
+      else if (stored === 'fail') statusCounts.fail++;
+      else statusCounts.untested++;
+
+      const li = document.createElement('li');
+      li.style.cssText = 'font-size:0.76rem;color:var(--vt-text-muted);padding:0.2rem 0;display:flex;align-items:flex-start;gap:0.5rem;line-height:1.45;';
+      li.innerHTML = `
+        <span style="flex-shrink:0;display:inline-flex;gap:0.2rem;">
+          <button data-key="${key}" data-value="pass" style="width:22px;height:22px;border-radius:4px;border:1.5px solid var(--shipped);background:${stored === 'pass' ? 'var(--shipped)' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Pass">&#10003;</button>
+          <button data-key="${key}" data-value="fail" style="width:22px;height:22px;border-radius:4px;border:1.5px solid #ef4444;background:${stored === 'fail' ? '#ef4444' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Fail">&#10007;</button>
+          <button data-key="${key}" data-value="untested" style="width:22px;height:22px;border-radius:4px;border:1.5px solid var(--future);background:${stored === 'untested' ? 'var(--future)' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Reset">&#9675;</button>
+        </span>
+        <span>${item}</span>
+      `;
+
+      const btns = li.querySelectorAll('button');
+      btns.forEach(btn => btn.addEventListener('click', () => {
+        localStorage.setItem('checklist-' + btn.dataset.key, btn.dataset.value);
+        buildTestChecklist();
+      }));
+
+      ul.appendChild(li);
+    }
+
+    secEl.appendChild(ul);
+    body.appendChild(secEl);
+  }
+
+  // Summary bar
+  const sum = document.createElement('div');
+  sum.style.cssText = 'margin-top:1rem;padding:0.6rem;background:var(--vt-navy-light);border-radius:6px;border:1px solid var(--vt-border);display:flex;gap:1.2rem;font-size:0.8rem;';
+  sum.innerHTML = `
+    <span style="color:var(--shipped);">&#10003; Pass: ${statusCounts.pass}</span>
+    <span style="color:#ef4444;">&#10007; Fail: ${statusCounts.fail}</span>
+    <span style="color:var(--future);">&#9675; Untested: ${statusCounts.untested}</span>
+    <span style="color:var(--vt-text-muted);margin-left:auto;">Total: ${statusCounts.pass + statusCounts.fail + statusCounts.untested}</span>
+  `;
+  body.appendChild(sum);
+
+  // Reset button
+  const resetBtn = document.createElement('button');
+  resetBtn.textContent = 'Reset All';
+  resetBtn.style.cssText = 'margin-top:0.6rem;padding:0.3rem 0.8rem;border-radius:6px;border:1.5px solid var(--vt-border);background:var(--vt-navy-light);cursor:pointer;font-size:0.75rem;color:var(--vt-text-muted);font-family:inherit;';
+  resetBtn.addEventListener('click', () => {
+    if (confirm('Reset all checklist items to untested?')) {
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('checklist-')) localStorage.removeItem(key);
+      }
+      buildTestChecklist();
+    }
+  });
+  body.appendChild(resetBtn);
+}
+
+document.getElementById('testChecklistBtn').addEventListener('click', () => {
+  buildTestChecklist();
+  document.getElementById('testChecklistModal').classList.add('open');
+});
+document.getElementById('testChecklistModalClose').addEventListener('click', () => {
+  document.getElementById('testChecklistModal').classList.remove('open');
+});
+document.getElementById('testChecklistModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+</script>
+</body>
+</html>
