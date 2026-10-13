@@ -84,6 +84,8 @@ static int run_bwdif(AVFilterContext *src_ctx,
     return 0;
 }
 
+static int deint_needs_input(int ret) { return ret == AVERROR(EAGAIN); }
+
 // frame_is_interlaced checks AV_FRAME_FLAG_INTERLACED on the frame.
 // This is the only portable check across FFmpeg 6.x and 7.x+ (the deprecated
 // interlaced_frame field was removed in FFmpeg 7.0).
@@ -145,6 +147,10 @@ func (e *Engine) applyDeinterlace() *C.AVFrame {
 
 	var filtered *C.AVFrame
 	ret := C.run_bwdif(e.deintBuffersrc, e.deintBuffersink, e.frame, &filtered)
+	if C.deint_needs_input(ret) != 0 {
+		// bwdif needs a following frame; retain its history on normal buffering.
+		return nil
+	}
 	if ret < 0 {
 		e.freeDeinterlaceFilter()
 		logging.Warning(logging.CatPlayer, "deinterlace: run_bwdif failed: code=%d", int(ret))

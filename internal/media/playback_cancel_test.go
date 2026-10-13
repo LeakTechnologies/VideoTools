@@ -297,3 +297,24 @@ func TestPlaybackPreparationIsCancelled(t *testing.T) {
 	}
 	e.Close()
 }
+
+func TestPreparationKeepsDemuxReadingPastQueuedVideo(t *testing.T) {
+	e := NewEngine()
+	defer e.Close()
+	e.pausedAtomic.Store(true)
+	if !e.demuxShouldWait() {
+		t.Fatal("idle paused demux must park")
+	}
+	e.prebuffering.Store(true)
+	// A queued video packet must not strand audio later in the mux.
+	e.videoQueue.mu.Lock()
+	e.videoQueue.packets = append(e.videoQueue.packets, nil)
+	e.videoQueue.mu.Unlock()
+	if e.demuxShouldWait() {
+		t.Fatal("preparation parks demux before reaching audio")
+	}
+	e.prebuffering.Store(false)
+	if !e.demuxShouldWait() {
+		t.Fatal("demux did not return to paused demand mode")
+	}
+}

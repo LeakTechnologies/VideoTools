@@ -55,6 +55,15 @@ func (e *Engine) Start() {
 	go e.demuxerLoop()
 }
 
+// demuxShouldWait parks ordinary paused playback, while preparation may
+// continue through the bounded packet queues to reach interleaved audio.
+func (e *Engine) demuxShouldWait() bool {
+	if !e.pausedAtomic.Load() || e.prebuffering.Load() {
+		return false
+	}
+	return (!e.previewRead.Load() && e.frameRequests.Load() == 0) || e.videoQueue.Size() > 0
+}
+
 func (e *Engine) demuxerLoop() {
 	defer e.demuxerWg.Done()
 	defer func() {
@@ -86,7 +95,7 @@ func (e *Engine) demuxerLoop() {
 		default:
 		}
 
-		if e.pausedAtomic.Load() && ((!e.previewRead.Load() && e.frameRequests.Load() == 0 && !e.prebuffering.Load()) || e.videoQueue.Size() > 0) {
+		if e.demuxShouldWait() {
 			timer := time.NewTimer(5 * time.Millisecond)
 			select {
 			case <-e.stop:
@@ -1173,7 +1182,11 @@ func (e *Engine) PreparePlayback(ctx context.Context, timeout time.Duration) err
 		case <-e.stop:
 			return ErrEngineClosed
 		case <-deadline.C:
-			return fmt.Errorf("playback audio/video buffers did not become ready")
+			pcm := 0
+			if ap != nil {
+				pcm = len(ap.pcmCh)
+			}
+			return fmt.Errorf("playback buffers not ready: videoFrames=%d videoPackets=%d audioPackets=%d pcmChunks=%d", len(e.frameQueue), e.videoQueue.Size(), e.audioQueue.Size(), pcm)
 		case <-ticker.C:
 		}
 	}
