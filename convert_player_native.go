@@ -459,12 +459,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		fsAlive.Store(true)
 
 		player.SetOnFrame(func(img *image.RGBA) {
-			fyne.Do(func() {
-				if fsAlive.Load() {
-					fsImg.Image = img
-					fsImg.Refresh()
-				}
-			})
+			// InlineVideoPlayer dispatches frame observers on the UI thread.
+			// Avoid scheduling a second UI turn for every fullscreen frame.
+			if fsAlive.Load() {
+				fsImg.Image = img
+				fsImg.Refresh()
+			}
 		})
 
 		fsPlayBtn := widget.NewButtonWithIcon("", navy("pause"), nil)

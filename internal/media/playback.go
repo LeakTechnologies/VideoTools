@@ -100,6 +100,7 @@ func (e *Engine) demuxerLoop() {
 		// Serialise av_read_frame against avformat_seek_file — AVFormatContext
 		// is not thread-safe; concurrent access from Seek() causes hard crashes.
 		e.lockFormatMu()
+		videoGeneration, audioGeneration, subtitleGeneration := e.videoQueue.Generation(), e.audioQueue.Generation(), e.subtitleQueue.Generation()
 		ret := C.av_read_frame(e.formatCtx, pkt)
 		e.unlockFormatMu()
 
@@ -109,33 +110,42 @@ func (e *Engine) demuxerLoop() {
 		}
 
 		if ret < 0 {
-			logging.Info(logging.CatPlayer, "demuxerLoop: av_read_frame EOF/error ret=%d, setting queue EOF", int(ret))
-			e.videoQueue.SetEOF()
-			e.audioQueue.SetEOF()
-			e.subtitleQueue.SetEOF()
+			// A seek may have retired this read after formatMu was released.
+			e.lockFormatMu()
+			retired := e.videoQueue.Generation() != videoGeneration
+			if !retired {
+				e.videoQueue.SetEOF()
+				e.audioQueue.SetEOF()
+				e.subtitleQueue.SetEOF()
+			}
+			e.unlockFormatMu()
+			if retired {
+				continue
+			}
+			logging.Info(logging.CatPlayer, "demuxerLoop: current read EOF/error ret=%d", int(ret))
 			return
 		}
 
 		streamIdx := int(pkt.stream_index)
 		if streamIdx == e.videoStreamIdx {
-			e.videoQueue.Put(pkt) // blocking: never drop video packets
+			e.videoQueue.PutGeneration(pkt, videoGeneration) // only the current seek generation may publish
 		} else if streamIdx == e.audioStreamIdx {
 			if e.pausedAtomic.Load() && !e.prebuffering.Load() && !e.previewRead.Load() {
 				// Preview/inspection has no active audio output consumer.
-				if !e.audioQueue.TryPut(pkt) {
+				if !e.audioQueue.TryPutGeneration(pkt, audioGeneration) {
 					e.debugAudioDrops.Add(1)
 				}
 			} else {
 				// Active playback/preparation must not silently lose encoded
 				// audio at a full queue. Decoder backpressure bounds memory.
-				e.audioQueue.Put(pkt)
+				e.audioQueue.PutGeneration(pkt, audioGeneration)
 			}
 		} else {
 			e.subtitleCodecMu.Lock()
 			isSubStream := streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil
 			e.subtitleCodecMu.Unlock()
 			if isSubStream {
-				e.subtitleQueue.TryPut(pkt)
+				e.subtitleQueue.TryPutGeneration(pkt, subtitleGeneration)
 			}
 		}
 		C.av_packet_unref(pkt)
@@ -226,8 +236,8 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 	}
 
-	e.unlockFormatMu()
 	if seekRet < 0 {
+		e.unlockFormatMu()
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d 0x%08X)", seconds, seekRet, uint32(seekRet))
 		return fmt.Errorf("seek failed")
 	}
@@ -236,6 +246,8 @@ func (e *Engine) Seek(seconds float64) error {
 	e.pendingFrame = nil
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
+	e.subtitleQueue.Flush()
+	e.unlockFormatMu()
 	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
 
 	if e.audioStreamIdx >= 0 && e.formatCtx != nil {
