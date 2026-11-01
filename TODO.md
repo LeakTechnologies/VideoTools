@@ -10,7 +10,7 @@ This section links tasks rather than maintaining an independent ordering.
 - [ ] Clear the authoritative player source across rebuilds (#32); assess overlap with PR #28, #11 and #20 first.
 - [ ] Reconcile PR #28 with dev101 and obtain fresh integration/runtime evidence.
 - [ ] Complete encrypted DVD -> Rip -> Convert -> playback and failure-path acceptance (#3, #26, #25, #1).
-- [ ] Design and qualify bounded Eternal/Rust inspection reuse (#33); implementation not authorized by this intake.
+- [ ] Adopt qualified Eternal media concepts while retaining Go/Fyne (#33; owner direction 2026-11-01). [Ecosystem design](docs/MEDIA_ECOSYSTEM_DESIGN.md); concrete component/ABI qualification and implementation remain outstanding.
 - [ ] Bound ISO preparation before previews (#34).
 
 See [workflow](docs/ENGINEERING_WORKFLOW.md) and [evidence/port assessment](docs/DEVELOPMENT_REBASELINE_2026-10-31.md).

@@ -42,6 +42,18 @@ Inserted optical DVD test (2026-10-13): disc topology read and title opened as M
 
 VT_Player DVD requirement recorded: ISO/VIDEO_TS title playback exists in code but needs real-disc acceptance; VLC-style interactive menus are not implemented. Player-only implementation/test sequence: [DVD navigation plan](docs/VT_PLAYER_DVD_NAVIGATION.md). This records planning only; no playback change.
 
+## Media ecosystem direction — owner decision 2026-11-01
+
+VideoTools retains Go/Fyne. Adopt qualified concepts from Eternal and the Rust
+applications through bounded Go changes or separately qualified shared components;
+no full Rust/Slint rewrite. Eternal may support video and other media: emphasize
+library/organization/consumption there and analysis/transformation/comparison/disc
+workflows in VT, with useful overlap and independent operation. Manual VT_Player
+and Inspect without playback remain required by #37. See
+[ecosystem design](docs/MEDIA_ECOSYSTEM_DESIGN.md) and #33 for provenance,
+component qualification, deliberate handoff and acceptance. This direction does
+not itself select a replacement backend, dependency or FFI implementation.
+
 ## Product and module naming — strict
 
 - **VideoTools** is the product; **VT** may be used as its abbreviation. Every version, release, tag and published build belongs to VideoTools: `VideoTools v0.1.1-devN`.
