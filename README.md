@@ -197,7 +197,8 @@ VIDEOTOOLS_DEBUG=1 ./VideoTools
 
 ## Credits
 
-**Stu Leak** — project designer/director and developer.  
+**Stu Leak** — project designer/director and developer.
+
 **Jake P** — testing and project contributions.
 
 Coding assistants are tools used by the human designer/director, not contributors.
