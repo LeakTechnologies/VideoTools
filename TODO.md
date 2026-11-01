@@ -16,6 +16,8 @@ This section links tasks rather than maintaining an independent ordering.
 See [workflow](docs/ENGINEERING_WORKFLOW.md) and [evidence/port assessment](docs/DEVELOPMENT_REBASELINE_2026-10-31.md).
 Historical checked items below do not close GitHub runtime acceptance criteria.
 
+Owner follow-up: [automatic previews off, manual VT_Player retained and independent Inspect (#37)](https://github.com/LeakTechnologies/VideoTools/issues/37). Design/checks recorded; application implementation outstanding. [Module progress and architecture assessment](docs/PROGRESS_AND_ARCHITECTURE_2026-10-31.md).
+
 ## dev101 follow-up
 
 - [x] Visible per-title chapter counts, chosen chapters, separate individual chapters and full titles.
