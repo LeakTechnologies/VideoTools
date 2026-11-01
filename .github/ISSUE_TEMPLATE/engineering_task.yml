@@ -1,0 +1,52 @@
+name: Engineering task or defect
+description: Record evidence, a bounded plan and the criteria for success.
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Work type
+      options:
+        - Bug
+        - Feature or design proposal
+        - Verification or acceptance
+        - Documentation or maintenance
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and expected behavior
+      description: Describe one observable problem or desired outcome. Check existing issues first.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Baseline and evidence
+      description: Include version/commit, platform, reproduction or source references, actual results and uncertainties. Exclude media titles, private paths, credentials and sensitive logs.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Proposed approach and scope
+      description: State affected areas, exclusions, dependencies and decisions still needed. A proposal is not approval.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Success criteria and verification plan
+      description: State observable acceptance, regression/negative cases, planned commands and runtime/platform checks. Mark unavailable checks honestly.
+    validations:
+      required: true
+  - type: textarea
+    id: approval
+    attributes:
+      label: Approval and related work
+      description: Link the owner's approach decision or record explicit chat authorization with date and provenance. Do not impersonate an owner-authored approval. Link the worklist, related issues and PRs.
+  - type: textarea
+    id: results
+    attributes:
+      label: Implementation and evidence updates
+      description: As work progresses, record candidate/commit, commands and actual outcomes, release assets, runtime observations and remaining gaps. Historical work must be marked retrospective.

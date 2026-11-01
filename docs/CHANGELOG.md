@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## 2026-10-31 — Engineering process (no application release)
+
+- Adopt issue-led, evidence-based planning and acceptance with scoped Git changes
+  and proportional solo-maintainer PRs (#29, #30).
+- Reconcile dev101 state and existing tickets; record bounded Eternal/Rust reuse
+  as a proposal with exact source, platform and runtime qualification gaps.
+- Add reusable issue/PR evidence templates. Application version remains dev101.
+
 ## v0.1.1-dev101 — Chapter choices and contextual help
 
 - Rip offers full title, every chapter separately and chosen chapters with per-title counts and numbered checks; custom groups collapse.

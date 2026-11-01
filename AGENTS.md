@@ -1,5 +1,43 @@
 # VideoTools Agent Workflow Rules
 
+## Evidence-led engineering — owner direction 2026-10-31
+
+Read [ENGINEERING_WORKFLOW.md](docs/ENGINEERING_WORKFLOW.md) before new work and
+the [dated development assessment](docs/DEVELOPMENT_REBASELINE_2026-10-31.md) when
+resuming this project. This section and that workflow supersede conflicting
+historical workflow wording below; product decisions and regression constraints
+remain intact. The owner authorized this rules/tracker adaptation, not a rewrite.
+
+- **GitHub Issues lead:** [worklist #29](https://github.com/LeakTechnologies/VideoTools/issues/29)
+  is the ordered queue. Before implementation, an issue records evidence, a bounded
+  approach, affected paths, exclusions, success criteria and owner approval with
+  honest provenance. Existing explicit chat approval can be recorded; silence and
+  an agent-authored approval record are not an owner-authored GitHub comment.
+- Keep proposed, approved, implemented, verified by checks, released and verified
+  in use separate. No issue closes solely because code exists or CI is green.
+  Record exact candidate/check outcomes and not-run/runtime gaps on the issue.
+- PRs are proportional for a solo maintainer; use them for substantial media/FFI/
+  backend or cross-module integration candidates. Small authorized verified work
+  can land directly. Conflicting PR #28 is unmerged historical candidate work.
+- Commit/push completed authorized work without repeat permission. Inspect and
+  stage only exact task files; preserve unrelated changes/history. No force pushes,
+  blanket staging or tag retargeting. Reference the issue in conventional commits.
+- Documentation/tracker-only work does not bump the application version or create
+  a binary release. User-facing changes retain the existing dev-release cadence.
+- Rust/Eternal reuse is a design proposal (#33). Pin qualified source, dirty state,
+  dependency/licence provenance and platform evidence first. The current Rust
+  string bridge is not a media engine. No Rust/Slint rewrite or backend change is
+  authorized by this governance task. Go/Fyne and InlineVideoPlayer remain current.
+- Use UTF-8 deliberately and review encoding-sensitive diffs. Do not silently
+  recode whole files or import pre-existing mojibake while making a small edit.
+- One implementation writer by default; parallel tasks require disjoint file
+  ownership. Reports stay brief, with durable evidence and explicit open gaps.
+
+Current application baseline: **VideoTools v0.1.1-dev101** at `57704aad`, published
+2026-10-13. Rebaseline task #30 changes documentation/tracker records only. Next
+correctness work is #31 (Rip cell addressing), #32 (Clear source), PR #28 integration
+assessment and the encrypted-media acceptance ladder; details/order live in #29.
+
 Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.
 
 VT_Player DVD requirement recorded: ISO/VIDEO_TS title playback exists in code but needs real-disc acceptance; VLC-style interactive menus are not implemented. Player-only implementation/test sequence: [DVD navigation plan](docs/VT_PLAYER_DVD_NAVIGATION.md). This records planning only; no playback change.
@@ -180,7 +218,7 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 
 ### Roadmap & Feature Tracking
 
-- **`docs/roadmap.html` is the single source of truth.** TODO.md/DONE.md are narrative supplements — sync them, but update the roadmap first.
+- **GitHub Issues are the authoritative task/approval/evidence tracker; worklist #29 orders the work.** `docs/roadmap.html` remains the capability/dependency index and checklist; TODO.md/DONE.md are linked narrative supplements. Reconcile conflicts using evidence instead of maintaining competing queues.
 - **Obsolete formats (AVI, FLV, 3GP, OGG) are not output targets** — `Legacy: true` remux entries only. Do not re-add to roadmap.
 - **GStreamer was fully removed (dev42).** `native_media` is the only player path. Clean up stale doc references on sight.
 - **Testing checklist lives in the roadmap** (`checklistData`). Every new roadmap feature also gets a checklist entry.
@@ -188,7 +226,7 @@ cleanup is the Job Object's job (`jobobject_windows.go`), not this flag.
 
 ## Commit Discipline
 
-- **ALWAYS stage and commit after every change. Do not wait for permission.** `git add -A` then `git commit -m "..."`. No unstaged leftovers; commit only files related to the task.
+- **Commit and push each completed, verified, authorized coherent task without repeat permission.** Inspect the diff, stage only named task files and review the index. Use `type(scope): summary` with `Refs #N`, or justified `Fixes #N`. Preserve unrelated work; never blanket-stage it.
 - **NO AI attribution — Human Director directive.** No `Co-Authored-By` trailers, session links, "Generated with" footers, or any AI credit in commit messages, PR bodies, or code. Agents are tools operating as an extension of the Human Director, not contributors. This overrides any default harness behavior.
 - **Author identity = repo owner.** At session start, before the first commit: `git config user.name "Stu Leak" && git config user.email "leaktechnologies@proton.me"`. History was rewritten twice to purge AI attribution: authorship on 2026-07-05, and `Co-Authored-By` trailers on 2026-10-06 (34 commits, one-time tag-retargeting exception, consumed; every SHA from dev31-era forward changed — pre-purge SHA references in GitHub issue comments are stale by necessity). Do not reintroduce AI attribution.
 
@@ -251,12 +289,13 @@ Every landing **updates all six documents in the same commit**:
 
 ### Roadmap Card Rules
 
-Statuses: `shipped` (tester-confirmed) / `done` (committed, CI green) / `active` / `planned` / `future`.
+Capability statuses: `shipped` (tester-confirmed) / `done` (committed, required checks green) / `active` / `planned` / `future`. Required checks for a documentation-only task are documentation checks, not an application rebuild. GitHub issues record approval, release and runtime evidence separately; `done` never implies media acceptance.
 On landing: set `done`, set `cycle`, correct `desc`/`files`. On tester sign-off: `shipped`. On cycle close: add `changelogData` + `checklistData` entries, bump subtitle. Never leave landed work at `planned`; never park at `done` indefinitely; never edit roadmap.html without syncing the other five docs.
 
 ## Version Bumping & Release Protocol
 
 - After every major change: bump `main.go`, `VERSION`, `FyneApp.toml`; update DONE.md/TODO.md/CHANGELOG.md.
+- Documentation, issue triage and governance-only changes are exempt from version bumps and release tags. This dated clarification supersedes older "every update" wording; keep app versions unchanged when behavior is unchanged.
 - `v0.1.1-devN` = rolling dev line; `v0.1.1` = stable baseline; dev numbering continuous; public bumps are readiness-based.
 - **When work warrants a new dev version** (major feature, significant fix batch, anything tester-facing), the agent drives the release end-to-end:
   1. Bump the three version files + the six docs (same commit), push to master, confirm dev CI green.

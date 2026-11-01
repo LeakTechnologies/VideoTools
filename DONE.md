@@ -1,5 +1,15 @@
 # VideoTools - Completed Features
 
+## 2026-10-31 — Engineering rebaseline (documentation/tracker only)
+
+Reconciled the clean checkout with released dev101 and introduced an issue-led
+workflow, explicit approval/evidence states, scoped staging, proportional PR use
+and documentation-only versioning. Added engineering issue and PR templates.
+Reconciled stale issue descriptions while retaining runtime acceptance gaps;
+recorded Eternal reuse candidates and dirty-source/platform limitations. Tracking:
+[worklist #29](https://github.com/LeakTechnologies/VideoTools/issues/29), adoption #30.
+No application code, backend, CI workflow, source project or release tag changed.
+
 ## VideoTools v0.1.1-dev101
 
 Chapter picker and contextual help integrated across unlocked modules. Optical preview samples are bounded and main-feature first. [Evidence and checklist](docs/UI_CONTEXTUAL_HELP.md). Real-media acceptance is reported separately.

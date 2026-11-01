@@ -1,5 +1,21 @@
 # VideoTools TODO
 
+## Ordered engineering work — 2026-10-31
+
+Canonical queue and evidence: [GitHub #29](https://github.com/LeakTechnologies/VideoTools/issues/29).
+This section links tasks rather than maintaining an independent ordering.
+
+- [x] Restore the clean dev101 baseline and adopt the evidence-led workflow (#30).
+- [ ] Repair global VTS sector addressing in Rip cell fallback (#31; related #1).
+- [ ] Clear the authoritative player source across rebuilds (#32); assess overlap with PR #28, #11 and #20 first.
+- [ ] Reconcile PR #28 with dev101 and obtain fresh integration/runtime evidence.
+- [ ] Complete encrypted DVD -> Rip -> Convert -> playback and failure-path acceptance (#3, #26, #25, #1).
+- [ ] Design and qualify bounded Eternal/Rust inspection reuse (#33); implementation not authorized by this intake.
+- [ ] Bound ISO preparation before previews (#34).
+
+See [workflow](docs/ENGINEERING_WORKFLOW.md) and [evidence/port assessment](docs/DEVELOPMENT_REBASELINE_2026-10-31.md).
+Historical checked items below do not close GitHub runtime acceptance criteria.
+
 ## dev101 follow-up
 
 - [x] Visible per-title chapter counts, chosen chapters, separate individual chapters and full titles.

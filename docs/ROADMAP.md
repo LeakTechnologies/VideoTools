@@ -1,5 +1,15 @@
 # VideoTools Roadmap
 
+## Engineering rebaseline — 2026-10-31 (documentation only)
+
+Current released application: dev101 (`57704aad`). GitHub [worklist #29](https://github.com/LeakTechnologies/VideoTools/issues/29)
+now owns task ordering, approval and evidence; this file and the HTML roadmap are
+linked capability/history summaries. [Workflow](ENGINEERING_WORKFLOW.md),
+[current assessment and Eternal reuse proposal](DEVELOPMENT_REBASELINE_2026-10-31.md).
+Next: Rip addressing #31, Clear source #32 and assessment of conflicting PR #28,
+then encrypted DVD -> Rip -> Convert -> playback acceptance. Rust inspection #33
+is design-only; no full migration or new application release is implied.
+
 ## v0.1.1-dev101 — Chapter choices and contextual help
 
 Visible chapter counts and per-title choices; individual files or full titles. Optional explanations move beside controls throughout unlocked modules. Automatic optical previews use bounded samples. [Design and audit](UI_CONTEXTUAL_HELP.md).
