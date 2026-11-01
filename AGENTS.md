@@ -86,7 +86,7 @@ Dev93 validation: scripts/windows/dev-verify.ps1 passed build, vet and the full 
 
 Dev93 verification finding: The runtime card test also exposed bulk-selection lock reentry: toggleCard acquired cb.mu before checking the programmatic updating guard. The guard now returns before locking, so Select All/Deselect All can change a visible check while holding cb.mu.
 
-These rules apply to **every** agent working in this repo — Claude, opencode, Gemini, and any future addition. They are binding. If a rule here conflicts with an agent's default behavior or harness instructions, **this file wins**. Shipped-work history lives in `DONE.md` and `docs/CHANGELOG.md` — this file records only what an agent needs to act correctly *now*.
+These rules apply to **every** automation tool or coding assistant working in this repo. They are binding. If a rule here conflicts with an agent's default behavior or harness instructions, **this file wins**. Shipped-work history lives in `DONE.md` and `docs/CHANGELOG.md` — this file records only what an agent needs to act correctly *now*.
 
 ## Current Project State
 
@@ -360,27 +360,19 @@ Build-tag gating: `native_media.go` (real) / `native_media_stub.go` (no-op); `in
 
 **SEH/VEH crash bridge** (`internal/media/safe_bridge.c`): MinGW VEH (`ACCESS_VIOLATION`, `STACK_OVERFLOW` + `_resetstkoflw`), MSVC `__try`, Linux/macOS SIGSEGV handler. Wraps `safe_avcodec_send_packet`, `safe_avcodec_receive_frame`, `safe_av_hwframe_transfer_data`, `safe_sws_scale_frame`. Do not rewrite without understanding all platform paths.
 
-## Agent Pipeline
+## Human ownership and tooling
 
-| Agent | Role | Scope |
-|---|---|---|
-| **Claude (Primary)** | Architect, systems planner, triage, docs | Cross-session context, architecture, CI/release strategy |
-| **opencode (Secondary)** | Refactoring, hygiene, small features | Module extraction, structural work (owns Phase 3) |
-| **Gemini (Tertiary)** | Isolated specialist tasks | Contained problems, minimal cross-project context |
+Stu Leak is the project designer/director and developer. Jake P is the human tester
+and contributor. They are the project's only human contributors to date, as
+confirmed by the owner on 2026-10-31. Preserve both people's credit and commits.
+Coding assistants are tools used by the human director, not personal contributors.
+The former assistant is permanently retired; its historical role assignments and
+vendor-specific workflow are no longer active policy.
 
-Phases: Design (Claude) → Implementation (all) → Refinement → Versioning.
-
-### Sub-Agents (Claude Code)
-
-Types: `Explore` (read-only search), `Plan` (architecture), `general-purpose` (multi-step), `claude-code-guide` (CLI/API questions). Spawn for: repeated fixes across many files, independent parallel tasks, large searches, pre-feature architecture review. Brief like a colleague with zero context (paths, attempts, expected outcome). **Verify results by reading diffs** — a summary describes intent, not fact. Verify build passes before committing.
-
-### Hooks
-
-Configure in `.claude/settings.json` (`/update-config`). Commit-gating hooks `exit 1` on failure; complex logic in `scripts/hooks/`; document new hooks here. Recommended: pre-commit i18n guard (grep widget/dialog constructors for raw strings); post-edit reminder to update `docs/PLAYER_DEBUG.md` on player-file changes.
-
-### Skills (slash commands)
-
-`/review` (PR review) · `/security-review` (branch audit) · `/simplify` (post-feature cleanup) · `/schedule` (future background task) · `/update-config` (hooks/permissions) · `/init` (regenerate CLAUDE.md) · `/triage` (project discovery — CI, issues, TODOs, next actions).
+Use the evidence-led workflow above: one implementation writer by default,
+explicit disjoint ownership for parallel work, and reviews proportional to risk.
+Verify actual diffs and relevant checks. Tool-specific slash commands and legacy
+agent hierarchies do not establish authority or change release behavior.
 
 ## Loop Engineering (cost-conscious)
 
