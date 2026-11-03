@@ -1,5 +1,9 @@
 # VideoTools Build Scripts
 
+## Repository preflight
+
+Run `pwsh -NoProfile -File scripts/tools/repo-preflight.ps1` (PowerShell 7, Git) before work. Optional `-Repository <path>` selects a checkout. Reports local refs only, never fetches or mutates Git. Exit 0: inspection completed; 1: identity/required inspection failed; 2: full submodule worktree inspection unavailable. Clean output does not prove remote freshness, CI, approval or runtime acceptance.
+
 This directory contains scripts for building and managing VideoTools on different platforms.
 
 ## Recommended Workflow

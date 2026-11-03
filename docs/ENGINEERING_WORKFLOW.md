@@ -1,5 +1,9 @@
 # Evidence-led engineering workflow
 
+## Manual preflight
+
+Run `pwsh -NoProfile -File scripts/tools/repo-preflight.ps1` before work. It reports repository identity, HEAD, branch, VERSION, local upstream counts, worktrees and dirty/submodule state without fetching or writing Git state. Unknown inspection results stay explicit. It is manually invoked, not a hook, CI gate or approval mechanism. Read the linked active constraints in AGENTS.md; dated instruction snapshots are historical records.
+
 Adopted for VideoTools on 2026-10-31 under the owner's request to transfer the
 engineering lessons from Vectra, OpenCode Mobile/Upstream and Eternal. This is a
 single-maintainer workflow: evidence and traceability matter; extra ceremony does

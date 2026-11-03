@@ -1,5 +1,7 @@
 # VideoTools TODO
 
+- [x] Add manual read-only repository preflight and concise active agent rules (#38); runtime correctness remains separate.
+
 ## Ordered engineering work — 2026-10-31
 
 Canonical queue and evidence: [GitHub #29](https://github.com/LeakTechnologies/VideoTools/issues/29).

@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## 2026-11-03 — Engineering tools (no application release)
+
+- Add read-only local repository preflight and separate active rules from archived history (#38).
+
 ## 2026-10-31 — Engineering process (no application release)
 
 - Adopt issue-led, evidence-based planning and acceptance with scoped Git changes

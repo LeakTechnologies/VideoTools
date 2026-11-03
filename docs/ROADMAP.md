@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## 2026-11-03 — Workflow tightening (#38)
+
+Manual repository preflight and concise AGENTS entry point; [active constraints](AGENT_CONSTRAINTS.md) retain regression and platform rules. Next correctness work remains in #29. No application release.
+
 ## Engineering rebaseline — 2026-10-31 (documentation only)
 
 Current released application: dev101 (`57704aad`). GitHub [worklist #29](https://github.com/LeakTechnologies/VideoTools/issues/29)

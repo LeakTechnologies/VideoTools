@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-03 — Workflow tightening (#38)
+
+Added manual local-evidence preflight; archived prior AGENTS exactly and retained mandatory active constraints separately. No app behavior or version change.
+
 ## 2026-10-31 — Engineering rebaseline (documentation/tracker only)
 
 Reconciled the clean checkout with released dev101 and introduced an issue-led
