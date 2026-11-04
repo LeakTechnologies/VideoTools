@@ -1,5 +1,14 @@
 # VideoTools UI direction
 
+## Header quick settings — proposal, 2026-11-04
+
+Owner suggested a possible cog-only header action opening a compact settings
+dialog. Reuse the full Settings preference/policy callbacks; do not duplicate
+state. Preserve current task/source/jobs, provide an accessible name and keyboard
+access plus hover/focus help, and retain access to full Settings. Exact contents
+and layout need task evidence. This is a proposal recorded under #39, not a
+control implemented by #46 or authorization to expose incomplete #37 behavior.
+
 ## 2026-11-04 audit and delivery contract
 
 The [refreshed suite audit](UI_SUITE_AUDIT_2026-11-04.md) defines shared source/scope, semantic styles, optional preview policy, responsive task allocation, help, readiness and result behaviour. Existing chrome, permanent status/footer heights and fixed split ratios may change with evidence. Preserve readability, SMPTE identity and module character. #39 tracks remaining loaded/platform acceptance; #37 is the next owner-requested processing-workflow delivery and #40 proposes shared idle-space improvements. These are records and recommendations, not implemented new screens.

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"go/parser"
 	"go/token"
+	"image"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -14,10 +17,129 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
+	"github.com/LeakTechnologies/VideoTools/internal/app/previewwork"
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/interlace"
+	"github.com/LeakTechnologies/VideoTools/internal/queue"
+	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
+
+func TestAutomaticPreviewHostOptOutDoesNotOpenInput(t *testing.T) {
+	s := &appState{prefs: prefsConfig{DisableAutomaticPreviews: true}}
+	frames, err := s.captureAutomaticPreviewFrames(filepath.Join(t.TempDir(), "not-present.mkv"), 10)
+	if !errors.Is(err, previewwork.ErrInactive) || len(frames) != 0 {
+		t.Fatalf("opt-out capture: frames=%v, err=%v", frames, err)
+	}
+	job := &queue.Job{InputFile: "neutral-input.mkv", Config: map[string]interface{}{"sourceDuration": float64(10)}}
+	s.generateJobThumbnail(job) // must return without requiring a UI or FFmpeg
+	if job.ThumbnailPath != "" || job.InputFile != "neutral-input.mkv" {
+		t.Fatal("opt-out changed processing input or produced thumbnail")
+	}
+}
+
+func TestAutomaticPreviewCaptureRealOutputAndCancelledCleanup(t *testing.T) {
+	src := newInterlaceTestSource(t)
+	oldFFmpeg, oldProbe := utils.GetFFmpegPath(), utils.GetFFprobePath()
+	ffmpegPath, _ := exec.LookPath("ffmpeg")
+	probePath, _ := exec.LookPath("ffprobe")
+	utils.SetFFmpegPaths(ffmpegPath, probePath)
+	t.Cleanup(func() { utils.SetFFmpegPaths(oldFFmpeg, oldProbe) })
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv("TMP", t.TempDir())
+	t.Setenv("TEMP", t.TempDir())
+	s := &appState{}
+	frames, err := s.captureAutomaticPreviewFrames(src, 0.5)
+	if err != nil || len(frames) == 0 {
+		t.Fatalf("real frame capture: %d frames, %v", len(frames), err)
+	}
+	defer os.RemoveAll(filepath.Dir(frames[0]))
+	for _, frame := range frames {
+		info, err := os.Stat(frame)
+		if err != nil || info.Size() == 0 {
+			t.Fatalf("missing/empty capture %s: %v", filepath.Base(frame), err)
+		}
+	}
+	file, err := os.Open(frames[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	picture, _, err := image.Decode(file)
+	file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if picture.Bounds().Dx() != 640 || picture.Bounds().Dy() != 480 {
+		t.Fatalf("wrong capture geometry: %v", picture.Bounds())
+	}
+	colors := make(map[[4]uint32]bool)
+	for y := 40; y < 480; y += 80 {
+		for x := 40; x < 640; x += 80 {
+			r, g, b, a := picture.At(x, y).RGBA()
+			colors[[4]uint32{r, g, b, a}] = true
+		}
+	}
+	if len(colors) < 2 {
+		t.Fatal("synthetic patterned source produced a uniform capture")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := capturePreviewFrames(ctx, src, 0.5); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled capture result: %v", err)
+	}
+	dirs, err := filepath.Glob(filepath.Join(os.TempDir(), "videotools-frames-*"))
+	if err != nil || len(dirs) != 1 || dirs[0] != filepath.Dir(frames[0]) {
+		t.Fatalf("cancelled capture left an artifact: %v (%v)", dirs, err)
+	}
+}
+
+func TestAutomaticPreviewHostCancelsRealCommandAndJoins(t *testing.T) {
+	src := newInterlaceTestSource(t)
+	source := &videoSource{Path: src, Duration: 0.5}
+	s := &appState{source: source, playerFile: source, loadedVideos: []*videoSource{source}, convert: convertConfig{OutputDir: "neutral-output"}}
+	owner := s.automaticPreviewOwner()
+	request := owner.Context()
+	started := make(chan struct{})
+	finished := make(chan error, 1)
+	go func() {
+		finished <- owner.Run(request, func(ctx context.Context) error {
+			cmd := utils.CreateCommand(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error", "-re", "-stream_loop", "-1", "-i", src, "-f", "null", "-")
+			if err := cmd.Start(); err != nil {
+				return err
+			}
+			close(started)
+			return cmd.Wait()
+		})
+	}()
+	t.Cleanup(func() { <-s.applyAutomaticPreviewPolicy(false); <-s.applyAutomaticPreviewPolicy(true) })
+	select {
+	case <-started:
+	case err := <-finished:
+		t.Fatalf("command did not start: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("command startup timed out")
+	}
+	retired := s.applyAutomaticPreviewPolicy(false)
+	select {
+	case <-retired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("command did not retire")
+	}
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("owned command cancellation: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("command Wait did not return")
+	}
+	if owner.IsCurrent(request) {
+		t.Fatal("cancelled command can publish")
+	}
+	if s.source != source || s.playerFile != source || len(s.loadedVideos) != 1 || s.loadedVideos[0] != source || s.convert.OutputDir != "neutral-output" {
+		t.Fatal("preview retirement changed processing or manual source state")
+	}
+}
 
 // TestNormalizeLoudnessFromJob guards the silent-zero class of bug: a queued
 // job whose loudness target is missing or unusable must never reach ffmpeg as 0,

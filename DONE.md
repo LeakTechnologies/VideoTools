@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## Unreleased dev102 candidate — host commands (#46)
+
+Connected the host owner to cancellable fallback captures and queue thumbnails, selected automatic Convert/Inspect loads and startup preference application. Neutral FFmpeg output/cancellation checks passed; full #37 Settings/Inspect/exceptions/performance acceptance remains open. No release. [Plan](docs/AUTOMATIC_PREVIEWS.md).
+
 ## 2026-11-04 — Preview-work ownership candidate (#45)
 
 Added an automatic-work controller with cross-generation concurrency limits, cancellation/join completion and stale-request rejection; added the backwards-compatible preference model and race/round-trip tests. Candidate code only: Settings and actual capture/analysis/thumbnail paths remain unconnected. No suppression or performance acceptance claim.

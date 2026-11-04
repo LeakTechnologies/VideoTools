@@ -1,6 +1,6 @@
 # VideoTools Agent Workflow Rules
 
-Optional-preview candidate: [AUTOMATIC_PREVIEWS.md](docs/AUTOMATIC_PREVIEWS.md), #43 under #37. Session ownership #43 plus work ownership/preference model #45 are isolated on PR #44; no Settings switch/import suppression or new playback acceptance is claimed. Preserve manual-session ownership during later integration.
+Optional-preview dev102 candidate: [AUTOMATIC_PREVIEWS.md](docs/AUTOMATIC_PREVIEWS.md), #37 with #43/#45 ownership and #46 selected host/command wiring on draft PR #44. Global Settings/analysis/render/direct-player integration and acceptance remain open; no merge or release. Preserve manual-session ownership.
 
 Every feature/redesign/repair follows the [evidence-to-decision planning contract](docs/ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence): inspect current behaviour, justify the approach, expose unknowns and define observable success before code. Decision-critical gaps require bounded investigation; never invent evidence.
 

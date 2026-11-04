@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func (s *appState) showInspectViewForPath(path string) {
 		// Start native player load now that probe has the file metadata.
 		// This runs off the main goroutine; the player widget is already embedded
 		// in the view and will update itself when the engine is ready.
-		if err := GetInspectPlayer().Load(path); err != nil {
+		if err := GetInspectPlayer().LoadAutomatic(path); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
 			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 		}
 
@@ -129,7 +130,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 		}, false)
 
 		// Start native player load now that probe has the file metadata.
-		if err := GetInspectPlayer().Load(path); err != nil {
+		if err := GetInspectPlayer().LoadAutomatic(path); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
 			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 		}
 

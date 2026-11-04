@@ -1,5 +1,10 @@
 # VideoTools Changelog
 
+## VideoTools v0.1.1-dev102 — unmerged candidate
+
+- Route selected automatic capture, queue thumbnail and Convert/Inspect load paths through host policy (#46); cancel commands and discard stale thumbnail publication. Shared capture/thumbnail concurrency is limited to four running operations.
+- Candidate version only: no global Settings control, full #37 acceptance, merge or release. Header quick settings is recorded as a proposal.
+
 ## Unreleased candidate — preview work and preference (#45)
 
 - Add cancellable, concurrency-limited automatic-work ownership and legacy-safe preview preference state. Host/Settings/subprocess wiring remains outstanding in #37; no release.

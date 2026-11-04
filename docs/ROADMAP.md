@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## VideoTools v0.1.1-dev102 — host integration candidate (#46)
+
+[Automatic previews](AUTOMATIC_PREVIEWS.md): host ownership reaches real capture/queue commands and selected loads. PR #44 remains draft; complete analysis/render/exception/Settings and runtime acceptance are pending. Latest published baseline stays dev101.
+
 ## Candidate — preview work and preference (#45)
 
 [Automatic-preview plan](AUTOMATIC_PREVIEWS.md) now defines the bounded work owner, stale generation checks and saved opt-out model. PR #44 remains the integration candidate; #37 host/worker/Settings/Inspect and runtime acceptance are still open.

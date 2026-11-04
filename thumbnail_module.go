@@ -281,11 +281,11 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		OnShowThumbnailView:     func() { state.showThumbnailView() },
 		OnClearCompletedJobs:    func() { state.clearCompletedJobs() },
 		OnGetStatsBar: func() fyne.CanvasObject {
-				if state.statsBar == nil {
-					return nil
-				}
-				return state.statsBar
-			},
+			if state.statsBar == nil {
+				return nil
+			}
+			return state.statsBar
+		},
 		OnLoadFile: func(path string) {
 			// probeVideo shells out to ffprobe and must not run on the UI goroutine.
 			go func() {
@@ -303,7 +303,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 					logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
 				}, false)
 				if len(src.PreviewFrames) == 0 {
-					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+					if frames, ferr := state.captureAutomaticPreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
 						src.PreviewFrames = frames
 						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 							state.showThumbnailView()

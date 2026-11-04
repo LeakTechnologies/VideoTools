@@ -4,7 +4,7 @@ Approved product scope and acceptance: [#37](https://github.com/LeakTechnologies
 Candidate slices: [session ownership #43](https://github.com/LeakTechnologies/VideoTools/issues/43),
 [work ownership and preference #45](https://github.com/LeakTechnologies/VideoTools/issues/45).
 
-The current shared Load API does not distinguish a processing preview from an
+The released dev101 shared Load API does not distinguish a processing preview from an
 explicit manual session. Add that distinction before exposing a global switch.
 Keep manual Load/LoadDVD/LoadURL semantics and InlineVideoPlayer as the API.
 
@@ -45,8 +45,7 @@ is shared across generations; cancellation alone does not free a slot.
 Preferences store `DisableAutomaticPreviews` as an opt-out. A missing/false/null
 key preserves enabled behaviour for legacy configs; explicit true persists the
 opt-out. `AutomaticPreviewsEnabled()` is the single interpretation of that value.
-This model is not connected to the running host or Settings control yet: editing
-the key does not by itself suppress app preparation in this candidate.
+The model now initializes selected host preparation paths in #46, but the Settings control and complete processing-module suppression remain unfinished. Do not treat editing the key as a completed feature.
 
 Host integration must combine worker and session retirement signals off the UI
 thread, preserve job input/options and manual sessions, guard delayed publication
@@ -88,3 +87,54 @@ passed; Windows native build/vet/full tests and non-native `go build ./...`
 passed. Unchanged packages were reported cached by Go in the full gate. Eleven
 task files passed UTF-8/link/roadmap/diff checks. These results do not establish
 FFmpeg termination, runtime memory savings, host integration or UI acceptance.
+
+## Host/command integration candidate (#46) — dev102
+
+The host initializes one lazy owner after preferences load, with a four-operation
+budget shared by fallback frame capture and queue thumbnails. Four follows the
+existing import pool ceiling in loadVideos; it is a provisional resource bound,
+not a measured optimal value or speedup claim. Combined policy
+application returns completion after work and shared automatic player sessions
+retire; it does not clear processing source/options or explicit manual sessions.
+Convert/Inspect automatic Load entry points use LoadAutomatic. Explicit VT_Player
+Load paths remain manual. Convert import does not explicitly close manual playback
+when its automatic policy is disabled; full navigation/render acceptance remains open.
+
+Fallback captures now use the existing context-aware hidden-command utility;
+cancel/error/no-output paths clean their own scratch directory. Thumbnail import
+uses the same automatic capture helper; explicit thumbnail generation remains a
+processing job. Queue thumbnail work snapshots input and request before scheduling,
+uses unique temporary files even before a job receives its ID, passes the owned
+context to extraction, and publishes on the UI thread only for a current policy,
+unchanged input and still-empty thumbnail slot. Failed/retired artifacts are removed.
+
+Neutral generated-source tests verify opt-out without opening a missing input,
+real patterned 640x480 frame output, cancelled-capture scratch cleanup, and
+cancellation/Wait of a real looping FFmpeg command through the combined host
+retirement path while processing/manual source fields remain intact. The first
+compile found another Thumbnail caller, which was corrected. First real-media
+runs skipped for missing executable PATH; rerunning with existing sidecars on
+PATH passed all three checks. Native/race/non-native final outcomes and exact
+candidate identity are recorded on #46. These checks are not audible playback,
+whole-film import measurements or conversion-output acceptance.
+
+Remaining gaps before exposing the global switch: explicit analysis ownership and
+independent Inspect actions; early request and source-generation guards for all
+fallback publications; manual-vs-processing widget visibility; startup hardware
+warmup policy and manual initialization; direct Compare/Upscale exceptions; bounded
+host scheduling in addition to bounded running commands; actual Settings callback
+and persistence/error UI; measured on/off single/batch imports and real playback.
+Do not describe the global feature as implemented or accepted yet.
+
+Version files identify this branch as dev102 because default background work now
+shares the concurrency budget. No tag, merge, binary release or installed-build
+claim follows. The latest published application baseline remains dev101.
+Final #46 checks on Windows/amd64 with Go 1.26.6 and existing FFmpeg 8.1 sidecars:
+native build/vet/full tests passed (some unchanged packages cached); final focused
+root race checks passed with all three FFmpeg/host cases executed; non-native
+build passed. Initial missing Thumbnail caller compile failure was fixed; initial
+real-media checks skipped for PATH and were rerun successfully with sidecars.
+Twenty task files passed UTF-8, 82 local links, roadmap script/234 unique IDs,
+unchanged 358 legacy encoding markers, coherent dev102 manifests and diff checks.
+No application GUI, audible playback, encrypted-disc or import/working-set
+benchmark acceptance was run for this slice.

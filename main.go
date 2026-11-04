@@ -45,6 +45,7 @@ import (
 	queuemodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/queue"
 	ripmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/trim"
+	"github.com/LeakTechnologies/VideoTools/internal/app/previewwork"
 	"github.com/LeakTechnologies/VideoTools/internal/app/recentfiles"
 	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
@@ -105,7 +106,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev101"
+	appVersion         = "v0.1.1-dev102"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -1228,6 +1229,8 @@ type appState struct {
 	anim                      *previewAnimator
 	convert                   convertConfig
 	prefs                     prefsConfig
+	previewWorkOnce           sync.Once
+	previewWork               *previewwork.Controller
 	currentFrame              string
 	player                    player.Controller
 	playerReady               bool
@@ -3371,7 +3374,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			}, false)
 
 			// Load native player after view is shown.
-			if err := GetPrimaryPlayer().Load(path); err != nil {
+			if err := GetPrimaryPlayer().LoadAutomatic(path); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
 				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 			}
 
@@ -3379,7 +3382,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			go func() {
 				// Capture preview frames before running interlace analysis
 				if len(src.PreviewFrames) == 0 {
-					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+					if frames, ferr := s.captureAutomaticPreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
 						src.PreviewFrames = frames
 					}
 				}
@@ -8636,6 +8639,7 @@ func runGUI() {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}
 
+	state.applyAutomaticPreviewPolicy(state.prefs.AutomaticPreviewsEnabled())
 	if HasNativeMediaPlayer() {
 		initNativeMediaAssets(state)
 	}
@@ -14640,7 +14644,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			}, false)
 
 			// Load native player now that probe is done and view is being shown.
-			if err := GetPrimaryPlayer().Load(videoPath); err != nil {
+			if err := GetPrimaryPlayer().LoadAutomatic(videoPath); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
 				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 			}
 
@@ -14648,7 +14652,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			go func() {
 				// Capture preview frames before running interlace analysis
 				if len(src.PreviewFrames) == 0 {
-					if frames, ferr := capturePreviewFrames(videoPath, src.Duration); ferr == nil && len(frames) > 0 {
+					if frames, ferr := s.captureAutomaticPreviewFrames(videoPath, src.Duration); ferr == nil && len(frames) > 0 {
 						src.PreviewFrames = frames
 					}
 				}
@@ -14991,7 +14995,7 @@ func (s *appState) loadVideo(path string) {
 		}
 	}()
 
-	if HasNativeMediaPlayer() {
+	if HasNativeMediaPlayer() && s.automaticPreviewOwner().Context() != nil {
 		s.closeNativePlayer()
 	}
 
@@ -15006,7 +15010,7 @@ func (s *appState) loadVideo(path string) {
 		return
 	}
 	logging.Info(logging.CatModule, "loadVideo: probe succeeded for %s", path)
-	if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
+	if frames, err := s.captureAutomaticPreviewFrames(src.Path, src.Duration); err == nil {
 		src.PreviewFrames = frames
 		if len(frames) > 0 {
 			s.currentFrame = frames[0]
@@ -15128,7 +15132,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 
 	// Load the first video to display
 	firstVideo := validVideos[0]
-	if frames, err := capturePreviewFrames(firstVideo.Path, firstVideo.Duration); err == nil {
+	if frames, err := s.captureAutomaticPreviewFrames(firstVideo.Path, firstVideo.Duration); err == nil {
 		firstVideo.PreviewFrames = frames
 		if len(frames) > 0 {
 			s.currentFrame = frames[0]
@@ -15175,7 +15179,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	for _, v := range validVideos[1:] {
 		video := v
 		go func() {
-			if frames, err := capturePreviewFrames(video.Path, video.Duration); err == nil && len(frames) > 0 {
+			if frames, err := s.captureAutomaticPreviewFrames(video.Path, video.Duration); err == nil && len(frames) > 0 {
 				video.PreviewFrames = frames
 				logging.Debug(logging.CatModule, "pre-generated preview frames for %s", filepath.Base(video.Path))
 			}
@@ -15262,7 +15266,7 @@ func (s *appState) loadVideos(paths []string) {
 					path := paths[idx]
 					src, err := probeVideo(path)
 					if err == nil {
-						if frames, ferr := capturePreviewFrames(src.Path, src.Duration); ferr == nil {
+						if frames, ferr := s.captureAutomaticPreviewFrames(src.Path, src.Duration); ferr == nil {
 							src.PreviewFrames = frames
 						}
 						mu.Lock()
@@ -15360,7 +15364,7 @@ func (s *appState) switchToVideo(index int) {
 	// If frames aren't ready yet, generate them in background and refresh the view
 	if len(src.PreviewFrames) == 0 {
 		go func() {
-			if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil && len(frames) > 0 {
+			if frames, err := s.captureAutomaticPreviewFrames(src.Path, src.Duration); err == nil && len(frames) > 0 {
 				src.PreviewFrames = frames
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					// Only refresh if the user is still on this video
@@ -17011,7 +17015,43 @@ func sweepOrphanTempFiles() {
 	}
 }
 
-func capturePreviewFrames(path string, duration float64) ([]string, error) {
+// automaticPreviewOwner is initialized once after prefs load in the application;
+// lazy initialization also gives isolated host fixtures the legacy enabled default.
+func (s *appState) automaticPreviewOwner() *previewwork.Controller {
+	s.previewWorkOnce.Do(func() {
+		s.previewWork = previewwork.New(4)
+		s.previewWork.SetEnabled(s.prefs.AutomaticPreviewsEnabled())
+	})
+	return s.previewWork
+}
+
+// applyAutomaticPreviewPolicy only controls optional resources. It must not clear
+// processing sources, mutate queued options or close an explicit manual session.
+// Await the returned completion outside the UI thread and managed workers.
+func (s *appState) applyAutomaticPreviewPolicy(enabled bool) <-chan struct{} {
+	workDone := s.automaticPreviewOwner().SetEnabled(enabled)
+	playerDone := setNativeAutomaticPreviewPolicy(enabled)
+	done := make(chan struct{})
+	go func() { defer close(done); <-workDone; <-playerDone }()
+	return done
+}
+
+func (s *appState) captureAutomaticPreviewFrames(path string, duration float64) ([]string, error) {
+	owner := s.automaticPreviewOwner()
+	request := owner.Context()
+	var frames []string
+	err := owner.Run(request, func(ctx context.Context) (err error) {
+		frames, err = capturePreviewFrames(ctx, path, duration)
+		return err
+	})
+	if err != nil && len(frames) > 0 {
+		_ = os.RemoveAll(filepath.Dir(frames[0]))
+		frames = nil
+	}
+	return frames, err
+}
+
+func capturePreviewFrames(ctx context.Context, path string, duration float64) ([]string, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Crash(logging.CatFFMPEG, "panic in capturePreviewFrames(%s): %v", path, r)
@@ -17023,8 +17063,14 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	keep := false
+	defer func() {
+		if !keep {
+			_ = os.RemoveAll(dir)
+		}
+	}()
 	pattern := filepath.Join(dir, "frame-%03d.png")
-	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(),
 		"-y",
 		"-ss", start,
 		"-i", path,
@@ -17033,8 +17079,10 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		pattern,
 	)
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if err != nil {
-		os.RemoveAll(dir)
 		logging.Error(logging.CatConvert, "preview capture failed: path=%s duration=%.1f err=%v output=%s", path, duration, err, strings.TrimSpace(string(out)))
 		return nil, fmt.Errorf("preview capture failed: %w", err)
 	}
@@ -17043,6 +17091,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		return nil, fmt.Errorf("no preview frames generated")
 	}
 	slices.Sort(files)
+	keep = true
 	return files, nil
 }
 
@@ -17834,34 +17883,49 @@ func (s *appState) generateJobThumbnail(job *queue.Job) {
 	if job.ThumbnailPath != "" {
 		return
 	}
+	owner := s.automaticPreviewOwner()
+	request := owner.Context()
+	if request == nil {
+		return
+	}
+	// Snapshot immutable preparation input before scheduling. A queue ID is not
+	// guaranteed yet because callers may prepare the thumbnail before Add(job).
+	inputPath := job.InputFile
+	duration, _ := job.Config["sourceDuration"].(float64)
+	if duration <= 0 {
+		duration = 60
+	}
 	// Generate thumbnail in background
 	go func() {
-		tmpDir := os.TempDir()
-		thumbPath := filepath.Join(tmpDir, fmt.Sprintf("vt-thumb-%s.jpg", job.ID))
-
-		// Use the thumbnail generator to extract a midpoint frame
-		generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
-		duration := 0.0
-		if d, ok := job.Config["sourceDuration"].(float64); ok {
-			duration = d
-		}
-		if duration <= 0 {
-			// Try to get duration from ffprobe
-			// For simplicity, just use 10s as default
-			duration = 60.0
-		}
-		midpoint := duration / 2.0
-
-		err := generator.ExtractFrame(context.Background(), job.InputFile, midpoint, thumbPath, 120, 68)
+		thumbPath := ""
+		err := owner.Run(request, func(ctx context.Context) error {
+			file, err := os.CreateTemp("", "vt-thumb-*.jpg")
+			if err != nil {
+				return err
+			}
+			thumbPath = file.Name()
+			if err := file.Close(); err != nil {
+				return err
+			}
+			generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
+			return generator.ExtractFrame(ctx, inputPath, duration/2, thumbPath, 120, 68)
+		})
 		if err != nil {
-			logging.Debug(logging.CatSystem, "failed to generate thumbnail for job %s: %v", job.ID, err)
+			if thumbPath != "" {
+				_ = os.Remove(thumbPath)
+			}
+			if !errors.Is(err, context.Canceled) && !errors.Is(err, previewwork.ErrInactive) {
+				logging.Debug(logging.CatSystem, "failed to generate queue thumbnail: %v", err)
+			}
 			return
 		}
 
-		// Update the job's ThumbnailPath and refresh the queue card
-		job.ThumbnailPath = thumbPath
-		logging.Debug(logging.CatSystem, "generated thumbnail for job %s: %s", job.ID, thumbPath)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if !owner.IsCurrent(request) || job.InputFile != inputPath || job.ThumbnailPath != "" {
+				_ = os.Remove(thumbPath)
+				return
+			}
+			job.ThumbnailPath = thumbPath
 			s.refreshQueueView()
 		}, false)
 	}()
