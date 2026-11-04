@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## 2026-11-04 — Feature planning (no application release)
+
+- Require plans to connect observed needs/current behaviour to a bounded approach, investigation of unknowns and observable acceptance (#42). No app or automation change.
+
 ## 2026-11-04 — Error-reporting workflow (no application release)
 
 - Add sanitized defect/check-result and Git completion formats, a dedicated defect form and clearer PR/engineering prompts (#41). No automatic hook/CI behaviour or app version change.

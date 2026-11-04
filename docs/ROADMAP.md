@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## 2026-11-04 — Evidence-to-decision planning (#42)
+
+[Feature planning contract](ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence) applies to every delivery. Unknowns drive bounded investigation before dependent production design; forms and filled plans do not establish runtime success. #37 remains next owner-requested implementation.
+
 ## 2026-11-04 — Error evidence and Git completion (#41)
 
 [Reporting guide](ERROR_REPORTING.md) and defect form make same-session issue evidence and scoped Git handoff practical. Publication and runtime acceptance stay distinct. No application change; #37 and #39 remain open.

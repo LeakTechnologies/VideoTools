@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-04 — Evidence-led feature planning (#42)
+
+Made evidence-to-decision reasoning, decision-critical unknowns, bounded investigation and falsifiable acceptance explicit for every feature/redesign/repair. Updated engineering/PR prompts; applies proportionally without repeat approval ceremonies. Documentation only.
+
 ## 2026-11-04 — Error evidence and Git records (#41)
 
 Added a practical defect-report format and Git completion checklist, dedicated bug form and clearer engineering/PR evidence prompts. Distinguishes environment failures, test failures, suspected causes, publication and acceptance. Documentation/templates only; no app logging, hook, CI or version change.

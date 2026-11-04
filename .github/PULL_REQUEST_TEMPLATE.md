@@ -3,6 +3,8 @@
 Related issue: Refs #
 
 Describe the concrete before/after behavior and the agreed scope briefly.
+Link the evidence-led plan and why this approach was selected. Record findings
+that changed the plan, resolved experiments and any remaining assumptions.
 
 ## Verification
 

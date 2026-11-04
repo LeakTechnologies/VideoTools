@@ -1,5 +1,42 @@
 # Evidence-led engineering workflow
 
+## Every feature plan starts with evidence
+
+Owner direction 2026-11-04: this applies to every feature, redesign and repair,
+not only failures. Before implementation, the issue or linked plan records:
+
+1. **Task and baseline:** whose workflow changes, the intended outcome, current
+   behaviour and exact source/build/platform inspected. Read existing code,
+   decisions and related issues before proposing replacement behaviour.
+2. **Evidence and limits:** user needs, reproduced behaviour, source facts,
+   production UI observations or measurements supporting the change. Separate
+   reported/observed/confirmed facts from assumptions. A requested new capability
+   need not already exist to justify investigation; it still needs a clear task.
+3. **Decision:** explain how that evidence supports the chosen approach. Consider
+   retaining current behaviour and relevant simpler alternatives; record material
+   tradeoffs and regression constraints. Do not enumerate irrelevant alternatives
+   merely to fill a form or adopt another app's layout as proof of improvement.
+4. **Unknowns and next experiment:** identify what could invalidate the approach.
+   Resolve decision-critical uncertainty with a bounded source investigation,
+   measurement or prototype before committing to the dependent production design.
+   State the question, limits, expected observation and decision it informs.
+   Prototype success is not production integration or runtime acceptance.
+5. **Observable success:** define before/after behaviour, relevant negative cases,
+   platform/UI/media checks and resource budgets where justified. Measure an
+   unknown baseline first; never invent speedups or thresholds to justify a plan.
+   Say what result would reject or revise the proposal. Include source/settings
+   preservation and a recovery/rollback boundary where changes warrant it.
+6. **Bounded delivery:** affected paths, exclusions, dependencies, authority and
+   the smallest useful implementation unit. Reuse explicit approval for that
+   scope. Update the plan and evidence when findings change the decision; do not
+   claim changed scope was approved earlier or silently relax success criteria.
+
+Keep this proportional: a small fix can use a few issue paragraphs; substantial
+cross-module work gets a linked design record and PR. No new approval ceremony is
+added. For ongoing work, fill actual evidence gaps at the next decision point;
+do not rewrite historical tickets as though this plan preceded their code.
+Closure still follows actual results, not the completeness of a planning form.
+
 ## Failure reports and Git completion
 
 Follow [ERROR_REPORTING.md](ERROR_REPORTING.md) for minimal reproduction, sanitized errors, observed versus suspected causes, environment/check failures, corrections, closure evidence and exact staging/push handoff. Use the defect form for reports and the engineering form for implementation plans. Actionable evidence belongs on the matching issue in the same session; if GitHub is unavailable, retain a sanitized pending record and synchronize later without claiming it already happened.

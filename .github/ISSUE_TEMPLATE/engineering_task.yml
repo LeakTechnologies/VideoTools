@@ -34,10 +34,24 @@ body:
     validations:
       required: true
   - type: textarea
+    id: decision
+    attributes:
+      label: Evidence to decision
+      description: Explain why the evidence supports this approach over retaining current behaviour or a simpler relevant alternative. Record material tradeoffs and constraints. A short answer is enough for small work.
+    validations:
+      required: true
+  - type: textarea
+    id: unknowns
+    attributes:
+      label: Unknowns and investigation
+      description: What could invalidate this approach? State any bounded investigation, measurement or prototype needed first and what decision its result informs. Write none with a reason if evidence is sufficient. Do not invent a measured baseline.
+    validations:
+      required: true
+  - type: textarea
     id: acceptance
     attributes:
       label: Success criteria and verification plan
-      description: State observable acceptance, regression/negative cases, planned commands and runtime/platform checks. Mark unavailable checks honestly.
+      description: Define before/after task outcomes, regression/negative cases, planned commands and runtime/platform checks. State what would reject or revise the approach and any justified resource/recovery limits. Measure unknown baselines first; mark unavailable checks honestly.
     validations:
       required: true
   - type: textarea
