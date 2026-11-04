@@ -1,5 +1,22 @@
 # Player Debug Status
 
+## Clear source ownership candidate (#32) — 2026-11-04
+
+Separate branch based on accepted dev102 merge 5a70e8b0. Clear now notifies the
+host to clear its authoritative Player source before existing session release,
+stop and rebuild. An absent *videoSource is projected as a genuinely nil Options
+value, avoiding a typed-nil interface taking the loaded view branch. Conversion
+source/options, job inputs and the InlineVideoPlayer API are unchanged. This does
+not claim cancellation of external probes outside that source/session boundary.
+
+The production Player view regression taps Clear, verifies owner-clear before
+retirement/rebuild, subsequent empty rebuild and successful replacement. Native
+build/vet/full suite passed (root 7.778s, Player package 1.269s; unchanged packages
+cached) and the non-native build passed. The isolated clear32-candidate is open
+for loaded-media Clear -> leave/re-enter -> replacement observation and runtime
+log review. That acceptance and any version/merge/release remain pending. Dev102's
+already tagged release is not changed by this branch.
+
 ## VideoTools dev102 transport acceptance — 2026-11-04
 
 Owner tested local implementation a9b2ca66 (neutral 8-second H.264/AAC fixture)

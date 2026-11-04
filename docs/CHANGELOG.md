@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## Unreleased — Clear source ownership (#32)
+
+- Clear VT_Player's authoritative selected source before rebuilding; absent sources
+  take the idle view. Loaded-media/re-entry acceptance remains pending separately
+  from the dev102 transport release.
+
 ## v0.1.1-dev102 — VT_Player transport
 
 - Reconcile seeking/fullscreen/context-key and compact source/tools repairs from

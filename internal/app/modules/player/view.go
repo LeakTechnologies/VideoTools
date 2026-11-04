@@ -25,6 +25,7 @@ type Options struct {
 	OnShowMainMenu           func()
 	OnShowQueue              func()
 	OnShowPlayerView         func()
+	OnClearSource            func()
 	OnUpdateQueueButtonLabel func()
 	OnReleasePlaybackSession func()
 	OnStopPlayer             func()
@@ -59,6 +60,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	clearBtn := ui.MakePillButton(t.ActionClearVideo, playerColor, func() {
+		// The host owns the selected source; a copied Options value does not.
+		if opts.OnClearSource != nil {
+			opts.OnClearSource()
+		}
 		if opts.OnReleasePlaybackSession != nil {
 			opts.OnReleasePlaybackSession()
 		}
