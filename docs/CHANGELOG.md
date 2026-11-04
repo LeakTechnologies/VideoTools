@@ -1,12 +1,13 @@
 # VideoTools Changelog
 
-## Unreleased — VT_Player transport integration candidate (#48)
+## v0.1.1-dev102 — VT_Player transport
 
 - Reconcile seeking/fullscreen/context-key and compact source/tools repairs from
   the separate historical candidate; not included in released dev101.
 - Keep EOF seekable, restart an ended source on explicit Play, and repair tempo
   command/state handling across speed changes and seeks. Fresh checks and partial
-  GUI evidence are recorded in PLAYER_DEBUG; audible/fullscreen acceptance pending.
+  GUI evidence are recorded in PLAYER_DEBUG. Owner accepted the neutral-clip
+  backward-seek/fullscreen/rate/replay check; broader media/platform gaps remain.
 
 
 ## 2026-11-04 — Feature planning (no application release)

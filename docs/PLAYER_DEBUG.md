@@ -1,5 +1,21 @@
 # Player Debug Status
 
+## VideoTools dev102 transport acceptance — 2026-11-04
+
+Owner tested local implementation a9b2ca66 (neutral 8-second H.264/AAC fixture)
+and answered that the requested backward seek, fullscreen, rate/audio and replay
+checks all looked good, adding that the seek bar worked well. The actual log
+records 1.5x/0.25x/2x changes, backward seek to 0.5 seconds and repeated explicit
+Play->seek-to-zero without reopening source session 1. No WARNING/ERROR records
+were found in that session. This qualifies the reported check, not every media
+format, device latency or a measured fullscreen frame rate. Earlier GUI evidence
+and discovered failures below remain preserved.
+
+Linux and Windows dev CI plus Semgrep passed for a9b2ca66. Dev102/build80 metadata
+is release preparation on PR #49; verify the final head, merge/tag and artifact
+publication on #48 before claiming release. Clear #32, preview #37 and DVD PR #28
+remain separate; provisional versioning on PR #44 must be reconciled at its landing.
+
 ## Transport integration candidate — 2026-11-04 (#48)
 
 Fresh branch `codex/player-transport-integration` starts from current master
