@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## 2026-11-04 — Error-reporting workflow (no application release)
+
+- Add sanitized defect/check-result and Git completion formats, a dedicated defect form and clearer PR/engineering prompts (#41). No automatic hook/CI behaviour or app version change.
+
 ## 2026-11-04 — Suite assessment (no application release)
 
 - Record module tasks, fresh opening-screen evidence, shared visual language and explicit loaded/runtime acceptance gaps (#39).

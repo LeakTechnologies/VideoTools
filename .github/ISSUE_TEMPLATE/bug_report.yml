@@ -1,0 +1,54 @@
+name: Report a defect
+description: Record a reproducible failure or user observation without guessing its cause.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Check existing issues first. Exclude real media titles, private paths, credentials, personal details and raw logs/captures. A report does not need a diagnosis or proposed fix.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Expected and observed behaviour
+      description: What task were you doing, what should happen, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: baseline
+    attributes:
+      label: Build and platform
+      description: VideoTools version, OS, and commit or installed build identity if known. Write unknown where necessary.
+    validations:
+      required: true
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Steps and frequency
+      description: Minimal steps, relevant settings and whether it happens always, sometimes, once, or has not been reproduced.
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence_kind
+    attributes:
+      label: Evidence available
+      options:
+        - User observation or report
+        - Reproduced on the stated build
+        - Source-confirmed defect without a runtime reproduction
+        - Suspected problem needing investigation
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Error and relevant context
+      description: Sanitized exact error/exit code or source references. For UI include window/font/locale; for media describe structure rather than titles. Mark missing evidence explicitly.
+  - type: textarea
+    id: impact
+    attributes:
+      label: Task impact and workaround
+      description: Does this block work, risk wrong output, degrade usability or affect appearance? State any safe workaround or related issue.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Expected repair outcome
+      description: What observable result would resolve your report? Engineering scope, approval and checks can be added during triage.

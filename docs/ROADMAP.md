@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## 2026-11-04 — Error evidence and Git completion (#41)
+
+[Reporting guide](ERROR_REPORTING.md) and defect form make same-session issue evidence and scoped Git handoff practical. Publication and runtime acceptance stay distinct. No application change; #37 and #39 remain open.
+
 ## 2026-11-04 — Task-first suite design (#39)
 
 [Current audit](UI_SUITE_AUDIT_2026-11-04.md) separates fresh source/opening-screen evidence from loaded/runtime gaps. Next owner-requested workflow delivery is #37; correctness dependencies remain explicit. #40 proposes shared idle-space recovery. Locked modules and deferred Upscale remain skipped; no app release.

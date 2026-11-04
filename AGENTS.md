@@ -1,5 +1,7 @@
 # VideoTools Agent Workflow Rules
 
+Document actionable failures and Git completion using [ERROR_REPORTING.md](docs/ERROR_REPORTING.md). Update the matching issue in the same session; separate observation, diagnosis, check outcome, publication and runtime acceptance. Preserve unrelated staged/unstaged work.
+
 Suite audit and design direction: [2026-11-04 audit](docs/UI_SUITE_AUDIT_2026-11-04.md), #39. Shared visual language follows task priority; historic fixed chrome/splits may change with evidence. #37 is the next owner-requested processing-workflow delivery; retain correctness dependencies and locked/deferred scope.
 
 ## Evidence-led engineering — owner direction 2026-10-31

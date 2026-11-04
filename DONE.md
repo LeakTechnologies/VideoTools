@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-04 — Error evidence and Git records (#41)
+
+Added a practical defect-report format and Git completion checklist, dedicated bug form and clearer engineering/PR evidence prompts. Distinguishes environment failures, test failures, suspected causes, publication and acceptance. Documentation/templates only; no app logging, hook, CI or version change.
+
 ## 2026-11-04 — Suite design assessment (documentation only)
 
 Refreshed core opening-screen observations, module task/acceptance matrix and shared design contract under #39. Tracked idle-space proposal #40 and current Thumbnail clipping on #2. #37 remains unimplemented; no full module or media acceptance is claimed. [Audit](docs/UI_SUITE_AUDIT_2026-11-04.md).

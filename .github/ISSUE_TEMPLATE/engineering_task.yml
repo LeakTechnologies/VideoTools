@@ -49,4 +49,4 @@ body:
     id: results
     attributes:
       label: Implementation and evidence updates
-      description: As work progresses, record candidate/commit, commands and actual outcomes, release assets, runtime observations and remaining gaps. Historical work must be marked retrospective.
+      description: Record candidate/commit, command or action, environment and passed/failed/blocked/not-run outcome. Distinguish environment startup failures from test failures; link pushed commit/PR and actual CI/release state. Name remaining acceptance and next action. See docs/ERROR_REPORTING.md. Historical work is retrospective.

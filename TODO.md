@@ -1,5 +1,7 @@
 # VideoTools TODO
 
+- [x] Standardize sanitized defect/check records and scoped Git completion handoffs (#41). Apply during feature/repair work; no application error fixes implied. [Guide](docs/ERROR_REPORTING.md).
+
 - [ ] Suite task/design audit #39: refreshed source and opening-screen evidence recorded; loaded, keyboard, performance and platform acceptance remain open. Deliver #37 optional preparation first; #40 shared idle-space proposal follows evidence. See [audit](docs/UI_SUITE_AUDIT_2026-11-04.md).
 
 - [x] Add manual read-only repository preflight and concise active agent rules (#38); runtime correctness remains separate.

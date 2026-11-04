@@ -1,5 +1,9 @@
 # Evidence-led engineering workflow
 
+## Failure reports and Git completion
+
+Follow [ERROR_REPORTING.md](ERROR_REPORTING.md) for minimal reproduction, sanitized errors, observed versus suspected causes, environment/check failures, corrections, closure evidence and exact staging/push handoff. Use the defect form for reports and the engineering form for implementation plans. Actionable evidence belongs on the matching issue in the same session; if GitHub is unavailable, retain a sanitized pending record and synchronize later without claiming it already happened.
+
 ## Accountable module delivery
 
 For suite changes, use [the module acceptance matrix](UI_SUITE_AUDIT_2026-11-04.md). Each implementation issue records scope/evidence/authority, expected task outcome, planned checks, exact candidate/results, open gaps and next acceptance action. Update actionable tracker evidence in the same session. Shared visual rules do not impose identical module layouts. Compilation, empty-state screenshots and real output acceptance remain separate; no self-certification or automatic issue closure.
