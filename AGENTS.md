@@ -1,5 +1,7 @@
 # VideoTools Agent Workflow Rules
 
+Suite audit and design direction: [2026-11-04 audit](docs/UI_SUITE_AUDIT_2026-11-04.md), #39. Shared visual language follows task priority; historic fixed chrome/splits may change with evidence. #37 is the next owner-requested processing-workflow delivery; retain correctness dependencies and locked/deferred scope.
+
 ## Evidence-led engineering — owner direction 2026-10-31
 
 Read [ENGINEERING_WORKFLOW.md](docs/ENGINEERING_WORKFLOW.md) before new work and

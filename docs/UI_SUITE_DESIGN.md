@@ -1,5 +1,9 @@
 # VideoTools UI direction
 
+## 2026-11-04 audit and delivery contract
+
+The [refreshed suite audit](UI_SUITE_AUDIT_2026-11-04.md) defines shared source/scope, semantic styles, optional preview policy, responsive task allocation, help, readiness and result behaviour. Existing chrome, permanent status/footer heights and fixed split ratios may change with evidence. Preserve readability, SMPTE identity and module character. #39 tracks remaining loaded/platform acceptance; #37 is the next owner-requested processing-workflow delivery and #40 proposes shared idle-space improvements. These are records and recommendations, not implemented new screens.
+
 ## Agreed requirements
 
 Space follows the user's task. Convert and Inspect prioritize readable source

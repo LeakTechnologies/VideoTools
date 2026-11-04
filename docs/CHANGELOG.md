@@ -1,5 +1,10 @@
 # VideoTools Changelog
 
+## 2026-11-04 — Suite assessment (no application release)
+
+- Record module tasks, fresh opening-screen evidence, shared visual language and explicit loaded/runtime acceptance gaps (#39).
+- Define #37 as the next owner-requested processing-workflow delivery; track idle chrome #40 and Thumbnail clipping evidence #2. Application remains dev101.
+
 ## 2026-11-03 — Engineering tools (no application release)
 
 - Add read-only local repository preflight and separate active rules from archived history (#38).

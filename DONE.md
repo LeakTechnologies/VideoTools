@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-04 — Suite design assessment (documentation only)
+
+Refreshed core opening-screen observations, module task/acceptance matrix and shared design contract under #39. Tracked idle-space proposal #40 and current Thumbnail clipping on #2. #37 remains unimplemented; no full module or media acceptance is claimed. [Audit](docs/UI_SUITE_AUDIT_2026-11-04.md).
+
 ## 2026-11-03 — Workflow tightening (#38)
 
 Added manual local-evidence preflight; archived prior AGENTS exactly and retained mandatory active constraints separately. No app behavior or version change.

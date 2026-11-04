@@ -1,5 +1,9 @@
 # Evidence-led engineering workflow
 
+## Accountable module delivery
+
+For suite changes, use [the module acceptance matrix](UI_SUITE_AUDIT_2026-11-04.md). Each implementation issue records scope/evidence/authority, expected task outcome, planned checks, exact candidate/results, open gaps and next acceptance action. Update actionable tracker evidence in the same session. Shared visual rules do not impose identical module layouts. Compilation, empty-state screenshots and real output acceptance remain separate; no self-certification or automatic issue closure.
+
 ## Manual preflight
 
 Run `pwsh -NoProfile -File scripts/tools/repo-preflight.ps1` before work. It reports repository identity, HEAD, branch, VERSION, local upstream counts, worktrees and dirty/submodule state without fetching or writing Git state. Unknown inspection results stay explicit. It is manually invoked, not a hook, CI gate or approval mechanism. Read the linked active constraints in AGENTS.md; dated instruction snapshots are historical records.

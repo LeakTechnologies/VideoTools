@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## 2026-11-04 — Task-first suite design (#39)
+
+[Current audit](UI_SUITE_AUDIT_2026-11-04.md) separates fresh source/opening-screen evidence from loaded/runtime gaps. Next owner-requested workflow delivery is #37; correctness dependencies remain explicit. #40 proposes shared idle-space recovery. Locked modules and deferred Upscale remain skipped; no app release.
+
 ## 2026-11-03 — Workflow tightening (#38)
 
 Manual repository preflight and concise AGENTS entry point; [active constraints](AGENT_CONSTRAINTS.md) retain regression and platform rules. Next correctness work remains in #29. No application release.
