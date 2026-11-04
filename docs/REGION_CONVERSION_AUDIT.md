@@ -282,11 +282,10 @@ facing bug; a clearly-logged limitation is acceptable.
 
 - **No AI attribution** anywhere (commits/docs): no `Co-Authored-By`,
   "Generated with" or session credit. Author identity = repo owner.
-- **Research only** unless the Human Director approves a fix. If approved, each
-  landing syncs all six docs in the same commit: `docs/roadmap.html` (single
-  source of truth), `docs/ROADMAP.md`, `docs/CHANGELOG.md`, `AGENTS.md`,
-  `DONE.md`, `TODO.md` — plus behavior docs (`docs/INSTALLATION.md`,
-  `docs/PAL_NTSC_CONVERSION.md` as applicable).
+- **Research only** unless the Human Director approves a fix. If approved,
+  update affected documentation with implementation under [the current workflow](ENGINEERING_WORKFLOW.md#documentation-follows-the-change).
+  The former blanket six-document requirement is superseded by #47; this
+  clarification does not authorize production changes or alter audit findings.
 - All user-facing strings via `i18n.T().KeyName` (en/fr/iu/iu_latin) — never
   hardcoded literal labels in constructors.
 - Linux + Windows only; zero new Windows runtime deps.

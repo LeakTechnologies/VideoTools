@@ -30,7 +30,7 @@ body:
     id: plan
     attributes:
       label: Proposed approach and scope
-      description: State affected areas, exclusions, dependencies and decisions still needed. A proposal is not approval.
+      description: State affected areas, exclusions, dependencies and decisions still needed. Identify documentation to update with implementation, or briefly explain no documentation impact. Use existing guides/contracts rather than a new report by default. A proposal is not approval.
     validations:
       required: true
   - type: textarea

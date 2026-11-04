@@ -125,18 +125,12 @@ Pre-written rebuttals to shortcuts an agent (or a tired engineer) might take. If
 
 ## Documentation Discipline
 
-Every landing **updates all six documents in the same commit**:
-
-| Document | Update |
-|---|---|
-| `roadmap.html` | Card status/cycle/desc; new cards; changelog + checklist data |
-| `ROADMAP.md` | Timeline entry; Current State; Now/Next |
-| `CHANGELOG.md` | Bullet under current dev cycle |
-| `AGENTS.md` | Settled decisions, priorities, current state |
-| `DONE.md` | Completed-feature entry |
-| `TODO.md` | Check off done; add newly scoped |
-
-- Behavior changes also update `INSTALLATION.md` + the platform guide (`INSTALL_WINDOWS.md` / `INSTALL_LINUX.md`).
+Follow [Documentation follows the change](ENGINEERING_WORKFLOW.md#documentation-follows-the-change).
+Update affected documentation in the implementation commit and task evidence on
+the issue in the same session. Identify documentation impact (or a short reason
+for none) in the existing issue/PR. Unaffected trackers and installation guides
+need no edits; AGENTS is not a progress diary. Specific player/debug and release
+verification requirements remain binding.
 - No personal names in docs — `user report` / `dev report` only.
 - **No media/disc titles anywhere in the repo** — not in code, comments, log
   messages, test fixtures, docs, **commit messages**, or GitHub issues (titles,
@@ -153,21 +147,21 @@ Every landing **updates all six documents in the same commit**:
   The rule targets real film titles, not innocuous sample names. Feature prose
   may also keep neutral `test` / `Title A` style placeholders.
 - The retired `docs.leaktechnologies.dev` site must not be referenced.
-- New features get `FEATURE_NAME.md` (overview, implementation, files, testing checklist) **before** implementation, linked from TODO.md and this file.
+- Plans may live in the issue; use a linked design document for substantial durable contracts. Do not create a standalone file for every feature.
 - Active feature: `RIP_CHAPTER_RANGE.md` (dev81 — rip a title by a chapter range).
 
 ### Roadmap Card Rules
 
 Capability statuses: `shipped` (tester-confirmed) / `done` (committed, required checks green) / `active` / `planned` / `future`. Required checks for a documentation-only task are documentation checks, not an application rebuild. GitHub issues record approval, release and runtime evidence separately; `done` never implies media acceptance.
-On landing: set `done`, set `cycle`, correct `desc`/`files`. On tester sign-off: `shipped`. On cycle close: add `changelogData` + `checklistData` entries, bump subtitle. Never leave landed work at `planned`; never park at `done` indefinitely; never edit roadmap.html without syncing the other five docs.
+When the tracked capability's state changes, update its status, cycle and description/files using actual evidence. On tester sign-off: `shipped`. On cycle close: summarize the cycle and relevant checklist. A completed subtask does not mark an unfinished parent capability done. Update other summaries only where the same change affects their statements; no mandatory cross-file synchronization.
 
 ## Version Bumping & Release Protocol
 
-- After every major change: bump `main.go`, `VERSION`, `FyneApp.toml`; update DONE.md/TODO.md/CHANGELOG.md.
+- Tester-facing application candidates keep `main.go`, `VERSION`, `FyneApp.toml` coherent. Update the changelog for meaningful user changes and other summaries only when affected; record candidate/check/open-acceptance evidence on the issue.
 - Documentation, issue triage and governance-only changes are exempt from version bumps and release tags. This dated clarification supersedes older "every update" wording; keep app versions unchanged when behavior is unchanged.
 - `v0.1.1-devN` = rolling dev line; `v0.1.1` = stable baseline; dev numbering continuous; public bumps are readiness-based.
 - **When work warrants a new dev version** (major feature, significant fix batch, anything tester-facing), the agent drives the release end-to-end:
-  1. Bump the three version files + the six docs (same commit), push to master, confirm dev CI green.
+  1. Bump the three version files and affected documentation in the implementation commit, push the accepted candidate to master, confirm dev CI green. Preserve draft/integration and runtime acceptance gates.
   2. Tag the release commit `v0.1.1-devN` and push the tag — this triggers `release.yml` (GitHub Release with both platform assets).
   3. Watch the release run to green; report the release URL.
 - **Release authorization:** the Human Director authorizes automatic commit and release-tag pushes using existing Git credentials. Prefer `$VT_RELEASE_TOKEN` when available; otherwise push through the configured origin. Do not require manual tagging merely because that environment variable is absent. Never retarget existing tags.

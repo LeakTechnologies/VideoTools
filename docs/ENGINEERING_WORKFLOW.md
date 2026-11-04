@@ -41,6 +41,48 @@ Closure still follows actual results, not the completeness of a planning form.
 
 Follow [ERROR_REPORTING.md](ERROR_REPORTING.md) for minimal reproduction, sanitized errors, observed versus suspected causes, environment/check failures, corrections, closure evidence and exact staging/push handoff. Use the defect form for reports and the engineering form for implementation plans. Actionable evidence belongs on the matching issue in the same session; if GitHub is unavailable, retain a sanitized pending record and synchronize later without claiming it already happened.
 
+## Documentation follows the change
+
+Owner-approved 2026-11-04, tracked in [#47](https://github.com/LeakTechnologies/VideoTools/issues/47).
+This replaces blanket six-document updates and automatic installation-guide or
+standalone-plan requirements for every change. Documentation is part of delivery:
+update affected documents in the same commit as the implementation, and record
+task evidence on the issue in the same session. A separate documentation catch-up
+pass is not the normal completion path.
+
+During planning, identify the documents whose statements will become inaccurate
+or incomplete. During diff review, check those statements against the final
+behaviour and results. Record affected paths in the existing issue/PR scope; if
+no documentation is affected, give a short reason there. This requires neither
+a new report nor edits to unaffected files.
+
+| Change or fact | Canonical home and update trigger |
+|---|---|
+| Task, approval, investigation, failures, check results and remaining acceptance | Matching GitHub issue; link exact commits/PRs and preserve evidence states. Worklist #29 orders tasks. |
+| User workflow, setting, option or limitation | Relevant existing module/user guide when the documented behaviour changes. |
+| Source/state ownership, lifecycle, API or architectural decision | Relevant technical/design document when the contract changes. Keep proposals distinct from current implementation. |
+| Installation, dependency, platform support or build procedure | Installation/platform guide only when those instructions or requirements change. |
+| Meaningful user-visible feature or fix | Concise CHANGELOG entry under the correct candidate/release; consolidate related work rather than adding a session diary. |
+| Capability, dependency, acceptance checklist or delivery milestone | Relevant roadmap entry when that state changes; link the issue rather than copying its running history. |
+| Current high-level next work or completed milestone | TODO/DONE only when their summary changes; retain useful history, keep summaries brief and link Issues. |
+| Agent authority, settled constraints or required reading | AGENTS/active constraints only when those rules change; no per-commit progress entries. |
+
+Use existing documents before creating another. Small work can keep its plan and
+evidence in the issue. Create a durable design document for substantial contracts
+or decisions that need a stable explanation beyond the task, not one per feature
+by default. Update the current explanation in place; dated reports and historical
+snapshots retain their original evidence and are explicitly superseded when needed.
+Do not delete useful history or bulk-rewrite unrelated documentation during delivery.
+
+Specific verification requirements remain: player work still needs the applicable
+PLAYER_DEBUG update and real-session log review before landing; privacy, media,
+localization and platform checks remain binding. A documentation-only task uses
+documentation checks and does not bump the app version or create a binary release.
+For application candidates, keep version manifests coherent and record the exact
+commit, changed behaviour, actual checks and remaining acceptance on the issue.
+A version identifies a candidate; it does not establish acceptance. Existing dev
+numbering, release gates and tag preservation remain unchanged.
+
 ## Accountable module delivery
 
 For suite changes, use [the module acceptance matrix](UI_SUITE_AUDIT_2026-11-04.md). Each implementation issue records scope/evidence/authority, expected task outcome, planned checks, exact candidate/results, open gaps and next acceptance action. Update actionable tracker evidence in the same session. Shared visual rules do not impose identical module layouts. Compilation, empty-state screenshots and real output acceptance remain separate; no self-certification or automatic issue closure.

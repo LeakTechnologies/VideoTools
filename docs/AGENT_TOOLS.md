@@ -44,13 +44,13 @@ Registry of all agent/subagent tools in the VideoTools toolchain, with purpose, 
 **Model:** `google/gemini-2.5-pro`
 **Mode:** subagent
 
-**Purpose:** Read-only review of a diff against its stated scope, the six-doc sync rule, and the repo's pinned invariants. Reports findings before merge.
+**Purpose:** Read-only review of a diff against its stated scope, documentation impact, and the repo's pinned invariants. Reports findings before merge. Tool availability and this historical registry do not override AGENTS.md or the active workflow.
 
 **Primary use case:** Pre-merge review of a commit or PR.
 
 **Method:**
 1. Scope: does every hunk belong to the stated task?
-2. Six-doc sync: a landing must update all six docs in the same commit — `docs/roadmap.html` (single source of truth), `docs/ROADMAP.md`, `docs/CHANGELOG.md`, `AGENTS.md`, `DONE.md`, `TODO.md`.
+2. Documentation impact: follow [the current workflow](ENGINEERING_WORKFLOW.md#documentation-follows-the-change). Affected documentation belongs with implementation; unaffected trackers need no edits. Issues own task evidence. This supersedes the former six-document synchronization rule.
 3. Pinned invariants (regression constraints, NOT cleanup candidates):
    - `content_list.go:292` — bulk Select All clears `locked`/`anchored` and raises `tc.updating` around `SetChecked`; removing the guard deadlocks the UI thread.
    - `executor.go:341` — `-f dvdvideo -title N -i <path>`: title MUST precede `-i`.
