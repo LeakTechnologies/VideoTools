@@ -18,12 +18,14 @@ const (
 )
 
 type PacketQueue struct {
-	packets []*C.AVPacket
-	mu      sync.Mutex
-	cond    *sync.Cond
-	closed  bool
-	eof     bool
-	maxSize int
+	packets    []*C.AVPacket
+	mu         sync.Mutex
+	cond       *sync.Cond
+	closed     bool
+	eof        bool
+	maxSize    int
+	generation uint64
+	reset      chan struct{}
 }
 
 func NewPacketQueue() *PacketQueue {
@@ -41,15 +43,26 @@ func NewPacketQueueWithMaxSize(maxSize int) *PacketQueue {
 	return q
 }
 
+func (q *PacketQueue) Generation() uint64 {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.generation
+}
+
 func (q *PacketQueue) Put(pkt *C.AVPacket) {
+	q.PutGeneration(pkt, q.Generation())
+}
+
+// PutGeneration rejects a demux read retired by Flush, including a blocked put.
+func (q *PacketQueue) PutGeneration(pkt *C.AVPacket, generation uint64) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	for !q.closed && !q.eof && len(q.packets) >= q.maxSize {
+	for generation == q.generation && !q.closed && !q.eof && len(q.packets) >= q.maxSize {
 		q.cond.Wait()
 	}
 
-	if q.closed || q.eof {
+	if generation != q.generation || q.closed || q.eof {
 		return
 	}
 
@@ -87,6 +100,11 @@ func (q *PacketQueue) Flush() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	if q.reset != nil {
+		close(q.reset)
+	}
+	q.reset = make(chan struct{})
+	q.generation++
 	for _, pkt := range q.packets {
 		C.av_packet_free(&pkt)
 	}
@@ -112,6 +130,12 @@ func (q *PacketQueue) Close() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	if q.closed {
+		return
+	}
+	if q.reset != nil {
+		close(q.reset)
+	}
 	q.closed = true
 	for _, pkt := range q.packets {
 		C.av_packet_free(&pkt)
@@ -157,10 +181,14 @@ func (q *PacketQueue) IsClosed() bool {
 // If the queue is already at capacity the packet is NOT enqueued and the
 // caller must free it; returns false. Never blocks.
 func (q *PacketQueue) TryPut(pkt *C.AVPacket) bool {
+	return q.TryPutGeneration(pkt, q.Generation())
+}
+
+func (q *PacketQueue) TryPutGeneration(pkt *C.AVPacket, generation uint64) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if q.closed || q.eof || len(q.packets) >= q.maxSize {
+	if generation != q.generation || q.closed || q.eof || len(q.packets) >= q.maxSize {
 		return false
 	}
 
@@ -199,24 +227,56 @@ func (q *PacketQueue) IsClosedOrEOF() bool {
 // Unlike TryGet it does not spin — the caller's goroutine sleeps on the cond
 // and wakes immediately when TryPut/Put signals a new packet.
 func (q *PacketQueue) TimedGet(d time.Duration) (*C.AVPacket, bool) {
+	pkt, ok, _ := q.TimedGetGeneration(d)
+	return pkt, ok
+}
+
+// TimedGetGeneration returns the packet's generation under the dequeue lock.
+func (q *PacketQueue) TimedGetGeneration(d time.Duration) (*C.AVPacket, bool, uint64) {
 	deadline := time.Now().Add(d)
 	// Timer fires after d and broadcasts to wake any cond.Wait() callers.
-	timer := time.AfterFunc(d, func() { q.cond.Broadcast() })
+	timer := time.AfterFunc(d, func() { q.mu.Lock(); q.cond.Broadcast(); q.mu.Unlock() })
 	defer timer.Stop()
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	for len(q.packets) == 0 && !q.closed && !q.eof {
 		if time.Now().After(deadline) {
-			return nil, false
+			return nil, false, q.generation
 		}
 		q.cond.Wait()
 	}
 	if len(q.packets) == 0 {
-		return nil, false
+		return nil, false, q.generation
 	}
 	pkt := q.packets[0]
 	q.packets = q.packets[1:]
 	q.cond.Signal()
-	return pkt, true
+	return pkt, true, q.generation
+}
+
+// WaitForReset parks a source worker at EOF until a seek changes generation.
+// Source retirement and queue Close always release it without polling.
+func (q *PacketQueue) WaitForReset(generation uint64, stop <-chan struct{}) bool {
+	for {
+		q.mu.Lock()
+		if q.closed {
+			q.mu.Unlock()
+			return false
+		}
+		if q.generation != generation {
+			q.mu.Unlock()
+			return true
+		}
+		if q.reset == nil {
+			q.reset = make(chan struct{})
+		}
+		reset := q.reset
+		q.mu.Unlock()
+		select {
+		case <-stop:
+			return false
+		case <-reset:
+		}
+	}
 }

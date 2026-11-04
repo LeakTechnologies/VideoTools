@@ -1,5 +1,18 @@
 # VT_Player upgrade plan
 
+## Current transport integration (#48; 2026-11-04)
+
+Integrate the historical transport candidate independently of optional-preview
+PR #44 and DVD PR #28. Fresh evidence found EOF disposal/PCM-drain and atempo
+runtime-update defects, plus stale EOF reload presentation. The candidate repairs
+those source/transport boundaries; [PLAYER_DEBUG](PLAYER_DEBUG.md) and
+[issue #48](https://github.com/LeakTechnologies/VideoTools/issues/48) distinguish
+actual checks, observed failures and pending audible/fullscreen acceptance.
+Retain one source/presentation owner, manual/API semantics and approved dual-stream
+exceptions. Clear #32 and preview policy #37 remain separate integration units.
+Do not treat this candidate or historical checks as a released dev101 fix.
+
+
 ## Dev97 integration checkpoint
 
 Source-owned cancellation/join and retired-callback suppression are integrated with startup/resume continuity. Saved-position previews decode to the requested timestamp, audio preroll is discarded before buffering, bounded readiness precedes output, and the per-player output buffer is reduced. Opt-in diagnostics report queue occupancy, output levels, underruns, drops and clock adjustments. Native build/vet/full tests, race tests and non-native build passed. User-witnessed alternate-container playback had no noticed lip-sync issues; runtime counters showed no underruns/drops/snaps and clean teardown. Exact seeking, speed fallback quality, device-latency measurement and encrypted-disc acceptance remain open. CI/tag publication must be confirmed separately. Next order: instrument paused-output transitions; correct FFmpeg seek flags and validate returned PTS; exercise long-GOP/VFR frame navigation; then establish one comparison clock with one audible source.
