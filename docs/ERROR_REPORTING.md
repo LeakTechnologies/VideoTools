@@ -99,7 +99,7 @@ required by the active constraints. Close only the criteria actually satisfied.
 2. **Keep one coherent change.** Define affected paths and exclusions on the issue.
    Split materially different work. Use a proportional PR for cross-module/media/
    FFI/backend integration; a small authorized verified change may land directly.
-3. **Review before staging.** Inspect the actual diff, including encoding, generated
+3. **Review before staging.** Check [documentation impact](ENGINEERING_WORKFLOW.md#documentation-follows-the-change): update affected guides/contracts in the implementation commit, or record why none are affected in the issue/PR. Do not manufacture edits to unaffected trackers. Inspect the actual diff, including encoding, generated
    files, captures and private data. Stage only exact task paths or exact hunks if
    a file also contains unrelated edits. File-level staging is not safe merely
    because the filename belongs to the task.

@@ -5,6 +5,9 @@ Related issue: Refs #
 Describe the concrete before/after behavior and the agreed scope briefly.
 Link the evidence-led plan and why this approach was selected. Record findings
 that changed the plan, resolved experiments and any remaining assumptions.
+Name affected documentation updated with the change, or briefly explain why none
+is affected. Follow docs/ENGINEERING_WORKFLOW.md#documentation-follows-the-change;
+do not copy issue history into multiple trackers.
 
 ## Verification
 
