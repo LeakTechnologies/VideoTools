@@ -1,5 +1,17 @@
 # Player Debug Status
 
+## 2026-11-04 — Automatic analysis follow-up (#46)
+
+Inspect interlace dispatch now uses the host work owner; explicit Convert analysis remains independent. This changes subprocess ownership, not the playback engine. Headless analysis tests do not establish real player/audio/log acceptance; PR #44 remains unmerged and unreleased.
+
+## 2026-11-04 — Dev102 host/command candidate (#46)
+
+Selected automatic Convert/Inspect loads are classified; fallback/queue work uses host cancellation. Neutral FFmpeg checks passed for patterned output, cancelled cleanup and process cancellation/join; those are headless command checks, not a real player session or audible playback acceptance. No real playback/log review in this slice; no master/release landing. Parent #37 render/analysis/direct-player integration remains open.
+
+## 2026-11-04 — Automatic-preview ownership candidate (#43)
+
+Shared API/lifecycle candidate only. No real playback session was run for this slice and no runtime log acceptance is claimed. Deterministic fake engines exercise production admission/retirement paths; exact native/race/stub outcomes are recorded on #43. Keep off master/release until integrated real-session/log review. Existing DVD and transport acceptance gaps remain open.
+
 Dev101 Rip UI: removed its unused hidden InlineVideoPlayer instance and scan/card-focus LoadDVD calls. Runtime dev100 log showed automatic source opening immediately after scan, competing with thumbnail reads. Open in Player remains the explicit playback action. No native playback transport/engine change or DVD playback acceptance is claimed.
 
 Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.

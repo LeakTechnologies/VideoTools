@@ -1,5 +1,7 @@
 # VideoTools Agent Workflow Rules
 
+Optional-preview dev102 candidate: [AUTOMATIC_PREVIEWS.md](docs/AUTOMATIC_PREVIEWS.md), #37 with #43/#45 ownership and #46 selected host/command and automatic Inspect analysis wiring on draft PR #44. Global Settings/render/direct-player integration and explicit Inspect actions/acceptance remain open; no merge or release. Preserve manual-session ownership.
+
 Every feature/redesign/repair follows the [evidence-to-decision planning contract](docs/ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence): inspect current behaviour, justify the approach, expose unknowns and define observable success before code. Decision-critical gaps require bounded investigation; never invent evidence.
 
 Document actionable failures and Git completion using [ERROR_REPORTING.md](docs/ERROR_REPORTING.md). Update the matching issue in the same session; separate observation, diagnosis, check outcome, publication and runtime acceptance. Preserve unrelated staged/unstaged work.

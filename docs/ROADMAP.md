@@ -1,5 +1,19 @@
 # VideoTools Roadmap
 
+Automatic Inspect detection now shares the dev102 candidate's work budget and cancellation (#46). Claims capture policy before dispatch; retirement cannot publish a result. Explicit Convert analysis remains independent. No global switch or runtime acceptance yet.
+
+## VideoTools v0.1.1-dev102 — host integration candidate (#46)
+
+[Automatic previews](AUTOMATIC_PREVIEWS.md): host ownership reaches real capture/queue commands and selected loads. PR #44 remains draft; complete analysis/render/exception/Settings and runtime acceptance are pending. Latest published baseline stays dev101.
+
+## Candidate — preview work and preference (#45)
+
+[Automatic-preview plan](AUTOMATIC_PREVIEWS.md) now defines the bounded work owner, stale generation checks and saved opt-out model. PR #44 remains the integration candidate; #37 host/worker/Settings/Inspect and runtime acceptance are still open.
+
+## Candidate — automatic-preview ownership (#43 / #37)
+
+[Implementation sequence](AUTOMATIC_PREVIEWS.md): automatic/manual session boundary and retirement completion on isolated PR branch. Host preference, capture/thumbnail cancellation, Inspect and direct-player exceptions remain integration work. No application release or media acceptance.
+
 ## 2026-11-04 — Evidence-to-decision planning (#42)
 
 [Feature planning contract](ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence) applies to every delivery. Unknowns drive bounded investigation before dependent production design; forms and filled plans do not establish runtime success. #37 remains next owner-requested implementation.

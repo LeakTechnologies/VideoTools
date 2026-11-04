@@ -1,5 +1,20 @@
 # VideoTools Changelog
 
+## VideoTools v0.1.1-dev102 — unmerged candidate
+
+- Include automatic Inspect interlace detection in the shared cancellation/concurrency budget; reject retired results and preserve explicit Convert analysis while previews are off (#46).
+
+- Route selected automatic capture, queue thumbnail and Convert/Inspect load paths through host policy (#46); cancel commands and discard stale thumbnail publication. Shared capture/thumbnail concurrency is limited to four running operations.
+- Candidate version only: no global Settings control, full #37 acceptance, merge or release. Header quick settings is recorded as a proposal.
+
+## Unreleased candidate — preview work and preference (#45)
+
+- Add cancellable, concurrency-limited automatic-work ownership and legacy-safe preview preference state. Host/Settings/subprocess wiring remains outstanding in #37; no release.
+
+## Unreleased candidate — automatic-preview session boundary (#43)
+
+- Separate automatic-load admission from explicit manual playback; selective retirement exposes completion for callers. Candidate branch only; automatic app calls/settings are not connected and no performance improvement or release is claimed.
+
 ## 2026-11-04 — Feature planning (no application release)
 
 - Require plans to connect observed needs/current behaviour to a bounded approach, investigation of unknowns and observable acceptance (#42). No app or automation change.

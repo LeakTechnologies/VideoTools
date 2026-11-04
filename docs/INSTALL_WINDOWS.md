@@ -1,5 +1,10 @@
 # VideoTools Installation Guide for Windows
 
+Unreleased dev102 candidate (#46 / PR #44): selected automatic frame/queue/Inspect analysis
+preparation now shares a four-operation budget and supports cancellation. No
+global preview switch is exposed yet; no new dependencies or installation steps.
+Published dev101 instructions below remain the release baseline.
+
 VideoTools dev101: chapter selection shows available counts and numbered choices; optional help opens on hover or via the adjacent information button. Hover respects Settings. Full title remains one file; Every chapter creates separate files. Optical previews sample title data; ISO extraction remains unchanged.
 
 Dev100: compact Rip cards and restored preview handling. Encrypted preview

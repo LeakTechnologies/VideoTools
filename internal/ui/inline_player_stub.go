@@ -4,19 +4,32 @@ package ui
 
 import (
 	"image"
+	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"github.com/LeakTechnologies/VideoTools/internal/media"
 	"github.com/LeakTechnologies/VideoTools/internal/media/state"
 )
 
-type InlineVideoPlayer struct{}
+type InlineVideoPlayer struct{ automaticPreviewsDisabled atomic.Bool }
 
 func NewInlineVideoPlayer() *InlineVideoPlayer { return &InlineVideoPlayer{} }
 
 func (v *InlineVideoPlayer) Widget() fyne.CanvasObject { return nil }
 
-func (v *InlineVideoPlayer) Load(path string) error                           { return nil }
+func (v *InlineVideoPlayer) Load(path string) error { return nil }
+func (v *InlineVideoPlayer) LoadAutomatic(path string) error {
+	if v.automaticPreviewsDisabled.Load() {
+		return ErrAutomaticPreviewsDisabled
+	}
+	return nil
+}
+func (v *InlineVideoPlayer) SetAutomaticPreviewsEnabled(enabled bool) <-chan struct{} {
+	v.automaticPreviewsDisabled.Store(!enabled)
+	done := make(chan struct{})
+	close(done)
+	return done
+}
 func (v *InlineVideoPlayer) LoadDVD(path string, title int) error             { return nil }
 func (v *InlineVideoPlayer) LoadURL(url string, opts map[string]string) error { return nil }
 
