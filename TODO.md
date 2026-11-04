@@ -1,5 +1,7 @@
 # VideoTools TODO
 
+- [ ] #37 worker/preference candidate #45: concurrency/cancellation/generation owner and legacy-safe saved preference model implemented on PR #44 branch. Host/command/UI wiring and real-media/performance acceptance remain open. See [plan](docs/AUTOMATIC_PREVIEWS.md).
+
 - [ ] #37 first candidate #43: automatic/manual session ownership and retirement completion API implemented on isolated branch; native/race/stub verification and PR evidence recorded on the issue. Settings/import/frame-worker/Inspect integration, performance and real-use acceptance remain open. [Plan](docs/AUTOMATIC_PREVIEWS.md).
 
 - [x] Require evidence-to-decision feature plans and bounded investigation of critical unknowns (#42). Apply to #37 next; implementation and performance acceptance remain open.

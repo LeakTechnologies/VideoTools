@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## Candidate — preview work and preference (#45)
+
+[Automatic-preview plan](AUTOMATIC_PREVIEWS.md) now defines the bounded work owner, stale generation checks and saved opt-out model. PR #44 remains the integration candidate; #37 host/worker/Settings/Inspect and runtime acceptance are still open.
+
 ## Candidate — automatic-preview ownership (#43 / #37)
 
 [Implementation sequence](AUTOMATIC_PREVIEWS.md): automatic/manual session boundary and retirement completion on isolated PR branch. Host preference, capture/thumbnail cancellation, Inspect and direct-player exceptions remain integration work. No application release or media acceptance.

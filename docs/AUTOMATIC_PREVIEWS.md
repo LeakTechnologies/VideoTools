@@ -1,7 +1,8 @@
 # Automatic previews — implementation sequence
 
 Approved product scope and acceptance: [#37](https://github.com/LeakTechnologies/VideoTools/issues/37).
-First candidate slice: [#43](https://github.com/LeakTechnologies/VideoTools/issues/43).
+Candidate slices: [session ownership #43](https://github.com/LeakTechnologies/VideoTools/issues/43),
+[work ownership and preference #45](https://github.com/LeakTechnologies/VideoTools/issues/45).
 
 The current shared Load API does not distinguish a processing preview from an
 explicit manual session. Add that distinction before exposing a global switch.
@@ -22,6 +23,35 @@ Tests use the production lifecycle boundary with deterministic fake engines to
 cover denied admission, in-flight cancellation, queued callbacks, teardown wait,
 manual replacement and re-enable. These are lifecycle checks, not real playback
 or performance acceptance. Keep this as a PR candidate pending integration.
+
+## Background-work and preference candidate (#45)
+
+`previewwork.Controller` is a host-owned work scope with an explicit concurrency
+budget. Capture `Context()` before scheduling, then call `Run` synchronously from
+a bounded host worker pool. Pass its context to FFmpeg/analysis; use `IsCurrent`
+on the UI thread together with source identity before publishing results. A
+request captured before disable stays rejected after re-enable. A completed Run
+is not permission to publish into a newer source. The controller bounds running
+operations across retiring generations; it does not supply an unbounded queue or
+bound the caller's number of scheduled goroutines.
+
+`SetEnabled(false)` cancels all admitted generations and returns a signal after
+all their work exits, including non-cooperative work still returning from native
+calls. Repeated disable waits for prior retirements too. Enabling creates a fresh
+scope without starting work. Admission and WaitGroup registration are serialized
+with retirement so queued work cannot register after the join begins. The budget
+is shared across generations; cancellation alone does not free a slot.
+
+Preferences store `DisableAutomaticPreviews` as an opt-out. A missing/false/null
+key preserves enabled behaviour for legacy configs; explicit true persists the
+opt-out. `AutomaticPreviewsEnabled()` is the single interpretation of that value.
+This model is not connected to the running host or Settings control yet: editing
+the key does not by itself suppress app preparation in this candidate.
+
+Host integration must combine worker and session retirement signals off the UI
+thread, preserve job input/options and manual sessions, guard delayed publication
+and adapt actual subprocess commands to use the owned context. Constructor tests
+and a saved preference model do not establish subprocess termination or UI behaviour.
 
 ## Remaining #37 integration
 
@@ -52,3 +82,9 @@ identity are recorded on #43. Fifteen task files passed UTF-8, local-link,
 roadmap-script/unique-ID and staged diff checks; legacy encoding markers remain
 unchanged. No real playback, performance measurement, Settings integration or
 processing-output acceptance ran. Keep this candidate unmerged pending integration.
+
+Work/preference slice #45 checks: `go test -race` for previewwork and settings
+passed; Windows native build/vet/full tests and non-native `go build ./...`
+passed. Unchanged packages were reported cached by Go in the full gate. Eleven
+task files passed UTF-8/link/roadmap/diff checks. These results do not establish
+FFmpeg termination, runtime memory savings, host integration or UI acceptance.

@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## Unreleased candidate — preview work and preference (#45)
+
+- Add cancellable, concurrency-limited automatic-work ownership and legacy-safe preview preference state. Host/Settings/subprocess wiring remains outstanding in #37; no release.
+
 ## Unreleased candidate — automatic-preview session boundary (#43)
 
 - Separate automatic-load admission from explicit manual playback; selective retirement exposes completion for callers. Candidate branch only; automatic app calls/settings are not connected and no performance improvement or release is claimed.

@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-04 — Preview-work ownership candidate (#45)
+
+Added an automatic-work controller with cross-generation concurrency limits, cancellation/join completion and stale-request rejection; added the backwards-compatible preference model and race/round-trip tests. Candidate code only: Settings and actual capture/analysis/thumbnail paths remain unconnected. No suppression or performance acceptance claim.
+
 ## 2026-11-04 — Automatic-preview boundary candidate (#43)
 
 Implemented an explicit automatic-load API, default-enabled admission policy, selective automatic-source cancellation/retirement completion and native/stub method parity on a candidate branch. Lifecycle regression tests cover denial, replacement, in-flight work and re-enable. This is candidate implementation, not merged/released #37 functionality or real-playback acceptance. [Plan](docs/AUTOMATIC_PREVIEWS.md).
