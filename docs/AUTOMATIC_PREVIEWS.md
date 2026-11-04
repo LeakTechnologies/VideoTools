@@ -4,6 +4,27 @@ Approved product scope and acceptance: [#37](https://github.com/LeakTechnologies
 Candidate slices: [session ownership #43](https://github.com/LeakTechnologies/VideoTools/issues/43),
 [work ownership and preference #45](https://github.com/LeakTechnologies/VideoTools/issues/45).
 
+## Clarified product contract — 2026-11-04
+
+The owner requires a global setting that fully disables players in processing
+modules, retaining playback only in VT_Player. This supersedes interpreting off
+as admission-only suppression or a collapsed preview panel. Off must remove the
+embedded player/transport/idle placeholder and reclaim its layout space; no local
+preview action overrides it. An explicit Open in VT_Player handoff is allowed.
+Preserve processing sources/options/jobs and existing manual sessions. Metadata,
+explicit analysis and requested media transformations remain functional. Preview
+preparation/hardware must not start while off, including rebuild/navigation and
+direct-player exceptions. Existing saved defaults are retained; operator wording
+should explain availability, not imply that off merely stops automatic loading.
+
+The existing candidate provides partial ownership infrastructure, not this complete
+behaviour. When enabled, review concerns the selected visible source; batch import
+must not prepare the entire collection for playback. Review remaining per-source
+capture scheduling against this contract rather than accepting bounded concurrency
+as completion. Independent Inspect controls, manual-session isolation and direct
+exceptions remain required. See [suite direction](UI_SUITE_DESIGN.md#processing-players-and-convert-batch-workspace--2026-11-04)
+for the batch-workspace hypothesis and required production-component checks.
+
 The released dev101 shared Load API does not distinguish a processing preview from an
 explicit manual session. Add that distinction before exposing a global switch.
 Keep manual Load/LoadDVD/LoadURL semantics and InlineVideoPlayer as the API.
