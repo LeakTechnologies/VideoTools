@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-04 — Automatic-preview boundary candidate (#43)
+
+Implemented an explicit automatic-load API, default-enabled admission policy, selective automatic-source cancellation/retirement completion and native/stub method parity on a candidate branch. Lifecycle regression tests cover denial, replacement, in-flight work and re-enable. This is candidate implementation, not merged/released #37 functionality or real-playback acceptance. [Plan](docs/AUTOMATIC_PREVIEWS.md).
+
 ## 2026-11-04 — Evidence-led feature planning (#42)
 
 Made evidence-to-decision reasoning, decision-critical unknowns, bounded investigation and falsifiable acceptance explicit for every feature/redesign/repair. Updated engineering/PR prompts; applies proportionally without repeat approval ceremonies. Documentation only.

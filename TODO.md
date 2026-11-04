@@ -1,5 +1,7 @@
 # VideoTools TODO
 
+- [ ] #37 first candidate #43: automatic/manual session ownership and retirement completion API implemented on isolated branch; native/race/stub verification and PR evidence recorded on the issue. Settings/import/frame-worker/Inspect integration, performance and real-use acceptance remain open. [Plan](docs/AUTOMATIC_PREVIEWS.md).
+
 - [x] Require evidence-to-decision feature plans and bounded investigation of critical unknowns (#42). Apply to #37 next; implementation and performance acceptance remain open.
 
 - [x] Standardize sanitized defect/check records and scoped Git completion handoffs (#41). Apply during feature/repair work; no application error fixes implied. [Guide](docs/ERROR_REPORTING.md).

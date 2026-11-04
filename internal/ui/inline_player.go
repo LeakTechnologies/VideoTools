@@ -44,6 +44,9 @@ type InlineVideoPlayer struct {
 	resumeState        *state.ResumeState // persisted playback position (optional)
 	lastSave           time.Time          // throttle for resume auto-save
 
+	automaticPreviewsDisabled bool                        // protected by mu; zero preserves legacy admission
+	automaticSessions         map[*playerSession]struct{} // includes sources still retiring
+
 	// Authoritative playback-state change notifications. Modules derive their
 	// displayed transport/speed/track state from these instead of keeping an
 	// independent copy that can drift (Convert audit #20). Each fires only on an
@@ -389,6 +392,13 @@ func (v *InlineVideoPlayer) SetResumeState(s *state.ResumeState) {
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
 	return v.loadViaOpen(path, true, func(eng media.PlaybackEngine) error { return eng.OpenAuto(path) })
+}
+
+// LoadAutomatic is for processing-module previews, never explicit VT_Player opens.
+// Denied admission returns ErrAutomaticPreviewsDisabled without replacing a source.
+func (v *InlineVideoPlayer) LoadAutomatic(path string) error {
+	_, err := v.loadOwnedSession(path, true, func(eng media.PlaybackEngine) error { return eng.OpenAuto(path) }, nil, true)
+	return err
 }
 
 // LoadDVD opens a DVD disc (ISO file or VIDEO_TS parent directory) in the
@@ -778,8 +788,23 @@ func (v *InlineVideoPlayer) CurrentPath() string {
 }
 
 func (v *InlineVideoPlayer) Close() {
+	v.closeSession(false)
+}
+
+// closeSession checks ownership while holding the replacement lock, so a manual
+// source that races preview retirement cannot be closed by the policy change.
+func (v *InlineVideoPlayer) closeSession(automaticOnly bool) {
 	v.mu.Lock()
+	v.closeSessionLocked(automaticOnly)
+}
+
+// closeSessionLocked consumes mu and releases it before dispatch/native teardown.
+func (v *InlineVideoPlayer) closeSessionLocked(automaticOnly bool) {
 	s := v.session
+	if automaticOnly && (s == nil || !s.automatic) {
+		v.mu.Unlock()
+		return
+	}
 	if s != nil {
 		s.cancel()
 	}

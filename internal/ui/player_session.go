@@ -15,14 +15,18 @@ import (
 )
 
 type playerSession struct {
-	id       uint64
-	ctx      context.Context
-	cancel   context.CancelFunc
-	loaded   chan struct{}
-	ops      sync.Mutex
-	engine   media.PlaybackEngine
-	scrubber media.Scrubber
-	run      *playbackRun // protected by the owning player's mu
+	automatic  bool
+	retireOnce sync.Once
+	retired    chan struct{}
+	onRetired  func()
+	id         uint64
+	ctx        context.Context
+	cancel     context.CancelFunc
+	loaded     chan struct{}
+	ops        sync.Mutex
+	engine     media.PlaybackEngine
+	scrubber   media.Scrubber
+	run        *playbackRun // protected by the owning player's mu
 }
 type playbackRun struct {
 	ctx      context.Context
@@ -100,25 +104,35 @@ func (v *InlineVideoPlayer) dispatchIdle(fn func()) {
 	})
 }
 
-func retireSession(s *playerSession) {
+func retireSession(s *playerSession) <-chan struct{} {
 	if s == nil {
-		return
+		done := make(chan struct{})
+		close(done)
+		return done
 	}
-	go func() {
-		<-s.loaded
-		if s.run != nil {
-			<-s.run.done
-		}
-		s.ops.Lock()
-		defer s.ops.Unlock()
-		if s.scrubber != nil {
-			s.scrubber.Stop()
-		}
-		if s.engine != nil {
-			s.engine.Close()
-			logging.Info(logging.CatPlayer, "player source session %d retired", s.id)
-		}
-	}()
+	s.retireOnce.Do(func() {
+		s.retired = make(chan struct{})
+		go func() {
+			defer close(s.retired)
+			if s.onRetired != nil {
+				defer s.onRetired()
+			}
+			<-s.loaded
+			if s.run != nil {
+				<-s.run.done
+			}
+			s.ops.Lock()
+			defer s.ops.Unlock()
+			if s.scrubber != nil {
+				s.scrubber.Stop()
+			}
+			if s.engine != nil {
+				s.engine.Close()
+				logging.Info(logging.CatPlayer, "player source session %d retired", s.id)
+			}
+		}()
+	})
+	return s.retired
 }
 func (v *InlineVideoPlayer) beginRun(s *playerSession, playing bool) *playbackRun {
 	v.mu.Lock()
@@ -231,10 +245,21 @@ func (v *InlineVideoPlayer) seekAndPlaySession(s *playerSession, position float6
 	v.playSession(s)
 }
 func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media.PlaybackEngine) error, expected *playerSession) (s *playerSession, err error) {
+	return v.loadOwnedSession(path, reset, open, expected, false)
+}
+
+func (v *InlineVideoPlayer) loadOwnedSession(path string, reset bool, open func(media.PlaybackEngine) error, expected *playerSession, automatic bool) (s *playerSession, err error) {
 	v.mu.Lock()
 	if expected != nil && v.session != expected {
 		v.mu.Unlock()
 		return nil, context.Canceled
+	}
+	if expected != nil {
+		automatic = expected.automatic
+	}
+	if automatic && v.automaticPreviewsDisabled {
+		v.mu.Unlock()
+		return nil, ErrAutomaticPreviewsDisabled
 	}
 	old := v.session
 	if old != nil {
@@ -243,6 +268,18 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	ctx, cancel := context.WithCancel(context.Background())
 	v.sourceGeneration++
 	s = &playerSession{id: v.sourceGeneration, ctx: ctx, cancel: cancel, loaded: make(chan struct{})}
+	s.automatic = automatic
+	if automatic {
+		if v.automaticSessions == nil {
+			v.automaticSessions = make(map[*playerSession]struct{})
+		}
+		v.automaticSessions[s] = struct{}{}
+		s.onRetired = func() {
+			v.mu.Lock()
+			delete(v.automaticSessions, s)
+			v.mu.Unlock()
+		}
+	}
 	v.session = s
 	v.engine, v.scrubber = nil, nil
 	v.playing = false
@@ -310,6 +347,9 @@ func (v *InlineVideoPlayer) loadSession(path string, reset bool, open func(media
 	})
 	s.ops.Lock()
 	defer s.ops.Unlock()
+	if !v.sessionCurrent(s) {
+		return s, context.Canceled
+	}
 	s.engine = factory()
 	eng := s.engine
 	eng.SetDiagnosticsEnabled(debug)

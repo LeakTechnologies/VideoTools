@@ -1,5 +1,9 @@
 # VideoTools Roadmap
 
+## Candidate — automatic-preview ownership (#43 / #37)
+
+[Implementation sequence](AUTOMATIC_PREVIEWS.md): automatic/manual session boundary and retirement completion on isolated PR branch. Host preference, capture/thumbnail cancellation, Inspect and direct-player exceptions remain integration work. No application release or media acceptance.
+
 ## 2026-11-04 — Evidence-to-decision planning (#42)
 
 [Feature planning contract](ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence) applies to every delivery. Unknowns drive bounded investigation before dependent production design; forms and filled plans do not establish runtime success. #37 remains next owner-requested implementation.

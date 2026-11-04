@@ -1,5 +1,7 @@
 # VideoTools Agent Workflow Rules
 
+Optional-preview candidate: [AUTOMATIC_PREVIEWS.md](docs/AUTOMATIC_PREVIEWS.md), #43 under #37. Explicit automatic-session admission/retirement is isolated on a PR branch; no Settings switch/import suppression or new playback acceptance is claimed. Preserve manual-session ownership during later integration.
+
 Every feature/redesign/repair follows the [evidence-to-decision planning contract](docs/ENGINEERING_WORKFLOW.md#every-feature-plan-starts-with-evidence): inspect current behaviour, justify the approach, expose unknowns and define observable success before code. Decision-critical gaps require bounded investigation; never invent evidence.
 
 Document actionable failures and Git completion using [ERROR_REPORTING.md](docs/ERROR_REPORTING.md). Update the matching issue in the same session; separate observation, diagnosis, check outcome, publication and runtime acceptance. Preserve unrelated staged/unstaged work.

@@ -1,5 +1,9 @@
 # VideoTools Changelog
 
+## Unreleased candidate — automatic-preview session boundary (#43)
+
+- Separate automatic-load admission from explicit manual playback; selective retirement exposes completion for callers. Candidate branch only; automatic app calls/settings are not connected and no performance improvement or release is claimed.
+
 ## 2026-11-04 — Feature planning (no application release)
 
 - Require plans to connect observed needs/current behaviour to a bounded approach, investigation of unknowns and observable acceptance (#42). No app or automation change.
