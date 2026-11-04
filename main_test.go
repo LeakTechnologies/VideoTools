@@ -505,7 +505,11 @@ func TestDispatchInterlaceAnalysis_Success(t *testing.T) {
 	test.NewApp() // registers a headless current app; its driver runs DoFromGoroutine synchronously
 	src := newInterlaceTestSource(t)
 
-	s := &appState{}
+	// Explicit analysis remains available even when automatic work is off.
+	s := &appState{prefs: prefsConfig{DisableAutomaticPreviews: true}}
+	if s.automaticPreviewOwner().Context() != nil {
+		t.Fatal("automatic preparation should be disabled")
+	}
 	claim := s.beginConvertInterlaceAnalysis()
 
 	delivered := make(chan struct{}, 1)
@@ -529,8 +533,51 @@ func TestDispatchInterlaceAnalysis_Success(t *testing.T) {
 	}
 }
 
-// TestDispatchInterlaceAnalysis_ErrorPropagates: an unanalysable path
-// delivers the error to the caller - the caller decides what to publish.
+// Automatic admission is captured before dispatch, including across re-enable.
+func TestAutomaticPreviewInterlaceAdmission(t *testing.T) {
+	test.NewApp()
+	for _, mode := range []string{"disabled", "retired", "enabled"} {
+		t.Run(mode, func(t *testing.T) {
+			s := &appState{prefs: prefsConfig{DisableAutomaticPreviews: mode == "disabled"}}
+			claim := s.resetInspectInterlace()
+			if s.inspectInterlaceAnalyzing != (mode != "disabled") {
+				t.Fatal("pending state must follow automatic admission")
+			}
+			path := filepath.Join(t.TempDir(), "must-not-open.mkv")
+			if mode == "retired" {
+				<-s.automaticPreviewOwner().SetEnabled(false)
+				s.automaticPreviewOwner().SetEnabled(true)
+			} else if mode == "enabled" {
+				path = newInterlaceTestSource(t)
+			}
+			done := make(chan struct{})
+			var got *interlace.DetectionResult
+			var gotErr error
+			dispatchInterlaceAnalysis(path, claim, func(result *interlace.DetectionResult, err error) {
+				s.inspectInterlaceAnalyzing = false
+				got, gotErr = result, err
+				close(done)
+			})
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+				t.Fatal("automatic analysis did not settle")
+			}
+			if mode == "enabled" {
+				if gotErr != nil || got == nil || got.TotalFrames == 0 {
+					t.Fatalf("real automatic analysis failed: result=%+v err=%v", got, gotErr)
+				}
+			} else if got != nil || !errors.Is(gotErr, context.Canceled) {
+				t.Fatalf("denied/retired work must not analyze or publish: result=%+v err=%v", got, gotErr)
+			}
+			if s.inspectInterlaceAnalyzing {
+				t.Fatal("completion must settle pending state")
+			}
+		})
+	}
+}
+
+// An unanalysable path delivers the error; the caller owns publication.
 func TestDispatchInterlaceAnalysis_ErrorPropagates(t *testing.T) {
 	test.NewApp()
 	requireTestFFmpeg(t)

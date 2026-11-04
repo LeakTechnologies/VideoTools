@@ -3112,8 +3112,10 @@ func (s *appState) showModule(id string) {
 // transitions, and delivery all happen there - delivery via
 // DoFromGoroutine), so no locking is needed.
 type interlaceAnalysisClaim struct {
-	gen  *uint64 // the owning slot's generation counter
-	mine uint64  // the generation captured at dispatch
+	gen     *uint64                 // the owning slot's generation counter
+	mine    uint64                  // the generation captured at dispatch
+	owner   *previewwork.Controller // nil for deliberately requested analysis
+	request context.Context         // captured before automatic work is scheduled
 }
 
 // valid reports whether the claim's generation is still the slot's current one.
@@ -3132,13 +3134,29 @@ func (c interlaceAnalysisClaim) valid() bool {
 func dispatchInterlaceAnalysis(path string, claim interlaceAnalysisClaim, deliver func(result *interlace.DetectionResult, err error)) {
 	go func() {
 		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		result, err := detector.QuickAnalyze(ctx, path)
+		var result *interlace.DetectionResult
+		analyze := func(parent context.Context) error {
+			ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+			defer cancel()
+			var err error
+			result, err = detector.QuickAnalyze(ctx, path)
+			return err
+		}
+		var err error
+		if claim.owner != nil {
+			err = claim.owner.Run(claim.request, analyze)
+		} else {
+			err = analyze(context.Background())
+		}
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			if !claim.valid() {
 				logging.Debug(logging.CatSystem, "interlace analysis discarded (stale generation): %s", path)
 				return
+			}
+			// A retired automatic result may only settle its pending state. It
+			// must not publish even if work completed before the UI callback ran.
+			if claim.owner != nil && !claim.owner.IsCurrent(claim.request) {
+				result, err = nil, context.Canceled
 			}
 			deliver(result, err)
 		}, false)
@@ -3173,15 +3191,15 @@ func (s *appState) setConvertSource(src *videoSource) {
 	s.resetConvertInterlace()
 }
 
-// resetInspectInterlace clears the Inspect slot, marks it analyzing (the load
-// paths that call this immediately begin probing and analyzing a new file),
-// and returns the claim that load's analysis must carry. A load that fails
-// before this point leaves the previous file's state untouched.
+// resetInspectInterlace clears the Inspect slot and captures automatic policy
+// before scheduling analysis. Disabled policy leaves no pending analysis.
 func (s *appState) resetInspectInterlace() interlaceAnalysisClaim {
+	owner := s.automaticPreviewOwner()
+	request := owner.Context()
 	s.inspectInterlaceResult = nil
-	s.inspectInterlaceAnalyzing = true
+	s.inspectInterlaceAnalyzing = request != nil
 	s.inspectInterlaceGen++
-	return interlaceAnalysisClaim{gen: &s.inspectInterlaceGen, mine: s.inspectInterlaceGen}
+	return interlaceAnalysisClaim{gen: &s.inspectInterlaceGen, mine: s.inspectInterlaceGen, owner: owner, request: request}
 }
 
 // clearInspectInterlace clears the Inspect slot without starting a new

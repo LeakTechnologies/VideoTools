@@ -1,5 +1,7 @@
 # VideoTools TODO
 
+- [ ] #37 / #46: automatic Inspect detection shares host cancellation/budget; explicit Convert analysis remains independent. Finish explicit Inspect actions, source/render/hardware/exceptions and Settings before acceptance.
+
 - [ ] #37 / #46 dev102 candidate: selected host capture/thumbnail/native load paths now use ownership policy. Finish analysis/source/publication/render/direct exceptions/Settings and measured acceptance before exposing the global switch. Header cog remains a proposal under #39.
 
 - [ ] #37 worker/preference candidate #45: concurrency/cancellation/generation owner and legacy-safe saved preference model implemented on PR #44 branch. Host/command/UI wiring and real-media/performance acceptance remain open. See [plan](docs/AUTOMATIC_PREVIEWS.md).

@@ -1,5 +1,9 @@
 # Player Debug Status
 
+## 2026-11-04 — Automatic analysis follow-up (#46)
+
+Inspect interlace dispatch now uses the host work owner; explicit Convert analysis remains independent. This changes subprocess ownership, not the playback engine. Headless analysis tests do not establish real player/audio/log acceptance; PR #44 remains unmerged and unreleased.
+
 ## 2026-11-04 — Dev102 host/command candidate (#46)
 
 Selected automatic Convert/Inspect loads are classified; fallback/queue work uses host cancellation. Neutral FFmpeg checks passed for patterned output, cancelled cleanup and process cancellation/join; those are headless command checks, not a real player session or audible playback acceptance. No real playback/log review in this slice; no master/release landing. Parent #37 render/analysis/direct-player integration remains open.

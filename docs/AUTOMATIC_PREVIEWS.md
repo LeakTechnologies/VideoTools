@@ -54,6 +54,25 @@ and a saved preference model do not establish subprocess termination or UI behav
 
 ## Remaining #37 integration
 
+Follow-up #46: Inspect analysis claims capture the host owner and exact policy
+request on the UI thread before analysis scheduling. Detector commands share the
+four-operation budget and cancellation, with the existing two-minute timeout
+inside the admitted operation. At delivery, source-generation validation remains
+first; retired policy can settle pending state with cancellation but cannot publish
+a result, including after re-enable. Disabled imports do not mark analysis pending.
+Explicit Convert analysis remains independent and available with previews off.
+No new Inspect action or global Settings UI yet. Source replacement still rejects
+publication rather than cancelling every old detector immediately; complete
+source-owned analysis cancellation remains open.
+
+Follow-up checks: Windows native build/vet/full tests passed (root 9.890s;
+unchanged packages cached). Focused race tests executed disabled, retired and
+real enabled automatic analysis plus explicit Convert analysis with policy off
+(1.947s, no skips). Non-native build passed. Thirteen task files passed UTF-8,
+81 local links, roadmap script/234 unique IDs and unchanged legacy encoding
+markers. No GUI/player/audio, import benchmark or conversion-output acceptance
+was run; the global switch remains unexposed.
+
 1. Persist the agreed backwards-compatible preference; settings construction must
    not trigger a policy write. Keep one host-owned policy.
 2. Route automatic import/rebuild/player calls through admission. Separate explicit

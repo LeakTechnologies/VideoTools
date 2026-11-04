@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## Unreleased dev102 candidate — automatic analysis (#46)
+
+Automatic Inspect detection shares preview cancellation/budget and rejects retired policy results. Disabled imports have no pending automatic analysis; explicit Convert analysis remains available. Draft PR #44 only; independent Inspect controls and full #37 acceptance remain open.
+
 ## Unreleased dev102 candidate — host commands (#46)
 
 Connected the host owner to cancellable fallback captures and queue thumbnails, selected automatic Convert/Inspect loads and startup preference application. Neutral FFmpeg output/cancellation checks passed; full #37 Settings/Inspect/exceptions/performance acceptance remains open. No release. [Plan](docs/AUTOMATIC_PREVIEWS.md).

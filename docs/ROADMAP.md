@@ -1,5 +1,7 @@
 # VideoTools Roadmap
 
+Automatic Inspect detection now shares the dev102 candidate's work budget and cancellation (#46). Claims capture policy before dispatch; retirement cannot publish a result. Explicit Convert analysis remains independent. No global switch or runtime acceptance yet.
+
 ## VideoTools v0.1.1-dev102 — host integration candidate (#46)
 
 [Automatic previews](AUTOMATIC_PREVIEWS.md): host ownership reaches real capture/queue commands and selected loads. PR #44 remains draft; complete analysis/render/exception/Settings and runtime acceptance are pending. Latest published baseline stays dev101.

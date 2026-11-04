@@ -2,6 +2,8 @@
 
 ## VideoTools v0.1.1-dev102 — unmerged candidate
 
+- Include automatic Inspect interlace detection in the shared cancellation/concurrency budget; reject retired results and preserve explicit Convert analysis while previews are off (#46).
+
 - Route selected automatic capture, queue thumbnail and Convert/Inspect load paths through host policy (#46); cancel commands and discard stale thumbnail publication. Shared capture/thumbnail concurrency is limited to four running operations.
 - Candidate version only: no global Settings control, full #37 acceptance, merge or release. Header quick settings is recorded as a proposal.
 
