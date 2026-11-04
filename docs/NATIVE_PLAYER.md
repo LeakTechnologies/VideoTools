@@ -492,3 +492,17 @@ A **Player** tab inside the app Settings module will expose:
 These map directly to `Engine` and `MasterClock` fields. All require an engine
 restart (`Close()` + re-`Open()`) to take effect, except volume, mute, and
 vsync which can be applied live.
+
+## Transport candidate #48: EOF and tempo ownership
+
+The unmerged transport integration parks source-owned demux/audio/video workers at
+natural EOF until a queue reset (seek) or retirement; EOF does not dispose them.
+Queue flush invalidates in-flight packet/PCM publication. InlineVideoPlayer retains
+an ended source paused; explicit Play restarts it by seeking to zero, and successful
+seek/step clears ended state. Actual playlist/growing-source transitions remain.
+
+Audio tempo processing and commands share their owner lock. Two chained atempo
+stages implement 0.25x through 2x UI rates, commands update dependent filter state,
+and seek rebuilds filter history. These are candidate implementation facts, not
+sample-fidelity, frame-rate or media/platform acceptance. See PLAYER_DEBUG.md and
+https://github.com/LeakTechnologies/VideoTools/issues/48.

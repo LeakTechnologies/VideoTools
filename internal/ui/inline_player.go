@@ -488,12 +488,12 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 			v.stopRun(s, r, err)
 			return
 		}
-		v.dispatchRun(s, r, func() {
-			if v.player != nil {
-				v.player.SetFrame(img)
-				v.player.SetCurrentTime(pts)
-			}
-		})
+		v.mu.Lock()
+		if v.runCurrentLocked(s, r) {
+			s.ended = false
+		}
+		v.mu.Unlock()
+		v.presentTransportFrame(s, r, img, pts)
 		if playing {
 			v.playFromRun(s, r)
 		}
@@ -605,13 +605,12 @@ func (v *InlineVideoPlayer) StepFrame(dir int) {
 			v.stopRun(s, r, err)
 			return
 		}
-		v.dispatchRun(s, r, func() {
-			if v.player != nil {
-				v.player.SetFrame(img)
-				v.player.SetCurrentTime(pts)
-				v.player.SetPlaying(false)
-			}
-		})
+		v.mu.Lock()
+		if v.runCurrentLocked(s, r) {
+			s.ended = false
+		}
+		v.mu.Unlock()
+		v.presentTransportFrame(s, r, img, pts)
 	}()
 }
 
@@ -906,6 +905,7 @@ func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 				return
 			}
 			v.playing = false
+			s.ended = !growing
 			end := v.onEnd
 			var nextPath string
 			if v.playlistIdx < len(v.playlist) {
@@ -913,6 +913,11 @@ func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 				v.playlistIdx++
 			}
 			v.mu.Unlock()
+			s.ops.Lock()
+			if v.runCurrent(s, r) {
+				s.engine.Pause()
+			}
+			s.ops.Unlock()
 			v.notifyPlayState()
 			if !growing && rs != nil && path != "" {
 				rs.MarkCompleted(path)
@@ -929,19 +934,16 @@ func (v *InlineVideoPlayer) playbackLoop(s *playerSession, r *playbackRun) {
 					end()
 				}
 			})
-			go func() {
-				reload := path
-				if nextPath != "" {
-					reload = nextPath
-				}
-				if reload == "" {
-					return
-				}
-				next, err := v.loadSession(reload, nextPath == "", func(e media.PlaybackEngine) error { return e.OpenAuto(reload) }, s)
-				if err == nil && nextPath != "" {
-					v.playSession(next)
-				}
-			}()
+			// Retain a completed source so EOF callbacks remain valid and
+			// manual Play can seek/restart it. Only an actual playlist advances.
+			if nextPath != "" {
+				go func() {
+					next, err := v.loadSession(nextPath, false, func(e media.PlaybackEngine) error { return e.OpenAuto(nextPath) }, s)
+					if err == nil {
+						v.playSession(next)
+					}
+				}()
+			}
 			return
 		}
 		v.mu.Lock()

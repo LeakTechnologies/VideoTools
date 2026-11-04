@@ -32,8 +32,9 @@ const pcmChannelCap = 64
 // audioChunk is a decoded, resampled PCM buffer tagged with its stream PTS.
 // Read() drives the master clock via clock.SetTime(pts - AudioBufferLatency).
 type audioChunk struct {
-	pts  float64
-	data []byte
+	generation uint64
+	pts        float64
+	data       []byte
 }
 
 // AudioPlayer decodes audio packets on a dedicated goroutine (audioDecodeLoop)
@@ -102,6 +103,7 @@ type AudioPlayer struct {
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool        // set when codec raises a pre-flight error; stops decode loop
+	eof       atomic.Bool // source EOF parks decoder; disposal alone closes PCM
 	closed    atomic.Bool // set by Close(); causes Read() to return io.EOF immediately
 }
 
@@ -214,17 +216,33 @@ func (p *AudioPlayer) audioDecodeLoop() {
 		// SW H.264 decode when the audio queue was frequently empty.
 		// TryPut calls cond.Signal(), so TimedGet wakes immediately on
 		// a new packet rather than waiting the full 20 ms.
-		pkt, ok := p.queue.TimedGet(20 * time.Millisecond)
+		pkt, ok, generation := p.queue.TimedGetGeneration(20 * time.Millisecond)
 		if !ok {
+			if generation != p.queue.Generation() {
+				continue
+			}
 			if p.queue.IsClosedOrEOF() {
 				logging.Info(logging.CatPlayer, "audioDecodeLoop: queue EOF — flushing codec tail")
-				p.flushCodecTail()
-				return
+				p.flushCodecTail(generation)
+				if generation != p.queue.Generation() {
+					continue
+				}
+				p.eof.Store(true)
+				if !p.queue.WaitForReset(generation, p.decodeStop) {
+					return
+				}
+				p.eof.Store(false)
+				continue
 			}
 			continue
 		}
 
 		p.codecMu.Lock()
+		if generation != p.queue.Generation() {
+			p.codecMu.Unlock()
+			C.av_packet_free(&pkt)
+			continue
+		}
 
 		if p.codecDead {
 			p.codecMu.Unlock()
@@ -278,10 +296,8 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			}
 
 			pts := float64(p.frame.pts) * p.timeBase
-			p.codecMu.Unlock()
 			if p.seekGuardActive.Load() && pts < math.Float64frombits(p.seekTargetBits.Load())-seekTolerance {
 				p.seekDiscarded.Add(1)
-				p.codecMu.Lock()
 				continue
 			}
 
@@ -289,6 +305,7 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			// when it consumes the chunk, driving the master clock from audio output.
 
 			data, err := p.resample()
+			p.codecMu.Unlock()
 			if err != nil {
 				logging.Warning(logging.CatPlayer, "audioDecodeLoop: resample error: %v", err)
 				p.codecMu.Lock()
@@ -303,7 +320,7 @@ func (p *AudioPlayer) audioDecodeLoop() {
 				// Volume is applied in Read() — do it once there on the final
 				// S16 buffer so it's applied to the exact bytes sent to hardware.
 				select {
-				case p.pcmCh <- audioChunk{pts: pts, data: pcmData}:
+				case p.pcmCh <- audioChunk{pts: pts, data: pcmData, generation: generation}:
 				case <-p.decodeStop:
 					return
 				}
@@ -377,6 +394,12 @@ func (p *AudioPlayer) Read(buf []byte) (readN int, readErr error) {
 				return 0, io.EOF
 			}
 
+			// Queue flush retires all PCM from packets read before the seek,
+			// including a decoder send that completed after FlushCodec drained.
+			if p.queue != nil && chunk.generation != p.queue.Generation() {
+				continue
+			}
+
 			// Seek guard: discard audio chunks that predate the seek target.
 			// This prevents audible playback from the keyframe position when the
 			// keyframe is far behind the requested seek point.
@@ -406,13 +429,13 @@ func (p *AudioPlayer) Read(buf []byte) (readN int, readErr error) {
 
 			var processedData []byte
 			if fg != nil {
+				p.mu.Lock()
 				out, _ := fg.Process(chunk.data)
+				p.mu.Unlock()
 				if len(out) == 0 {
-					// atempo filter is still buffering — return silence for this tick.
-					for i := range buf {
-						buf[i] = 0
-					}
-					return len(buf), nil
+					// Feed ready input through filter latency, without adding
+					// a silent device buffer whenever atempo needs more input.
+					continue
 				}
 				processedData = out
 			} else {
@@ -435,6 +458,10 @@ func (p *AudioPlayer) Read(buf []byte) (readN int, readErr error) {
 			}
 			return n, nil
 		default:
+			if p.eof.Load() {
+				clear(buf)
+				return len(buf), nil
+			}
 			// No decoded audio ready yet — return silence.
 			// Each oto callback is ~23 ms; log a warning after ~230 ms of silence.
 			n := p.underrunCount.Add(1)
@@ -518,11 +545,21 @@ func (p *AudioPlayer) SetSeekTarget(seconds float64) {
 func (p *AudioPlayer) FlushCodec() {
 	p.mu.Lock()
 	p.leftover = p.leftover[:0]
+	// A seek retires buffered tempo-filter history as well as codec/PCM data.
+	if p.filterGraph != nil {
+		if err := p.filterGraph.Init(TargetSampleRate, TargetChannels); err != nil {
+			logging.Warning(logging.CatPlayer, "seek tempo reset failed: %v", err)
+			p.filterGraph = nil
+		}
+	}
 	p.mu.Unlock()
 drain:
 	for {
 		select {
-		case <-p.pcmCh:
+		case _, ok := <-p.pcmCh:
+			if !ok {
+				break drain
+			}
 		default:
 			break drain
 		}
@@ -657,10 +694,11 @@ func (p *AudioPlayer) SetSpeed(speed float64) {
 				logging.Warning(logging.CatPlayer, "AudioPlayer.SetSpeed: filter graph init failed: %v", err)
 			}
 		}
-		if p.filterGraph != nil {
-			if err := p.filterGraph.SetTempo(speed); err != nil {
-				logging.Warning(logging.CatPlayer, "AudioPlayer.SetSpeed: SetTempo failed: %v", err)
-			}
+	}
+	// Returning to 1x must also reset an existing tempo graph.
+	if p.filterGraph != nil {
+		if err := p.filterGraph.SetTempo(speed); err != nil {
+			logging.Warning(logging.CatPlayer, "AudioPlayer.SetSpeed: SetTempo failed: %v", err)
 		}
 	}
 	p.mu.Unlock()
@@ -720,9 +758,9 @@ func (p *AudioPlayer) Close() {
 // flushCodecTail sends a drain (NULL) packet to the audio codec and pushes any
 // remaining buffered frames into pcmCh.  Called once when the packet queue
 // signals EOF, recovering the last ~100-200 ms that the codec holds internally.
-func (p *AudioPlayer) flushCodecTail() {
+func (p *AudioPlayer) flushCodecTail(generation uint64) {
 	p.codecMu.Lock()
-	if p.codecDead {
+	if p.codecDead || generation != p.queue.Generation() {
 		p.codecMu.Unlock()
 		return
 	}
@@ -740,15 +778,14 @@ func (p *AudioPlayer) flushCodecTail() {
 			break
 		}
 		pts := float64(p.frame.pts) * p.timeBase
+		data, err := p.resample()
 		p.codecMu.Unlock()
-
-		if data, err := p.resample(); err == nil && len(data) > 0 {
+		if err == nil && len(data) > 0 {
 			pcmData := make([]byte, len(data))
 			copy(pcmData, data)
 			select {
-			case p.pcmCh <- audioChunk{pts: pts, data: pcmData}:
+			case p.pcmCh <- audioChunk{pts: pts, data: pcmData, generation: generation}:
 			case <-p.decodeStop:
-				p.codecMu.Lock()
 				return
 			}
 		}
@@ -792,7 +829,7 @@ func (p *AudioPlayer) bufferReady() bool {
 	p.mu.Lock()
 	leftover := len(p.leftover) > 0
 	p.mu.Unlock()
-	if len(p.pcmCh) >= 4 {
+	if len(p.pcmCh) >= 4 || (p.eof.Load() && len(p.pcmCh) > 0) {
 		return true
 	}
 	if !p.seekGuardActive.Load() {

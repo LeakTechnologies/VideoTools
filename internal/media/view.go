@@ -92,10 +92,11 @@ type VideoPlayer struct {
 	mouseInView           bool
 	minimal               bool
 	builtinControlsLocked bool
+	transportKeysEnabled  bool
 	suppressSeek          bool
 	controlHideTimer      *time.Timer
 
-	lastSliderUpdate time.Time // throttle slider updates to ~15fps
+	lastSliderUpdate  time.Time // throttle slider updates to ~15fps
 	sliderMinInterval time.Duration
 
 	osdBg    *canvas.Rectangle
@@ -113,15 +114,15 @@ type VideoPlayer struct {
 
 func NewVideoPlayer() *VideoPlayer {
 	v := &VideoPlayer{
-		showControls:    true,
-		currentTime:     0,
-		duration:        0,
-		volume:          1.0,
-		speed:           1.0,
-		isPlaying:       false,
-		isLoading:       false,
-		chapters:        make([]Chapter, 0),
-		idleText:        "DRAG TO LOAD VIDEO",
+		showControls:      true,
+		currentTime:       0,
+		duration:          0,
+		volume:            1.0,
+		speed:             1.0,
+		isPlaying:         false,
+		isLoading:         false,
+		chapters:          make([]Chapter, 0),
+		idleText:          "DRAG TO LOAD VIDEO",
 		sliderMinInterval: 66 * time.Millisecond, // ~15fps slider update rate
 	}
 	v.ExtendBaseWidget(v)
@@ -131,16 +132,16 @@ func NewVideoPlayer() *VideoPlayer {
 
 func NewInlineVideoPlayer() *VideoPlayer {
 	v := &VideoPlayer{
-		showControls:    true,
-		minimal:         true,
-		currentTime:     0,
-		duration:        0,
-		volume:          1.0,
-		speed:           1.0,
-		isPlaying:       false,
-		isLoading:       false,
-		chapters:        make([]Chapter, 0),
-		idleText:        "DRAG TO LOAD VIDEO",
+		showControls:      true,
+		minimal:           true,
+		currentTime:       0,
+		duration:          0,
+		volume:            1.0,
+		speed:             1.0,
+		isPlaying:         false,
+		isLoading:         false,
+		chapters:          make([]Chapter, 0),
+		idleText:          "DRAG TO LOAD VIDEO",
 		sliderMinInterval: 66 * time.Millisecond, // ~15fps slider update rate
 	}
 	v.ExtendBaseWidget(v)

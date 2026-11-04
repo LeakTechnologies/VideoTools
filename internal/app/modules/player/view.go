@@ -1,9 +1,7 @@
 package player
 
 import (
-	"fmt"
 	"image/color"
-	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -20,6 +18,7 @@ type Options struct {
 	ModuleColor color.Color
 
 	PlayerFile interface{}
+	SourceName string
 	QueueBtn   *ui.PillButton
 	StatsBar   fyne.CanvasObject
 
@@ -82,15 +81,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// When a video is loaded, fill the entire available space with the player
 	// pane (which already includes its own seek bar and controls).
 	if opts.PlayerFile != nil {
-		var fileName string
-		if getPath, ok := opts.PlayerFile.(interface{ Path() string }); ok {
-			fileName = filepath.Base(getPath.Path())
-		}
-
-		fileLabel := widget.NewLabel(fmt.Sprintf(t.LabelFileFmt, fileName))
-		fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-		headerRow := container.NewHBox(fileLabel, layout.NewSpacer(), clearBtn)
+		fileLabel := widget.NewLabel(opts.SourceName)
+		fileLabel.Truncation = fyne.TextTruncateEllipsis
+		headerRow := container.NewBorder(nil, nil, nil, clearBtn, fileLabel)
 
 		// Pass size (0,0) so buildVideoPaneNative uses the defaults and the
 		// container layout handles actual sizing via expansion.

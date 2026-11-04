@@ -1,5 +1,54 @@
 # Player Debug Status
 
+## Transport integration candidate — 2026-11-04 (#48)
+
+Fresh branch `codex/player-transport-integration` starts from current master
+3c7d3436 and applies inspected player code from historical candidate 6d3cbae1;
+that old branch remains preserved. Released dev101, optional-preview PR #44 and
+DVD PR #28 remain distinct. No merge, release or full runtime acceptance claimed.
+
+Historical reports: ignored/bouncing seeks and fullscreen feedback in dev101;
+candidate forward seeks improved but backward seek, fullscreen cadence and rates
+were rejected. Existing fixes provide guarded timeline commit/progress, actual
+source caption/compact tools, contextual transport keys, timestamp seek flags,
+decoder retirement and generation-safe packet/PCM publication.
+
+Fresh neutral H.264/AAC fixture (8 seconds, 320x180, 25 fps) reproduced seek after
+natural EOF hanging in AudioPlayer.FlushCodec: closed PCM drain kept receiving,
+and demux/audio workers had ended permanently. Source-owned workers now park on
+queue-generation reset or retirement, PCM drain handles channel close, and EOF
+waiting is cancellation-aware. The identical EOF->0.5 second seek/readiness/resume
+check passed after repair; reset/stop/close waiter regressions were added.
+
+Alternating seeks with rate changes then reproduced a native af_atempo assertion
+(read_size/ring, af_atempo.c:445). Rate updates now use the supported filter tempo
+command instead of writing private AVOptions; two stages preserve legal per-stage
+rates for 0.25x. Seek resets buffered filter history. Generated-media alternating
+5/1/6/0.5 second seeks and 1x/1.5x/1x, plus streaming all advertised rates, passed.
+FFmpeg references: https://ffmpeg.org/ffmpeg-filters.html#atempo and
+https://ffmpeg.org/doxygen/trunk/af__atempo_8c_source.html.
+
+Actual GUI inspection confirmed the source heading/tools, paused seeks to burned-in
+6 and 1 second frames, fullscreen opening/Space playback/Escape exit. It also
+exposed same-source automatic EOF reload leaving first-frame video with stale
+near-end timeline/pause icon and a stale fullscreen mirror. EOF now retains the
+paused session, publishes its final position, and explicit Play seeks to zero;
+real playlist/growing-source paths remain separate. New replay-without-reopen
+lifecycle regression and changed player/timeline race checks pass. Repeat GUI
+acceptance for that last repair is pending. Screenshots do not establish audible
+quality or full-frame-rate motion.
+
+Checks after tempo repair: native build/vet/full suite passed, including opt-in
+real-media checks; full media race suite passed (6.225s). Broad UI race checks
+failed in hover-help tests, independently reproduced on optional-preview checkout
+76d9e4a1 and reported on #39. Normal UI suite passed. Focused transport/lifecycle/
+timeline race tests passed (latest 2.111s). Final native build/vet/full suite passed after EOF presentation repair (root
+7.751s, UI 2.817s; unchanged packages cached). Final non-native build passed.
+Exact candidate/check evidence is recorded on #48. Raw fixtures,
+GUI captures and logs stay outside Git. Human audio/fullscreen smoothness, Linux,
+long-GOP/VFR and real-disc acceptance remain open; no FPS or speedup claim.
+
+
 Dev101 Rip UI: removed its unused hidden InlineVideoPlayer instance and scan/card-focus LoadDVD calls. Runtime dev100 log showed automatic source opening immediately after scan, competing with thumbnail reads. Open in Player remains the explicit playback action. No native playback transport/engine change or DVD playback acceptance is claimed.
 
 Inserted optical DVD test (2026-10-13): disc topology read and title opened as MPEG-2 720x480 at 29.97 fps with audio. Visible player showed “playback audio/video buffers did not become ready”; cached audio/video PTS remained zero. Repeated bwdif return -11 and generic-source scrub/thumbnail open failures were recorded. These are observations, not established root causes. Close logged clean engine disposal/source retirement. User was away, so no audible or continuous visual acceptance. DVD playback remains unaccepted; investigate interlaced-frame output handling, readiness and DVD-aware auxiliary decoding next. Media identity omitted.

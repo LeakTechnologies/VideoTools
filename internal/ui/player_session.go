@@ -23,6 +23,7 @@ type playerSession struct {
 	engine   media.PlaybackEngine
 	scrubber media.Scrubber
 	run      *playbackRun // protected by the owning player's mu
+	ended    bool         // natural EOF; protected by the owning player's mu
 }
 type playbackRun struct {
 	ctx      context.Context
@@ -160,6 +161,21 @@ func (v *InlineVideoPlayer) playFromRun(s *playerSession, r *playbackRun) {
 	if !v.runCurrent(s, r) {
 		s.ops.Unlock()
 		return
+	}
+	v.mu.Lock()
+	restart := s.ended
+	v.mu.Unlock()
+	if restart {
+		if err := s.engine.Seek(0); err != nil {
+			s.ops.Unlock()
+			v.stopRun(s, r, err)
+			return
+		}
+		v.mu.Lock()
+		if v.runCurrentLocked(s, r) {
+			s.ended = false
+		}
+		v.mu.Unlock()
 	}
 	// Start the decoder before consuming frames. Waiting before Resume
 	// cannot produce a frame on initial play, and flushing on resume
@@ -444,4 +460,25 @@ func grabResumePreview(eng media.PlaybackEngine, position float64) (*image.RGBA,
 			return nil, fmt.Errorf("saved-position preview did not reach requested timestamp")
 		}
 	}
+}
+
+// Paused seek/step must notify frame mirrors and timeline consumers just like
+// playback. Every notification is scoped to the still-current transport run.
+func (v *InlineVideoPlayer) presentTransportFrame(s *playerSession, r *playbackRun, img *image.RGBA, pts float64) {
+	v.dispatchRun(s, r, func() {
+		if v.player != nil {
+			v.player.SetFrame(img)
+			v.player.SetCurrentTime(pts)
+			v.player.SetPlaying(v.IsPlaying())
+		}
+		v.mu.Lock()
+		frame, progress := v.onFrame, v.onProgress
+		v.mu.Unlock()
+		if frame != nil && v.runCurrent(s, r) {
+			frame(img)
+		}
+		if progress != nil && v.runCurrent(s, r) {
+			progress(pts)
+		}
+	})
 }

@@ -297,3 +297,34 @@ func TestPlaybackPreparationIsCancelled(t *testing.T) {
 	}
 	e.Close()
 }
+
+func TestSeekRetiresDecoderBlockedOnFullFrameQueue(t *testing.T) {
+	e := NewEngine()
+	e.running = true
+	e.decodeLoopActive = true
+	for i := 0; i < cap(e.frameQueue); i++ {
+		e.frameQueue <- decodedFrame{pts: float64(i)}
+	}
+	exited := make(chan struct{})
+	e.decodeLoopWg.Add(1)
+	go func() { defer e.decodeLoopWg.Done(); e.sendToFrameQueue(decodedFrame{pts: 999}); close(exited) }()
+	done := make(chan error, 1)
+	go func() { _, err := e.retireDecoderForSeek(); done <- err }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("seek failed to join blocked decoder")
+	}
+	select {
+	case <-exited:
+	default:
+		t.Fatal("decoder not retired")
+	}
+	if e.decodeLoopActive {
+		t.Fatal("retired decoder still owns packets")
+	}
+	e.Close()
+}
