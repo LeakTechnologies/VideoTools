@@ -4,6 +4,10 @@
 
 Completed and locally verified: 525/625 matrix mapping, native integer AI scale, 1x routing, removal of the invalid skin-tone and unusable Output Adjust controls, shared Convert audio arguments with DVD/WebM/Ogg preview parity, and a shared Convert job snapshot builder. Native build, vet and tests are green. Draft #44/#62 preview/player policy work is excluded; no player runtime acceptance is claimed.
 
+## 2026-11-17 — Commit provenance gate (#52)
+
+Added a read-only commit preflight that checks unpublished commits for an issue reference, a matching documentation entry and introduced encoding damage, and states which checks ran. Verified on six cases: an introduced signature fails, a pre-existing signature warns without failing, a missing reference fails, a clean commit passes, `-Strict` escalates documentation sync, and the default range falls back to HEAD when nothing is unpublished. Encoding is compared on raw blob bytes; no application behaviour, version or release change.
+
 ## 2026-11-04 — Evidence-led feature planning (#42)
 
 Made evidence-to-decision reasoning, decision-critical unknowns, bounded investigation and falsifiable acceptance explicit for every feature/redesign/repair. Updated engineering/PR prompts; applies proportionally without repeat approval ceremonies. Documentation only.

@@ -71,8 +71,13 @@ Read [active constraints](docs/AGENT_CONSTRAINTS.md) before implementation and t
 linked module plans before touching those modules. Product, platform, player API,
 Rip regression, privacy, localization, verification and release rules remain binding.
 
-Run `pwsh -NoProfile -File scripts/tools/repo-preflight.ps1` from this checkout.
-The manual helper reports local evidence only. It does not fetch or prove remote
+Run `scripts/tools/repo-preflight.ps1` for repository identity and worktree state,
+and `scripts/tools/commit-preflight.ps1` before a push for commit provenance:
+issue reference, documentation sync and introduced encoding damage. Under
+Windows PowerShell 5.1 invoke either as
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File <script>`; both accept
+`-Repository` and the commit gate accepts `-Revision` and `-Strict`.
+The manual helpers report local evidence only. They do not fetch or prove remote
 freshness, issue approval, CI, installed builds or runtime acceptance. Use an
 authorized fetch and the active issue to establish remote/task state. Inspection
 failures are unknown, including unreadable submodule state.
