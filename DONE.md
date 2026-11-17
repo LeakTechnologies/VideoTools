@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-17 — Commit provenance gate (#52)
+
+Added a read-only commit preflight that checks unpublished commits for an issue reference, a matching documentation entry and introduced encoding damage, and states which checks ran. Verified on six cases: an introduced signature fails, a pre-existing signature warns without failing, a missing reference fails, a clean commit passes, `-Strict` escalates documentation sync, and the default range falls back to HEAD when nothing is unpublished. Encoding is compared on raw blob bytes; no application behaviour, version or release change.
+
 ## Unreleased dev102 candidate — automatic analysis (#46)
 
 Automatic Inspect detection shares preview cancellation/budget and rejects retired policy results. Disabled imports have no pending automatic analysis; explicit Convert analysis remains available. Draft PR #44 only; independent Inspect controls and full #37 acceptance remain open.

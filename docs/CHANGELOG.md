@@ -7,6 +7,11 @@
 - Route selected automatic capture, queue thumbnail and Convert/Inspect load paths through host policy (#46); cancel commands and discard stale thumbnail publication. Shared capture/thumbnail concurrency is limited to four running operations.
 - Candidate version only: no global Settings control, full #37 acceptance, merge or release. Header quick settings is recorded as a proposal.
 
+## 2026-11-17 — Commit provenance gate (no application release)
+
+- Add `scripts/tools/commit-preflight.ps1`, a read-only local gate over unpublished commits. It reports an issue reference, documentation sync and encoding damage introduced by the commit, and separates pre-existing damage in touched files from damage the commit added (#52).
+- Encoding comparison reads raw blob bytes, because Windows PowerShell 5.1 decodes native stdout through the OEM code page and would otherwise miss the sequences the check exists to find. No application behaviour, version or release change.
+
 ## Unreleased candidate — preview work and preference (#45)
 
 - Add cancellable, concurrency-limited automatic-work ownership and legacy-safe preview preference state. Host/Settings/subprocess wiring remains outstanding in #37; no release.
