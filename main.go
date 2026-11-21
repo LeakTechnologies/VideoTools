@@ -5375,6 +5375,38 @@ func normalizeLoudnessFromJob(cfg map[string]interface{}, key string, def float6
 	return v
 }
 
+// audioConfigFromJob maps a queued job config to the shared audio builder input.
+func audioConfigFromJob(cfg map[string]interface{}, outputExt string) convert.AudioConfig {
+	codec, _ := cfg["audioCodec"].(string)
+	bitrate, _ := cfg["audioBitrate"].(string)
+	channels, _ := cfg["audioChannels"].(string)
+	sampleRate, _ := cfg["audioSampleRate"].(string)
+	normalize, _ := cfg["normalizeAudio"].(bool)
+	return convert.AudioConfig{
+		OutputExt:  outputExt,
+		Codec:      codec,
+		Bitrate:    bitrate,
+		Channels:   channels,
+		SampleRate: sampleRate,
+		Normalize:  normalize,
+		LUFS:       normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0),
+		TruePeak:   normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5),
+	}
+}
+
+// convertOutputExt resolves the selected output container from a job config.
+func convertOutputExt(cfg map[string]interface{}) string {
+	switch v := cfg["selectedFormat"].(type) {
+	case formatOption:
+		return v.Ext
+	case map[string]interface{}:
+		if ext, ok := v["Ext"].(string); ok {
+			return ext
+		}
+	}
+	return ""
+}
+
 // executeConvertJob executes a conversion job from the queue
 func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
@@ -5985,96 +6017,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Audio codec and settings
-	audioCodec, _ := cfg["audioCodec"].(string)
-	isWebM := strings.EqualFold(selectedFormat.Ext, ".webm")
-	isOGV := strings.EqualFold(selectedFormat.Ext, ".ogv")
-	if audioCodec == "Copy" && !isDVD {
-		if isWebM {
-			args = append(args, "-c:a", "copy")
-		} else {
-			args = append(args, "-c:a", "copy")
-		}
-	} else {
-		var actualAudioCodec string
-		if isDVD {
-			// DVD requires AC-3 audio
-			actualAudioCodec = "ac3"
-		} else if isWebM {
-			// WebM only supports Vorbis and Opus
-			audioCodecLower := strings.ToLower(audioCodec)
-			if audioCodecLower == "aac" || audioCodecLower == "" {
-				actualAudioCodec = "libopus"
-			} else if audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "flac" {
-				actualAudioCodec = "libopus"
-			} else {
-				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-			}
-		} else if isOGV {
-			// The Ogg/Theora muxer only accepts Vorbis, Opus, and FLAC audio
-			// (verified empirically: AAC/MP3/AC-3 fail at header write with
-			// "Unsupported codec id"). Substitute the era-appropriate pairing.
-			audioCodecLower := strings.ToLower(audioCodec)
-			if audioCodecLower == "aac" || audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "" {
-				actualAudioCodec = "libvorbis"
-			} else {
-				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-			}
-		} else {
-			actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-		}
-		args = append(args, "-c:a", actualAudioCodec)
-
-		// DVD-specific audio settings
-		if isDVD {
-			// DVD standard: AC-3 stereo at 48 kHz, 192 kbps
-			args = append(args, "-b:a", "192k", "-ar", "48000", "-ac", "2")
-		} else {
-			// Standard audio settings for non-DVD
-			if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && actualAudioCodec != "flac" {
-				args = append(args, "-b:a", audioBitrate)
-			}
-
-			// Audio normalization. Force stereo/48 kHz for compatibility and
-			// apply the loudness targets, mirroring the direct-run path.
-			// Channel mixing is deliberately skipped in this branch so only one
-			// -af is ever emitted - ffmpeg honours the last -af and would
-			// otherwise silently drop the loudnorm filter.
-			if normalizeAudio, _ := cfg["normalizeAudio"].(bool); normalizeAudio {
-				args = append(args, "-ac", "2", "-ar", "48000")
-
-				lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
-				truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
-				args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
-				logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", lufs, truePeak)
-			} else {
-				if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
-					switch audioChannels {
-					case "Mono":
-						args = append(args, "-ac", "1")
-					case "Stereo":
-						args = append(args, "-ac", "2")
-					case "5.1":
-						args = append(args, "-ac", "6")
-					case "Left to Stereo":
-						// Copy left channel to both left and right
-						args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
-					case "Right to Stereo":
-						// Copy right channel to both left and right
-						args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
-					case "Mix to Stereo":
-						// Downmix both channels together, then duplicate to L+R
-						args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
-					case "Swap L/R":
-						// Swap left and right channels
-						args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
-					}
-				}
-
-				if audioSampleRate, _ := cfg["audioSampleRate"].(string); audioSampleRate != "" && audioSampleRate != "Source" {
-					args = append(args, "-ar", audioSampleRate)
-				}
-			}
-		}
+	audioCfg := audioConfigFromJob(cfg, selectedFormat.Ext)
+	args = append(args, convert.BuildAudioArgs(audioCfg)...)
+	if audioCfg.Normalize {
+		logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", audioCfg.LUFS, audioCfg.TruePeak)
 	}
 
 	// Map streams and metadata
@@ -8153,67 +8099,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 	}
 
 	// Audio codec
-	audioCodec, _ := cfg["audioCodec"].(string)
-	if audioCodec == "Copy" {
-		args = append(args, "-c:a", "copy")
-	} else {
-		codec := "aac"
-		switch audioCodec {
-		case "AAC":
-			codec = "aac"
-		case "Opus":
-			codec = "libopus"
-		case "Vorbis":
-			codec = "libvorbis"
-		case "MP3":
-			codec = "libmp3lame"
-		case "FLAC":
-			codec = "flac"
-		case "AC-3":
-			codec = "ac3"
-		}
-		args = append(args, "-c:a", codec)
-
-		if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && codec != "flac" {
-			args = append(args, "-b:a", audioBitrate)
-		}
-
-		// Keep the preview in step with executeConvertJob: when normalization
-		// is on, channel mixing is skipped and the loudnorm filter is emitted
-		// instead, so exactly one -af appears.
-		normalizeAudio, _ := cfg["normalizeAudio"].(bool)
-		if normalizeAudio {
-			args = append(args, "-ac", "2", "-ar", "48000")
-			lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
-			truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
-			args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
-		}
-
-		// Audio channels
-		if audioChannels, _ := cfg["audioChannels"].(string); !normalizeAudio && audioChannels != "" && audioChannels != "Source" {
-			switch audioChannels {
-			case "Mono":
-				args = append(args, "-ac", "1")
-			case "Stereo":
-				args = append(args, "-ac", "2")
-			case "5.1":
-				args = append(args, "-ac", "6")
-			case "Left to Stereo":
-				// Copy left channel to both left and right
-				args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
-			case "Right to Stereo":
-				// Copy right channel to both left and right
-				args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
-			case "Mix to Stereo":
-				// Downmix both channels together, then duplicate to L+R
-				args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
-			case "Swap L/R":
-				// Swap left and right channels
-				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
-			}
-		}
-
-	}
+	args = append(args, convert.BuildAudioArgs(audioConfigFromJob(cfg, convertOutputExt(cfg)))...)
 
 	// Output
 	args = append(args, "OUTPUT")
@@ -15625,6 +15511,8 @@ func determineAudioCodec(cfg convertConfig) string {
 		return "aac"
 	case "Opus":
 		return "libopus"
+	case "Vorbis":
+		return "libvorbis"
 	case "MP3":
 		return "libmp3lame"
 	case "AC-3":

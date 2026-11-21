@@ -933,3 +933,48 @@ func TestNoVLCBackendCode(t *testing.T) {
 		t.Fatalf("walking repo: %v", err)
 	}
 }
+
+func TestConvertOutputExt(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  map[string]interface{}
+		want string
+	}{
+		{"formatOption", map[string]interface{}{"selectedFormat": formatOption{Ext: ".mpg"}}, ".mpg"},
+		{"map", map[string]interface{}{"selectedFormat": map[string]interface{}{"Ext": ".webm"}}, ".webm"},
+		{"missing", map[string]interface{}{}, ""},
+		{"wrong type", map[string]interface{}{"selectedFormat": "x"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := convertOutputExt(tc.cfg); got != tc.want {
+				t.Fatalf("convertOutputExt(%v) = %q, want %q", tc.cfg, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAudioConfigFromJob(t *testing.T) {
+	cfg := map[string]interface{}{
+		"audioCodec":        "Vorbis",
+		"audioBitrate":      "160k",
+		"audioChannels":     "Stereo",
+		"audioSampleRate":   "48000",
+		"normalizeAudio":    true,
+		"normalizeLUFS":     -18.0,
+		"normalizeTruePeak": -2.0,
+	}
+	got := audioConfigFromJob(cfg, ".webm")
+	want := convert.AudioConfig{
+		OutputExt: ".webm", Codec: "Vorbis", Bitrate: "160k", Channels: "Stereo",
+		SampleRate: "48000", Normalize: true, LUFS: -18, TruePeak: -2,
+	}
+	if got != want {
+		t.Fatalf("audioConfigFromJob = %+v, want %+v", got, want)
+	}
+
+	defaults := audioConfigFromJob(map[string]interface{}{}, ".mkv")
+	if defaults.LUFS != -16 || defaults.TruePeak != -1.5 {
+		t.Fatalf("default loudness = %+v, want -16/-1.5", defaults)
+	}
+}
