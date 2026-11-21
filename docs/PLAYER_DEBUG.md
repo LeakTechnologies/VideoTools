@@ -1,5 +1,11 @@
 # Player Debug Status
 
+## 2026-11-21 — Convert review-player visibility candidate (#11)
+
+Host lifecycle only; no playback-engine change. Automatic Convert loads are gated by the global processing-player policy and the review panel's visibility. A manual VT_Player open uses `Load`, not `LoadAutomatic`. Collapsing the review panel closes its session; expanding loads the selected source once. Cover/current-frame work and queue thumbnails use a separate metadata owner and remain available when players are off; batch import generates only the selected source first.
+
+No real playback session, log review or GUI run was performed for this candidate. Build/vet/tests are the only evidence. Runtime acceptance remains open: verify A→B→C while collapsed, expand-loads-current, no duplicate loads, manual VT_Player with automatic previews off, and metadata availability with players off.
+
 ## 2026-11-04 — Automatic analysis follow-up (#46)
 
 Inspect interlace dispatch now uses the host work owner; explicit Convert analysis remains independent. This changes subprocess ownership, not the playback engine. Headless analysis tests do not establish real player/audio/log acceptance; PR #44 remains unmerged and unreleased.

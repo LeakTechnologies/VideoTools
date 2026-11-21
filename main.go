@@ -1231,6 +1231,8 @@ type appState struct {
 	prefs                     prefsConfig
 	previewWorkOnce           sync.Once
 	previewWork               *previewwork.Controller
+	metadataWorkOnce          sync.Once
+	metadataWork              *previewwork.Controller
 	currentFrame              string
 	player                    player.Controller
 	playerReady               bool
@@ -9465,17 +9467,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		_ = savePersistedConvertConfig(state.convert)
 		if open {
 			videoPanel.Show()
+			// Expanding is an explicit request to review the selected source.
+			// Load it once if the review player does not already hold it.
+			if src != nil && state.convertPreviewLoadAllowed() {
+				if p := GetConvertPlayer(); p != nil && p.CurrentPath() != src.Path {
+					state.loadVideoNative(src.Path)
+				}
+			}
 		} else {
 			videoPanel.Hide()
-			// L-4: collapsing the player should not leave it decoding/feeding
-			// frames. Pause it so the engine stops consuming resources until
-			// the panel is expanded again. Do not resume on expand (preserve
-			// the user's last explicit play/pause state).
+			// A collapsed review panel must not keep a decoder/session alive.
 			if HasNativeMediaPlayer() {
-				p := GetConvertPlayer()
-				if p != nil && p.IsPlaying() {
-					p.Pause()
-				}
+				state.closeNativePlayer()
+				state.playerPaused = true
 			}
 		}
 		refreshPreviewLayout()
@@ -15002,6 +15006,40 @@ func (s *appState) detectModuleTileAtPosition(pos fyne.Position) string {
 	return moduleID
 }
 
+// convertPreviewLoadAllowed reports whether Convert may open its automatic
+// review player. The global processing-player policy and the panel's own
+// visibility both have to allow it; metadata/cover work is independent.
+func (s *appState) convertPreviewLoadAllowed() bool {
+	return HasNativeMediaPlayer() && s.prefs.AutomaticPreviewsEnabled() && s.convert.PlayerOpen
+}
+
+// ensurePreviewFrames generates cover/current-frame metadata for the selected
+// source first. It is bounded by the metadata controller, never opens a player
+// session, and publishes only if the selection has not moved on.
+func (s *appState) ensurePreviewFrames(src *videoSource) {
+	if src == nil || len(src.PreviewFrames) > 0 {
+		return
+	}
+	go func() {
+		frames, err := s.captureAutomaticPreviewFrames(src.Path, src.Duration)
+		if err != nil {
+			logging.Debug(logging.CatFFMPEG, "preview frame generation failed: %v", err)
+			return
+		}
+		if len(frames) == 0 {
+			return
+		}
+		src.PreviewFrames = frames
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if s.source != src || s.active != "convert" {
+				return
+			}
+			s.currentFrame = frames[0]
+			s.showConvertView(src)
+		}, false)
+	}()
+}
+
 func (s *appState) loadVideo(path string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -15028,15 +15066,7 @@ func (s *appState) loadVideo(path string) {
 		return
 	}
 	logging.Info(logging.CatModule, "loadVideo: probe succeeded for %s", path)
-	if frames, err := s.captureAutomaticPreviewFrames(src.Path, src.Duration); err == nil {
-		src.PreviewFrames = frames
-		if len(frames) > 0 {
-			s.currentFrame = frames[0]
-		}
-	} else {
-		logging.Debug(logging.CatFFMPEG, "preview generation failed: %v", err)
-		s.currentFrame = ""
-	}
+	s.currentFrame = ""
 	s.applyInverseDefaults(src)
 	s.convert.OutputBase = s.resolveOutputBase(src, false)
 	// Use embedded cover art if present, otherwise clear
@@ -15049,7 +15079,6 @@ func (s *appState) loadVideo(path string) {
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
 	s.playerPos = 0
-	s.playerPaused = true
 
 	// Maintain/extend loaded video list for navigation
 	found := -1
@@ -15072,19 +15101,18 @@ func (s *appState) loadVideo(path string) {
 		s.currentIndex = 0
 	}
 
-	// Load video in native media player if available
-	if HasNativeMediaPlayer() {
+	// This helper is used by Convert and by the Player module's drop path. A
+	// Player drop is an explicit open; Convert's load is an automatic preview.
+	activeAtLoad := s.active
+	if activeAtLoad == "player" {
+		s.loadVideoNativeManual(path)
+	} else if s.convertPreviewLoadAllowed() {
 		s.loadVideoNative(path)
 	}
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	s.recentFiles.Add(path, filepath.Base(path), "convert")
-
-	// Capture active module before entering the UI goroutine so we can route back
-	// to the correct view. Without this, dropping a file on the Player module's
-	// video stage called loadVideo → showConvertView even when the user was in
-	// the Player module.
-	activeAtLoad := s.active
+	s.ensurePreviewFrames(src)
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.setConvertSource(src)
@@ -15148,15 +15176,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.loadedVideos = validVideos
 	s.currentIndex = 0
 
-	// Load the first video to display
+	// Load the first video to display. Cover/current-frame work is started
+	// asynchronously after the selection is committed; it is not a player load.
 	firstVideo := validVideos[0]
-	if frames, err := s.captureAutomaticPreviewFrames(firstVideo.Path, firstVideo.Duration); err == nil {
-		firstVideo.PreviewFrames = frames
-		if len(frames) > 0 {
-			s.currentFrame = frames[0]
-		}
-	}
-
+	s.currentFrame = ""
 	s.applyInverseDefaults(firstVideo)
 	s.convert.OutputBase = s.resolveOutputBase(firstVideo, false)
 	if firstVideo.EmbeddedCoverArt != "" {
@@ -15167,16 +15190,16 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
 	s.playerPos = 0
-	s.playerPaused = true
 
-	// Load into the native media player (same as loadVideo does).
-	if HasNativeMediaPlayer() {
+	// Only open the review player when the panel and global policy allow it.
+	if s.convertPreviewLoadAllowed() {
 		s.loadVideoNative(firstVideo.Path)
 	}
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.setConvertSource(firstVideo)
 		s.showConvertView(firstVideo)
+		s.ensurePreviewFrames(firstVideo)
 		// Queue Refresh in a nested dispatch so it runs after setContent's
 		// async fyne.Do(update) has committed the new window content. Calling
 		// Refresh synchronously here fires before the canvas swap completes,
@@ -15193,16 +15216,8 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		}
 	}, false)
 
-	// Pre-generate preview frames for remaining videos in the background
-	for _, v := range validVideos[1:] {
-		video := v
-		go func() {
-			if frames, err := s.captureAutomaticPreviewFrames(video.Path, video.Duration); err == nil && len(frames) > 0 {
-				video.PreviewFrames = frames
-				logging.Debug(logging.CatModule, "pre-generated preview frames for %s", filepath.Base(video.Path))
-			}
-		}()
-	}
+	// Remaining files are generated lazily when selected; batch import must not
+	// prepare every source for playback or run a capture per file.
 
 	logging.Debug(logging.CatModule, "loaded %d videos into memory", len(validVideos))
 }
@@ -15361,10 +15376,9 @@ func (s *appState) switchToVideo(index int) {
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
 	s.playerPos = 0
-	s.playerPaused = true
 
-	// Load into the native media player (same as loadVideo/loadMultipleVideos)
-	if HasNativeMediaPlayer() {
+	// Switching while the review panel is closed must not open a session.
+	if s.convertPreviewLoadAllowed() {
 		s.loadVideoNative(src.Path)
 	}
 
@@ -15377,23 +15391,8 @@ func (s *appState) switchToVideo(index int) {
 	// Show immediately with whatever frame we have (may be blank while frames generate)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
+		s.ensurePreviewFrames(src)
 	}, false)
-
-	// If frames aren't ready yet, generate them in background and refresh the view
-	if len(src.PreviewFrames) == 0 {
-		go func() {
-			if frames, err := s.captureAutomaticPreviewFrames(src.Path, src.Duration); err == nil && len(frames) > 0 {
-				src.PreviewFrames = frames
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					// Only refresh if the user is still on this video
-					if s.source == src {
-						s.currentFrame = frames[0]
-						s.showConvertView(src)
-					}
-				}, false)
-			}
-		}()
-	}
 }
 
 // nextVideo switches to the next loaded video
@@ -17043,6 +17042,17 @@ func (s *appState) automaticPreviewOwner() *previewwork.Controller {
 	return s.previewWork
 }
 
+// metadataOwner owns cover/current-frame extraction and queue thumbnails. It is
+// deliberately separate from the processing-player policy: players off must not
+// remove metadata, and bounded metadata work must not open a player session.
+// New(4) is enabled; a future metadata preference can call SetEnabled.
+func (s *appState) metadataOwner() *previewwork.Controller {
+	s.metadataWorkOnce.Do(func() {
+		s.metadataWork = previewwork.New(4)
+	})
+	return s.metadataWork
+}
+
 // applyAutomaticPreviewPolicy only controls optional resources. It must not clear
 // processing sources, mutate queued options or close an explicit manual session.
 // Await the returned completion outside the UI thread and managed workers.
@@ -17055,7 +17065,7 @@ func (s *appState) applyAutomaticPreviewPolicy(enabled bool) <-chan struct{} {
 }
 
 func (s *appState) captureAutomaticPreviewFrames(path string, duration float64) ([]string, error) {
-	owner := s.automaticPreviewOwner()
+	owner := s.metadataOwner()
 	request := owner.Context()
 	var frames []string
 	err := owner.Run(request, func(ctx context.Context) (err error) {
@@ -17901,7 +17911,7 @@ func (s *appState) generateJobThumbnail(job *queue.Job) {
 	if job.ThumbnailPath != "" {
 		return
 	}
-	owner := s.automaticPreviewOwner()
+	owner := s.metadataOwner()
 	request := owner.Context()
 	if request == nil {
 		return

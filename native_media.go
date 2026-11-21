@@ -300,17 +300,47 @@ func initNativeMediaAssets(s *appState) {
 	}
 }
 
+// loadVideoNative is an automatic processing preview. It is admission-gated by
+// the processing-player policy and is never used for an explicit VT_Player open.
 func (s *appState) loadVideoNative(path string) {
+	s.loadVideoNativeMode(path, true)
+}
+
+// loadVideoNativeManual is an explicit user open. It is not subject to the
+// automatic-preview policy; the global setting must not suppress VT_Player.
+func (s *appState) loadVideoNativeManual(path string) {
+	s.loadVideoNativeMode(path, false)
+}
+
+func (s *appState) loadVideoNativeMode(path string, automatic bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "panic in loadVideoNative: %v", r)
 		}
 	}()
-	if err := GetConvertPlayer().LoadAutomatic(path); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
-		logging.Error(logging.CatPlayer, "loadVideoNative failed: path=%s err=%v", path, err)
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
-		}, false)
+	var err error
+	if automatic {
+		err = GetConvertPlayer().LoadAutomatic(path)
+	} else {
+		err = GetConvertPlayer().Load(path)
+	}
+	if err == nil {
+		s.syncPlayerPausedFromNative()
+		return
+	}
+	if automatic && (errors.Is(err, ui.ErrAutomaticPreviewsDisabled) || errors.Is(err, context.Canceled)) {
+		s.syncPlayerPausedFromNative()
+		return
+	}
+	logging.Error(logging.CatPlayer, "loadVideoNative failed: path=%s automatic=%v err=%v", path, automatic, err)
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
+	}, false)
+}
+
+func (s *appState) syncPlayerPausedFromNative() {
+	if HasNativeMediaPlayer() {
+		s.playerPaused = !GetConvertPlayer().IsPlaying()
 	}
 }
 
