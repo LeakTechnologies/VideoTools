@@ -1106,3 +1106,21 @@ func TestNoVLCBackendCode(t *testing.T) {
 		t.Fatalf("walking repo: %v", err)
 	}
 }
+
+func TestConvertPreviewLoadAllowed(t *testing.T) {
+	s := &appState{}
+	s.prefs.DisableAutomaticPreviews = false
+	s.convert.PlayerOpen = true
+	if !s.convertPreviewLoadAllowed() {
+		t.Fatal("open panel with previews enabled must allow an automatic load")
+	}
+	s.convert.PlayerOpen = false
+	if s.convertPreviewLoadAllowed() {
+		t.Fatal("collapsed panel must not allow an automatic load")
+	}
+	s.convert.PlayerOpen = true
+	s.prefs.DisableAutomaticPreviews = true
+	if s.convertPreviewLoadAllowed() {
+		t.Fatal("disabled processing players must not allow an automatic load")
+	}
+}
