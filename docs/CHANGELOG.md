@@ -9,6 +9,12 @@
   GUI evidence are recorded in PLAYER_DEBUG. Owner accepted the neutral-clip
   backward-seek/fullscreen/rate/replay check; broader media/platform gaps remain.
 
+## 2026-11-21 - Upscale control truthfulness (candidate, no version bump)
+
+- Remove the invalid skin-tone filter and its control; old non-off settings are ignored with a log note (#59).
+- Remove Output Adjust from the AI panel until native-scale output adjustment has a defined meaning (#58).
+- Normalise Match Target against Match Source to an explicit native scale so the visible control matches the job.
+
 ## 2026-11-21 - Upscale 601 and scale correctness (candidate, no version bump)
 
 - AI upscale resolves 525-line and 625-line SD sources to valid matrices (`smpte170m`, `bt470bg`) instead of the invalid `bt601` enum (#55).
