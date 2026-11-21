@@ -106,7 +106,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev101"
+	appVersion         = "v0.1.1-dev102"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -12668,6 +12668,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace}, func(_ fyne.Shortcut) {
+			if state.active == "player" && !isTextEntryFocused() {
+				player := GetConvertPlayer()
+				if player.IsPlaying() {
+					state.pauseNative()
+				} else {
+					state.playNative()
+				}
+				return
+			}
+
 			if state.active != "convert" || isTextEntryFocused() {
 				return
 			}

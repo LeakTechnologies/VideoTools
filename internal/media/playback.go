@@ -25,6 +25,7 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -99,6 +100,7 @@ func (e *Engine) demuxerLoop() {
 		// Serialise av_read_frame against avformat_seek_file — AVFormatContext
 		// is not thread-safe; concurrent access from Seek() causes hard crashes.
 		e.lockFormatMu()
+		videoGeneration, audioGeneration, subtitleGeneration := e.videoQueue.Generation(), e.audioQueue.Generation(), e.subtitleQueue.Generation()
 		ret := C.av_read_frame(e.formatCtx, pkt)
 		e.unlockFormatMu()
 
@@ -108,33 +110,45 @@ func (e *Engine) demuxerLoop() {
 		}
 
 		if ret < 0 {
-			logging.Info(logging.CatPlayer, "demuxerLoop: av_read_frame EOF/error ret=%d, setting queue EOF", int(ret))
-			e.videoQueue.SetEOF()
-			e.audioQueue.SetEOF()
-			e.subtitleQueue.SetEOF()
-			return
+			// A seek may have retired this read after formatMu was released.
+			e.lockFormatMu()
+			retired := e.videoQueue.Generation() != videoGeneration
+			if !retired {
+				e.videoQueue.SetEOF()
+				e.audioQueue.SetEOF()
+				e.subtitleQueue.SetEOF()
+			}
+			e.unlockFormatMu()
+			if retired {
+				continue
+			}
+			logging.Info(logging.CatPlayer, "demuxerLoop: current read EOF/error ret=%d; waiting for seek or retirement", int(ret))
+			if !e.videoQueue.WaitForReset(videoGeneration, e.stop) {
+				return
+			}
+			continue
 		}
 
 		streamIdx := int(pkt.stream_index)
 		if streamIdx == e.videoStreamIdx {
-			e.videoQueue.Put(pkt) // blocking: never drop video packets
+			e.videoQueue.PutGeneration(pkt, videoGeneration) // only the current seek generation may publish
 		} else if streamIdx == e.audioStreamIdx {
 			if e.pausedAtomic.Load() && !e.prebuffering.Load() && !e.previewRead.Load() {
 				// Preview/inspection has no active audio output consumer.
-				if !e.audioQueue.TryPut(pkt) {
+				if !e.audioQueue.TryPutGeneration(pkt, audioGeneration) {
 					e.debugAudioDrops.Add(1)
 				}
 			} else {
 				// Active playback/preparation must not silently lose encoded
 				// audio at a full queue. Decoder backpressure bounds memory.
-				e.audioQueue.Put(pkt)
+				e.audioQueue.PutGeneration(pkt, audioGeneration)
 			}
 		} else {
 			e.subtitleCodecMu.Lock()
 			isSubStream := streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil
 			e.subtitleCodecMu.Unlock()
 			if isSubStream {
-				e.subtitleQueue.TryPut(pkt)
+				e.subtitleQueue.TryPutGeneration(pkt, subtitleGeneration)
 			}
 		}
 		C.av_packet_unref(pkt)
@@ -142,6 +156,12 @@ func (e *Engine) demuxerLoop() {
 }
 
 func (e *Engine) Seek(seconds float64) error {
+	active, err := e.retireDecoderForSeek()
+	if err != nil {
+		return err
+	}
+	defer e.restartDecoderAfterSeek(active)
+
 	if seconds < 0 {
 		seconds = 0
 	}
@@ -162,9 +182,9 @@ func (e *Engine) Seek(seconds float64) error {
 	maxTS = target
 	switch e.seekAcc {
 	case SeekAccuracyFrame:
-		flags = C.int(AVSEEK_FLAG_FRAME)
-		minTS = target
-		flagsDesc = "AVSEEK_FLAG_FRAME"
+		flags = C.int(AVSEEK_FLAG_BACKWARD)
+		minTS = C.int64_t(math.MinInt64 / 2)
+		flagsDesc = "BACKWARD timestamp + frame preroll"
 	case SeekAccuracyKeyframe:
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
@@ -172,12 +192,12 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 		flagsDesc = "AVSEEK_FLAG_BACKWARD (keyframe)"
 	case SeekAccuracyAccurate:
-		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
+		flags = C.int(AVSEEK_FLAG_BACKWARD)
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
 			maxTS = 1000
 		}
-		flagsDesc = "AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_ACCURATE"
+		flagsDesc = "AVSEEK_FLAG_BACKWARD"
 	}
 	logging.Info(logging.CatPlayer, "Seek: flags=%s target=%.2f minTS=%d maxTS=%d", flagsDesc, seconds, int64(minTS), int64(maxTS))
 
@@ -205,7 +225,7 @@ func (e *Engine) Seek(seconds float64) error {
 			logging.Info(logging.CatPlayer, "Seek: keyframe landed at %.2f (target %.2f, diff=%.1fs) — accurate fallback with BACKWARD", landedSecs, seconds, math.Abs(landedSecs-seconds))
 			accurateRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx),
 				C.int64_t(math.MinInt64/2), target, target,
-				C.int(AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_ACCURATE))
+				C.int(AVSEEK_FLAG_BACKWARD))
 			if accurateRet < 0 {
 				logging.Warning(logging.CatPlayer, "Seek: accurate fallback failed (ret=%d) — restoring keyframe position", accurateRet)
 				C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
@@ -219,8 +239,8 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 	}
 
-	e.unlockFormatMu()
 	if seekRet < 0 {
+		e.unlockFormatMu()
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d 0x%08X)", seconds, seekRet, uint32(seekRet))
 		return fmt.Errorf("seek failed")
 	}
@@ -229,6 +249,8 @@ func (e *Engine) Seek(seconds float64) error {
 	e.pendingFrame = nil
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
+	e.subtitleQueue.Flush()
+	e.unlockFormatMu()
 	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
 
 	if e.audioStreamIdx >= 0 && e.formatCtx != nil {
@@ -246,7 +268,7 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 	}
 
-	e.seekFlushBefore.Store(math.Float64bits(seconds - 0.15))
+	e.seekFlushBefore.Store(math.Float64bits(seconds))
 
 	if e.videoCodecCtx != nil && e.videoDecoded {
 		e.lockVideoCodecMu()
@@ -265,6 +287,7 @@ func (e *Engine) Seek(seconds float64) error {
 			flushed++
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
+		e.freeDeinterlaceFilter()
 		e.seekGen.Add(1)
 		e.unlockVideoCodecMu()
 		logging.Info(logging.CatPlayer, "Seek: flushed %d frames", flushed)
@@ -565,7 +588,7 @@ func (e *Engine) videoDecodeLoop() {
 			}
 		}
 
-		rawPkt, ok := e.videoQueue.TimedGet(20 * time.Millisecond)
+		rawPkt, ok, generation := e.videoQueue.TimedGetGeneration(20 * time.Millisecond)
 		if !ok {
 			if e.videoQueue.IsClosedOrEOF() {
 				e.lockMu()
@@ -575,7 +598,12 @@ func (e *Engine) videoDecodeLoop() {
 					e.lockMu()
 					e.decodeEOFSent = true
 					e.unlockMu()
-					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
+					if !e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()}) {
+						return
+					}
+				}
+				if !e.videoQueue.WaitForReset(generation, e.decodeLoopStop) {
+					return
 				}
 			}
 			continue
@@ -1012,6 +1040,7 @@ func (e *Engine) Close() {
 		return
 	}
 	e.closed = true
+	e.decodeLoopStopOnce.Do(func() { close(e.decodeLoopStop) })
 	e.pendingFrame = nil
 	e.running = false
 	e.paused = false
@@ -1026,7 +1055,6 @@ func (e *Engine) Close() {
 		e.subtitleQueue.Close()
 	}
 
-	close(e.decodeLoopStop)
 	e.decodeLoopWg.Wait()
 
 	for {
@@ -1177,4 +1205,45 @@ func (e *Engine) PreparePlayback(ctx context.Context, timeout time.Duration) err
 		case <-ticker.C:
 		}
 	}
+}
+
+// Join the packet-owning decoder before changing demux/codec state. Otherwise
+// a packet fetched before the seek can be submitted after codec flushing.
+func (e *Engine) retireDecoderForSeek() (bool, error) {
+	e.lockMu()
+	if e.closed {
+		e.unlockMu()
+		return false, ErrEngineClosed
+	}
+	active := e.decodeLoopActive
+	if active {
+		e.decodeLoopStopOnce.Do(func() { close(e.decodeLoopStop) })
+	}
+	e.unlockMu()
+	if !active {
+		return false, nil
+	}
+	e.decodeLoopWg.Wait()
+	e.lockMu()
+	defer e.unlockMu()
+	if e.closed {
+		return false, ErrEngineClosed
+	}
+	e.decodeLoopActive = false
+	e.decodeLoopStop = make(chan struct{})
+	e.decodeLoopStopOnce = sync.Once{}
+	return true, nil
+}
+func (e *Engine) restartDecoderAfterSeek(active bool) {
+	if !active {
+		return
+	}
+	e.lockMu()
+	defer e.unlockMu()
+	if e.closed || !e.running || e.decodeLoopActive || e.videoCodecCtx == nil {
+		return
+	}
+	e.decodeLoopActive = true
+	e.decodeLoopWg.Add(1)
+	go e.videoDecodeLoop()
 }

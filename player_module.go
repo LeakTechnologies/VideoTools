@@ -50,12 +50,18 @@ func (s *appState) showPlayerView() {
 }
 
 func buildPlayerView(state *appState) fyne.CanvasObject {
+	sourceName := ""
+	if state.playerFile != nil {
+		sourceName = filepath.Base(state.playerFile.Path)
+	}
+
 	return player.BuildView(player.Options{
 		Window:                   state.window,
 		ModuleColor:              moduleColor("player"),
 		QueueBtn:                 state.queueBtn,
 		StatsBar:                 state.statsBar,
 		PlayerFile:               state.playerFile,
+		SourceName:               sourceName,
 		OnShowMainMenu:           state.showMainMenu,
 		OnShowQueue:              state.showQueue,
 		OnShowPlayerView:         state.showPlayerView,

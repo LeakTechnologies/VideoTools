@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev102 — VT_Player transport
+
+- Reconcile seeking/fullscreen/context-key and compact source/tools repairs from
+  the separate historical candidate; not included in released dev101.
+- Keep EOF seekable, restart an ended source on explicit Play, and repair tempo
+  command/state handling across speed changes and seeks. Fresh checks and partial
+  GUI evidence are recorded in PLAYER_DEBUG. Owner accepted the neutral-clip
+  backward-seek/fullscreen/rate/replay check; broader media/platform gaps remain.
+
 ## 2026-11-21 - Upscale 601 and scale correctness (candidate, no version bump)
 
 - AI upscale resolves 525-line and 625-line SD sources to valid matrices (`smpte170m`, `bt470bg`) instead of the invalid `bt601` enum (#55).
