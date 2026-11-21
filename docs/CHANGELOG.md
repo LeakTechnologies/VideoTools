@@ -1,5 +1,10 @@
 # VideoTools Changelog
 
+## 2026-11-21 - Convert audio preview parity (candidate, no version bump)
+
+- Queue preview and executor now share one audio argument builder; DVD, WebM and Ogg codec/normalization flags match what will run (#24).
+- WebM and Ogg Vorbis selections use `libvorbis` instead of falling back to AAC.
+
 ## v0.1.1-dev102 — VT_Player transport
 
 - Reconcile seeking/fullscreen/context-key and compact source/tools repairs from
