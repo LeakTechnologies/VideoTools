@@ -7184,6 +7184,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		logFile, logPath, _ := createConversionLog(inputPath, outputPath, extractArgs)
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: extract frames for AI upscaling")
+			if scalePlan.Note != "" {
+				fmt.Fprintln(logFile, "AI scale: "+scalePlan.Note)
+			}
 		}
 
 		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {

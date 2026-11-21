@@ -11,6 +11,8 @@ func TestResolveColorMatrix(t *testing.T) {
 		want   string
 	}{
 		{"unknown 480", "", "", 480, "smpte170m"},
+		{"unknown 539", "", "", 539, "smpte170m"},
+		{"unknown 540", "", "", 540, "bt470bg"},
 		{"unknown 576", "", "", 576, "bt470bg"},
 		{"unknown 1080", "", "", 1080, "bt709"},
 		{"probed 525", "auto", "smpte170m", 576, "smpte170m"},
@@ -107,6 +109,18 @@ func TestPlanAIScale(t *testing.T) {
 			srcW: 720, srcH: 576, tgtW: 1440, tgtH: 1152, preset: preset2X,
 			aiScale: 4, useTarget: true, adjust: 1,
 			wantScale: 4, wantW: 1440, wantH: 1152, wantResize: true,
+		},
+		{
+			name: "4x relative target matches native", model: "realesrgan-x4plus",
+			srcW: 720, srcH: 576, tgtW: 2880, tgtH: 2304, preset: "4X (relative)",
+			aiScale: 4, useTarget: true, adjust: 1,
+			wantScale: 4, wantW: 2880, wantH: 2304, wantResize: false,
+		},
+		{
+			name: "explicit 8x", model: "realesrgan-x4plus",
+			srcW: 720, srcH: 576, preset: matchSrc,
+			aiScale: 8, useTarget: false, adjust: 1,
+			wantScale: 4, wantW: 5760, wantH: 4608, wantResize: true,
 		},
 		{
 			name: "2x native model to 1080", model: "realesrgan-x2plus",
