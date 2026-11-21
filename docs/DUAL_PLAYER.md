@@ -105,7 +105,7 @@ When user scrubs the seek bar, render ~5 seconds of processed output:
 3. Processed output plays in right pane while user watches
 4. Click "Refresh" to re-render with new settings
 
-This is how Topaz handles it - render segment on seek, not real-time.
+This is how segment-render players handle it: render on seek, not in real time.
 
 Implementation:
 ```go

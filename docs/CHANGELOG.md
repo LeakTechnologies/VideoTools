@@ -6,6 +6,7 @@
 - Prefer each source's embedded cover unless the user explicitly chose a shared cover.
 - Retain one session-wide output allocator so separate adds cannot collide before jobs write.
 - Retain failed import inputs and reasons for the upcoming batch list.
+- Remove third-party product names and private checkout paths from active docs and legacy scripts; no behaviour change.
 - Add the content-hygiene PR checklist item.
 
 ## v0.1.1-dev103 - Upscale and Convert correctness
@@ -2034,12 +2035,12 @@ None - this is a bug-fix and enhancement release.
 ### ðŸ“š Documentation Updates
 
 #### New Documentation Added
-- Enhanced `TODO.md` with Lossless-Cut inspired trim module specifications
+- Enhanced `TODO.md` with stream-copy trim module specifications
 - Updated `MODULES.md` with detailed trim module implementation plan
 - Enhanced `docs/README.md` with VT_Player integration links
 
 #### Documentation Enhancements
-- **Trim Module Specifications** - Detailed Lossless-Cut inspired design
+- **Trim Module Specifications** - Detailed keyframe-aligned trim design
 - **VT_Player Integration Notes** - Cross-project component reuse
 - **Implementation Roadmap** - Clear development phases and priorities
 

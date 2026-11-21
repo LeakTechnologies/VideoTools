@@ -38,8 +38,8 @@ full module acceptance. Keep #39 open until the relevant evidence is collected.
 
 ## Working practices: provenance and adaptation
 
-The running Eternal app revealed its canonical checkout at `H:\REA\eternal`.
-Its AGENTS identifies `E:\Development\eternal` as a divergent historical checkout.
+The running Eternal app revealed an external canonical checkout.
+Its AGENTS identifies a separate local checkout as a divergent historical checkout.
 Read-only Git inspection confirmed canonical remote LeakTechnologies/eternal and
 HEAD `ddc29e74c0dbbc12a7d4e9eed6822556cfc187ad`, with dirty app/theme/Android and
 other files. No changes, builds or tests were performed in either checkout.
