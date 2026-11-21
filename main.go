@@ -45,6 +45,7 @@ import (
 	queuemodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/queue"
 	ripmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/trim"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/upscale"
 	"github.com/LeakTechnologies/VideoTools/internal/app/recentfiles"
 	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
@@ -7093,26 +7094,16 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			aiThreadsSave = 2
 		}
 
-		outScale := aiScale
-		if aiScaleUseTarget {
-			switch targetPreset {
-			case "", "Match Source":
-				outScale = 1.0
-			case "2X (relative)":
-				outScale = 2.0
-			case "4X (relative)":
-				outScale = 4.0
-			default:
-				if sourceHeight > 0 && targetHeight > 0 {
-					outScale = float64(targetHeight) / float64(sourceHeight)
-				}
-			}
+		scalePlan, err := upscale.PlanAIScale(
+			aiModel, sourceWidth, sourceHeight,
+			targetWidth, targetHeight, targetPreset,
+			aiScale, aiScaleUseTarget, aiOutputAdjust,
+		)
+		if err != nil {
+			return err
 		}
-		outScale *= aiOutputAdjust
-		if outScale < 0.1 {
-			outScale = 0.1
-		} else if outScale > 8.0 {
-			outScale = 8.0
+		if scalePlan.Note != "" {
+			logging.Info(logging.CatFFMPEG, "%s", scalePlan.Note)
 		}
 
 		if progressCallback != nil {
@@ -7139,37 +7130,22 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			preFilter = strings.Join(baseFilters, ",")
 		}
 
-		// Determine the actual source colour space, defaulting by resolution when "auto".
-		resolvedSrcCS := strings.ToLower(strings.TrimSpace(srcColorSpace))
-		if resolvedSrcCS == "auto" || resolvedSrcCS == "" {
-			// Probe the source to read embedded metadata first.
-			if probed, err := probeVideo(inputPath); err == nil && probed != nil {
-				switch strings.ToLower(probed.ColorSpace) {
-				case "bt709", "rec709":
-					resolvedSrcCS = "bt709"
-				case "bt2020", "rec2020":
-					resolvedSrcCS = "bt2020"
-				case "bt601", "smpte170m", "smpte240m", "bt470bg":
-					resolvedSrcCS = "bt601"
-				default:
-					// Fall back to resolution-based heuristic.
-					if probed.Height > 0 && probed.Height <= 576 {
-						resolvedSrcCS = "bt601"
-					} else {
-						resolvedSrcCS = "bt709"
-					}
-				}
-			} else if sourceHeight > 0 && sourceHeight <= 576 {
-				resolvedSrcCS = "bt601"
-			} else {
-				resolvedSrcCS = "bt709"
+		// Determine the actual source matrix. Explicit selection wins; probed tags
+		// come next; height is a last resort. 525-line and 625-line SD need
+		// different enums (smpte170m vs bt470bg); "bt601" is not a valid enum.
+		probedColorSpace := ""
+		probedHeight := sourceHeight
+		if probed, err := probeVideo(inputPath); err == nil && probed != nil {
+			probedColorSpace = probed.ColorSpace
+			if probedHeight <= 0 {
+				probedHeight = probed.Height
 			}
 		}
+		resolvedSrcCS := upscale.ResolveColorMatrix(srcColorSpace, probedColorSpace, probedHeight)
 
 		// Build a colorspace normalisation filter when the source matrix differs
-		// from the bt709 working space that AI models expect.  The filter also
-		// linearises (gamma) and converts to full-range RGB, which eliminates the
-		// "orange shift" caused by mismatched BT.601/BT.709 coefficients.
+		// from the bt709 working space that AI models expect. This converts the
+		// matrix; it does not carry or convert range.
 		colourFilters := []string{}
 		if resolvedSrcCS != "bt709" {
 			colourFilters = append(colourFilters,
@@ -7290,7 +7266,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-i", inputFramesDir,
 			"-o", outputFramesDir,
 			"-n", aiModelName,
-			"-s", fmt.Sprintf("%.2f", outScale),
+			"-s", strconv.Itoa(scalePlan.ModelScale),
 			"-j", fmt.Sprintf("%d:%d:%d", aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			"-f", frameExt,
 		}
@@ -7437,8 +7413,8 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		// band to compensate for chroma suppression from the AI model.
 		// This only touches the Cr channel in the skin-tone hue sector.
 		var reassembleFilters []string
-		if targetPreset != "" && targetPreset != "Match Source" {
-			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR))
+		if scalePlan.Resize {
+			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(scalePlan.FinalWidth, scalePlan.FinalHeight, method, preserveAR))
 		}
 		switch skinTone {
 		case "subtle":

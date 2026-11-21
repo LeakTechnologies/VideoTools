@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## 2026-11-21 - Upscale 601 and scale correctness (candidate, no version bump)
+
+- AI upscale resolves 525-line and 625-line SD sources to valid matrices (`smpte170m`, `bt470bg`) instead of the invalid `bt601` enum (#55).
+- The model runs at its native integer scale; the output is resized to the target or explicit scale, so fractional targets no longer truncate to 1x.
+- 1x requests route to the model's native scale. Output Adjust is rejected until it has a native-scale meaning. Interlace/IVTC and SAR remain deferred.
+
 ## 2026-11-04 — Feature planning (no application release)
 
 - Require plans to connect observed needs/current behaviour to a bounded approach, investigation of unknowns and observable acceptance (#42). No app or automation change.
