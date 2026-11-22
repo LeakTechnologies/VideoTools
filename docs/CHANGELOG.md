@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev103 - Upscale and Convert correctness
+
+- AI upscale resolves 525-line and 625-line SD sources to valid matrices, runs the model at its native integer scale, routes 1x requests to native scale, and resizes to the target (#55).
+- Remove the invalid skin-tone control/filter and the unusable Output Adjust control until they have measured, native-scale meanings (#58, #59).
+- Queue preview and executor share one audio argument builder; DVD/WebM/Ogg audio flags and Vorbis handling now match the job that runs (#24).
+- Single and batch Convert enqueue share one job snapshot builder; batch output-folder and AutoCrop semantics now match single inserts (#51).
+- Draft #44/#62 preview/player policy work is not included; its runtime acceptance is still outstanding.
+
 ## 2026-11-21 - Convert audio preview parity (candidate, no version bump)
 
 - Queue preview and executor now share one audio argument builder; DVD, WebM and Ogg codec/normalization flags match what will run (#24).
