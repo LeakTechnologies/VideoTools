@@ -6780,6 +6780,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	srcColorSpace, _ := cfg["srcColorSpace"].(string)
 	colorDepth, _ := cfg["colorDepth"].(string)
 	skinTone, _ := cfg["skinTone"].(string)
+	if skinTone != "" && !strings.EqualFold(skinTone, "off") {
+		logging.Info(logging.CatFFMPEG, "Skin-tone adjustment is unavailable in this build; ignoring %q", skinTone)
+	}
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -7133,6 +7136,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			if scalePlan.Note != "" {
 				fmt.Fprintln(logFile, "AI scale: "+scalePlan.Note)
 			}
+			if skinTone != "" && !strings.EqualFold(skinTone, "off") {
+				fmt.Fprintln(logFile, "Skin-tone adjustment unavailable in this build; ignored")
+			}
 		}
 
 		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {
@@ -7357,23 +7363,12 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "1:a?",
 		}
 
-		// Build post-process filter chain for reassembly.
-		// Skin tone preservation: hue-selective saturation nudge in the red-pink
-		// band to compensate for chroma suppression from the AI model.
-		// This only touches the Cr channel in the skin-tone hue sector.
+		// Build post-process filter chain for reassembly. Skin-tone adjustment is
+		// intentionally absent until the colour-state stage has a measured control;
+		// the old hue-selective filter used options FFmpeg does not support.
 		var reassembleFilters []string
 		if scalePlan.Resize {
 			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(scalePlan.FinalWidth, scalePlan.FinalHeight, method, preserveAR))
-		}
-		switch skinTone {
-		case "subtle":
-			reassembleFilters = append(reassembleFilters,
-				"huesaturation=hue=0:saturation=0.04:intensity=0:rH=1:rS=1:rI=0:rV=1",
-			)
-		case "strong":
-			reassembleFilters = append(reassembleFilters,
-				"huesaturation=hue=0:saturation=0.09:intensity=0:rH=1:rS=1:rI=0:rV=1",
-			)
 		}
 		if len(reassembleFilters) > 0 {
 			reassembleArgs = append(reassembleArgs, "-vf", strings.Join(reassembleFilters, ","))

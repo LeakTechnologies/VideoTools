@@ -8,6 +8,16 @@ The Upscale module provides video resolution enhancement using both traditional 
 
 **Last Updated:** 2026-11-21 (correctness update; base design dev40)
 
+## 2026-11-21 - Control truthfulness (#58, #59)
+
+- Remove the skin-tone control and its filter. The previous filter used options
+  FFmpeg does not support; old non-off settings are ignored with a log note. A
+  measured replacement belongs to the colour-state stage.
+- Remove Output Adjust from the AI panel until it has a defined native-scale
+  meaning. The job path rejects non-1.0 values rather than ignoring them.
+- Match Target against Match Source is normalised to an explicit native scale so
+  the visible AI scale matches what the job will do.
+
 ## 2026-11-21 - 601 matrix and native scale correctness (#55)
 
 - The source matrix resolves to a valid enum: `smpte170m` for 525-line SD,
