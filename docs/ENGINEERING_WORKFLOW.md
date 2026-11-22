@@ -184,6 +184,9 @@ is justified. Do not batch-close old issues based on new source being present.
 - Use conventional titles: `docs(engineering): adopt evidence-led workflow` and a
   `Refs #30` or justified `Fixes #N` reference. Preserve repo-owner identity and the
   no-attribution rule; retain third-party source copyright/licence notices.
+  `scripts/tools/commit-preflight.ps1` checks that reference, the matching
+  documentation entry and introduced encoding damage on unpublished commits. It
+  reports which checks ran and is neither CI nor runtime acceptance.
 - Inspect the working diff and stage only the exact task files. Review the index
   before committing. Preserve unrelated work and unpushed history. No blanket
   staging, destructive reset, force push, or retargeting an existing release tag.

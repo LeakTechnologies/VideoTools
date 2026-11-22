@@ -1,0 +1,107 @@
+VideoTools NOTICE
+=================
+
+Copyright (C) 2025-2026 Stu Leak (Leak Technologies)
+
+VideoTools is free software distributed under the GNU General Public License,
+version 3. See LICENSE for the governing terms. This NOTICE records ownership,
+attribution expectations and third-party components. It does not replace the
+LICENSE or any third-party licence.
+
+Attribution
+-----------
+
+If you redistribute VideoTools or a modified version, keep LICENSE and this
+NOTICE, identify the origin and any changes, and provide the corresponding
+source as required by GPL-3.0. Preserve the human contributor credits in
+README.md. Third-party components remain under their own licences.
+
+Additional permissions
+----------------------
+
+No additional permissions under GPL-3.0 section 7 are granted by this file.
+To request a different arrangement, open an issue at
+https://github.com/LeakTechnologies/VideoTools/issues and describe the intended
+use. Any grant must be recorded here to be effective.
+
+Third-party components in this tree
+-----------------------------------
+
+| Component | Version / origin | Licence | Notes |
+|---|---|---|---|
+| Fyne | v2.7.1 fork, `_fyne` | BSD-3-Clause | Fyne.io developers; `_fyne/LICENSE`. |
+| fyne-tooltip | v0.4.0 | BSD-3-Clause | Drew Weymouth. |
+| oto | v3.4.0 | Apache-2.0 | Audio playback. |
+| go-qrcode | commit `da1b656` | MIT | Tom Harwood. |
+| golang.org/x/image | v0.43.0 | BSD-3-Clause | The Go Authors. |
+| golang.org/x/sys | v0.45.0 | BSD-3-Clause | The Go Authors. |
+| iutools transliteration | upstream algorithm | MIT | National Research Council Canada; derivation noted in README.md. |
+| IBM Plex Mono | bundled static TTFs | OFL-1.1 | IBM. |
+| Plus Jakarta Sans | bundled static TTFs | OFL-1.1 | Tokotype. |
+| Aboriginal Sans | bundled static TTFs | GPL-3.0 | Chris Harvey / LanguageGeek; the font metadata states GPL-3.0. |
+| VCR OSD Mono | bundled TTF | unresolved | Riciery Leal; no licence text ships with the file. See open checks. |
+| Material Symbols | bundled SVG icons | Apache-2.0 | Google Material Symbols. |
+| Flag SVGs | Canada, Nunavut, Quebec | unresolved | Provenance not recorded in the tree. See open checks. |
+| Legacy `git_converter` scripts | `scripts/legacy/git_converter/` | GPL-3.0 | Project contributor work; `lt-convert-gui.exe` is built from the included Go source. |
+
+The Go module graph is enumerated in `go.mod` and `go.sum`. Each module remains
+under its upstream licence; the direct dependencies are listed above.
+
+Build-time and shipped media components
+---------------------------------------
+
+The Windows release includes a statically built FFmpeg sidecar. Its configure
+uses `--enable-gpl --enable-version3`, so that binary is GPL-3.0-or-later.
+The source is FFmpeg 8.1 from https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz,
+with the build configuration recorded in `.github/workflows/release.yml`,
+`windows-msix.yml` and the development workflow.
+
+| Component | Version / origin | Licence | Notes |
+|---|---|---|---|
+| FFmpeg | 8.1 | GPL-3.0-or-later for the shipped sidecar; LGPL/GPL upstream | Configure flags choose the GPLv3 build. |
+| x264 | upstream `videolan/x264` | GPL-2.0-or-later | Source headers state "version 2 or later"; commercial terms also offered upstream. Build commit is not pinned. |
+| x265 | upstream `multicoreware/x265_git` | GPL-2.0-or-later | Source headers state "version 2 or later"; commercial terms also offered upstream. The `.pc` says 4.1.0, but the build clones without checking out that tag. |
+| libdvdread | 6.1.3 | GPL-2.0-or-later | DVD-Video reading. |
+| libdvdnav | 6.1.1 | GPL-2.0-or-later | DVD-Video navigation. |
+| FreeType | 2.13.3 | FTL / GPL-2.0-only | Font rasterisation. |
+| HarfBuzz | 14.4.0 | MIT | Text shaping. |
+
+The static FFmpeg build also links transitive libraries supplied by the build
+environment. Their notices remain with those projects. The build scripts record
+the configured versions but are not a complete transitive-licence inventory.
+
+Optional external components
+----------------------------
+
+These are not stored in this repository and may be installed or invoked by the
+user. Their own licences apply:
+
+- Real-ESRGAN / ncnn: BSD-3-Clause.
+- Real-CUGAN: MIT.
+- RIFE: MIT.
+- Whisper models and any other optional model downloads: the upstream model and
+  tool terms apply.
+- linuxdeploy and AppImageKit: GPL-2.0 / MIT, used only for Linux packaging.
+- SignPath is a code-signing service, not a bundled component.
+
+Open checks
+-----------
+
+These items are recorded rather than silently assumed:
+
+1. **VCR OSD Mono** has no licence file in the tree. The author's public
+   comments state that commercial use is allowed, but no written licence text
+   is included. Obtain and record a written grant, or replace the asset, before
+   relying on it for redistribution.
+2. **Flag SVGs** have no recorded source or licence. Verify their provenance and
+   record the result here.
+3. **x264 and x265 build commits** are not pinned. Record the exact commits and
+   the matching upstream licence text before making a distribution claim (#54).
+4. **Transitive static libraries** in the FFmpeg build are not individually
+   enumerated. A release licence inventory should be generated from the actual
+   build inputs before the next distribution review.
+5. **Release archives** currently contain the binaries but not LICENSE or this
+   NOTICE. Include both in the Linux and Windows archives before the next
+   release; this is a packaging change, not part of this documentation task.
+
+Repository: https://github.com/LeakTechnologies/VideoTools

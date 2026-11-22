@@ -34,7 +34,7 @@ Shared controls: internal/ui/help.go and components.go. Module integration: exis
 
 Checklist: native build/vet/full tests; actual hover/exit/preference/click/typing tests; per-title chapter counts and output ranges; bounded samples across DVD VOB file boundaries; encrypted sample decoding; narrow/large-font visual review. Encrypted DVD -> Rip -> Convert -> playback acceptance remains separate and outstanding.
 
-Optical verification exposed a preview address error: DVD cells use sectors across the concatenated VTS title stream; logical VOBID does not select a physical filename. Preview sampling now crosses physical segments by global sector address. The existing executor cell fallback still maps by logical ID and requires a separate correctness repair/acceptance before treating chapter fallback content as proven.
+Optical verification exposed a preview address error: DVD cells use sectors across the concatenated VTS title stream; logical VOBID does not select a physical filename. Preview sampling and the executor cell fallback now cross physical segments by global sector address. A gap, malformed bound or unresolvable chapter span fails the exact rip instead of silently substituting a whole-VTS fallback. Runtime disc acceptance remains separate.
 
 ## dev101 evidence (2026-10-13)
 

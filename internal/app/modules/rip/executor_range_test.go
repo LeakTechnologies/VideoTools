@@ -71,8 +71,8 @@ func TestCellConcatList_ChapterRangeWholeTitle(t *testing.T) {
 	dir, set := writeTestVOBSet(t, []uint32{100, 200})
 	ti := &ifo.TitleInfo{
 		Cells: []ifo.TitleCell{
-			{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 99},
-			{VOBID: 2, CellID: 1, FirstSector: 0, LastSector: 199},
+			{VOBID: 7, CellID: 1, FirstSector: 0, LastSector: 99},
+			{VOBID: 9, CellID: 1, FirstSector: 100, LastSector: 299},
 		},
 		ProgramEntryCells: []int{1, 2},
 	}

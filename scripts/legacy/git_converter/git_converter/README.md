@@ -83,7 +83,7 @@ chmod +x git_converter.sh
 
 ### Color Correction Options
 1. **No correction**: Original colors
-2. **Pink skin tones**: Fixes Topaz AI color loss
+2. **Pink skin tones**: Fixes colour loss from AI upscalers
 3. **Warm boost**: Increases warmth
 4. **Cool boost**: Increases cool tones
 5. **2000s DVD Restore**: Fixes DVD degradation
@@ -175,7 +175,7 @@ Examples:
 - **Ctrl+C**: Cancel script
 
 ### Custom Workflows
-- **Topaz AI videos**: Use "Pink skin tones" correction
+- **AI-upscaled videos**: Use the "Pink skin tones" correction
 - **DVD content**: Use "2000s DVD Restore"
 - **Anime**: Use "Anime Preservation" mode
 - **Family videos**: Use "Warm color boost"
