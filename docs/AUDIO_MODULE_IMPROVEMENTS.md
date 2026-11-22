@@ -98,7 +98,7 @@ The audio module needs video preview capability like Convert.
 │  │  SMPTE     │   Normalize          │  │
 │  │  Bars      │   Output Dir        │  │
 │  │             │                         │  │
-│  └─────────────┴───────────────���─────────┘  │
+│  └─────────────┴─────────────────────────┘  │
 ├─────────────────────────────────────────────┤
 │ [Extract Now]  [Add to Queue]                │ ← Action bar
 └─────────────────────────────────────────────┘
