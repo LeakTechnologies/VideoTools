@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## 2026-11-22 - Rip global title-stream cell mapping (candidate, no version bump)
+
+- Map PGC cell sectors across the concatenated VTS title stream instead of treating logical `VOBID` as a physical filename suffix (#31).
+- Slice cells that cross physical VOB segments at the correct byte ranges; remove the silent sector clamp.
+- Fail an exact cell-bound rip when the stream has a gap, a malformed bound or an unresolvable chapter span. Whole-file concat remains only for no cells, angles or a confirmed full-set cover.
+- Add neutral fixtures for arbitrary logical VOBIDs, cross-segment cells, gaps and chapter ranges. Runtime disc acceptance remains open.
+
 ## 2026-11-22 - Licensing notice and component record (candidate, no version bump)
 
 - Add `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components, build-time media libraries and open provenance checks (#53).

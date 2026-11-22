@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-22 - Rip global title-stream cell mapping
+
+Mapped PGC cell sectors across the concatenated VTS title stream instead of using logical `VOBID` as a filename suffix. Cross-segment cells now slice the correct bytes; gaps, malformed bounds and unresolvable chapter spans fail the exact rip rather than silently substituting whole-VTS content. Neutral fixtures cover arbitrary logical VOBIDs, cross-segment ranges, gaps and chapter spans. Native build/vet/tests pass; runtime disc acceptance remains open (#31).
+
 ## 2026-11-22 - Licensing notice and component record
 
 Added `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components and build-time media libraries. Corrected the README table for x264/x265, Aboriginal Sans and the shipped FFmpeg sidecar. Recorded unresolved VCR OSD Mono and flag provenance, unpinned x264/x265 build commits, and release archives that do not include LICENSE/NOTICE. Documentation only; no application, build or release change (#53, #54).
