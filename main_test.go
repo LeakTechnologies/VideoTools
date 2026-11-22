@@ -21,20 +21,24 @@ import (
 	"github.com/LeakTechnologies/VideoTools/internal/convert"
 	"github.com/LeakTechnologies/VideoTools/internal/i18n"
 	"github.com/LeakTechnologies/VideoTools/internal/interlace"
-	"github.com/LeakTechnologies/VideoTools/internal/queue"
 	"github.com/LeakTechnologies/VideoTools/internal/utils"
 )
 
-func TestAutomaticPreviewHostOptOutDoesNotOpenInput(t *testing.T) {
+func TestMetadataPreviewIndependentOfPlayerPolicy(t *testing.T) {
 	s := &appState{prefs: prefsConfig{DisableAutomaticPreviews: true}}
-	frames, err := s.captureAutomaticPreviewFrames(filepath.Join(t.TempDir(), "not-present.mkv"), 10)
-	if !errors.Is(err, previewwork.ErrInactive) || len(frames) != 0 {
-		t.Fatalf("opt-out capture: frames=%v, err=%v", frames, err)
+	if s.automaticPreviewOwner().Context() != nil {
+		t.Fatal("processing-player policy should be disabled")
 	}
-	job := &queue.Job{InputFile: "neutral-input.mkv", Config: map[string]interface{}{"sourceDuration": float64(10)}}
-	s.generateJobThumbnail(job) // must return without requiring a UI or FFmpeg
-	if job.ThumbnailPath != "" || job.InputFile != "neutral-input.mkv" {
-		t.Fatal("opt-out changed processing input or produced thumbnail")
+	if s.metadataOwner().Context() == nil {
+		t.Fatal("metadata/cover work must remain enabled when players are off")
+	}
+
+	frames, err := s.captureAutomaticPreviewFrames(filepath.Join(t.TempDir(), "not-present.mkv"), 10)
+	if errors.Is(err, previewwork.ErrInactive) {
+		t.Fatal("metadata capture must not be gated by the processing-player policy")
+	}
+	if len(frames) != 0 {
+		t.Fatalf("missing input produced frames: %v", frames)
 	}
 }
 
@@ -1100,6 +1104,24 @@ func TestNoVLCBackendCode(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("walking repo: %v", err)
+	}
+}
+
+func TestConvertPreviewLoadAllowed(t *testing.T) {
+	s := &appState{}
+	s.prefs.DisableAutomaticPreviews = false
+	s.convert.PlayerOpen = true
+	if !s.convertPreviewLoadAllowed() {
+		t.Fatal("open panel with previews enabled must allow an automatic load")
+	}
+	s.convert.PlayerOpen = false
+	if s.convertPreviewLoadAllowed() {
+		t.Fatal("collapsed panel must not allow an automatic load")
+	}
+	s.convert.PlayerOpen = true
+	s.prefs.DisableAutomaticPreviews = true
+	if s.convertPreviewLoadAllowed() {
+		t.Fatal("disabled processing players must not allow an automatic load")
 	}
 }
 

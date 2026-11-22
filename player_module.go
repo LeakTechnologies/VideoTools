@@ -38,7 +38,7 @@ func (s *appState) showPlayerViewForPath(path string) {
 	s.playerFile = src
 	s.recentFiles.Add(path, filepath.Base(path), "player")
 	s.showPlayerView()
-	go s.loadVideoNative(path)
+	go s.loadVideoNativeManual(path)
 }
 
 func (s *appState) showPlayerView() {

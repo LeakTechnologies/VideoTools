@@ -15,6 +15,13 @@
 - Remove third-party product names and private checkout paths from active docs and legacy scripts; no behaviour change.
 - Add the content-hygiene PR checklist item.
 
+## 2026-11-21 - Convert review-player visibility (candidate, no version bump)
+
+- Gate automatic Convert review loads on the global player policy and panel visibility; switching while collapsed no longer opens a session.
+- Collapsing the panel closes its session; expanding loads the selected source once.
+- Manual VT_Player opens use `Load`, never `LoadAutomatic`.
+- Cover/current-frame work and queue thumbnails use a separate metadata owner, remain available with players off, and generate the selected source first instead of every imported file.
+
 ## VideoTools v0.1.1-dev102 — unmerged candidate
 
 - Include automatic Inspect interlace detection in the shared cancellation/concurrency budget; reject retired results and preserve explicit Convert analysis while previews are off (#46).

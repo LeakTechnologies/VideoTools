@@ -29,6 +29,8 @@ func setNativeAutomaticPreviewPolicy(bool) <-chan struct{} {
 }
 
 func (s *appState) loadVideoNative(path string)       {}
+func (s *appState) loadVideoNativeManual(path string) {}
+func (s *appState) syncPlayerPausedFromNative()       {}
 func (s *appState) playNative()                       {}
 func (s *appState) pauseNative()                      {}
 func (s *appState) seekNative(target float64)         {}

@@ -29,6 +29,15 @@ The released dev101 shared Load API does not distinguish a processing preview fr
 explicit manual session. Add that distinction before exposing a global switch.
 Keep manual Load/LoadDVD/LoadURL semantics and InlineVideoPlayer as the API.
 
+## Metadata/cover and player policy — 2026-11-21 (#11)
+
+- Preview/cover frames and queue thumbnails are metadata work, not player preview.
+  They use a separate bounded owner and remain available when players are off.
+- Player admission and visibility gate playback only. Automatic Convert loads require
+  the global policy and an open review panel; a manual VT_Player open uses Load.
+- The selected source is generated first. Batch import must not prepare every source
+  or start a capture per file; unselected covers are lazy.
+
 ## Session boundary candidate
 
 LoadAutomatic admits an automatic source under the same lock that replaces the
