@@ -6,6 +6,7 @@
 - Prefer each source's embedded cover unless the user explicitly chose a shared cover.
 - Retain one session-wide output allocator so separate adds cannot collide before jobs write.
 - Retain failed import inputs and reasons for the upcoming batch list.
+- Show the input collection and failed imports in Convert's metadata panel; the current row selects the source. Shared settings only; no multi-selection yet.
 - Add the content-hygiene PR checklist item.
 
 ## v0.1.1-dev103 - Upscale and Convert correctness
