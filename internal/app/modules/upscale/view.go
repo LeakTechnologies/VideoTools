@@ -451,14 +451,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	colorDepthSelect.SetSelected(opts.UpscaleColorDepth())
 
-	skinToneSelect := widget.NewSelect([]string{"off", "subtle", "strong"}, func(s string) {
-		opts.SetUpscaleSkinTone(s)
-	})
-	if opts.UpscaleSkinTone() == "" {
-		opts.SetUpscaleSkinTone("off")
-	}
-	skinToneSelect.SetSelected(opts.UpscaleSkinTone())
-
 	colourHint := ui.NewHelpButton(t.UpscaleColourHint)
 
 	colourAccuracySection := buildUpscaleBox(t.UpscaleColourBox, container.NewVBox(
@@ -469,10 +461,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleDepthLabel),
 			colorDepthSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleSkinToneLabel),
-			skinToneSelect,
 		),
 	))
 
@@ -530,6 +518,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		var aiTTACheck *widget.Check
 		var aiDenoiseSlider *ui.Slider
 		var denoiseHint *widget.Label
+
+		// Native-scale AI output has no meaningful Output Adjust yet; keep the
+		// stored value at 1.0 and do not expose the control.
+		opts.SetUpscaleAIOutputAdjust(1.0)
 
 		applyAIPreset := func(preset string) {
 			opts.SetUpscaleAIPreset(preset)
@@ -634,14 +626,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		} else {
 			aiScaleSelect.SetSelected(fmt.Sprintf("%.0fx", opts.UpscaleAIScale()))
 		}
-
-		aiAdjustLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleAdjustFmt, opts.UpscaleAIOutputAdjust()))
-		aiAdjustSlider := ui.MakeSlider(0.5, 2.0)
-		aiAdjustSlider.Value = opts.UpscaleAIOutputAdjust()
-		aiAdjustSlider.Step = 0.05
-		aiAdjustSlider.OnChanged = func(v float64) {
-			opts.SetUpscaleAIOutputAdjust(v)
-			aiAdjustLabel.SetText(fmt.Sprintf(t.UpscaleAdjustFmt, v))
+		// Match Target against Match Source is a 1x request, which native-scale
+		// models do not support. Normalise it to an explicit native scale so the
+		// control matches what the job will do.
+		if opts.UpscaleTargetRes() == "Match Source" && opts.UpscaleAIScaleUseTarget() {
+			opts.SetUpscaleAIScaleUseTarget(false)
+			if opts.UpscaleAIScale() <= 1 {
+				opts.SetUpscaleAIScale(4)
+			}
+			aiScaleSelect.SetSelected(fmt.Sprintf("%.0fx", opts.UpscaleAIScale()))
 		}
 
 		aiDenoiseLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleDenoiseFmt, opts.UpscaleAIDenoise()))
@@ -759,7 +752,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 				widget.NewLabel(t.UpscaleAIScaleLabel),
 				aiScaleSelect,
 			),
-			container.NewVBox(aiAdjustLabel, aiAdjustSlider),
 			container.NewVBox(aiDenoiseLabel, aiDenoiseSlider, denoiseHint),
 			container.NewGridWithColumns(2,
 				widget.NewLabel(t.UpscaleAITileLabel),

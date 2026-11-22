@@ -268,7 +268,7 @@ get_color_correction() {
 ╚═══════════════════════════════════════════════════════════════╝
 
    1) No color correction
-   2) Fix pink skin tones (Topaz AI)
+   2) Fix pink skin tones (AI upscalers)
    3) Warm enhancement
    4) Cool enhancement
    5) Advanced options (DVD/VHS/Anime)

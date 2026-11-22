@@ -6,7 +6,29 @@ The Upscale module provides video resolution enhancement using both traditional 
 
 ## Status
 
-**Last Updated:** v0.1.1-dev40
+**Last Updated:** 2026-11-21 (correctness update; base design dev40)
+
+## 2026-11-21 - Control truthfulness (#58, #59)
+
+- Remove the skin-tone control and its filter. The previous filter used options
+  FFmpeg does not support; old non-off settings are ignored with a log note. A
+  measured replacement belongs to the colour-state stage.
+- Remove Output Adjust from the AI panel until it has a defined native-scale
+  meaning. The job path rejects non-1.0 values rather than ignoring them.
+- Match Target against Match Source is normalised to an explicit native scale so
+  the visible AI scale matches what the job will do.
+
+## 2026-11-21 - 601 matrix and native scale correctness (#55)
+
+- The source matrix resolves to a valid enum: `smpte170m` for 525-line SD,
+  `bt470bg` for 625-line SD, plus `bt709`, `bt2020` and `smpte240m`. The invalid
+  `bt601` enum is no longer passed to FFmpeg.
+- The ncnn model runs at its native integer scale. The output is resized during
+  reassembly to the target preset or explicit scale; fractional `-s` is not used.
+- A 1x request routes to the native scale and is logged. Output Adjust is rejected
+  until it has a native-scale meaning.
+- Interlace/IVTC order, SAR correction and range propagation remain deferred to the
+  source-profile stage.
 
 **Key Changes in Dev40:**
 - Added Real-CUGAN support with 3 new models
