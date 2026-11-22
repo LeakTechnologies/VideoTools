@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## 2026-11-22 - Convert batch foundation (candidate, no version bump)
+
+- Move Convert job snapshot serialization into `internal/convert`; single and batch enqueue use one builder.
+- Prefer each source's embedded cover unless the user explicitly chose a shared cover.
+- Retain one session-wide output allocator so separate adds cannot collide before jobs write.
+- Retain failed import inputs and reasons for the upcoming batch list.
+- Add the content-hygiene PR checklist item.
+
 ## v0.1.1-dev103 - Upscale and Convert correctness
 
 - AI upscale resolves 525-line and 625-line SD sources to valid matrices, runs the model at its native integer scale, routes 1x requests to native scale, and resizes to the target (#55).

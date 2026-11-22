@@ -944,15 +944,16 @@ type convertConfig struct {
 	NormalizeTruePeak float64 // TruePeak max (default -1.5)
 
 	// Other settings
-	InverseTelecine  bool
-	InverseAutoNotes string
-	CoverArtPath     string
-	AspectHandling   string
-	OutputAspect     string
-	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
-	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
-	TempDir          string // Optional temp/cache directory override
-	LogDir           string // Optional log directory override
+	InverseTelecine      bool
+	InverseAutoNotes     string
+	CoverArtPath         string
+	CoverArtUserSelected bool
+	AspectHandling       string
+	OutputAspect         string
+	AspectUserSet        bool   // Tracks if user explicitly set OutputAspect
+	ForceAspect          bool   // Force DAR/SAR metadata even when no aspect conversion
+	TempDir              string // Optional temp/cache directory override
+	LogDir               string // Optional log directory override
 
 	// Master settings
 	ShowUpscale bool
@@ -962,6 +963,11 @@ type convertConfig struct {
 	PlayerOpen   bool // Whether the player panel is expanded
 	MetadataOpen bool // Whether the metadata panel is expanded
 	SettingsOpen bool // Whether the settings panel is expanded
+}
+
+type convertImportFailure struct {
+	Path   string
+	Reason string
 }
 
 type convertRecoveryState = appcfg.ConvertRecoveryState
@@ -1226,8 +1232,10 @@ type appState struct {
 	source                    *videoSource
 	loadedVideos              []*videoSource // Multiple loaded videos for navigation
 	currentIndex              int            // Current video index in loadedVideos
+	convertImportFailures     []convertImportFailure
 	anim                      *previewAnimator
 	convert                   convertConfig
+	convertOutputAlloc        *convertOutputAllocator
 	prefs                     prefsConfig
 	currentFrame              string
 	player                    player.Controller
@@ -2317,10 +2325,9 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 
 // addConvertToQueue adds a conversion job to the queue
 // convertOutputAllocator owns output-path availability for Convert queue
-// insertions. Exactly one allocator exists per insertion batch (a single add
-// is a batch of one): every path it resolves is recorded, so two insertions
-// in the same batch can never be handed the same output - even before either
-// exists on disk, which a filesystem-only check cannot catch.
+// insertions. One allocator is retained for the session, so separate single
+// adds and batch inserts cannot be handed the same output before either job
+// exists on disk. A filesystem-only check cannot catch that.
 //
 // No Convert queue insertion path may decide whether an output path is
 // available on its own (#12): each routes through an allocator, so a future
@@ -2331,6 +2338,13 @@ type convertOutputAllocator struct {
 
 func newConvertOutputAllocator() *convertOutputAllocator {
 	return &convertOutputAllocator{used: make(map[string]struct{})}
+}
+
+func (s *appState) convertOutputAllocator() *convertOutputAllocator {
+	if s.convertOutputAlloc == nil {
+		s.convertOutputAlloc = newConvertOutputAllocator()
+	}
+	return s.convertOutputAlloc
 }
 
 // convertOutputDir resolves the output directory for one insertion: the
@@ -2385,70 +2399,65 @@ func buildConvertJobConfig(src *videoSource, cfg convertConfig, outPath string, 
 			adjustedCodec = friendly
 		}
 	}
-
-	config := map[string]interface{}{
-		"inputPath":          src.Path,
-		"outputPath":         outPath,
-		"outputDir":          filepath.Dir(outPath),
-		"outputBase":         cfg.OutputBase,
-		"selectedFormat":     cfg.SelectedFormat,
-		"quality":            cfg.Quality,
-		"mode":               cfg.Mode,
-		"preserveChapters":   cfg.PreserveChapters,
-		"videoCodec":         adjustedCodec,
-		"encoderPreset":      cfg.EncoderPreset,
-		"crf":                cfg.CRF,
-		"bitrateMode":        cfg.BitrateMode,
-		"bitratePreset":      cfg.BitratePreset,
-		"videoBitrate":       cfg.VideoBitrate,
-		"targetFileSize":     cfg.TargetFileSize,
-		"targetResolution":   cfg.TargetResolution,
-		"frameRate":          cfg.FrameRate,
-		"pixelFormat":        cfg.PixelFormat,
-		"hardwareAccel":      cfg.HardwareAccel,
-		"twoPass":            cfg.TwoPass,
-		"encoderTune":        cfg.EncoderTune,
-		"h264Profile":        cfg.H264Profile,
-		"h264Level":          cfg.H264Level,
-		"deinterlace":        cfg.Deinterlace,
-		"deinterlaceMethod":  cfg.DeinterlaceMethod,
-		"autoCrop":           cfg.AutoCrop,
-		"cropWidth":          cfg.CropWidth,
-		"cropHeight":         cfg.CropHeight,
-		"cropX":              cfg.CropX,
-		"cropY":              cfg.CropY,
-		"flipHorizontal":     cfg.FlipHorizontal,
-		"flipVertical":       cfg.FlipVertical,
-		"rotation":           cfg.Rotation,
-		"audioCodec":         cfg.AudioCodec,
-		"audioBitrate":       cfg.AudioBitrate,
-		"audioChannels":      cfg.AudioChannels,
-		"audioSampleRate":    cfg.AudioSampleRate,
-		"normalizeAudio":     cfg.NormalizeAudio,
-		"normalizeLUFS":      cfg.NormalizeLUFS,
-		"normalizeTruePeak":  cfg.NormalizeTruePeak,
-		"inverseTelecine":    cfg.InverseTelecine,
-		"coverArtPath":       cfg.CoverArtPath,
-		"aspectHandling":     cfg.AspectHandling,
-		"outputAspect":       cfg.OutputAspect,
-		"forceAspect":        cfg.ForceAspect,
-		"sourceWidth":        src.Width,
-		"sourceHeight":       src.Height,
-		"sampleAspectRatio":  src.SampleAspectRatio,
-		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":     src.Duration,
-		"sourceBitrate":      src.Bitrate,
-		"sourceFrameRate":    src.FrameRate,
-		"fieldOrder":         src.FieldOrder,
-		"autoCompare":        autoCompare,
+	coverArt := cfg.CoverArtPath
+	if !cfg.CoverArtUserSelected {
+		coverArt = src.EmbeddedCoverArt
 	}
-	if !cfg.AutoCrop {
-		config["cropWidth"] = ""
-		config["cropHeight"] = ""
-		config["cropX"] = ""
-		config["cropY"] = ""
-	}
-	return config
+	return convert.BuildJobConfig(convert.JobConfigInput{
+		InputPath:          src.Path,
+		OutputPath:         outPath,
+		OutputBase:         cfg.OutputBase,
+		SelectedFormat:     cfg.SelectedFormat,
+		Quality:            cfg.Quality,
+		Mode:               cfg.Mode,
+		PreserveChapters:   cfg.PreserveChapters,
+		VideoCodec:         adjustedCodec,
+		EncoderPreset:      cfg.EncoderPreset,
+		CRF:                cfg.CRF,
+		BitrateMode:        cfg.BitrateMode,
+		BitratePreset:      cfg.BitratePreset,
+		VideoBitrate:       cfg.VideoBitrate,
+		TargetFileSize:     cfg.TargetFileSize,
+		TargetResolution:   cfg.TargetResolution,
+		FrameRate:          cfg.FrameRate,
+		PixelFormat:        cfg.PixelFormat,
+		HardwareAccel:      cfg.HardwareAccel,
+		TwoPass:            cfg.TwoPass,
+		EncoderTune:        cfg.EncoderTune,
+		H264Profile:        cfg.H264Profile,
+		H264Level:          cfg.H264Level,
+		Deinterlace:        cfg.Deinterlace,
+		DeinterlaceMethod:  cfg.DeinterlaceMethod,
+		AutoCrop:           cfg.AutoCrop,
+		CropWidth:          cfg.CropWidth,
+		CropHeight:         cfg.CropHeight,
+		CropX:              cfg.CropX,
+		CropY:              cfg.CropY,
+		FlipHorizontal:     cfg.FlipHorizontal,
+		FlipVertical:       cfg.FlipVertical,
+		Rotation:           cfg.Rotation,
+		AudioCodec:         cfg.AudioCodec,
+		AudioBitrate:       cfg.AudioBitrate,
+		AudioChannels:      cfg.AudioChannels,
+		AudioSampleRate:    cfg.AudioSampleRate,
+		NormalizeAudio:     cfg.NormalizeAudio,
+		NormalizeLUFS:      cfg.NormalizeLUFS,
+		NormalizeTruePeak:  cfg.NormalizeTruePeak,
+		InverseTelecine:    cfg.InverseTelecine,
+		CoverArtPath:       coverArt,
+		AspectHandling:     cfg.AspectHandling,
+		OutputAspect:       cfg.OutputAspect,
+		ForceAspect:        cfg.ForceAspect,
+		SourceWidth:        src.Width,
+		SourceHeight:       src.Height,
+		SampleAspectRatio:  src.SampleAspectRatio,
+		DisplayAspectRatio: src.DisplayAspectRatio,
+		SourceDuration:     src.Duration,
+		SourceBitrate:      src.Bitrate,
+		SourceFrameRate:    src.FrameRate,
+		FieldOrder:         src.FieldOrder,
+		AutoCompare:        autoCompare,
+	})
 }
 
 func (s *appState) addConvertToQueue(addToTop bool) error {
@@ -2470,7 +2479,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	}
 	// A single add is an insertion batch of one; the allocator owns the
 	// directory chain, source avoidance, and collision suffixing.
-	outPath := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, outName)
+	outPath := s.allocateConvertOutputPath(s.convertOutputAllocator(), src, outName)
 
 	config := buildConvertJobConfig(src, cfg, outPath, s.autoCompare)
 	job := &queue.Job{
@@ -2501,10 +2510,10 @@ func (s *appState) addAllConvertToQueue() (int, error) {
 		return 0, fmt.Errorf("no videos loaded")
 	}
 
-	usedOutputs := newConvertOutputAllocator()
+	alloc := s.convertOutputAllocator()
 	count := 0
 	for _, src := range s.loadedVideos {
-		if err := s.addConvertToQueueForSourceWithOutputs(src, usedOutputs); err != nil {
+		if err := s.addConvertToQueueForSourceWithOutputs(src, alloc); err != nil {
 			return count, fmt.Errorf("failed to add %s: %w", filepath.Base(src.Path), err)
 		}
 		count++
@@ -9216,6 +9225,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		state.convert.CoverArtPath = path
+		state.convert.CoverArtUserSelected = true
 		coverLabel.SetText(state.convert.CoverLabel())
 		if coverDisplay != nil {
 			coverDisplay.SetText(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
@@ -14831,9 +14841,11 @@ func (s *appState) loadVideo(path string) {
 	// Use embedded cover art if present, otherwise clear
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 		logging.Debug(logging.CatFFMPEG, "using embedded cover art from video: %s", src.EmbeddedCoverArt)
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
@@ -14902,6 +14914,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	var validVideos []*videoSource
 	var failedFiles []string
 	var failedDetails []string
+	s.convertImportFailures = nil
 
 	for _, path := range paths {
 		logging.Debug(logging.CatModule, "loadMultipleVideos: probing %s", path)
@@ -14909,6 +14922,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		if err != nil {
 			logging.Warning(logging.CatFFMPEG, "loadMultipleVideos: ffprobe failed for %s: %v", path, err)
 			failedFiles = append(failedFiles, filepath.Base(path))
+			s.convertImportFailures = append(s.convertImportFailures, convertImportFailure{
+				Path:   path,
+				Reason: err.Error(),
+			})
 			// Preserve ffprobe's actual reason (probeVideo embeds its stderr)
 			// so the user sees why analysis failed, not just the filename.
 			failedDetails = append(failedDetails, fmt.Sprintf("%s:\n  %s",
@@ -14950,8 +14967,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.convert.OutputBase = s.resolveOutputBase(firstVideo, false)
 	if firstVideo.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = firstVideo.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
@@ -15006,12 +15025,14 @@ func (s *appState) clearVideo() {
 	s.stopPlayer()
 	s.setConvertSource(nil)
 	s.loadedVideos = nil
+	s.convertImportFailures = nil
 	s.currentIndex = 0
 	s.currentFrame = ""
 	s.convertBusy = false
 	s.convertStatus = ""
 	s.convert.OutputBase = "converted"
 	s.convert.CoverArtPath = ""
+	s.convert.CoverArtUserSelected = false
 	s.convert.AspectHandling = "Auto"
 	s.convert.OutputAspect = "Source"
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -15143,8 +15164,10 @@ func (s *appState) switchToVideo(index int) {
 
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 
 	s.convert.AspectHandling = "Auto"
