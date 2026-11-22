@@ -905,7 +905,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	if !useDVDVideo {
 		cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo, concatCS, concatCE)
 		if cellErr != nil {
-			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
+			return fmt.Errorf("cell-accurate concat required for the selected title: %w", cellErr)
 		} else if cellList != "" {
 			appendLog(fmt.Sprintf("VOB concat: using cell-accurate input list (%d cell ranges) for the selected title",
 				len(titleInfo.Cells)))
@@ -916,11 +916,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			// would double-trim.
 			ra.ChapterStartSec, ra.ChapterEndSec = 0, 0
 		} else if titleInfo != nil && len(titleInfo.Cells) > 0 {
-			if concatCS > 0 {
-				appendLog("VOB concat: chapter range cell span unresolved — using whole-file list with output-side trim")
-			} else {
-				appendLog("VOB concat: the selected title's PGC cells cover the whole VOB set — whole-file list is exact")
-			}
+			appendLog("VOB concat: the selected title's PGC cells cover the whole VOB set — whole-file list is exact")
 		}
 	}
 
@@ -1003,8 +999,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		// a cell-accurate list (VOBs sliced to the selected title's PGC cell
 		// sector ranges) whenever the IFO provides per-title cell metadata.
 		if cellList, cellCleanup, cellErr := cellConcatList(videoTSPath, set, titleInfo, concatCS, concatCE); cellErr != nil {
-			appendLog(fmt.Sprintf("Warning: cell-accurate concat unavailable: %v — using whole-file concatenation", cellErr))
-			ra.ListFile = listFile
+			return fmt.Errorf("cell-accurate concat required for the selected title: %w", cellErr)
 		} else if cellList != "" {
 			if titleInfo != nil {
 				appendLog(fmt.Sprintf("VOB concat fallback: using cell-accurate input list (%d cell ranges) for the selected title",

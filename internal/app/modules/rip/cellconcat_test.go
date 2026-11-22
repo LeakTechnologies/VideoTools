@@ -1,6 +1,7 @@
 package rip
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,8 +60,9 @@ func TestCellConcatList_CoversWholeSet(t *testing.T) {
 	dir, set := writeTestVOBSet(t, []uint32{100, 200})
 	ti := &ifo.TitleInfo{
 		Cells: []ifo.TitleCell{
-			{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 99},
-			{VOBID: 2, CellID: 1, FirstSector: 0, LastSector: 199},
+			// Global title-stream sectors: 0..99 is VTS_01_1, 100..299 is VTS_01_2.
+			{VOBID: 7, CellID: 1, FirstSector: 0, LastSector: 99},
+			{VOBID: 9, CellID: 1, FirstSector: 100, LastSector: 299},
 		},
 	}
 	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
@@ -74,11 +76,13 @@ func TestCellConcatList_CoversWholeSet(t *testing.T) {
 
 func TestCellConcatList_MultiVOBPartial(t *testing.T) {
 	dir, set := writeTestVOBSet(t, []uint32{100, 200})
-	// A scene title occupies sectors 50-79 of VOB_1 and 10-99 of VOB_2.
+	// Global title-stream sectors: 50-79 are in VOB_1; 110-199 map to
+	// VOB_2 file-relative sectors 10-99. Logical VOBIDs are deliberately
+	// unrelated to the filename suffixes.
 	ti := &ifo.TitleInfo{
 		Cells: []ifo.TitleCell{
-			{VOBID: 1, CellID: 1, FirstSector: 50, LastSector: 79},
-			{VOBID: 2, CellID: 1, FirstSector: 10, LastSector: 99},
+			{VOBID: 42, CellID: 1, FirstSector: 50, LastSector: 79},
+			{VOBID: 7, CellID: 1, FirstSector: 110, LastSector: 199},
 		},
 	}
 	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
@@ -120,20 +124,104 @@ func TestCellConcatList_MultiVOBPartial(t *testing.T) {
 	}
 }
 
-func TestCellConcatList_MissingVOB(t *testing.T) {
-	dir, set := writeTestVOBSet(t, []uint32{100, 200})
-	// A cell references VOB_3, which does not exist in the set.
+func TestCellConcatList_MissingSegment(t *testing.T) {
+	dir, set := writeTestVOBSet(t, []uint32{100, 200, 300})
+	if err := os.Remove(filepath.Join(dir, "VTS_01_2.VOB")); err != nil {
+		t.Fatal(err)
+	}
 	ti := &ifo.TitleInfo{
 		Cells: []ifo.TitleCell{
-			{VOBID: 3, CellID: 1, FirstSector: 5, LastSector: 9},
+			{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 99},
+		},
+	}
+	if list, cleanup, err := cellConcatList(dir, set, ti, 0, 0); err == nil || list != "" || cleanup != nil {
+		t.Fatalf("a gap in the title VOB stream must fail exact mapping, got list=%q cleanup=%v err=%v", list, cleanup != nil, err)
+	}
+}
+
+func TestCellConcatList_RejectsMalformedBounds(t *testing.T) {
+	dir, set := writeTestVOBSet(t, []uint32{100, 200})
+	cases := []struct {
+		name  string
+		cells []ifo.TitleCell
+	}{
+		{"inverted", []ifo.TitleCell{{VOBID: 1, CellID: 1, FirstSector: 10, LastSector: 9}}},
+		{"beyond stream", []ifo.TitleCell{{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 300}}},
+		{"out of order", []ifo.TitleCell{
+			{VOBID: 1, CellID: 1, FirstSector: 100, LastSector: 150},
+			{VOBID: 2, CellID: 1, FirstSector: 50, LastSector: 60},
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ti := &ifo.TitleInfo{Cells: tc.cells}
+			if list, cleanup, err := cellConcatList(dir, set, ti, 0, 0); err == nil || list != "" || cleanup != nil {
+				t.Fatalf("malformed cell bounds must fail exact mapping, got list=%q cleanup=%v err=%v", list, cleanup != nil, err)
+			}
+		})
+	}
+}
+
+func TestCellConcatList_CrossesPhysicalSegment(t *testing.T) {
+	dir, set := writeTestVOBSet(t, []uint32{100, 200})
+	// Global sector 90..110 crosses VTS_01_1 (90..99) and VTS_01_2 (0..10).
+	// The logical VOBID is unrelated to either filename.
+	for id, path := range set.Files {
+		sectors := uint32(100)
+		if id == 1 {
+			sectors = 200
+		}
+		data := make([]byte, int(sectors)*2048)
+		for sector := uint32(0); sector < sectors; sector++ {
+			data[int(sector)*2048] = byte(id*100) + byte(sector)
+		}
+		if err := os.WriteFile(path, data, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ti := &ifo.TitleInfo{
+		Cells: []ifo.TitleCell{
+			{VOBID: 42, CellID: 1, FirstSector: 90, LastSector: 110},
 		},
 	}
 	list, cleanup, err := cellConcatList(dir, set, ti, 0, 0)
 	if err != nil {
-		t.Fatalf("cellConcatList(missing VOB): %v", err)
+		t.Fatalf("cellConcatList(cross-segment): %v", err)
 	}
-	if list != "" || cleanup != nil {
-		t.Fatalf("unresolvable VOB must fall back to whole-file concat, got list=%q", list)
+	if list == "" || cleanup == nil {
+		t.Fatal("cross-segment cell must produce a cell-accurate list")
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 physical slices, got %d: %q", len(lines), lines)
+	}
+	var got []byte
+	for _, line := range lines {
+		slice, err := os.ReadFile(extractConcatPath(line))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, slice...)
+	}
+	want := make([]byte, 0, 21*2048)
+	for sector := 90; sector < 100; sector++ {
+		block := make([]byte, 2048)
+		block[0] = byte(sector)
+		want = append(want, block...)
+	}
+	for sector := 0; sector < 11; sector++ {
+		block := make([]byte, 2048)
+		block[0] = byte(100 + sector)
+		want = append(want, block...)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatal("cross-segment cell selected the wrong bytes")
 	}
 }
 
@@ -200,9 +288,9 @@ func TestCellConcatList_ChapterRange(t *testing.T) {
 	// cell 2, chapter 4 in cell 3.
 	ti := &ifo.TitleInfo{
 		Cells: []ifo.TitleCell{
-			{VOBID: 1, CellID: 1, FirstSector: 0, LastSector: 99},
-			{VOBID: 2, CellID: 1, FirstSector: 0, LastSector: 99},
-			{VOBID: 2, CellID: 2, FirstSector: 100, LastSector: 199},
+			{VOBID: 7, CellID: 1, FirstSector: 0, LastSector: 99},
+			{VOBID: 9, CellID: 1, FirstSector: 100, LastSector: 199},
+			{VOBID: 9, CellID: 2, FirstSector: 200, LastSector: 299},
 		},
 		ProgramEntryCells: []int{1, 1, 2, 3},
 	}
@@ -221,8 +309,8 @@ func TestCellConcatList_ChapterRange(t *testing.T) {
 		t.Fatalf("read list: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	// Cells 2 and 3 are adjacent in VOB_2 (0-99, 100-199) so coalescing merges
-	// them into a single 200-sector slice covering the whole span.
+	// Cells 2 and 3 cover global sectors 100-299, which map to VOB_2 sectors
+	// 0-199, so they coalesce into a single 200-sector slice.
 	if len(lines) != 1 {
 		t.Fatalf("expected 1 coalesced slice entry, got %d: %q", len(lines), lines)
 	}
@@ -235,10 +323,10 @@ func TestCellConcatList_ChapterRange(t *testing.T) {
 	if fi.Size() != want {
 		t.Errorf("slice size = %d, want %d", fi.Size(), want)
 	}
-	// Without a resolvable program map the range falls back to whole-file concat
-	// (the caller bounds the rip with output-side -ss/-to).
+	// Without a resolvable program map the exact cell selection fails; the
+	// caller must not substitute a whole-VTS rip.
 	ti.ProgramEntryCells = nil
-	if list, cleanup, err := cellConcatList(dir, set, ti, 3, 4); list != "" || cleanup != nil {
-		t.Errorf("range without a program map must fall back to whole-file concat, got list=%q err=%v", list, err)
+	if list, cleanup, err := cellConcatList(dir, set, ti, 3, 4); err == nil || list != "" || cleanup != nil {
+		t.Errorf("range without a program map must fail exact mapping, got list=%q cleanup=%v err=%v", list, cleanup != nil, err)
 	}
 }
