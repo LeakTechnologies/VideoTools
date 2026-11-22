@@ -130,7 +130,7 @@ tracker update leaves publication and tracker synchronization as separate states
 Tenon (product name; repository opencode-mobile) workflow records at inspected
 HEAD `e9cd5e0477f5ed6de124991a0012b93fcab99c86` contribute issue-sized work,
 layered verification and evidence carried on the issue. Canonical Eternal at
-`H:\REA\eternal`, inspected HEAD `ddc29e74c0dbbc12a7d4e9eed6822556cfc187ad`
+an external checkout, inspected HEAD `ddc29e74c0dbbc12a7d4e9eed6822556cfc187ad`
 with concurrent dirty work, contributes same-session actionable tracking,
 sanitized reports, observable closure and completed-work synchronization. These
 are source-document observations, not qualification of their application code.

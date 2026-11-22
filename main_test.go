@@ -1102,3 +1102,139 @@ func TestNoVLCBackendCode(t *testing.T) {
 		t.Fatalf("walking repo: %v", err)
 	}
 }
+
+func TestConvertOutputExt(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  map[string]interface{}
+		want string
+	}{
+		{"formatOption", map[string]interface{}{"selectedFormat": formatOption{Ext: ".mpg"}}, ".mpg"},
+		{"map", map[string]interface{}{"selectedFormat": map[string]interface{}{"Ext": ".webm"}}, ".webm"},
+		{"missing", map[string]interface{}{}, ""},
+		{"wrong type", map[string]interface{}{"selectedFormat": "x"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := convertOutputExt(tc.cfg); got != tc.want {
+				t.Fatalf("convertOutputExt(%v) = %q, want %q", tc.cfg, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAudioConfigFromJob(t *testing.T) {
+	cfg := map[string]interface{}{
+		"audioCodec":        "Vorbis",
+		"audioBitrate":      "160k",
+		"audioChannels":     "Stereo",
+		"audioSampleRate":   "48000",
+		"normalizeAudio":    true,
+		"normalizeLUFS":     -18.0,
+		"normalizeTruePeak": -2.0,
+	}
+	got := audioConfigFromJob(cfg, ".webm")
+	want := convert.AudioConfig{
+		OutputExt: ".webm", Codec: "Vorbis", Bitrate: "160k", Channels: "Stereo",
+		SampleRate: "48000", Normalize: true, LUFS: -18, TruePeak: -2,
+	}
+	if got != want {
+		t.Fatalf("audioConfigFromJob = %+v, want %+v", got, want)
+	}
+
+	defaults := audioConfigFromJob(map[string]interface{}{}, ".mkv")
+	if defaults.LUFS != -16 || defaults.TruePeak != -1.5 {
+		t.Fatalf("default loudness = %+v, want -16/-1.5", defaults)
+	}
+}
+
+func TestBuildConvertJobConfig(t *testing.T) {
+	src := &videoSource{
+		Path:               "neutral-input.mkv",
+		Width:              720,
+		Height:             480,
+		Duration:           12.5,
+		Bitrate:            1000,
+		FrameRate:          29.97,
+		FieldOrder:         "tt",
+		SampleAspectRatio:  "32:27",
+		DisplayAspectRatio: "16:9",
+	}
+	cfg := convertConfig{
+		OutputBase:           "neutral-output",
+		SelectedFormat:       formatOption{Ext: ".mp4", VideoCodec: "H.264"},
+		VideoCodec:           "H.264",
+		Quality:              "High",
+		AudioCodec:           "AAC",
+		AudioBitrate:         "192k",
+		NormalizeAudio:       true,
+		CoverArtPath:         "neutral-cover.png",
+		CoverArtUserSelected: true,
+		AutoCrop:             false,
+		CropWidth:            "10",
+		CropHeight:           "10",
+		CropX:                "0",
+		CropY:                "0",
+		PreserveChapters:     true,
+	}
+	outPath := filepath.Join("neutral-output", "neutral.mp4")
+	got := buildConvertJobConfig(src, cfg, outPath, true)
+
+	checks := map[string]interface{}{
+		"inputPath":          src.Path,
+		"outputPath":         outPath,
+		"outputDir":          filepath.Dir(outPath),
+		"outputBase":         cfg.OutputBase,
+		"videoCodec":         "H.264",
+		"audioCodec":         "AAC",
+		"audioBitrate":       "192k",
+		"normalizeAudio":     true,
+		"coverArtPath":       "neutral-cover.png",
+		"sourceWidth":        720,
+		"sourceHeight":       480,
+		"sampleAspectRatio":  "32:27",
+		"displayAspectRatio": "16:9",
+		"autoCompare":        true,
+		"cropWidth":          "",
+		"cropHeight":         "",
+	}
+	for key, want := range checks {
+		if got[key] != want {
+			t.Fatalf("%s = %#v, want %#v", key, got[key], want)
+		}
+	}
+
+	cfg.AutoCrop = true
+	got = buildConvertJobConfig(src, cfg, outPath, false)
+	if got["cropWidth"] != "10" || got["autoCompare"] != false {
+		t.Fatalf("auto-crop/compare snapshot not preserved: %#v", got)
+	}
+}
+
+func TestBuildConvertJobConfigCoverOwnership(t *testing.T) {
+	src := &videoSource{Path: "neutral-input.mkv", EmbeddedCoverArt: "embedded.png"}
+	cfg := convertConfig{CoverArtPath: "shared.png"}
+	got := buildConvertJobConfig(src, cfg, "neutral-output.mp4", false)
+	if got["coverArtPath"] != "embedded.png" {
+		t.Fatalf("embedded cover not preferred: %#v", got["coverArtPath"])
+	}
+	cfg.CoverArtUserSelected = true
+	got = buildConvertJobConfig(src, cfg, "neutral-output.mp4", false)
+	if got["coverArtPath"] != "shared.png" {
+		t.Fatalf("user cover not retained: %#v", got["coverArtPath"])
+	}
+}
+
+func TestConvertOutputAllocatorShared(t *testing.T) {
+	s := &appState{convert: convertConfig{OutputDir: t.TempDir()}}
+	src := &videoSource{Path: filepath.Join(t.TempDir(), "input.mkv")}
+	a := s.convertOutputAllocator()
+	first := s.allocateConvertOutputPath(a, src, "neutral.mp4")
+	second := s.allocateConvertOutputPath(a, src, "neutral.mp4")
+	if first == second {
+		t.Fatalf("shared allocator reused output path %q", first)
+	}
+	if _, err := os.Stat(first); !os.IsNotExist(err) {
+		t.Fatalf("allocator produced an existing path %q: %v", first, err)
+	}
+}

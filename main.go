@@ -45,6 +45,7 @@ import (
 	queuemodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/queue"
 	ripmodule "github.com/LeakTechnologies/VideoTools/internal/app/modules/rip"
 	"github.com/LeakTechnologies/VideoTools/internal/app/modules/trim"
+	"github.com/LeakTechnologies/VideoTools/internal/app/modules/upscale"
 	"github.com/LeakTechnologies/VideoTools/internal/app/previewwork"
 	"github.com/LeakTechnologies/VideoTools/internal/app/recentfiles"
 	"github.com/LeakTechnologies/VideoTools/internal/benchmark"
@@ -106,7 +107,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev102"
+	appVersion         = "v0.1.1-dev103"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -944,15 +945,16 @@ type convertConfig struct {
 	NormalizeTruePeak float64 // TruePeak max (default -1.5)
 
 	// Other settings
-	InverseTelecine  bool
-	InverseAutoNotes string
-	CoverArtPath     string
-	AspectHandling   string
-	OutputAspect     string
-	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
-	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
-	TempDir          string // Optional temp/cache directory override
-	LogDir           string // Optional log directory override
+	InverseTelecine      bool
+	InverseAutoNotes     string
+	CoverArtPath         string
+	CoverArtUserSelected bool
+	AspectHandling       string
+	OutputAspect         string
+	AspectUserSet        bool   // Tracks if user explicitly set OutputAspect
+	ForceAspect          bool   // Force DAR/SAR metadata even when no aspect conversion
+	TempDir              string // Optional temp/cache directory override
+	LogDir               string // Optional log directory override
 
 	// Master settings
 	ShowUpscale bool
@@ -962,6 +964,11 @@ type convertConfig struct {
 	PlayerOpen   bool // Whether the player panel is expanded
 	MetadataOpen bool // Whether the metadata panel is expanded
 	SettingsOpen bool // Whether the settings panel is expanded
+}
+
+type convertImportFailure struct {
+	Path   string
+	Reason string
 }
 
 type convertRecoveryState = appcfg.ConvertRecoveryState
@@ -1226,8 +1233,10 @@ type appState struct {
 	source                    *videoSource
 	loadedVideos              []*videoSource // Multiple loaded videos for navigation
 	currentIndex              int            // Current video index in loadedVideos
+	convertImportFailures     []convertImportFailure
 	anim                      *previewAnimator
 	convert                   convertConfig
+	convertOutputAlloc        *convertOutputAllocator
 	prefs                     prefsConfig
 	previewWorkOnce           sync.Once
 	previewWork               *previewwork.Controller
@@ -2319,10 +2328,9 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 
 // addConvertToQueue adds a conversion job to the queue
 // convertOutputAllocator owns output-path availability for Convert queue
-// insertions. Exactly one allocator exists per insertion batch (a single add
-// is a batch of one): every path it resolves is recorded, so two insertions
-// in the same batch can never be handed the same output - even before either
-// exists on disk, which a filesystem-only check cannot catch.
+// insertions. One allocator is retained for the session, so separate single
+// adds and batch inserts cannot be handed the same output before either job
+// exists on disk. A filesystem-only check cannot catch that.
 //
 // No Convert queue insertion path may decide whether an output path is
 // available on its own (#12): each routes through an allocator, so a future
@@ -2333,6 +2341,13 @@ type convertOutputAllocator struct {
 
 func newConvertOutputAllocator() *convertOutputAllocator {
 	return &convertOutputAllocator{used: make(map[string]struct{})}
+}
+
+func (s *appState) convertOutputAllocator() *convertOutputAllocator {
+	if s.convertOutputAlloc == nil {
+		s.convertOutputAlloc = newConvertOutputAllocator()
+	}
+	return s.convertOutputAlloc
 }
 
 // convertOutputDir resolves the output directory for one insertion: the
@@ -2377,6 +2392,77 @@ func (s *appState) allocateConvertOutputPath(alloc *convertOutputAllocator, src 
 	return candidate
 }
 
+// buildConvertJobConfig is the single snapshot builder for Convert queue
+// insertions. A job owns this map; later UI changes cannot mutate it. Single
+// and batch insertion must use this builder so their semantics cannot diverge.
+func buildConvertJobConfig(src *videoSource, cfg convertConfig, outPath string, autoCompare bool) map[string]interface{} {
+	adjustedCodec := cfg.VideoCodec
+	if preset := cfg.SelectedFormat.VideoCodec; preset != "" {
+		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
+			adjustedCodec = friendly
+		}
+	}
+	coverArt := cfg.CoverArtPath
+	if !cfg.CoverArtUserSelected {
+		coverArt = src.EmbeddedCoverArt
+	}
+	return convert.BuildJobConfig(convert.JobConfigInput{
+		InputPath:          src.Path,
+		OutputPath:         outPath,
+		OutputBase:         cfg.OutputBase,
+		SelectedFormat:     cfg.SelectedFormat,
+		Quality:            cfg.Quality,
+		Mode:               cfg.Mode,
+		PreserveChapters:   cfg.PreserveChapters,
+		VideoCodec:         adjustedCodec,
+		EncoderPreset:      cfg.EncoderPreset,
+		CRF:                cfg.CRF,
+		BitrateMode:        cfg.BitrateMode,
+		BitratePreset:      cfg.BitratePreset,
+		VideoBitrate:       cfg.VideoBitrate,
+		TargetFileSize:     cfg.TargetFileSize,
+		TargetResolution:   cfg.TargetResolution,
+		FrameRate:          cfg.FrameRate,
+		PixelFormat:        cfg.PixelFormat,
+		HardwareAccel:      cfg.HardwareAccel,
+		TwoPass:            cfg.TwoPass,
+		EncoderTune:        cfg.EncoderTune,
+		H264Profile:        cfg.H264Profile,
+		H264Level:          cfg.H264Level,
+		Deinterlace:        cfg.Deinterlace,
+		DeinterlaceMethod:  cfg.DeinterlaceMethod,
+		AutoCrop:           cfg.AutoCrop,
+		CropWidth:          cfg.CropWidth,
+		CropHeight:         cfg.CropHeight,
+		CropX:              cfg.CropX,
+		CropY:              cfg.CropY,
+		FlipHorizontal:     cfg.FlipHorizontal,
+		FlipVertical:       cfg.FlipVertical,
+		Rotation:           cfg.Rotation,
+		AudioCodec:         cfg.AudioCodec,
+		AudioBitrate:       cfg.AudioBitrate,
+		AudioChannels:      cfg.AudioChannels,
+		AudioSampleRate:    cfg.AudioSampleRate,
+		NormalizeAudio:     cfg.NormalizeAudio,
+		NormalizeLUFS:      cfg.NormalizeLUFS,
+		NormalizeTruePeak:  cfg.NormalizeTruePeak,
+		InverseTelecine:    cfg.InverseTelecine,
+		CoverArtPath:       coverArt,
+		AspectHandling:     cfg.AspectHandling,
+		OutputAspect:       cfg.OutputAspect,
+		ForceAspect:        cfg.ForceAspect,
+		SourceWidth:        src.Width,
+		SourceHeight:       src.Height,
+		SampleAspectRatio:  src.SampleAspectRatio,
+		DisplayAspectRatio: src.DisplayAspectRatio,
+		SourceDuration:     src.Duration,
+		SourceBitrate:      src.Bitrate,
+		SourceFrameRate:    src.FrameRate,
+		FieldOrder:         src.FieldOrder,
+		AutoCompare:        autoCompare,
+	})
+}
+
 func (s *appState) addConvertToQueue(addToTop bool) error {
 	if s.source == nil {
 		return fmt.Errorf("no video loaded")
@@ -2396,80 +2482,9 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	}
 	// A single add is an insertion batch of one; the allocator owns the
 	// directory chain, source avoidance, and collision suffixing.
-	outPath := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, outName)
+	outPath := s.allocateConvertOutputPath(s.convertOutputAllocator(), src, outName)
 
-	// Align codec choice with the selected format when the preset implies a codec change.
-	adjustedCodec := s.convert.VideoCodec
-	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
-		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
-			adjustedCodec = friendly
-		}
-	}
-
-	// Create job config map
-	config := map[string]interface{}{
-		"inputPath":          src.Path,
-		"outputPath":         outPath,
-		"outputDir":          filepath.Dir(outPath),
-		"outputBase":         cfg.OutputBase,
-		"selectedFormat":     cfg.SelectedFormat,
-		"quality":            cfg.Quality,
-		"mode":               cfg.Mode,
-		"preserveChapters":   cfg.PreserveChapters,
-		"videoCodec":         adjustedCodec,
-		"encoderPreset":      cfg.EncoderPreset,
-		"crf":                cfg.CRF,
-		"bitrateMode":        cfg.BitrateMode,
-		"bitratePreset":      cfg.BitratePreset,
-		"videoBitrate":       cfg.VideoBitrate,
-		"targetFileSize":     cfg.TargetFileSize,
-		"targetResolution":   cfg.TargetResolution,
-		"frameRate":          cfg.FrameRate,
-		"pixelFormat":        cfg.PixelFormat,
-		"hardwareAccel":      cfg.HardwareAccel,
-		"twoPass":            cfg.TwoPass,
-		"encoderTune":        cfg.EncoderTune,
-		"h264Profile":        cfg.H264Profile,
-		"h264Level":          cfg.H264Level,
-		"deinterlace":        cfg.Deinterlace,
-		"deinterlaceMethod":  cfg.DeinterlaceMethod,
-		"autoCrop":           cfg.AutoCrop,
-		"cropWidth":          cfg.CropWidth,
-		"cropHeight":         cfg.CropHeight,
-		"cropX":              cfg.CropX,
-		"cropY":              cfg.CropY,
-		"flipHorizontal":     cfg.FlipHorizontal,
-		"flipVertical":       cfg.FlipVertical,
-		"rotation":           cfg.Rotation,
-		"audioCodec":         cfg.AudioCodec,
-		"audioBitrate":       cfg.AudioBitrate,
-		"audioChannels":      cfg.AudioChannels,
-		"audioSampleRate":    cfg.AudioSampleRate,
-		"normalizeAudio":     cfg.NormalizeAudio,
-		"normalizeLUFS":      cfg.NormalizeLUFS,
-		"normalizeTruePeak":  cfg.NormalizeTruePeak,
-		"inverseTelecine":    cfg.InverseTelecine,
-		"coverArtPath":       cfg.CoverArtPath,
-		"aspectHandling":     cfg.AspectHandling,
-		"outputAspect":       cfg.OutputAspect,
-		"forceAspect":        cfg.ForceAspect,
-		"sourceWidth":        src.Width,
-		"sourceHeight":       src.Height,
-		"sampleAspectRatio":  src.SampleAspectRatio,
-		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":     src.Duration,
-		"sourceBitrate":      src.Bitrate,
-		"sourceFrameRate":    src.FrameRate,
-		"fieldOrder":         src.FieldOrder,
-		"autoCompare":        s.autoCompare, // Include auto-compare flag
-	}
-	if !cfg.AutoCrop {
-		config["cropWidth"] = ""
-		config["cropHeight"] = ""
-		config["cropX"] = ""
-		config["cropY"] = ""
-	}
-
+	config := buildConvertJobConfig(src, cfg, outPath, s.autoCompare)
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
@@ -2498,10 +2513,10 @@ func (s *appState) addAllConvertToQueue() (int, error) {
 		return 0, fmt.Errorf("no videos loaded")
 	}
 
-	usedOutputs := newConvertOutputAllocator()
+	alloc := s.convertOutputAllocator()
 	count := 0
 	for _, src := range s.loadedVideos {
-		if err := s.addConvertToQueueForSourceWithOutputs(src, usedOutputs); err != nil {
+		if err := s.addConvertToQueueForSourceWithOutputs(src, alloc); err != nil {
 			return count, fmt.Errorf("failed to add %s: %w", filepath.Base(src.Path), err)
 		}
 		count++
@@ -2524,71 +2539,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, alloc
 	// paths allocated earlier in this batch that do not exist on disk yet.
 	outPath := s.allocateConvertOutputPath(alloc, src, outName)
 
-	// Align codec choice with the selected format when the preset implies a codec change.
-	adjustedCodec := s.convert.VideoCodec
-	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
-		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
-			adjustedCodec = friendly
-		}
-	}
-
-	// Create job config map
-	config := map[string]interface{}{
-		"inputPath":          src.Path,
-		"outputPath":         outPath,
-		"outputBase":         cfg.OutputBase,
-		"selectedFormat":     cfg.SelectedFormat,
-		"quality":            cfg.Quality,
-		"mode":               cfg.Mode,
-		"preserveChapters":   cfg.PreserveChapters,
-		"videoCodec":         adjustedCodec,
-		"encoderPreset":      cfg.EncoderPreset,
-		"crf":                cfg.CRF,
-		"bitrateMode":        cfg.BitrateMode,
-		"bitratePreset":      cfg.BitratePreset,
-		"videoBitrate":       cfg.VideoBitrate,
-		"targetFileSize":     cfg.TargetFileSize,
-		"targetResolution":   cfg.TargetResolution,
-		"frameRate":          cfg.FrameRate,
-		"pixelFormat":        cfg.PixelFormat,
-		"hardwareAccel":      cfg.HardwareAccel,
-		"twoPass":            cfg.TwoPass,
-		"encoderTune":        cfg.EncoderTune,
-		"h264Profile":        cfg.H264Profile,
-		"h264Level":          cfg.H264Level,
-		"deinterlace":        cfg.Deinterlace,
-		"deinterlaceMethod":  cfg.DeinterlaceMethod,
-		"autoCrop":           cfg.AutoCrop,
-		"cropWidth":          cfg.CropWidth,
-		"cropHeight":         cfg.CropHeight,
-		"cropX":              cfg.CropX,
-		"cropY":              cfg.CropY,
-		"flipHorizontal":     cfg.FlipHorizontal,
-		"flipVertical":       cfg.FlipVertical,
-		"rotation":           cfg.Rotation,
-		"audioCodec":         cfg.AudioCodec,
-		"audioBitrate":       cfg.AudioBitrate,
-		"audioChannels":      cfg.AudioChannels,
-		"audioSampleRate":    cfg.AudioSampleRate,
-		"normalizeAudio":     cfg.NormalizeAudio,
-		"normalizeLUFS":      cfg.NormalizeLUFS,
-		"normalizeTruePeak":  cfg.NormalizeTruePeak,
-		"inverseTelecine":    cfg.InverseTelecine,
-		"coverArtPath":       cfg.CoverArtPath,
-		"aspectHandling":     cfg.AspectHandling,
-		"outputAspect":       cfg.OutputAspect,
-		"forceAspect":        cfg.ForceAspect,
-		"sourceWidth":        src.Width,
-		"sourceHeight":       src.Height,
-		"sampleAspectRatio":  src.SampleAspectRatio,
-		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":     src.Duration,
-		"sourceBitrate":      src.Bitrate,
-		"sourceFrameRate":    src.FrameRate,
-		"fieldOrder":         src.FieldOrder,
-		"autoCompare":        s.autoCompare,
-	}
-
+	config := buildConvertJobConfig(src, cfg, outPath, s.autoCompare)
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
@@ -5395,6 +5346,38 @@ func normalizeLoudnessFromJob(cfg map[string]interface{}, key string, def float6
 	return v
 }
 
+// audioConfigFromJob maps a queued job config to the shared audio builder input.
+func audioConfigFromJob(cfg map[string]interface{}, outputExt string) convert.AudioConfig {
+	codec, _ := cfg["audioCodec"].(string)
+	bitrate, _ := cfg["audioBitrate"].(string)
+	channels, _ := cfg["audioChannels"].(string)
+	sampleRate, _ := cfg["audioSampleRate"].(string)
+	normalize, _ := cfg["normalizeAudio"].(bool)
+	return convert.AudioConfig{
+		OutputExt:  outputExt,
+		Codec:      codec,
+		Bitrate:    bitrate,
+		Channels:   channels,
+		SampleRate: sampleRate,
+		Normalize:  normalize,
+		LUFS:       normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0),
+		TruePeak:   normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5),
+	}
+}
+
+// convertOutputExt resolves the selected output container from a job config.
+func convertOutputExt(cfg map[string]interface{}) string {
+	switch v := cfg["selectedFormat"].(type) {
+	case formatOption:
+		return v.Ext
+	case map[string]interface{}:
+		if ext, ok := v["Ext"].(string); ok {
+			return ext
+		}
+	}
+	return ""
+}
+
 // executeConvertJob executes a conversion job from the queue
 func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
@@ -6005,96 +5988,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Audio codec and settings
-	audioCodec, _ := cfg["audioCodec"].(string)
-	isWebM := strings.EqualFold(selectedFormat.Ext, ".webm")
-	isOGV := strings.EqualFold(selectedFormat.Ext, ".ogv")
-	if audioCodec == "Copy" && !isDVD {
-		if isWebM {
-			args = append(args, "-c:a", "copy")
-		} else {
-			args = append(args, "-c:a", "copy")
-		}
-	} else {
-		var actualAudioCodec string
-		if isDVD {
-			// DVD requires AC-3 audio
-			actualAudioCodec = "ac3"
-		} else if isWebM {
-			// WebM only supports Vorbis and Opus
-			audioCodecLower := strings.ToLower(audioCodec)
-			if audioCodecLower == "aac" || audioCodecLower == "" {
-				actualAudioCodec = "libopus"
-			} else if audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "flac" {
-				actualAudioCodec = "libopus"
-			} else {
-				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-			}
-		} else if isOGV {
-			// The Ogg/Theora muxer only accepts Vorbis, Opus, and FLAC audio
-			// (verified empirically: AAC/MP3/AC-3 fail at header write with
-			// "Unsupported codec id"). Substitute the era-appropriate pairing.
-			audioCodecLower := strings.ToLower(audioCodec)
-			if audioCodecLower == "aac" || audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "" {
-				actualAudioCodec = "libvorbis"
-			} else {
-				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-			}
-		} else {
-			actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
-		}
-		args = append(args, "-c:a", actualAudioCodec)
-
-		// DVD-specific audio settings
-		if isDVD {
-			// DVD standard: AC-3 stereo at 48 kHz, 192 kbps
-			args = append(args, "-b:a", "192k", "-ar", "48000", "-ac", "2")
-		} else {
-			// Standard audio settings for non-DVD
-			if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && actualAudioCodec != "flac" {
-				args = append(args, "-b:a", audioBitrate)
-			}
-
-			// Audio normalization. Force stereo/48 kHz for compatibility and
-			// apply the loudness targets, mirroring the direct-run path.
-			// Channel mixing is deliberately skipped in this branch so only one
-			// -af is ever emitted - ffmpeg honours the last -af and would
-			// otherwise silently drop the loudnorm filter.
-			if normalizeAudio, _ := cfg["normalizeAudio"].(bool); normalizeAudio {
-				args = append(args, "-ac", "2", "-ar", "48000")
-
-				lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
-				truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
-				args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
-				logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", lufs, truePeak)
-			} else {
-				if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
-					switch audioChannels {
-					case "Mono":
-						args = append(args, "-ac", "1")
-					case "Stereo":
-						args = append(args, "-ac", "2")
-					case "5.1":
-						args = append(args, "-ac", "6")
-					case "Left to Stereo":
-						// Copy left channel to both left and right
-						args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
-					case "Right to Stereo":
-						// Copy right channel to both left and right
-						args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
-					case "Mix to Stereo":
-						// Downmix both channels together, then duplicate to L+R
-						args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
-					case "Swap L/R":
-						// Swap left and right channels
-						args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
-					}
-				}
-
-				if audioSampleRate, _ := cfg["audioSampleRate"].(string); audioSampleRate != "" && audioSampleRate != "Source" {
-					args = append(args, "-ar", audioSampleRate)
-				}
-			}
-		}
+	audioCfg := audioConfigFromJob(cfg, selectedFormat.Ext)
+	args = append(args, convert.BuildAudioArgs(audioCfg)...)
+	if audioCfg.Normalize {
+		logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", audioCfg.LUFS, audioCfg.TruePeak)
 	}
 
 	// Map streams and metadata
@@ -6854,6 +6751,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	srcColorSpace, _ := cfg["srcColorSpace"].(string)
 	colorDepth, _ := cfg["colorDepth"].(string)
 	skinTone, _ := cfg["skinTone"].(string)
+	if skinTone != "" && !strings.EqualFold(skinTone, "off") {
+		logging.Info(logging.CatFFMPEG, "Skin-tone adjustment is unavailable in this build; ignoring %q", skinTone)
+	}
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -7114,26 +7014,16 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			aiThreadsSave = 2
 		}
 
-		outScale := aiScale
-		if aiScaleUseTarget {
-			switch targetPreset {
-			case "", "Match Source":
-				outScale = 1.0
-			case "2X (relative)":
-				outScale = 2.0
-			case "4X (relative)":
-				outScale = 4.0
-			default:
-				if sourceHeight > 0 && targetHeight > 0 {
-					outScale = float64(targetHeight) / float64(sourceHeight)
-				}
-			}
+		scalePlan, err := upscale.PlanAIScale(
+			aiModel, sourceWidth, sourceHeight,
+			targetWidth, targetHeight, targetPreset,
+			aiScale, aiScaleUseTarget, aiOutputAdjust,
+		)
+		if err != nil {
+			return err
 		}
-		outScale *= aiOutputAdjust
-		if outScale < 0.1 {
-			outScale = 0.1
-		} else if outScale > 8.0 {
-			outScale = 8.0
+		if scalePlan.Note != "" {
+			logging.Info(logging.CatFFMPEG, "%s", scalePlan.Note)
 		}
 
 		if progressCallback != nil {
@@ -7160,37 +7050,22 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			preFilter = strings.Join(baseFilters, ",")
 		}
 
-		// Determine the actual source colour space, defaulting by resolution when "auto".
-		resolvedSrcCS := strings.ToLower(strings.TrimSpace(srcColorSpace))
-		if resolvedSrcCS == "auto" || resolvedSrcCS == "" {
-			// Probe the source to read embedded metadata first.
-			if probed, err := probeVideo(inputPath); err == nil && probed != nil {
-				switch strings.ToLower(probed.ColorSpace) {
-				case "bt709", "rec709":
-					resolvedSrcCS = "bt709"
-				case "bt2020", "rec2020":
-					resolvedSrcCS = "bt2020"
-				case "bt601", "smpte170m", "smpte240m", "bt470bg":
-					resolvedSrcCS = "bt601"
-				default:
-					// Fall back to resolution-based heuristic.
-					if probed.Height > 0 && probed.Height <= 576 {
-						resolvedSrcCS = "bt601"
-					} else {
-						resolvedSrcCS = "bt709"
-					}
-				}
-			} else if sourceHeight > 0 && sourceHeight <= 576 {
-				resolvedSrcCS = "bt601"
-			} else {
-				resolvedSrcCS = "bt709"
+		// Determine the actual source matrix. Explicit selection wins; probed tags
+		// come next; height is a last resort. 525-line and 625-line SD need
+		// different enums (smpte170m vs bt470bg); "bt601" is not a valid enum.
+		probedColorSpace := ""
+		probedHeight := sourceHeight
+		if probed, err := probeVideo(inputPath); err == nil && probed != nil {
+			probedColorSpace = probed.ColorSpace
+			if probedHeight <= 0 {
+				probedHeight = probed.Height
 			}
 		}
+		resolvedSrcCS := upscale.ResolveColorMatrix(srcColorSpace, probedColorSpace, probedHeight)
 
 		// Build a colorspace normalisation filter when the source matrix differs
-		// from the bt709 working space that AI models expect.  The filter also
-		// linearises (gamma) and converts to full-range RGB, which eliminates the
-		// "orange shift" caused by mismatched BT.601/BT.709 coefficients.
+		// from the bt709 working space that AI models expect. This converts the
+		// matrix; it does not carry or convert range.
 		colourFilters := []string{}
 		if resolvedSrcCS != "bt709" {
 			colourFilters = append(colourFilters,
@@ -7229,6 +7104,12 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		logFile, logPath, _ := createConversionLog(inputPath, outputPath, extractArgs)
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: extract frames for AI upscaling")
+			if scalePlan.Note != "" {
+				fmt.Fprintln(logFile, "AI scale: "+scalePlan.Note)
+			}
+			if skinTone != "" && !strings.EqualFold(skinTone, "off") {
+				fmt.Fprintln(logFile, "Skin-tone adjustment unavailable in this build; ignored")
+			}
 		}
 
 		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {
@@ -7311,7 +7192,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-i", inputFramesDir,
 			"-o", outputFramesDir,
 			"-n", aiModelName,
-			"-s", fmt.Sprintf("%.2f", outScale),
+			"-s", strconv.Itoa(scalePlan.ModelScale),
 			"-j", fmt.Sprintf("%d:%d:%d", aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			"-f", frameExt,
 		}
@@ -7453,23 +7334,12 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "1:a?",
 		}
 
-		// Build post-process filter chain for reassembly.
-		// Skin tone preservation: hue-selective saturation nudge in the red-pink
-		// band to compensate for chroma suppression from the AI model.
-		// This only touches the Cr channel in the skin-tone hue sector.
+		// Build post-process filter chain for reassembly. Skin-tone adjustment is
+		// intentionally absent until the colour-state stage has a measured control;
+		// the old hue-selective filter used options FFmpeg does not support.
 		var reassembleFilters []string
-		if targetPreset != "" && targetPreset != "Match Source" {
-			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR))
-		}
-		switch skinTone {
-		case "subtle":
-			reassembleFilters = append(reassembleFilters,
-				"huesaturation=hue=0:saturation=0.04:intensity=0:rH=1:rS=1:rI=0:rV=1",
-			)
-		case "strong":
-			reassembleFilters = append(reassembleFilters,
-				"huesaturation=hue=0:saturation=0.09:intensity=0:rH=1:rS=1:rI=0:rV=1",
-			)
+		if scalePlan.Resize {
+			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(scalePlan.FinalWidth, scalePlan.FinalHeight, method, preserveAR))
 		}
 		if len(reassembleFilters) > 0 {
 			reassembleArgs = append(reassembleArgs, "-vf", strings.Join(reassembleFilters, ","))
@@ -8195,67 +8065,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 	}
 
 	// Audio codec
-	audioCodec, _ := cfg["audioCodec"].(string)
-	if audioCodec == "Copy" {
-		args = append(args, "-c:a", "copy")
-	} else {
-		codec := "aac"
-		switch audioCodec {
-		case "AAC":
-			codec = "aac"
-		case "Opus":
-			codec = "libopus"
-		case "Vorbis":
-			codec = "libvorbis"
-		case "MP3":
-			codec = "libmp3lame"
-		case "FLAC":
-			codec = "flac"
-		case "AC-3":
-			codec = "ac3"
-		}
-		args = append(args, "-c:a", codec)
-
-		if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && codec != "flac" {
-			args = append(args, "-b:a", audioBitrate)
-		}
-
-		// Keep the preview in step with executeConvertJob: when normalization
-		// is on, channel mixing is skipped and the loudnorm filter is emitted
-		// instead, so exactly one -af appears.
-		normalizeAudio, _ := cfg["normalizeAudio"].(bool)
-		if normalizeAudio {
-			args = append(args, "-ac", "2", "-ar", "48000")
-			lufs := normalizeLoudnessFromJob(cfg, "normalizeLUFS", -16.0)
-			truePeak := normalizeLoudnessFromJob(cfg, "normalizeTruePeak", -1.5)
-			args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, truePeak))
-		}
-
-		// Audio channels
-		if audioChannels, _ := cfg["audioChannels"].(string); !normalizeAudio && audioChannels != "" && audioChannels != "Source" {
-			switch audioChannels {
-			case "Mono":
-				args = append(args, "-ac", "1")
-			case "Stereo":
-				args = append(args, "-ac", "2")
-			case "5.1":
-				args = append(args, "-ac", "6")
-			case "Left to Stereo":
-				// Copy left channel to both left and right
-				args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
-			case "Right to Stereo":
-				// Copy right channel to both left and right
-				args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
-			case "Mix to Stereo":
-				// Downmix both channels together, then duplicate to L+R
-				args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
-			case "Swap L/R":
-				// Swap left and right channels
-				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
-			}
-		}
-
-	}
+	args = append(args, convert.BuildAudioArgs(audioConfigFromJob(cfg, convertOutputExt(cfg)))...)
 
 	// Output
 	args = append(args, "OUTPUT")
@@ -9437,6 +9247,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		state.convert.CoverArtPath = path
+		state.convert.CoverArtUserSelected = true
 		coverLabel.SetText(state.convert.CoverLabel())
 		if coverDisplay != nil {
 			coverDisplay.SetText(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
@@ -12714,6 +12525,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace}, func(_ fyne.Shortcut) {
+			if state.active == "player" && !isTextEntryFocused() {
+				player := GetConvertPlayer()
+				if player.IsPlaying() {
+					state.pauseNative()
+				} else {
+					state.playNative()
+				}
+				return
+			}
+
 			if state.active != "convert" || isTextEntryFocused() {
 				return
 			}
@@ -15042,9 +14863,11 @@ func (s *appState) loadVideo(path string) {
 	// Use embedded cover art if present, otherwise clear
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 		logging.Debug(logging.CatFFMPEG, "using embedded cover art from video: %s", src.EmbeddedCoverArt)
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
@@ -15113,6 +14936,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	var validVideos []*videoSource
 	var failedFiles []string
 	var failedDetails []string
+	s.convertImportFailures = nil
 
 	for _, path := range paths {
 		logging.Debug(logging.CatModule, "loadMultipleVideos: probing %s", path)
@@ -15120,6 +14944,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		if err != nil {
 			logging.Warning(logging.CatFFMPEG, "loadMultipleVideos: ffprobe failed for %s: %v", path, err)
 			failedFiles = append(failedFiles, filepath.Base(path))
+			s.convertImportFailures = append(s.convertImportFailures, convertImportFailure{
+				Path:   path,
+				Reason: err.Error(),
+			})
 			// Preserve ffprobe's actual reason (probeVideo embeds its stderr)
 			// so the user sees why analysis failed, not just the filename.
 			failedDetails = append(failedDetails, fmt.Sprintf("%s:\n  %s",
@@ -15161,8 +14989,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.convert.OutputBase = s.resolveOutputBase(firstVideo, false)
 	if firstVideo.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = firstVideo.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
@@ -15217,12 +15047,14 @@ func (s *appState) clearVideo() {
 	s.stopPlayer()
 	s.setConvertSource(nil)
 	s.loadedVideos = nil
+	s.convertImportFailures = nil
 	s.currentIndex = 0
 	s.currentFrame = ""
 	s.convertBusy = false
 	s.convertStatus = ""
 	s.convert.OutputBase = "converted"
 	s.convert.CoverArtPath = ""
+	s.convert.CoverArtUserSelected = false
 	s.convert.AspectHandling = "Auto"
 	s.convert.OutputAspect = "Source"
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -15354,8 +15186,10 @@ func (s *appState) switchToVideo(index int) {
 
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
+		s.convert.CoverArtUserSelected = false
 	} else {
 		s.convert.CoverArtPath = ""
+		s.convert.CoverArtUserSelected = false
 	}
 
 	s.convert.AspectHandling = "Auto"
@@ -15658,6 +15492,8 @@ func determineAudioCodec(cfg convertConfig) string {
 		return "aac"
 	case "Opus":
 		return "libopus"
+	case "Vorbis":
+		return "libvorbis"
 	case "MP3":
 		return "libmp3lame"
 	case "AC-3":
