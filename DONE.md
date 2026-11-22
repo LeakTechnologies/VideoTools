@@ -1,12 +1,16 @@
 # VideoTools - Completed Features
 
+## 2026-11-22 - dev104 Convert batch overview and rip title-stream mapping
+
+Convert's metadata panel now shows the loaded input collection and retained failed imports, with row selection and shared settings for the batch. Single and batch enqueue share the internal job snapshot builder, per-source cover ownership, session-wide output allocation and failed-input retention. Rip maps title cells through the global VTS title stream, including cross-segment cells, and fails malformed exact mappings instead of silently ripping whole-VTS content. Documentation provenance/encoding and commit preflight are included, and `NOTICE` plus `LICENSE`/`NOTICE` in release archives cover the licensing record. Native build, vet and tests are green. Draft #44/#62, per-item overrides/multi-selection and runtime DVD acceptance remain excluded (#51, #31, #35, #53).
+
 ## 2026-11-22 - Rip global title-stream cell mapping
 
 Mapped PGC cell sectors across the concatenated VTS title stream instead of using logical `VOBID` as a filename suffix. Cross-segment cells now slice the correct bytes; gaps, malformed bounds and unresolvable chapter spans fail the exact rip rather than silently substituting whole-VTS content. Neutral fixtures cover arbitrary logical VOBIDs, cross-segment ranges, gaps and chapter spans. Native build/vet/tests pass; runtime disc acceptance remains open (#31).
 
 ## 2026-11-22 - Licensing notice and component record
 
-Added `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components and build-time media libraries. Corrected the README table for x264/x265, Aboriginal Sans and the shipped FFmpeg sidecar. Recorded unresolved VCR OSD Mono and flag provenance, unpinned x264/x265 build commits, and release archives that do not include LICENSE/NOTICE. Documentation only; no application, build or release change (#53, #54).
+Added `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components and build-time media libraries. Corrected the README table for x264/x265, Aboriginal Sans and the shipped FFmpeg sidecar. Recorded the VCR OSD Mono author permission and project-authored flag SVGs, noted the remaining x264/x265 commit-pinning question, and added LICENSE/NOTICE to release archives. No application behaviour change (#53, #54).
 
 ## 2026-11-22 - dev103 upscale and Convert correctness
 

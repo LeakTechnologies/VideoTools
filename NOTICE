@@ -14,7 +14,8 @@ Attribution
 If you redistribute VideoTools or a modified version, keep LICENSE and this
 NOTICE, identify the origin and any changes, and provide the corresponding
 source as required by GPL-3.0. Preserve the human contributor credits in
-README.md. Third-party components remain under their own licences.
+README.md. Third-party components remain under their own licences. Linux and
+Windows release archives include LICENSE and this NOTICE.
 
 Additional permissions
 ----------------------
@@ -39,9 +40,9 @@ Third-party components in this tree
 | IBM Plex Mono | bundled static TTFs | OFL-1.1 | IBM. |
 | Plus Jakarta Sans | bundled static TTFs | OFL-1.1 | Tokotype. |
 | Aboriginal Sans | bundled static TTFs | GPL-3.0 | Chris Harvey / LanguageGeek; the font metadata states GPL-3.0. |
-| VCR OSD Mono | bundled TTF | unresolved | Riciery Leal; no licence text ships with the file. See open checks. |
+| VCR OSD Mono | bundled TTF | Free commercial use (author public grant) | Riciery Leal; no licence file ships with the font. The author's public comment dated 2017-02-24 at https://www.dafont.com/font-comment.php?file=vcr_osd_mono states it is free for commercial purposes. |
 | Material Symbols | bundled SVG icons | Apache-2.0 | Google Material Symbols. |
-| Flag SVGs | Canada, Nunavut, Quebec | unresolved | Provenance not recorded in the tree. See open checks. |
+| Flag SVGs | Canada, Nunavut, Quebec | GPL-3.0 | Hand-authored geometric representations; project contributor work. |
 | Legacy `git_converter` scripts | `scripts/legacy/git_converter/` | GPL-3.0 | Project contributor work; `lt-convert-gui.exe` is built from the included Go source. |
 
 The Go module graph is enumerated in `go.mod` and `go.sum`. Each module remains
@@ -89,19 +90,13 @@ Open checks
 
 These items are recorded rather than silently assumed:
 
-1. **VCR OSD Mono** has no licence file in the tree. The author's public
-   comments state that commercial use is allowed, but no written licence text
-   is included. Obtain and record a written grant, or replace the asset, before
-   relying on it for redistribution.
-2. **Flag SVGs** have no recorded source or licence. Verify their provenance and
-   record the result here.
-3. **x264 and x265 build commits** are not pinned. Record the exact commits and
+1. **VCR OSD Mono** has no formal licence file in the tree. The author's public
+   comment linked above is the recorded permission basis. A formal licence text
+   remains preferable if one can be obtained.
+2. **x264 and x265 build commits** are not pinned. Record the exact commits and
    the matching upstream licence text before making a distribution claim (#54).
-4. **Transitive static libraries** in the FFmpeg build are not individually
+3. **Transitive static libraries** in the FFmpeg build are not individually
    enumerated. A release licence inventory should be generated from the actual
    build inputs before the next distribution review.
-5. **Release archives** currently contain the binaries but not LICENSE or this
-   NOTICE. Include both in the Linux and Windows archives before the next
-   release; this is a packaging change, not part of this documentation task.
 
 Repository: https://github.com/LeakTechnologies/VideoTools

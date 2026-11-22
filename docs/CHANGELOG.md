@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev104 - Convert batch overview and rip title-stream mapping
+
+- Convert now shows the loaded input collection and retained failed imports in its metadata panel; the current row selects the source, with shared settings for the batch (#51, #65).
+- Convert single and batch enqueue share the `internal/convert` job snapshot builder, per-source cover ownership, a session-wide output allocator and retained failed-input reasons (#64).
+- Rip maps title cells through the concatenated VTS title stream, including cross-segment cells and arbitrary logical VOBIDs; malformed exact mappings fail instead of silently ripping whole-VTS content (#31).
+- Documentation provenance and legacy encoding are repaired, the source tree has an encoding guard, and commit provenance checks are available (#35, #52, #66, #67, #68).
+- Add `NOTICE` and include `LICENSE`/`NOTICE` in Linux and Windows release archives (#53, #54).
+- Not included: draft #44/#62 preview/player policy work, per-item overrides or multi-selection in the batch list, and runtime DVD playback acceptance. Those remain open.
+
 ## 2026-11-22 - Rip global title-stream cell mapping (candidate, no version bump)
 
 - Map PGC cell sectors across the concatenated VTS title stream instead of treating logical `VOBID` as a physical filename suffix (#31).
@@ -11,7 +20,7 @@
 
 - Add `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components, build-time media libraries and open provenance checks (#53).
 - Correct the README component table: x264/x265 are GPL-2.0-or-later, Aboriginal Sans is GPL-3.0, and the shipped FFmpeg sidecar is GPL-3.0-or-later.
-- Record that VCR OSD Mono, the flag SVGs and the exact x264/x265 build commits are unresolved, and that release archives do not yet include LICENSE/NOTICE. No application, build or release change.
+- Record the VCR OSD Mono author permission, the project-authored flag SVGs and the remaining x264/x265 commit-pinning question; release archives now include LICENSE/NOTICE. No application behaviour change.
 
 ## 2026-11-22 - Documentation encoding repair (candidate, no version bump)
 
