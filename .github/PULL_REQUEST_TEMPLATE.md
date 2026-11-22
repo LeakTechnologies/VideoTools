@@ -17,6 +17,12 @@ visual evidence for UI changes. State failed, blocked and not-run checks.
 Distinguish an environment that prevented a check from a check that executed and
 failed. Sanitize excerpts; keep raw private evidence outside Git.
 
+## Content hygiene
+
+- [ ] No media/disc titles, identifying content, private paths, filenames or
+  screenshots from source material in the diff, tests, docs, commit message or
+  this PR. Generic placeholders such as `test.mkv` are fine.
+
 ## Open acceptance
 
 List remaining criteria, compatibility or integration decisions. Use Fixes # only

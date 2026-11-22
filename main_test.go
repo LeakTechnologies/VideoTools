@@ -992,20 +992,21 @@ func TestBuildConvertJobConfig(t *testing.T) {
 		DisplayAspectRatio: "16:9",
 	}
 	cfg := convertConfig{
-		OutputBase:       "neutral-output",
-		SelectedFormat:   formatOption{Ext: ".mp4", VideoCodec: "H.264"},
-		VideoCodec:       "H.264",
-		Quality:          "High",
-		AudioCodec:       "AAC",
-		AudioBitrate:     "192k",
-		NormalizeAudio:   true,
-		CoverArtPath:     "neutral-cover.png",
-		AutoCrop:         false,
-		CropWidth:        "10",
-		CropHeight:       "10",
-		CropX:            "0",
-		CropY:            "0",
-		PreserveChapters: true,
+		OutputBase:           "neutral-output",
+		SelectedFormat:       formatOption{Ext: ".mp4", VideoCodec: "H.264"},
+		VideoCodec:           "H.264",
+		Quality:              "High",
+		AudioCodec:           "AAC",
+		AudioBitrate:         "192k",
+		NormalizeAudio:       true,
+		CoverArtPath:         "neutral-cover.png",
+		CoverArtUserSelected: true,
+		AutoCrop:             false,
+		CropWidth:            "10",
+		CropHeight:           "10",
+		CropX:                "0",
+		CropY:                "0",
+		PreserveChapters:     true,
 	}
 	outPath := filepath.Join("neutral-output", "neutral.mp4")
 	got := buildConvertJobConfig(src, cfg, outPath, true)
@@ -1038,5 +1039,33 @@ func TestBuildConvertJobConfig(t *testing.T) {
 	got = buildConvertJobConfig(src, cfg, outPath, false)
 	if got["cropWidth"] != "10" || got["autoCompare"] != false {
 		t.Fatalf("auto-crop/compare snapshot not preserved: %#v", got)
+	}
+}
+
+func TestBuildConvertJobConfigCoverOwnership(t *testing.T) {
+	src := &videoSource{Path: "neutral-input.mkv", EmbeddedCoverArt: "embedded.png"}
+	cfg := convertConfig{CoverArtPath: "shared.png"}
+	got := buildConvertJobConfig(src, cfg, "neutral-output.mp4", false)
+	if got["coverArtPath"] != "embedded.png" {
+		t.Fatalf("embedded cover not preferred: %#v", got["coverArtPath"])
+	}
+	cfg.CoverArtUserSelected = true
+	got = buildConvertJobConfig(src, cfg, "neutral-output.mp4", false)
+	if got["coverArtPath"] != "shared.png" {
+		t.Fatalf("user cover not retained: %#v", got["coverArtPath"])
+	}
+}
+
+func TestConvertOutputAllocatorShared(t *testing.T) {
+	s := &appState{convert: convertConfig{OutputDir: t.TempDir()}}
+	src := &videoSource{Path: filepath.Join(t.TempDir(), "input.mkv")}
+	a := s.convertOutputAllocator()
+	first := s.allocateConvertOutputPath(a, src, "neutral.mp4")
+	second := s.allocateConvertOutputPath(a, src, "neutral.mp4")
+	if first == second {
+		t.Fatalf("shared allocator reused output path %q", first)
+	}
+	if _, err := os.Stat(first); !os.IsNotExist(err) {
+		t.Fatalf("allocator produced an existing path %q: %v", first, err)
 	}
 }
