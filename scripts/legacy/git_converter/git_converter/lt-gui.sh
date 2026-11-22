@@ -243,7 +243,7 @@ func buildSettingsContainer() fyne.CanvasObject {
     
     colorSelect := widget.NewSelect([]string{
         "No color correction",
-        "Fix pink skin tones (Topaz AI)",
+        "Fix pink skin tones (AI upscalers)",
         "Warm enhancement",
         "Cool enhancement",
         "2000s DVD Restore",

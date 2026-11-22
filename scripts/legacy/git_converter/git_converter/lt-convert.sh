@@ -188,7 +188,7 @@ cat << "EOF"
 ║      • AV1 & H.265 support                                                    ║
 ║      • Smart upscaling (Source / 720p / 1080p / 1440p / 4K / 2X / 4X)         ║
 ║      • Optional 60 fps smooth motion                                          ║
-║      • Color correction for Topaz AI videos                                  ║
+║      • Color correction for AI-upscaled video                                 ║
 ║      • Clean 8-bit encoding (no green lines)                                  ║
 ║      • AAC stereo audio                                                       ║
 ║      • MKV or MP4 output                                                      ║
