@@ -13175,6 +13175,52 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(layers...)
 }
 
+// buildConvertInputList is the first batch overview. It shows the selected
+// input collection and failed imports; clicking a row selects that source.
+// Shared settings remain in the normal Convert controls.
+func buildConvertInputList(state *appState) fyne.CanvasObject {
+	if len(state.loadedVideos) == 0 && len(state.convertImportFailures) == 0 {
+		return container.NewVBox()
+	}
+	t := i18n.T()
+	rows := container.NewVBox()
+	if len(state.loadedVideos) > 0 {
+		header := widget.NewLabelWithStyle(
+			fmt.Sprintf(t.ConvertVideoOfFmt, state.currentIndex+1, len(state.loadedVideos)),
+			fyne.TextAlignLeading, fyne.TextStyle{Bold: true},
+		)
+		rows.Add(header)
+	}
+
+	for i, src := range state.loadedVideos {
+		index := i
+		duration := fmt.Sprintf("%.0fs", src.Duration)
+		if src.Duration >= 60 {
+			duration = fmt.Sprintf("%dm%02ds", int(src.Duration)/60, int(src.Duration)%60)
+		}
+		label := fmt.Sprintf("%s  %s  %dx%d", src.DisplayName, duration, src.Width, src.Height)
+		if i == state.currentIndex {
+			label = "> " + label
+		}
+		row := widget.NewButton(label, func() {
+			state.switchToVideo(index)
+		})
+		row.Alignment = widget.ButtonAlignLeading
+		if i == state.currentIndex {
+			row.Importance = widget.HighImportance
+		}
+		rows.Add(row)
+	}
+
+	for _, failure := range state.convertImportFailures {
+		label := widget.NewLabel(fmt.Sprintf("! %s: %s", filepath.Base(failure.Path), strings.TrimSpace(failure.Reason)))
+		label.Wrapping = fyne.TextWrapWord
+		rows.Add(label)
+	}
+
+	return container.NewVBox(rows, widget.NewSeparator())
+}
+
 func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size, accentColor color.Color, initiallyOpen bool, onToggle func(open bool)) (fyne.CanvasObject, func(), func(open bool)) {
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
@@ -13609,7 +13655,7 @@ Metadata: %s`,
 	}
 
 	// Layout: two-column metadata display with spacing
-	contentArea := info
+	contentArea := container.NewVBox(buildConvertInputList(state), info)
 
 	// No inner VScroll here — the caller wraps metaPanel in ui.NewFastVScroll
 	// (see showConvertView). A double-scroll causes the inner one to never
