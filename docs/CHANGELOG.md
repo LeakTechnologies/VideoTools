@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## 2026-11-22 - Licensing notice and component record (candidate, no version bump)
+
+- Add `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components, build-time media libraries and open provenance checks (#53).
+- Correct the README component table: x264/x265 are GPL-2.0-or-later, Aboriginal Sans is GPL-3.0, and the shipped FFmpeg sidecar is GPL-3.0-or-later.
+- Record that VCR OSD Mono, the flag SVGs and the exact x264/x265 build commits are unresolved, and that release archives do not yet include LICENSE/NOTICE. No application, build or release change.
+
 ## 2026-11-22 - Documentation encoding repair (candidate, no version bump)
 
 - Repair pre-existing UTF-8/Windows-1252 mojibake in `DONE.md`, `TODO.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/VLC_PLAYER.md`, `docs/roadmap.html` and `docs/AUDIO_MODULE_IMPROVEMENTS.md` (#35).
