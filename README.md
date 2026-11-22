@@ -203,19 +203,30 @@ VIDEOTOOLS_DEBUG=1 ./VideoTools
 
 Coding assistants are tools used by the human designer/director, not contributors.
 
-VideoTools directly depends on and gratefully acknowledges these projects:
+VideoTools directly depends on and gratefully acknowledges these projects. See [NOTICE](NOTICE) for the full inventory, build-time components and unresolved asset provenance.
 
 | Project | Used for | License |
 |---|---|---|
-| [FFmpeg](https://ffmpeg.org) | All media encode/decode/filter/mux operations | LGPL/GPL |
+| [FFmpeg](https://ffmpeg.org) | All media encode/decode/filter/mux operations | GPL-3.0-or-later for the shipped sidecar; LGPL/GPL upstream |
 | [Fyne](https://fyne.io) | Cross-platform GUI toolkit | BSD-3 |
+| [fyne-tooltip](https://github.com/dweymouth/fyne-tooltip) | Tooltip widget | BSD-3 |
 | [oto](https://github.com/hajimehoshi/oto) | Audio playback engine | Apache-2.0 |
-| [x264](https://www.videolan.org/developers/x264.html) | H.264 encoding (static build, from source) | GPL-2 |
-| [x265](https://www.videolan.org/developers/x265.html) | H.265/HEVC encoding (static build, from source) | GPL-2 |
+| [go-qrcode](https://github.com/skip2/go-qrcode) | QR code rendering | MIT |
+| [x264](https://www.videolan.org/developers/x264.html) | H.264 encoding (static build, from source) | GPL-2.0-or-later |
+| [x265](https://www.videolan.org/developers/x265.html) | H.265/HEVC encoding (static build, from source) | GPL-2.0-or-later |
+| [libdvdread](https://www.videolan.org/developers/libdvdread.html) | DVD-Video reading | GPL-2.0-or-later |
+| [libdvdnav](https://www.videolan.org/developers/libdvdnav.html) | DVD-Video navigation | GPL-2.0-or-later |
+| [FreeType](https://freetype.org) | Font rasterisation | FTL / GPL-2.0-only |
+| [HarfBuzz](https://harfbuzz.github.io) | Text shaping | MIT |
 | [iutools](https://github.com/NationalResearchCouncilCanada/iutools) | Inuktitut syllabics↔roman transliteration algorithm | MIT |
-| [Aboriginal Sans](http://www.languagegeek.com/fonts.html) | Inuktitut syllabics font rendering | OFL |
-| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) / [ncnn](https://github.com/nihui/real-esrgan-ncnn-vulkan) | AI upscaling engine | BSD-3 |
-| [RIFE](https://github.com/nihui/rife-ncnn-vulkan) | Frame interpolation (ncnn port) | MIT |
-| [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Anime upscaling (ncnn port) | MIT |
+| [IBM Plex Mono](https://github.com/IBM/plex) | Bundled monospace UI font | OFL-1.1 |
+| [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) | Bundled sans-serif UI font | OFL-1.1 |
+| [Aboriginal Sans](http://www.languagegeek.com/fonts.html) | Inuktitut syllabics font rendering | GPL-3.0 |
+| VCR OSD Mono | Bundled test-pattern font | Unresolved; see NOTICE |
+| [Material Symbols](https://fonts.google.com/icons) | Bundled SVG icons | Apache-2.0 |
+| Flag SVGs | Canada, Nunavut and Quebec flags | Unresolved; see NOTICE |
+| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) / [ncnn](https://github.com/nihui/real-esrgan-ncnn-vulkan) | Optional AI upscaling engine | BSD-3 |
+| [RIFE](https://github.com/nihui/rife-ncnn-vulkan) | Optional frame interpolation (ncnn port) | MIT |
+| [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Optional anime upscaling (ncnn port) | MIT |
 | [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) + [AppImageKit](https://github.com/AppImage/AppImageKit) | Linux AppImage packaging | GPL-2 / MIT |
-| [SignPath](https://about.signpath.io) / [SignPath.io](https://signpath.io) | Windows code signing | — |
+| [SignPath](https://about.signpath.io) / [SignPath.io](https://signpath.io) | Windows code signing | Service |

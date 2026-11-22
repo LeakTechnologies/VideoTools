@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-22 - Licensing notice and component record
+
+Added `NOTICE` with the project copyright holder, GPL-3.0 attribution expectations, third-party components and build-time media libraries. Corrected the README table for x264/x265, Aboriginal Sans and the shipped FFmpeg sidecar. Recorded unresolved VCR OSD Mono and flag provenance, unpinned x264/x265 build commits, and release archives that do not include LICENSE/NOTICE. Documentation only; no application, build or release change (#53, #54).
+
 ## 2026-11-22 - dev103 upscale and Convert correctness
 
 Completed and locally verified: 525/625 matrix mapping, native integer AI scale, 1x routing, removal of the invalid skin-tone and unusable Output Adjust controls, shared Convert audio arguments with DVD/WebM/Ogg preview parity, and a shared Convert job snapshot builder. Native build, vet and tests are green. Draft #44/#62 preview/player policy work is excluded; no player runtime acceptance is claimed.
