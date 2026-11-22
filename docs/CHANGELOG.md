@@ -15,6 +15,11 @@
 - Remove third-party product names and private checkout paths from active docs and legacy scripts; no behaviour change.
 - Add the content-hygiene PR checklist item.
 
+## 2026-11-17 — Commit provenance gate (no application release)
+
+- Add `scripts/tools/commit-preflight.ps1`, a read-only local gate over unpublished commits. It reports an issue reference, documentation sync and encoding damage introduced by the commit, and separates pre-existing damage in touched files from damage the commit added (#52).
+- Encoding comparison reads raw blob bytes, because Windows PowerShell 5.1 decodes native stdout through the OEM code page and would otherwise miss the sequences the check exists to find. No application behaviour, version or release change.
+
 ## v0.1.1-dev103 - Upscale and Convert correctness
 
 - AI upscale resolves 525-line and 625-line SD sources to valid matrices, runs the model at its native integer scale, routes 1x requests to native scale, and resizes to the target (#55).
