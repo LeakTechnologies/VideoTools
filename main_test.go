@@ -978,3 +978,65 @@ func TestAudioConfigFromJob(t *testing.T) {
 		t.Fatalf("default loudness = %+v, want -16/-1.5", defaults)
 	}
 }
+
+func TestBuildConvertJobConfig(t *testing.T) {
+	src := &videoSource{
+		Path:               "neutral-input.mkv",
+		Width:              720,
+		Height:             480,
+		Duration:           12.5,
+		Bitrate:            1000,
+		FrameRate:          29.97,
+		FieldOrder:         "tt",
+		SampleAspectRatio:  "32:27",
+		DisplayAspectRatio: "16:9",
+	}
+	cfg := convertConfig{
+		OutputBase:       "neutral-output",
+		SelectedFormat:   formatOption{Ext: ".mp4", VideoCodec: "H.264"},
+		VideoCodec:       "H.264",
+		Quality:          "High",
+		AudioCodec:       "AAC",
+		AudioBitrate:     "192k",
+		NormalizeAudio:   true,
+		CoverArtPath:     "neutral-cover.png",
+		AutoCrop:         false,
+		CropWidth:        "10",
+		CropHeight:       "10",
+		CropX:            "0",
+		CropY:            "0",
+		PreserveChapters: true,
+	}
+	outPath := filepath.Join("neutral-output", "neutral.mp4")
+	got := buildConvertJobConfig(src, cfg, outPath, true)
+
+	checks := map[string]interface{}{
+		"inputPath":          src.Path,
+		"outputPath":         outPath,
+		"outputDir":          filepath.Dir(outPath),
+		"outputBase":         cfg.OutputBase,
+		"videoCodec":         "H.264",
+		"audioCodec":         "AAC",
+		"audioBitrate":       "192k",
+		"normalizeAudio":     true,
+		"coverArtPath":       "neutral-cover.png",
+		"sourceWidth":        720,
+		"sourceHeight":       480,
+		"sampleAspectRatio":  "32:27",
+		"displayAspectRatio": "16:9",
+		"autoCompare":        true,
+		"cropWidth":          "",
+		"cropHeight":         "",
+	}
+	for key, want := range checks {
+		if got[key] != want {
+			t.Fatalf("%s = %#v, want %#v", key, got[key], want)
+		}
+	}
+
+	cfg.AutoCrop = true
+	got = buildConvertJobConfig(src, cfg, outPath, false)
+	if got["cropWidth"] != "10" || got["autoCompare"] != false {
+		t.Fatalf("auto-crop/compare snapshot not preserved: %#v", got)
+	}
+}

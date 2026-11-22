@@ -2375,36 +2375,17 @@ func (s *appState) allocateConvertOutputPath(alloc *convertOutputAllocator, src 
 	return candidate
 }
 
-func (s *appState) addConvertToQueue(addToTop bool) error {
-	if s.source == nil {
-		return fmt.Errorf("no video loaded")
-	}
-
-	return s.addConvertToQueueForSource(s.source, addToTop)
-}
-
-func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) error {
-	outputBase := s.resolveOutputBase(src, true)
-	cfg := s.convert
-	cfg.OutputBase = outputBase
-
-	outName := cfg.OutputFile()
-	if outName == "" {
-		outName = "converted" + cfg.SelectedFormat.Ext
-	}
-	// A single add is an insertion batch of one; the allocator owns the
-	// directory chain, source avoidance, and collision suffixing.
-	outPath := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, outName)
-
-	// Align codec choice with the selected format when the preset implies a codec change.
-	adjustedCodec := s.convert.VideoCodec
-	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
+// buildConvertJobConfig is the single snapshot builder for Convert queue
+// insertions. A job owns this map; later UI changes cannot mutate it. Single
+// and batch insertion must use this builder so their semantics cannot diverge.
+func buildConvertJobConfig(src *videoSource, cfg convertConfig, outPath string, autoCompare bool) map[string]interface{} {
+	adjustedCodec := cfg.VideoCodec
+	if preset := cfg.SelectedFormat.VideoCodec; preset != "" {
 		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
 			adjustedCodec = friendly
 		}
 	}
 
-	// Create job config map
 	config := map[string]interface{}{
 		"inputPath":          src.Path,
 		"outputPath":         outPath,
@@ -2459,7 +2440,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"sourceBitrate":      src.Bitrate,
 		"sourceFrameRate":    src.FrameRate,
 		"fieldOrder":         src.FieldOrder,
-		"autoCompare":        s.autoCompare, // Include auto-compare flag
+		"autoCompare":        autoCompare,
 	}
 	if !cfg.AutoCrop {
 		config["cropWidth"] = ""
@@ -2467,7 +2448,31 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		config["cropX"] = ""
 		config["cropY"] = ""
 	}
+	return config
+}
 
+func (s *appState) addConvertToQueue(addToTop bool) error {
+	if s.source == nil {
+		return fmt.Errorf("no video loaded")
+	}
+
+	return s.addConvertToQueueForSource(s.source, addToTop)
+}
+
+func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) error {
+	outputBase := s.resolveOutputBase(src, true)
+	cfg := s.convert
+	cfg.OutputBase = outputBase
+
+	outName := cfg.OutputFile()
+	if outName == "" {
+		outName = "converted" + cfg.SelectedFormat.Ext
+	}
+	// A single add is an insertion batch of one; the allocator owns the
+	// directory chain, source avoidance, and collision suffixing.
+	outPath := s.allocateConvertOutputPath(newConvertOutputAllocator(), src, outName)
+
+	config := buildConvertJobConfig(src, cfg, outPath, s.autoCompare)
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
@@ -2522,71 +2527,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, alloc
 	// paths allocated earlier in this batch that do not exist on disk yet.
 	outPath := s.allocateConvertOutputPath(alloc, src, outName)
 
-	// Align codec choice with the selected format when the preset implies a codec change.
-	adjustedCodec := s.convert.VideoCodec
-	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
-		if friendly := friendlyCodecFromPreset(preset); codecFollowsFormat(adjustedCodec, friendly) {
-			adjustedCodec = friendly
-		}
-	}
-
-	// Create job config map
-	config := map[string]interface{}{
-		"inputPath":          src.Path,
-		"outputPath":         outPath,
-		"outputBase":         cfg.OutputBase,
-		"selectedFormat":     cfg.SelectedFormat,
-		"quality":            cfg.Quality,
-		"mode":               cfg.Mode,
-		"preserveChapters":   cfg.PreserveChapters,
-		"videoCodec":         adjustedCodec,
-		"encoderPreset":      cfg.EncoderPreset,
-		"crf":                cfg.CRF,
-		"bitrateMode":        cfg.BitrateMode,
-		"bitratePreset":      cfg.BitratePreset,
-		"videoBitrate":       cfg.VideoBitrate,
-		"targetFileSize":     cfg.TargetFileSize,
-		"targetResolution":   cfg.TargetResolution,
-		"frameRate":          cfg.FrameRate,
-		"pixelFormat":        cfg.PixelFormat,
-		"hardwareAccel":      cfg.HardwareAccel,
-		"twoPass":            cfg.TwoPass,
-		"encoderTune":        cfg.EncoderTune,
-		"h264Profile":        cfg.H264Profile,
-		"h264Level":          cfg.H264Level,
-		"deinterlace":        cfg.Deinterlace,
-		"deinterlaceMethod":  cfg.DeinterlaceMethod,
-		"autoCrop":           cfg.AutoCrop,
-		"cropWidth":          cfg.CropWidth,
-		"cropHeight":         cfg.CropHeight,
-		"cropX":              cfg.CropX,
-		"cropY":              cfg.CropY,
-		"flipHorizontal":     cfg.FlipHorizontal,
-		"flipVertical":       cfg.FlipVertical,
-		"rotation":           cfg.Rotation,
-		"audioCodec":         cfg.AudioCodec,
-		"audioBitrate":       cfg.AudioBitrate,
-		"audioChannels":      cfg.AudioChannels,
-		"audioSampleRate":    cfg.AudioSampleRate,
-		"normalizeAudio":     cfg.NormalizeAudio,
-		"normalizeLUFS":      cfg.NormalizeLUFS,
-		"normalizeTruePeak":  cfg.NormalizeTruePeak,
-		"inverseTelecine":    cfg.InverseTelecine,
-		"coverArtPath":       cfg.CoverArtPath,
-		"aspectHandling":     cfg.AspectHandling,
-		"outputAspect":       cfg.OutputAspect,
-		"forceAspect":        cfg.ForceAspect,
-		"sourceWidth":        src.Width,
-		"sourceHeight":       src.Height,
-		"sampleAspectRatio":  src.SampleAspectRatio,
-		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":     src.Duration,
-		"sourceBitrate":      src.Bitrate,
-		"sourceFrameRate":    src.FrameRate,
-		"fieldOrder":         src.FieldOrder,
-		"autoCompare":        s.autoCompare,
-	}
-
+	config := buildConvertJobConfig(src, cfg, outPath, s.autoCompare)
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
