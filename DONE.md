@@ -20,6 +20,22 @@ Completed and locally verified: 525/625 matrix mapping, native integer AI scale,
 
 Added a read-only commit preflight that checks unpublished commits for an issue reference, a matching documentation entry and introduced encoding damage, and states which checks ran. Verified on six cases: an introduced signature fails, a pre-existing signature warns without failing, a missing reference fails, a clean commit passes, `-Strict` escalates documentation sync, and the default range falls back to HEAD when nothing is unpublished. Encoding is compared on raw blob bytes; no application behaviour, version or release change.
 
+## Unreleased dev102 candidate — automatic analysis (#46)
+
+Automatic Inspect detection shares preview cancellation/budget and rejects retired policy results. Disabled imports have no pending automatic analysis; explicit Convert analysis remains available. Draft PR #44 only; independent Inspect controls and full #37 acceptance remain open.
+
+## Unreleased dev102 candidate — host commands (#46)
+
+Connected the host owner to cancellable fallback captures and queue thumbnails, selected automatic Convert/Inspect loads and startup preference application. Neutral FFmpeg output/cancellation checks passed; full #37 Settings/Inspect/exceptions/performance acceptance remains open. No release. [Plan](docs/AUTOMATIC_PREVIEWS.md).
+
+## 2026-11-04 — Preview-work ownership candidate (#45)
+
+Added an automatic-work controller with cross-generation concurrency limits, cancellation/join completion and stale-request rejection; added the backwards-compatible preference model and race/round-trip tests. Candidate code only: Settings and actual capture/analysis/thumbnail paths remain unconnected. No suppression or performance acceptance claim.
+
+## 2026-11-04 — Automatic-preview boundary candidate (#43)
+
+Implemented an explicit automatic-load API, default-enabled admission policy, selective automatic-source cancellation/retirement completion and native/stub method parity on a candidate branch. Lifecycle regression tests cover denial, replacement, in-flight work and re-enable. This is candidate implementation, not merged/released #37 functionality or real-playback acceptance. [Plan](docs/AUTOMATIC_PREVIEWS.md).
+
 ## 2026-11-04 — Evidence-led feature planning (#42)
 
 Made evidence-to-decision reasoning, decision-critical unknowns, bounded investigation and falsifiable acceptance explicit for every feature/redesign/repair. Updated engineering/PR prompts; applies proportionally without repeat approval ceremonies. Documentation only.

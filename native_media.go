@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -124,6 +126,14 @@ func GetPrimaryPlayer() *ui.InlineVideoPlayer {
 
 func GetPreviewPlayer() *ui.InlineVideoPlayer {
 	return previewPlayer
+}
+
+func setNativeAutomaticPreviewPolicy(enabled bool) <-chan struct{} {
+	primaryDone := primaryInlinePlayer.SetAutomaticPreviewsEnabled(enabled)
+	peerDone := previewPlayer.SetAutomaticPreviewsEnabled(enabled)
+	done := make(chan struct{})
+	go func() { defer close(done); <-primaryDone; <-peerDone }()
+	return done
 }
 
 func GetConvertPlayer() *ui.InlineVideoPlayer {
@@ -296,7 +306,7 @@ func (s *appState) loadVideoNative(path string) {
 			logging.Error(logging.CatPlayer, "panic in loadVideoNative: %v", r)
 		}
 	}()
-	if err := GetConvertPlayer().Load(path); err != nil {
+	if err := GetConvertPlayer().LoadAutomatic(path); err != nil && !errors.Is(err, ui.ErrAutomaticPreviewsDisabled) && !errors.Is(err, context.Canceled) {
 		logging.Error(logging.CatPlayer, "loadVideoNative failed: path=%s err=%v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)

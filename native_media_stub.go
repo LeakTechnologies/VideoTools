@@ -11,16 +11,22 @@ func HasNativeMediaPlayer() bool {
 	return false
 }
 
-func autoDeinterlaceEnabled() bool { return false }
-func setAutoDeinterlace(bool)      {}
-func hwDecodeEnabled() bool        { return false }
-func setHWDecodeEnabled(bool)      {}
-func setHWCodecDenyList(string)    {}
-func setPlayerSeekAccuracy(string) {}
-func setPlayerAVOffset(int)       {}
+func autoDeinterlaceEnabled() bool    { return false }
+func setAutoDeinterlace(bool)         {}
+func hwDecodeEnabled() bool           { return false }
+func setHWDecodeEnabled(bool)         {}
+func setHWCodecDenyList(string)       {}
+func setPlayerSeekAccuracy(string)    {}
+func setPlayerAVOffset(int)           {}
 func applyPlayerDefaultAspect(string) {}
 
 func initNativeMediaAssets(_ *appState) {}
+
+func setNativeAutomaticPreviewPolicy(bool) <-chan struct{} {
+	done := make(chan struct{})
+	close(done)
+	return done
+}
 
 func (s *appState) loadVideoNative(path string)       {}
 func (s *appState) playNative()                       {}
@@ -83,7 +89,7 @@ func GetFiltersPlayer() *ui.InlineVideoPlayer        { return GetPrimaryPlayer()
 func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer { return GetPreviewPlayer() }
 func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer { return GetPreviewPlayer() }
 
-func (s *appState) loadFiltersVideo(_ string)           {}
-func (s *appState) applyFiltersPreview()                {}
-func (s *appState) loadUpscalePreviewVideo(_ string)    {}
-func (s *appState) applyUpscalePreview()                {}
+func (s *appState) loadFiltersVideo(_ string)        {}
+func (s *appState) applyFiltersPreview()             {}
+func (s *appState) loadUpscalePreviewVideo(_ string) {}
+func (s *appState) applyUpscalePreview()             {}

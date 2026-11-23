@@ -95,12 +95,12 @@ type ModuleInfo struct {
 }
 
 type PrefsConfig struct {
-	AutoCheckFrequency      string `json:"AutoCheckFrequency"`
-	QueuePlayBehavior       string `json:"QueuePlayBehavior"`
-	DefaultOutputDir        string `json:"DefaultOutputDir"`
-	ShowTooltips            bool   `json:"ShowTooltips"`
-	AutoDeinterlace           bool   `json:"AutoDeinterlace"`
-	HWDecodeEnabled           bool   `json:"HWDecodeEnabled"`
+	AutoCheckFrequency       string `json:"AutoCheckFrequency"`
+	QueuePlayBehavior        string `json:"QueuePlayBehavior"`
+	DefaultOutputDir         string `json:"DefaultOutputDir"`
+	ShowTooltips             bool   `json:"ShowTooltips"`
+	AutoDeinterlace          bool   `json:"AutoDeinterlace"`
+	HWDecodeEnabled          bool   `json:"HWDecodeEnabled"`
 	PlayerFont               string `json:"PlayerFont"`
 	FontSize                 string `json:"FontSize"`
 	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`
@@ -109,7 +109,12 @@ type PrefsConfig struct {
 	SeekAccuracy             string `json:"SeekAccuracy"`
 	AVOffset                 int    `json:"AVOffset"`
 	HWCodecDenyList          string `json:"HWCodecDenyList"`
+
+	// Opt-out storage preserves enabled behaviour for absent/legacy preferences.
+	DisableAutomaticPreviews bool `json:"DisableAutomaticPreviews"`
 }
+
+func (p PrefsConfig) AutomaticPreviewsEnabled() bool { return !p.DisableAutomaticPreviews }
 
 type Dependency struct {
 	Name         string
