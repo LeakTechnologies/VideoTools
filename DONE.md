@@ -1,5 +1,9 @@
 # VideoTools - Completed Features
 
+## 2026-11-24 - Disc inspection service
+
+Added a UI-free disc contract and `vt-disc scan` command that resolves DVD folders, VIDEO_TS, ISOs and IFO/VOB sources; reports region, standard, disc type/size, titles, chapters, audio/subtitle tracks, angles, interlacing, main title and global cell ranges. ISO scanning reads only IFO files through UDF with an ISO 9660 fallback. Neutral IFO fixture tests and JSON error codes are included. Inspect-only; no rip, queue, author, burn, Blu-ray or Studio UI wiring yet.
+
 ## 2026-11-22 - dev104 Convert batch overview and rip title-stream mapping
 
 Convert's metadata panel now shows the loaded input collection and retained failed imports, with row selection and shared settings for the batch. Single and batch enqueue share the internal job snapshot builder, per-source cover ownership, session-wide output allocation and failed-input retention. Rip maps title cells through the global VTS title stream, including cross-segment cells, and fails malformed exact mappings instead of silently ripping whole-VTS content. Documentation provenance/encoding and commit preflight are included, and `NOTICE` plus `LICENSE`/`NOTICE` in release archives cover the licensing record. Native build, vet and tests are green. Draft #44/#62, per-item overrides/multi-selection and runtime DVD acceptance remain excluded (#51, #31, #35, #53).
